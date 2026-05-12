@@ -1,14 +1,42 @@
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Button from '../../components/Button'
 import Card from '../../components/Card'
 import Input from '../../components/Input'
 import PanelHeader from '../../components/PanelHeader'
 import StatusPill from '../../components/StatusPill'
+import { useApp } from '../../contexts/appContextCore'
 import { paths } from '../../routes/paths'
 import { clientAppointments, clientHistory, favoriteArtists } from '../../services/mockData'
 
+const bookingServices = [
+  { name: 'Lash lifting', durationMinutes: 70 },
+  { name: 'Brow design', durationMinutes: 45 },
+  { name: 'Soft glam makeup', durationMinutes: 90 },
+]
+
 function ClientDashboard({ view = 'inicio' }) {
   const navigate = useNavigate()
+  const { bookSlot, getAvailableSlots } = useApp()
+  const [bookingDate, setBookingDate] = useState('2026-05-18')
+  const [selectedService, setSelectedService] = useState(bookingServices[0].name)
+  const selectedServiceDetails = bookingServices.find((service) => service.name === selectedService) || bookingServices[0]
+  const availableSlots = getAvailableSlots({
+    date: bookingDate,
+    durationMinutes: selectedServiceDetails.durationMinutes,
+  })
+
+  const reserveSlot = (slot) => {
+    if (!slot.available) return
+
+    bookSlot({
+      ...slot,
+      artist: 'Valeria Moon',
+      service: selectedServiceDetails.name,
+      durationMinutes: selectedServiceDetails.durationMinutes,
+    })
+  }
+
   return (
     <main className={`dashboard-grid client-grid view-${view}`}>
         {view === 'inicio' && (
@@ -90,6 +118,52 @@ function ClientDashboard({ view = 'inicio' }) {
                   <span>{artist.distance}</span>
                 </div>
               ))}
+            </div>
+
+            <div className="form-stack compact-form" style={{ marginTop: '18px' }}>
+              <label className="input-field">
+                <span>Servicio</span>
+                <select value={selectedService} onChange={(event) => setSelectedService(event.target.value)}>
+                  {bookingServices.map((service) => (
+                    <option key={service.name} value={service.name}>
+                      {service.name} / {service.durationMinutes} min
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="input-field">
+                <span>Fecha</span>
+                <input type="date" value={bookingDate} onChange={(event) => setBookingDate(event.target.value)} />
+              </label>
+            </div>
+
+            <div className="compact-list" style={{ marginTop: '14px' }}>
+              {availableSlots.length > 0 ? (
+                availableSlots.map((slot) => (
+                  <div className="list-row elevated-row" key={`${slot.date}-${slot.time}`}>
+                    <div>
+                      <strong>{slot.time} - {slot.end}</strong>
+                      <small>{selectedServiceDetails.name}</small>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant={slot.available ? 'primary' : 'ghost'}
+                      disabled={!slot.available}
+                      onClick={() => reserveSlot(slot)}
+                    >
+                      {slot.available ? 'Reservar' : 'Ocupado'}
+                    </Button>
+                  </div>
+                ))
+              ) : (
+                <div className="list-row elevated-row">
+                  <div>
+                    <strong>Sin horarios disponibles</strong>
+                    <small>La agenda del artista no permite reservas en esta fecha.</small>
+                  </div>
+                  <StatusPill tone="neutral">No disponible</StatusPill>
+                </div>
+              )}
             </div>
           </Card>
         )}

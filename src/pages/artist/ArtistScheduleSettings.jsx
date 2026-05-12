@@ -4,91 +4,29 @@ import Card from '../../components/Card'
 import Input from '../../components/Input'
 import PanelHeader from '../../components/PanelHeader'
 import StatusPill from '../../components/StatusPill'
-import { weeklySchedule } from '../../services/mockData'
-
-const initialBlockedDates = [
-  { id: '2026-05-20', label: '20 mayo / Capacitacion' },
-  { id: '2026-05-25', label: '25 mayo / Dia libre' },
-  { id: '2026-06-02', label: '02 junio / Evento privado' },
-]
-
-function formatBlockedDate(value) {
-  if (!value) return ''
-
-  const [year, month, day] = value.split('-')
-  return `${day}/${month}/${year} / Bloqueo manual`
-}
+import { useApp } from '../../contexts/appContextCore'
 
 function ArtistScheduleSettings() {
-  const [schedule, setSchedule] = useState(() =>
-    weeklySchedule.map((day) => ({
-      ...day,
-      blocks: day.active
-        ? [{ id: `${day.day}-break`, start: day.breakStart, end: day.breakEnd }]
-        : [],
-    })),
-  )
-  const [blockedDates, setBlockedDates] = useState(initialBlockedDates)
+  const {
+    agendaSettings,
+    toggleScheduleDay,
+    cancelScheduleDay,
+    updateScheduleDayTime,
+    addScheduleBlock,
+    updateScheduleBlock,
+    addBlockedDate,
+    removeBlockedDate,
+    updateAgendaRule,
+  } = useApp()
   const [showDatePicker, setShowDatePicker] = useState(false)
   const [selectedDate, setSelectedDate] = useState('')
 
-  const toggleDay = (dayName) => {
-    setSchedule((currentSchedule) =>
-      currentSchedule.map((day) => {
-        if (day.day !== dayName) return day
-
-        const nextActive = !day.active
-
-        return {
-          ...day,
-          active: nextActive,
-          blocks: nextActive && day.blocks.length === 0
-            ? [{ id: `${day.day}-block-${Date.now()}`, start: '14:00', end: '15:00' }]
-            : day.blocks,
-        }
-      }),
-    )
-  }
-
-  const cancelFullDay = (dayName) => {
-    setSchedule((currentSchedule) =>
-      currentSchedule.map((day) =>
-        day.day === dayName
-          ? { ...day, active: false, blocks: [] }
-          : day,
-      ),
-    )
-  }
-
-  const addBlock = (dayName) => {
-    setSchedule((currentSchedule) =>
-      currentSchedule.map((day) =>
-        day.day === dayName
-          ? {
-              ...day,
-              blocks: [
-                ...day.blocks,
-                { id: `${day.day}-block-${Date.now()}`, start: '16:00', end: '16:30' },
-              ],
-            }
-          : day,
-      ),
-    )
-  }
-
-  const addBlockedDate = () => {
+  const saveBlockedDate = () => {
     if (!selectedDate) return
 
-    setBlockedDates((currentDates) => [
-      ...currentDates,
-      { id: selectedDate, label: formatBlockedDate(selectedDate) },
-    ])
+    addBlockedDate(selectedDate)
     setSelectedDate('')
     setShowDatePicker(false)
-  }
-
-  const removeBlockedDate = (dateId) => {
-    setBlockedDates((currentDates) => currentDates.filter((date) => date.id !== dateId))
   }
 
   return (
@@ -96,7 +34,7 @@ function ArtistScheduleSettings() {
         <Card className="wide-card mobile-screen primary-panel">
           <PanelHeader title="Dias laborales" eyebrow="Semana base" action={<Button size="sm">Guardar horarios</Button>} />
           <div className="schedule-list">
-            {schedule.map((day) => (
+            {agendaSettings.schedule.map((day) => (
               <article
                 className="schedule-day"
                 key={day.day}
@@ -115,11 +53,21 @@ function ArtistScheduleSettings() {
                     <div className="schedule-controls">
                       <label>
                         Inicio
-                        <input type="time" defaultValue={day.start} />
+                        <input
+                          type="time"
+                          value={day.start}
+                          disabled={!day.active}
+                          onChange={(event) => updateScheduleDayTime(day.day, 'start', event.target.value)}
+                        />
                       </label>
                       <label>
                         Fin
-                        <input type="time" defaultValue={day.end} />
+                        <input
+                          type="time"
+                          value={day.end}
+                          disabled={!day.active}
+                          onChange={(event) => updateScheduleDayTime(day.day, 'end', event.target.value)}
+                        />
                       </label>
                     </div>
 
@@ -128,11 +76,21 @@ function ArtistScheduleSettings() {
                         <div className="schedule-controls" key={block.id} style={{ gridColumn: '1 / -1' }}>
                           <label>
                             Bloque inicio
-                            <input type="time" defaultValue={block.start} />
+                            <input
+                              type="time"
+                              value={block.start}
+                              disabled={!day.active}
+                              onChange={(event) => updateScheduleBlock(day.day, block.id, 'start', event.target.value)}
+                            />
                           </label>
                           <label>
                             Bloque fin
-                            <input type="time" defaultValue={block.end} />
+                            <input
+                              type="time"
+                              value={block.end}
+                              disabled={!day.active}
+                              onChange={(event) => updateScheduleBlock(day.day, block.id, 'end', event.target.value)}
+                            />
                           </label>
                         </div>
                       ))}
@@ -146,11 +104,11 @@ function ArtistScheduleSettings() {
 
                 <div className="row-actions">
                   {day.active ? (
-                    <button type="button" onClick={() => cancelFullDay(day.day)}>Cancelar dia completo</button>
+                    <button type="button" onClick={() => cancelScheduleDay(day.day)}>Cancelar dia completo</button>
                   ) : (
-                    <button type="button" onClick={() => toggleDay(day.day)}>Activar dia</button>
+                    <button type="button" onClick={() => toggleScheduleDay(day.day)}>Activar dia</button>
                   )}
-                  {day.active && <button type="button" onClick={() => addBlock(day.day)}>Agregar bloque</button>}
+                  {day.active && <button type="button" onClick={() => addScheduleBlock(day.day)}>Agregar bloque</button>}
                 </div>
               </article>
             ))}
@@ -160,15 +118,27 @@ function ArtistScheduleSettings() {
         <Card className="mobile-screen">
           <PanelHeader title="Reglas de agenda" eyebrow="Automatizacion" />
           <div className="form-stack compact-form">
-            <Input label="Intervalo entre citas" type="number" placeholder="15" helper="Minutos entre servicios." />
-            <Input label="Anticipacion minima mismo dia" type="number" placeholder="2" helper="Horas antes de permitir agenda." />
+            <Input
+              label="Intervalo entre citas"
+              type="number"
+              value={agendaSettings.intervalMinutes}
+              helper="Minutos entre servicios."
+              onChange={(event) => updateAgendaRule('intervalMinutes', event.target.value)}
+            />
+            <Input
+              label="Anticipacion minima mismo dia"
+              type="number"
+              value={agendaSettings.minAdvanceHours}
+              helper="Horas antes de permitir agenda."
+              onChange={(event) => updateAgendaRule('minAdvanceHours', event.target.value)}
+            />
           </div>
         </Card>
 
         <Card className="mobile-screen">
           <PanelHeader title="Fechas bloqueadas" eyebrow="No disponible" />
           <div className="blocked-dates">
-            {blockedDates.map((date) => (
+            {agendaSettings.blockedDates.map((date) => (
               <span
                 key={date.id}
                 style={{ alignItems: 'center', display: 'flex', gap: '10px', justifyContent: 'space-between' }}
@@ -198,7 +168,7 @@ function ArtistScheduleSettings() {
                 <span>Seleccionar fecha</span>
                 <input type="date" value={selectedDate} onChange={(event) => setSelectedDate(event.target.value)} />
               </label>
-              <Button variant="ghost" className="full-width" onClick={addBlockedDate}>Agregar fecha</Button>
+              <Button variant="ghost" className="full-width" onClick={saveBlockedDate}>Agregar fecha</Button>
             </div>
           )}
           <Button variant="ghost" className="full-width" onClick={() => setShowDatePicker((current) => !current)}>
