@@ -1,18 +1,19 @@
-import { navigateTo } from '../routes/routerUtils'
+import { useNavigate } from 'react-router-dom'
 import { paths } from '../routes/paths'
 
 function AuthLayout({ children, mode }) {
   const isLogin = mode === 'login'
+  const navigate = useNavigate()
 
   return (
     <main className="auth-shell">
       <section className="auth-brand-panel">
         <nav className="auth-nav">
-          <button className="brand-button" type="button" onClick={() => navigateTo(paths.login)}>
+          <button className="brand-button" type="button" onClick={() => navigate(paths.login)}>
             <span>SF</span>
             Studio Flow
           </button>
-          <button className="text-link" type="button" onClick={() => navigateTo(isLogin ? paths.register : paths.login)}>
+          <button className="text-link" type="button" onClick={() => navigate(isLogin ? paths.register : paths.login)}>
             {isLogin ? 'Crear cuenta' : 'Iniciar sesion'}
           </button>
         </nav>
@@ -27,6 +28,11 @@ function AuthLayout({ children, mode }) {
         </div>
 
         <div className="auth-preview">
+          <div className="floating-booking-card">
+            <span>11:00</span>
+            <strong>Lash lifting</strong>
+            <small>Camila R. confirmada</small>
+          </div>
           <div>
             <small>Hoy</small>
             <strong>16 citas</strong>

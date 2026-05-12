@@ -3,5 +3,13 @@ export const paths = {
   register: '/register',
   admin: '/admin',
   artist: '/artist',
+  artistAgenda: '/artist/agenda',
+  artistAppointments: '/artist/citas',
+  artistServices: '/artist/servicios',
+  artistClients: '/artist/clientes',
+  artistSettings: '/artist/ajustes',
   client: '/client',
+  clientAppointments: '/client/citas',
+  clientExplore: '/client/explorar',
+  clientFavorites: '/client/favoritos',
 }

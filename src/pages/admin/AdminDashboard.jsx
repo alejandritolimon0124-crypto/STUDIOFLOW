@@ -3,7 +3,7 @@ import MetricCard from '../../components/MetricCard'
 import PanelHeader from '../../components/PanelHeader'
 import StatusPill from '../../components/StatusPill'
 import DashboardLayout from '../../layouts/DashboardLayout'
-import { adminMetrics, managedArtists, managedClients } from '../../services/mockData'
+import { adminMetrics, managedArtists, managedClients, systemStatus } from '../../services/mockData'
 
 function AdminDashboard({ currentPath = '/admin' }) {
   return (
@@ -14,6 +14,19 @@ function AdminDashboard({ currentPath = '/admin' }) {
       subtitle="Metricas globales, gestion de artistas, clientes y estado del sistema."
     >
       <main className="dashboard-grid admin-grid">
+        <section className="hero-panel admin-hero">
+          <div>
+            <span className="eyebrow">Studio Flow HQ</span>
+            <h2>Operacion global</h2>
+            <p>Supervisa actividad, crecimiento y salud de la plataforma desde una vista ejecutiva preparada para datos reales.</p>
+          </div>
+          <div className="hero-summary">
+            <span>Uptime visual</span>
+            <strong>99.9%</strong>
+            <small>demo preparada</small>
+          </div>
+        </section>
+
         {adminMetrics.map((metric, index) => (
           <MetricCard
             key={metric.label}
@@ -31,6 +44,7 @@ function AdminDashboard({ currentPath = '/admin' }) {
               <span>Estudio</span>
               <span>Ciudad</span>
               <span>Plan</span>
+              <span>Ingresos</span>
               <span>Estado</span>
             </div>
             {managedArtists.map((artist) => (
@@ -38,6 +52,7 @@ function AdminDashboard({ currentPath = '/admin' }) {
                 <strong>{artist.name}</strong>
                 <span>{artist.city}</span>
                 <span>{artist.plan}</span>
+                <span>{artist.revenue}</span>
                 <StatusPill tone={artist.status === 'Activo' ? 'success' : 'warm'}>{artist.status}</StatusPill>
               </div>
             ))}
@@ -48,10 +63,10 @@ function AdminDashboard({ currentPath = '/admin' }) {
           <PanelHeader title="Gestion de clientes" eyebrow="Comunidad" />
           <div className="compact-list">
             {managedClients.map((client) => (
-              <div className="list-row" key={client.name}>
+              <div className="list-row elevated-row" key={client.name}>
                 <div>
                   <strong>{client.name}</strong>
-                  <small>{client.appointments} citas</small>
+                  <small>{client.appointments} citas / {client.spend}</small>
                 </div>
                 <StatusPill tone={client.status === 'VIP' ? 'rose' : 'neutral'}>{client.status}</StatusPill>
               </div>
@@ -61,21 +76,16 @@ function AdminDashboard({ currentPath = '/admin' }) {
 
         <Card className="system-card">
           <PanelHeader title="Estado del sistema" eyebrow="Infraestructura futura" />
-          <div className="system-row">
-            <span>API</span>
-            <StatusPill tone="success">Preparada</StatusPill>
-          </div>
-          <div className="system-row">
-            <span>Supabase</span>
-            <StatusPill tone="neutral">Pendiente</StatusPill>
-          </div>
-          <div className="system-row">
-            <span>Pagos</span>
-            <StatusPill tone="neutral">Pendiente</StatusPill>
-          </div>
-          <div className="system-row">
-            <span>Autenticacion</span>
-            <StatusPill tone="neutral">Pendiente</StatusPill>
+          <div className="system-stack">
+            {systemStatus.map((item) => (
+              <div className="system-row" key={item.label}>
+                <div>
+                  <strong>{item.label}</strong>
+                  <small>{item.detail}</small>
+                </div>
+                <StatusPill tone={item.tone}>{item.status}</StatusPill>
+              </div>
+            ))}
           </div>
         </Card>
       </main>

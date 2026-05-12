@@ -1,5 +1,7 @@
+import { useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { paths } from '../routes/paths'
-import { isActivePath, navigateTo } from '../routes/routerUtils'
+import { isActivePath } from '../routes/routerUtils'
 import Button from '../components/Button'
 
 const roleNavigation = {
@@ -10,27 +12,51 @@ const roleNavigation = {
     { label: 'Sistema', path: paths.admin },
   ],
   artist: [
-    { label: 'Agenda', path: paths.artist },
-    { label: 'Citas', path: paths.artist },
-    { label: 'Servicios', path: paths.artist },
-    { label: 'Clientes', path: paths.artist },
-    { label: 'Ajustes', path: paths.artist },
+    { label: 'Agenda', path: paths.artistAgenda },
+    { label: 'Citas', path: paths.artistAppointments },
+    { label: 'Servicios', path: paths.artistServices },
+    { label: 'Clientes', path: paths.artistClients },
+    { label: 'Ajustes', path: paths.artistSettings },
   ],
   client: [
     { label: 'Inicio', path: paths.client },
-    { label: 'Citas', path: paths.client },
-    { label: 'Explorar', path: paths.client },
-    { label: 'Favoritos', path: paths.client },
+    { label: 'Citas', path: paths.clientAppointments },
+    { label: 'Explorar', path: paths.clientExplore },
+    { label: 'Favoritos', path: paths.clientFavorites },
   ],
 }
 
-function DashboardLayout({ children, role, title, subtitle, currentPath }) {
+function DashboardLayout({ children, role, title, subtitle }) {
   const navigation = roleNavigation[role]
+  const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const navigate = useNavigate()
+  const location = useLocation()
+  const currentPath = location.pathname
+  const bottomNavigation = role === 'admin'
+    ? [
+        { label: 'Admin', path: paths.admin },
+        { label: 'Artista', path: paths.artistAgenda },
+        { label: 'Cliente', path: paths.client },
+      ]
+    : navigation.slice(0, 4)
+
+  const handleNavigate = (path) => {
+    navigate(path)
+    setIsMenuOpen(false)
+  }
+
+  const isItemActive = (item, index) => {
+    if (role === 'admin') return index === 0 && currentPath === paths.admin
+    if (item.path === paths.artistAgenda && currentPath === paths.artist) return true
+    return isActivePath(currentPath, item.path)
+  }
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell ${isMenuOpen ? 'menu-open' : ''}`}>
+      <button className="sidebar-backdrop" type="button" aria-label="Cerrar menu" onClick={() => setIsMenuOpen(false)}></button>
+
       <aside className="sidebar">
-        <button className="brand-button sidebar-brand" type="button" onClick={() => navigateTo(paths.artist)}>
+        <button className="brand-button sidebar-brand" type="button" onClick={() => handleNavigate(role === 'client' ? paths.client : paths.artistAgenda)}>
           <span>SF</span>
           Studio Flow
         </button>
@@ -43,13 +69,19 @@ function DashboardLayout({ children, role, title, subtitle, currentPath }) {
           </div>
         </div>
 
+        <div className="sidebar-insight">
+          <span>Hoy</span>
+          <strong>{role === 'admin' ? '2,184 reservas' : role === 'client' ? '2 citas activas' : '8 citas agendadas'}</strong>
+          <small>{role === 'admin' ? 'Sistema estable' : role === 'client' ? 'Tu agenda beauty' : 'Ocupacion al 82%'}</small>
+        </div>
+
         <nav className="sidebar-nav" aria-label="Navegacion principal">
-          {navigation.map((item) => (
+          {navigation.map((item, index) => (
             <button
-              className={isActivePath(currentPath, item.path) ? 'active' : ''}
+              className={isItemActive(item, index) ? 'active' : ''}
               key={item.label}
               type="button"
-              onClick={() => navigateTo(item.path)}
+              onClick={() => handleNavigate(item.path)}
             >
               <span aria-hidden="true"></span>
               {item.label}
@@ -58,14 +90,28 @@ function DashboardLayout({ children, role, title, subtitle, currentPath }) {
         </nav>
 
         <div className="sidebar-switcher">
-          <small>Vistas demo</small>
-          <button type="button" onClick={() => navigateTo(paths.admin)}>Admin</button>
-          <button type="button" onClick={() => navigateTo(paths.artist)}>Artista</button>
-          <button type="button" onClick={() => navigateTo(paths.client)}>Cliente</button>
+          <small>Workspaces</small>
+          <button type="button" onClick={() => handleNavigate(paths.admin)}>Admin</button>
+          <button type="button" onClick={() => handleNavigate(paths.artistAgenda)}>Artista</button>
+          <button type="button" onClick={() => handleNavigate(paths.client)}>Cliente</button>
         </div>
       </aside>
 
       <div className="main-shell">
+        <header className="mobile-appbar">
+          <button className="menu-button" type="button" aria-label="Abrir menu" onClick={() => setIsMenuOpen(true)}>
+            <span></span>
+            <span></span>
+          </button>
+          <button className="brand-button" type="button" onClick={() => handleNavigate(role === 'client' ? paths.client : paths.artistAgenda)}>
+            <span>SF</span>
+            Studio Flow
+          </button>
+          <button className="avatar mini" type="button" onClick={() => setIsMenuOpen(true)}>
+            {role === 'admin' ? 'HQ' : role === 'client' ? 'ML' : 'VM'}
+          </button>
+        </header>
+
         <header className="topbar">
           <div>
             <span className="eyebrow">Studio Flow</span>
@@ -73,13 +119,26 @@ function DashboardLayout({ children, role, title, subtitle, currentPath }) {
             <p>{subtitle}</p>
           </div>
           <div className="topbar-actions">
-            <Button variant="ghost" onClick={() => navigateTo(paths.login)}>Salir</Button>
-            <Button>Nueva cita</Button>
+            <Button variant="ghost" onClick={() => handleNavigate(paths.login)}>Salir</Button>
+            <Button onClick={() => handleNavigate(role === 'client' ? paths.clientExplore : paths.artistAppointments)}>
+              {role === 'client' ? 'Reservar' : 'Nueva cita'}
+            </Button>
           </div>
         </header>
 
         {children}
       </div>
+
+      <nav className="mobile-bottom-nav" aria-label="Navegacion movil">
+        {bottomNavigation.map((item, index) => (
+          <button className={isItemActive(item, index) ? 'active' : ''} type="button" onClick={() => handleNavigate(item.path)} key={item.label}>
+            <span>{item.label}</span>
+          </button>
+        ))}
+        <button type="button" onClick={() => setIsMenuOpen(true)}>
+          <span>Menu</span>
+        </button>
+      </nav>
     </div>
   )
 }

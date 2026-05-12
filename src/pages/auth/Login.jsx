@@ -1,9 +1,12 @@
+import { useNavigate } from 'react-router-dom'
 import AuthLayout from '../../layouts/AuthLayout'
 import Button from '../../components/Button'
-import { navigateTo } from '../../routes/routerUtils'
+import Input from '../../components/Input'
 import { paths } from '../../routes/paths'
 
 function Login() {
+  const navigate = useNavigate()
+
   return (
     <AuthLayout mode="login">
       <div className="auth-card">
@@ -12,23 +15,17 @@ function Login() {
         <p>Accede a tu agenda, clientas y panel de control.</p>
 
         <form className="form-stack">
-          <label>
-            Correo
-            <input type="email" placeholder="hola@studioflow.mx" />
-          </label>
-          <label>
-            Contrasena
-            <input type="password" placeholder="••••••••" />
-          </label>
-          <Button className="full-width" onClick={() => navigateTo(paths.artist)}>
+          <Input label="Correo" type="email" placeholder="hola@studioflow.mx" helper="Demo visual, sin autenticacion real." />
+          <Input label="Contrasena" type="password" placeholder="********" />
+          <Button className="full-width" onClick={() => navigate(paths.artistAgenda)}>
             Entrar al dashboard
           </Button>
         </form>
 
         <div className="role-shortcuts">
-          <button type="button" onClick={() => navigateTo(paths.admin)}>Ver Admin</button>
-          <button type="button" onClick={() => navigateTo(paths.artist)}>Ver Artista</button>
-          <button type="button" onClick={() => navigateTo(paths.client)}>Ver Cliente</button>
+          <button type="button" onClick={() => navigate(paths.admin)}>Ver Admin</button>
+          <button type="button" onClick={() => navigate(paths.artistAgenda)}>Ver Artista</button>
+          <button type="button" onClick={() => navigate(paths.client)}>Ver Cliente</button>
         </div>
       </div>
     </AuthLayout>

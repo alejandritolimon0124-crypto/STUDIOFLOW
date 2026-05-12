@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import AdminDashboard from '../pages/admin/AdminDashboard'
 import ArtistDashboard from '../pages/artist/ArtistDashboard'
 import ClientDashboard from '../pages/client/ClientDashboard'
@@ -6,32 +6,31 @@ import Login from '../pages/auth/Login'
 import Register from '../pages/auth/Register'
 import { paths } from './paths'
 
-const routeMap = {
-  [paths.login]: Login,
-  [paths.register]: Register,
-  [paths.admin]: AdminDashboard,
-  [paths.artist]: ArtistDashboard,
-  [paths.client]: ClientDashboard,
-}
-
-function normalizePath(pathname) {
-  if (pathname === '') return paths.login
-  return pathname.endsWith('/') && pathname.length > 1 ? pathname.slice(0, -1) : pathname
-}
-
 function AppRouter() {
-  const [path, setPath] = useState(normalizePath(window.location.pathname))
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path={paths.login} element={<Login />} />
+        <Route path={paths.register} element={<Register />} />
 
-  useEffect(() => {
-    const handleRouteChange = () => setPath(normalizePath(window.location.pathname))
+        <Route path={paths.admin} element={<AdminDashboard />} />
 
-    window.addEventListener('popstate', handleRouteChange)
-    return () => window.removeEventListener('popstate', handleRouteChange)
-  }, [])
+        <Route path={paths.artist} element={<ArtistDashboard view="agenda" />} />
+        <Route path={paths.artistAgenda} element={<ArtistDashboard view="agenda" />} />
+        <Route path={paths.artistAppointments} element={<ArtistDashboard view="citas" />} />
+        <Route path={paths.artistServices} element={<ArtistDashboard view="servicios" />} />
+        <Route path={paths.artistClients} element={<ArtistDashboard view="clientes" />} />
+        <Route path={paths.artistSettings} element={<ArtistDashboard view="ajustes" />} />
 
-  const Page = routeMap[path] || ArtistDashboard
+        <Route path={paths.client} element={<ClientDashboard view="inicio" />} />
+        <Route path={paths.clientAppointments} element={<ClientDashboard view="citas" />} />
+        <Route path={paths.clientExplore} element={<ClientDashboard view="explorar" />} />
+        <Route path={paths.clientFavorites} element={<ClientDashboard view="favoritos" />} />
 
-  return <Page currentPath={path} />
+        <Route path="*" element={<Navigate to={paths.login} replace />} />
+      </Routes>
+    </BrowserRouter>
+  )
 }
 
 export default AppRouter
