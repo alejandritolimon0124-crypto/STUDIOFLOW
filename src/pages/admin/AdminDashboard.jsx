@@ -2,18 +2,16 @@ import Card from '../../components/Card'
 import MetricCard from '../../components/MetricCard'
 import PanelHeader from '../../components/PanelHeader'
 import StatusPill from '../../components/StatusPill'
-import DashboardLayout from '../../layouts/DashboardLayout'
+import Button from '../../components/Button'
+import { useNavigate } from 'react-router-dom'
+import { paths } from '../../routes/paths'
 import { adminMetrics, managedArtists, managedClients, systemStatus } from '../../services/mockData'
 
-function AdminDashboard({ currentPath = '/admin' }) {
+function AdminDashboard() {
+  const navigate = useNavigate()
+
   return (
-    <DashboardLayout
-      currentPath={currentPath}
-      role="admin"
-      title="Panel administrativo"
-      subtitle="Metricas globales, gestion de artistas, clientes y estado del sistema."
-    >
-      <main className="dashboard-grid admin-grid">
+    <main className="dashboard-grid admin-grid">
         <section className="hero-panel admin-hero">
           <div>
             <span className="eyebrow">Studio Flow HQ</span>
@@ -38,7 +36,7 @@ function AdminDashboard({ currentPath = '/admin' }) {
         ))}
 
         <Card className="wide-card">
-          <PanelHeader title="Gestion de artistas" eyebrow="Operaciones" />
+          <PanelHeader title="Gestion de artistas" eyebrow="Operaciones" action={<Button size="sm" onClick={() => navigate(paths.adminArtists)}>Abrir</Button>} />
           <div className="data-table">
             <div className="table-head">
               <span>Estudio</span>
@@ -60,7 +58,7 @@ function AdminDashboard({ currentPath = '/admin' }) {
         </Card>
 
         <Card>
-          <PanelHeader title="Gestion de clientes" eyebrow="Comunidad" />
+          <PanelHeader title="Gestion de clientes" eyebrow="Comunidad" action={<Button size="sm" onClick={() => navigate(paths.adminClients)}>Abrir</Button>} />
           <div className="compact-list">
             {managedClients.map((client) => (
               <div className="list-row elevated-row" key={client.name}>
@@ -88,8 +86,7 @@ function AdminDashboard({ currentPath = '/admin' }) {
             ))}
           </div>
         </Card>
-      </main>
-    </DashboardLayout>
+    </main>
   )
 }
 

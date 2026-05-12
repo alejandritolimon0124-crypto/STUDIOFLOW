@@ -4,36 +4,13 @@ import Card from '../../components/Card'
 import Input from '../../components/Input'
 import PanelHeader from '../../components/PanelHeader'
 import StatusPill from '../../components/StatusPill'
-import DashboardLayout from '../../layouts/DashboardLayout'
 import { paths } from '../../routes/paths'
 import { clientAppointments, clientHistory, favoriteArtists } from '../../services/mockData'
 
 function ClientDashboard({ view = 'inicio' }) {
   const navigate = useNavigate()
-  const viewCopy = {
-    inicio: {
-      title: 'Mi belleza',
-      subtitle: 'Reserva, revisa tus citas y descubre artistas premium.',
-    },
-    citas: {
-      title: 'Mis citas',
-      subtitle: 'Tus proximas reservas y servicios confirmados.',
-    },
-    explorar: {
-      title: 'Explorar',
-      subtitle: 'Encuentra artistas, servicios y horarios cerca de ti.',
-    },
-    favoritos: {
-      title: 'Favoritos',
-      subtitle: 'Tus estudios y artistas guardadas.',
-    },
-  }
-
-  const currentCopy = viewCopy[view] || viewCopy.inicio
-
   return (
-    <DashboardLayout role="client" title={currentCopy.title} subtitle={currentCopy.subtitle}>
-      <main className={`dashboard-grid client-grid view-${view}`}>
+    <main className={`dashboard-grid client-grid view-${view}`}>
         {view === 'inicio' && (
           <>
             <section className="hero-panel client-hero mobile-screen">
@@ -150,8 +127,7 @@ function ClientDashboard({ view = 'inicio' }) {
             </Card>
           </>
         )}
-      </main>
-    </DashboardLayout>
+    </main>
   )
 }
 

@@ -6,41 +6,14 @@ import MetricCard from '../../components/MetricCard'
 import Modal from '../../components/Modal'
 import PanelHeader from '../../components/PanelHeader'
 import StatsCard from '../../components/StatsCard'
-import DashboardLayout from '../../layouts/DashboardLayout'
 import { paths } from '../../routes/paths'
 import { artistAppointments, artistProfile, artistServices, recurringClients } from '../../services/mockData'
 import { formatCurrency } from '../../utils/formatters'
 
 function ArtistDashboard({ view = 'agenda' }) {
   const navigate = useNavigate()
-  const viewCopy = {
-    agenda: {
-      title: 'Agenda de artista',
-      subtitle: 'Tu dia, proximas citas y acciones rapidas.',
-    },
-    citas: {
-      title: 'Citas',
-      subtitle: 'Gestiona reservas confirmadas y solicitudes pendientes.',
-    },
-    servicios: {
-      title: 'Servicios',
-      subtitle: 'Menu activo, precios, duracion y demanda.',
-    },
-    clientes: {
-      title: 'Clientas',
-      subtitle: 'Seguimiento de clientas recurrentes y valor historico.',
-    },
-    ajustes: {
-      title: 'Ajustes',
-      subtitle: 'Configuraciones rapidas del workspace.',
-    },
-  }
-
-  const currentCopy = viewCopy[view] || viewCopy.agenda
-
   return (
-    <DashboardLayout role="artist" title={currentCopy.title} subtitle={currentCopy.subtitle}>
-      <main className={`dashboard-grid artist-grid view-${view}`}>
+    <main className={`dashboard-grid artist-grid view-${view}`}>
         {view === 'agenda' && (
           <>
             <section className="hero-panel studio-hero mobile-screen">
@@ -50,7 +23,7 @@ function ArtistDashboard({ view = 'agenda' }) {
                 <p>Tu agenda esta equilibrada, con mayor demanda en lashes y cejas durante la tarde.</p>
                 <div className="hero-actions">
                   <Button onClick={() => navigate(paths.artistAppointments)}>Agregar cita</Button>
-                  <Button variant="ghost" onClick={() => navigate(paths.artistSettings)}>Editar horario</Button>
+                  <Button variant="ghost" onClick={() => navigate(paths.artistSchedule)}>Editar horario</Button>
                 </div>
               </div>
               <div className="hero-summary">
@@ -66,6 +39,11 @@ function ArtistDashboard({ view = 'agenda' }) {
 
             <Card className="calendar-card mobile-screen primary-panel">
               <PanelHeader title="Agenda visual" eyebrow="Lunes 11 mayo" action={<Button variant="ghost" size="sm">Filtrar</Button>} />
+              <div className="agenda-rules-strip">
+                <span>Intervalo 15 min</span>
+                <span>Anticipacion minima 2 h</span>
+                <span>Descanso 14:00 - 15:00</span>
+              </div>
               <div className="day-strip">
                 {['Lun', 'Mar', 'Mie', 'Jue', 'Vie'].map((day, index) => (
                   <button className={index === 0 ? 'active' : ''} type="button" key={day}>
@@ -79,10 +57,11 @@ function ArtistDashboard({ view = 'agenda' }) {
                   <AgendaCard
                     accent={index % 2 === 0 ? 'rose' : 'nude'}
                     key={`${item.time}-${item.client}`}
-                    time={item.time}
+                    time={`${item.time} - ${item.end}`}
                     title={item.client}
-                    subtitle={`${item.service} / ${item.room}`}
+                    subtitle={`${item.service} / ${item.duration} / ${item.room}`}
                     status={item.status}
+                    type={item.type}
                   />
                 ))}
               </div>
@@ -183,8 +162,7 @@ function ArtistDashboard({ view = 'agenda' }) {
             </label>
           </Card>
         )}
-      </main>
-    </DashboardLayout>
+    </main>
   )
 }
 

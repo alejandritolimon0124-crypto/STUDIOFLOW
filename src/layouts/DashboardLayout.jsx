@@ -2,20 +2,23 @@ import { useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { paths } from '../routes/paths'
 import { isActivePath } from '../routes/routerUtils'
+import BrandLogo from '../components/BrandLogo'
 import Button from '../components/Button'
+import { useApp } from '../contexts/appContextCore'
 
 const roleNavigation = {
   admin: [
     { label: 'Dashboard', path: paths.admin },
-    { label: 'Artistas', path: paths.admin },
-    { label: 'Clientes', path: paths.admin },
-    { label: 'Sistema', path: paths.admin },
+    { label: 'Artistas', path: paths.adminArtists },
+    { label: 'Clientes', path: paths.adminClients },
+    { label: 'Sistema', path: paths.adminSystem },
   ],
   artist: [
     { label: 'Agenda', path: paths.artistAgenda },
     { label: 'Citas', path: paths.artistAppointments },
     { label: 'Servicios', path: paths.artistServices },
     { label: 'Clientes', path: paths.artistClients },
+    { label: 'Horarios', path: paths.artistSchedule },
     { label: 'Ajustes', path: paths.artistSettings },
   ],
   client: [
@@ -26,27 +29,52 @@ const roleNavigation = {
   ],
 }
 
-function DashboardLayout({ children, role, title, subtitle }) {
+const bottomNavigationByRole = {
+  client: [
+    { label: 'Inicio', path: paths.client },
+    { label: 'Buscar', path: paths.clientSearch },
+    { label: 'Citas', path: paths.clientAppointments },
+    { label: 'Favoritos', path: paths.clientFavorites },
+    { label: 'Perfil', path: paths.client },
+  ],
+  artist: [
+    { label: 'Dashboard', path: paths.artist },
+    { label: 'Servicios', path: paths.artistServices },
+    { label: 'Agenda', path: paths.artistAgenda },
+    { label: 'Clientes', path: paths.artistClients },
+    { label: 'Perfil', path: paths.artistSettings },
+  ],
+  admin: [
+    { label: 'Dashboard', path: paths.admin },
+    { label: 'Artistas', path: paths.adminArtists },
+    { label: 'Clientes', path: paths.adminClients },
+    { label: 'Sistema', path: paths.adminSystem },
+  ],
+}
+
+function DashboardLayout({ children, role, title, subtitle, showMobileAppbar = true }) {
   const navigation = roleNavigation[role]
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const navigate = useNavigate()
+  const { logout } = useApp()
   const location = useLocation()
   const currentPath = location.pathname
-  const bottomNavigation = role === 'admin'
-    ? [
-        { label: 'Admin', path: paths.admin },
-        { label: 'Artista', path: paths.artistAgenda },
-        { label: 'Cliente', path: paths.client },
-      ]
-    : navigation.slice(0, 4)
+  const bottomNavigation = bottomNavigationByRole[role]
+  const homePath = role === 'admin' ? paths.admin : role === 'client' ? paths.client : paths.artist
 
   const handleNavigate = (path) => {
     navigate(path)
     setIsMenuOpen(false)
   }
 
-  const isItemActive = (item, index) => {
-    if (role === 'admin') return index === 0 && currentPath === paths.admin
+  const handleLogout = () => {
+    logout()
+    navigate(paths.login)
+    setIsMenuOpen(false)
+  }
+
+  const isItemActive = (item) => {
+    if (role === 'admin') return currentPath === item.path
     if (item.path === paths.artistAgenda && currentPath === paths.artist) return true
     return isActivePath(currentPath, item.path)
   }
@@ -57,8 +85,7 @@ function DashboardLayout({ children, role, title, subtitle }) {
 
       <aside className="sidebar">
         <button className="brand-button sidebar-brand" type="button" onClick={() => handleNavigate(role === 'client' ? paths.client : paths.artistAgenda)}>
-          <span>SF</span>
-          Studio Flow
+          <BrandLogo />
         </button>
 
         <div className="sidebar-profile">
@@ -98,28 +125,37 @@ function DashboardLayout({ children, role, title, subtitle }) {
       </aside>
 
       <div className="main-shell">
-        <header className="mobile-appbar">
+        {showMobileAppbar && (
+          <header className="mobile-appbar">
+            <button className="menu-button" type="button" aria-label="Abrir menu" onClick={() => setIsMenuOpen(true)}>
+              <span></span>
+              <span></span>
+            </button>
+            <button className="brand-button" type="button" onClick={() => handleNavigate(role === 'client' ? paths.client : paths.artistAgenda)}>
+              <BrandLogo compact />
+            </button>
+            <button className="avatar mini" type="button" onClick={() => setIsMenuOpen(true)}>
+              {role === 'admin' ? 'HQ' : role === 'client' ? 'ML' : 'VM'}
+            </button>
+          </header>
+        )}
+
+        <header className="topbar">
           <button className="menu-button" type="button" aria-label="Abrir menu" onClick={() => setIsMenuOpen(true)}>
             <span></span>
             <span></span>
           </button>
-          <button className="brand-button" type="button" onClick={() => handleNavigate(role === 'client' ? paths.client : paths.artistAgenda)}>
-            <span>SF</span>
-            Studio Flow
+          <button className="brand-button" type="button" onClick={() => handleNavigate(homePath)}>
+            <BrandLogo compact />
           </button>
-          <button className="avatar mini" type="button" onClick={() => setIsMenuOpen(true)}>
-            {role === 'admin' ? 'HQ' : role === 'client' ? 'ML' : 'VM'}
-          </button>
-        </header>
-
-        <header className="topbar">
           <div>
             <span className="eyebrow">Studio Flow</span>
             <h1>{title}</h1>
             <p>{subtitle}</p>
           </div>
           <div className="topbar-actions">
-            <Button variant="ghost" onClick={() => handleNavigate(paths.login)}>Salir</Button>
+            <Button variant="ghost" onClick={() => handleNavigate(homePath)}>Inicio</Button>
+            <Button variant="ghost" onClick={handleLogout}>Salir</Button>
             <Button onClick={() => handleNavigate(role === 'client' ? paths.clientExplore : paths.artistAppointments)}>
               {role === 'client' ? 'Reservar' : 'Nueva cita'}
             </Button>

@@ -8,16 +8,126 @@ export const artistProfile = {
 }
 
 export const artistAppointments = [
-  { time: '09:30', client: 'Mariana L.', service: 'Laminado de ceja', status: 'Confirmada', room: 'Suite Rose' },
-  { time: '11:00', client: 'Camila R.', service: 'Lash lifting', status: 'Por llegar', room: 'Suite Nude' },
-  { time: '13:30', client: 'Sofia P.', service: 'Diseno de unas', status: 'Confirmada', room: 'Mesa 2' },
-  { time: '16:00', client: 'Ana G.', service: 'Makeup social', status: 'Anticipo', room: 'Makeup bar' },
+  { time: '09:30', end: '10:15', client: 'Mariana L.', service: 'Laminado de ceja', duration: '45 min', status: 'Confirmada', room: 'Suite Rose', type: 'appointment' },
+  { time: '11:00', end: '12:10', client: 'Camila R.', service: 'Lash lifting', duration: '70 min', status: 'Por llegar', room: 'Suite Nude', type: 'appointment' },
+  { time: '14:00', end: '15:00', client: 'Descanso', service: 'Bloque no disponible', duration: '60 min', status: 'Descanso', room: 'Agenda', type: 'break' },
+  { time: '16:00', end: '17:30', client: 'Ana G.', service: 'Makeup social', duration: '90 min', status: 'Anticipo', room: 'Makeup bar', type: 'appointment' },
 ]
 
 export const artistServices = [
-  { name: 'Lash lifting', price: 680, duration: '70 min', bookings: 18, demand: 'Alta' },
-  { name: 'Brow design', price: 420, duration: '45 min', bookings: 24, demand: 'Top' },
-  { name: 'Soft glam makeup', price: 1250, duration: '90 min', bookings: 11, demand: 'Media' },
+  { name: 'Lash lifting', category: 'Colocación de Pestañas', price: 680, duration: '70 min', bookings: 18, demand: 'Alta', status: 'Activo' },
+  { name: 'Brow design', category: 'Microblading', price: 420, duration: '45 min', bookings: 24, demand: 'Top', status: 'Activo' },
+  { name: 'Soft glam makeup', category: 'Maquillaje', price: 1250, duration: '90 min', bookings: 11, demand: 'Media', status: 'Suspendido' },
+]
+
+export const serviceCatalog = {
+  'Colocación de Uñas': [
+    'Uñas acrílicas',
+    'Uñas en gel',
+    'Uñas postizas',
+    'Ombré nails',
+    'Diseño personalizado',
+    'Nail art',
+    'Uñas decoradas',
+    'Extensión de uñas',
+    'Uñas 3D',
+  ],
+  'Colocación de Pestañas': [
+    'Pestañas volumen ruso',
+    'Pestañas volumen clásico',
+    'Pestañas volumen híbrido',
+    'Pestañas de seda',
+    'Pestañas de visón',
+    'Refuerzos de pestañas',
+    'Desmaquillante de pestañas',
+  ],
+  Maquillaje: [
+    'Maquillaje de novia',
+    'Maquillaje casual',
+    'Maquillaje de quinceaños',
+    'Maquillaje de evento social',
+    'Maquillaje de fiesta',
+    'Maquillaje de graduación',
+    'Maquillaje artístico',
+    'Maquillaje fantasía',
+    'Maquillaje smoke eyes',
+    'Maquillaje natural',
+    'Maquillaje glam',
+    'Maquillaje corporativo',
+    'Maquillaje de sesión fotográfica',
+  ],
+  Manicure: [
+    'Manicure clásico',
+    'Manicure francés',
+    'Manicure gel',
+    'Manicure spa',
+    'Manicure con diseño',
+    'Manicure semipermanente',
+    'Manicure para eventos',
+    'Manicure reparador',
+    'Manicure con piedras',
+  ],
+  Pedicure: [
+    'Pedicure clásico',
+    'Pedicure francés',
+    'Pedicure gel',
+    'Pedicure spa',
+    'Pedicure con diseño',
+    'Pedicure semipermanente',
+    'Pedicure para eventos',
+    'Pedicure reparador',
+    'Pedicure con piedras',
+    'Pedicure terapéutico',
+  ],
+  Microblading: [
+    'Microblading cejas',
+    'Microblading con sombreado',
+    'Microblading de pelo a pelo',
+    'Diseño de cejas',
+    'Corrección de cejas',
+    'Micropigmentación labios',
+    'Micropigmentación delineado',
+  ],
+  Faciales: [
+    'Limpieza facial profunda',
+    'Facial con ácido glicólico',
+    'Facial con ácido salicílico',
+    'Facial hidratante',
+    'Facial antienvejecimiento',
+    'Facial antiacné',
+    'Facial descongestionante',
+    'Facial con mascarilla de colágeno',
+    'Facial con retinol',
+    'Facial vitamínico',
+    'Peeling facial',
+    'Facial luminoso',
+    'Facial para pieles sensibles',
+    'Facial oxigenante',
+  ],
+  Depilado: [
+    'Depilación con cera',
+    'Depilación con hilo',
+    'Depilación láser',
+    'Depilación de cejas',
+    'Depilación de bigote',
+    'Depilación de axilas',
+    'Depilación de piernas',
+    'Depilación de brazos',
+    'Depilación de espalda',
+    'Depilación de zona íntima',
+    'Depilación facial',
+    'Depilación con azúcar',
+  ],
+}
+
+export const weeklySchedule = [
+  { day: 'Lunes', active: true, start: '10:00', end: '19:00', breakStart: '14:00', breakEnd: '15:00' },
+  { day: 'Martes', active: true, start: '10:00', end: '18:00', breakStart: '14:30', breakEnd: '15:00' },
+  { day: 'Miércoles', active: true, start: '11:00', end: '19:00', breakStart: '15:00', breakEnd: '15:30' },
+  { day: 'Jueves', active: true, start: '10:00', end: '18:00', breakStart: '14:00', breakEnd: '15:00' },
+  { day: 'Viernes', active: true, start: '10:00', end: '17:00', breakStart: '13:30', breakEnd: '14:00' },
+  { day: 'Sábado', active: false, start: 'Libre', end: 'Libre', breakStart: '-', breakEnd: '-' },
+  { day: 'Domingo', active: false, start: 'Libre', end: 'Libre', breakStart: '-', breakEnd: '-' },
 ]
 
 export const recurringClients = [
@@ -51,15 +161,15 @@ export const adminMetrics = [
 ]
 
 export const managedArtists = [
-  { name: 'Valeria Moon Studio', city: 'CDMX', plan: 'Studio Pro', status: 'Activo', revenue: '$84K' },
-  { name: 'Aura Nails', city: 'Guadalajara', plan: 'Premium', status: 'Revision', revenue: '$46K' },
-  { name: 'Nude Beauty Lab', city: 'Monterrey', plan: 'Studio Pro', status: 'Activo', revenue: '$63K' },
+  { name: 'Valeria Moon Studio', city: 'CDMX', plan: 'Studio Pro', status: 'Activo', revenue: '$84K', owner: 'Valeria Moon' },
+  { name: 'Aura Nails', city: 'Guadalajara', plan: 'Premium', status: 'Inactivo', revenue: '$46K', owner: 'Renata Sol' },
+  { name: 'Nude Beauty Lab', city: 'Monterrey', plan: 'Studio Pro', status: 'Activo', revenue: '$63K', owner: 'Sofia Lab' },
 ]
 
 export const managedClients = [
-  { name: 'Mariana Lopez', appointments: 12, status: 'VIP', spend: '$8.4K' },
-  { name: 'Camila Ruiz', appointments: 7, status: 'Activa', spend: '$4.2K' },
-  { name: 'Ana Garza', appointments: 4, status: 'Nueva', spend: '$1.8K' },
+  { name: 'Mariana Lopez', appointments: 12, status: 'Activo', segment: 'VIP', spend: '$8.4K' },
+  { name: 'Camila Ruiz', appointments: 7, status: 'Activo', segment: 'Frecuente', spend: '$4.2K' },
+  { name: 'Ana Garza', appointments: 4, status: 'Inactivo', segment: 'Nueva', spend: '$1.8K' },
 ]
 
 export const systemStatus = [

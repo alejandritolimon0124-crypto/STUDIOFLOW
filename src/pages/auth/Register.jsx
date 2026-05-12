@@ -1,34 +1,138 @@
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import AuthLayout from '../../layouts/AuthLayout'
+import BrandLogo from '../../components/BrandLogo'
 import Button from '../../components/Button'
 import Input from '../../components/Input'
 import { paths } from '../../routes/paths'
 
 function Register() {
   const navigate = useNavigate()
+  const [accountType, setAccountType] = useState(null)
 
   return (
-    <AuthLayout mode="register">
+    <AuthLayout>
       <div className="auth-card">
-        <span className="eyebrow">Nuevo estudio</span>
-        <h2>Crea tu cuenta</h2>
-        <p>Prepara tu espacio digital para reservas, servicios y clientas.</p>
+        <div style={{ display: 'grid', gap: '18px', justifyItems: 'center', textAlign: 'center' }}>
+          <BrandLogo hero />
+        </div>
 
-        <form className="form-stack">
-          <Input label="Nombre del estudio" type="text" placeholder="Valeria Moon Studio" />
-          <Input label="Correo" type="email" placeholder="contacto@tustudio.mx" />
-          <label className="input-field">
-            <span>Tipo de perfil</span>
-            <select defaultValue="artist">
-              <option value="artist">Artista independiente</option>
-              <option value="studio">Estudio de belleza</option>
-              <option value="client">Cliente</option>
-            </select>
-          </label>
-          <Button className="full-width" onClick={() => navigate(paths.artistAgenda)}>
-            Crear workspace
-          </Button>
-        </form>
+        {!accountType && (
+          <div className="login-actions">
+            <button
+              type="button"
+              onClick={() => setAccountType('client')}
+              style={{
+                background: 'linear-gradient(135deg, #fff, #f8e7e8)',
+                border: '1px solid var(--line)',
+                borderRadius: '16px',
+                boxShadow: 'var(--shadow-soft)',
+                color: 'var(--text)',
+                display: 'grid',
+                gap: '8px',
+                padding: '18px',
+                textAlign: 'left',
+              }}
+            >
+              <strong>Crear cuenta cliente</strong>
+              <small style={{ color: 'var(--muted)' }}>Reserva citas, guarda favoritos y consulta tu historial beauty.</small>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setAccountType('artist')}
+              style={{
+                background: 'linear-gradient(135deg, #fff, #f2e8e1)',
+                border: '1px solid var(--line)',
+                borderRadius: '16px',
+                boxShadow: 'var(--shadow-soft)',
+                color: 'var(--text)',
+                display: 'grid',
+                gap: '8px',
+                padding: '18px',
+                textAlign: 'left',
+              }}
+            >
+              <strong>Crear cuenta artista</strong>
+              <small style={{ color: 'var(--muted)' }}>Prepara tu perfil profesional para agenda, servicios y clientas.</small>
+            </button>
+
+            <button className="text-link center-link" type="button" onClick={() => navigate(paths.login)}>
+              ¿Ya tienes cuenta? Inicia sesión
+            </button>
+          </div>
+        )}
+
+        {accountType === 'client' && (
+          <form className="form-stack">
+            <Input label="Nombre completo" type="text" placeholder="Mariana Lopez" />
+            <Input label="Correo electrónico" type="email" placeholder="mariana@email.com" />
+            <Input label="Número celular" type="tel" placeholder="55 1234 5678" />
+            <Input label="Crear contraseña" type="password" placeholder="********" />
+            <Input label="Confirmar contraseña" type="password" placeholder="********" />
+
+            <Button className="full-width" variant="ghost">Continuar con Google</Button>
+            <Button className="full-width" onClick={() => navigate(paths.client)}>Crear cuenta cliente</Button>
+            <button className="text-link center-link" type="button" onClick={() => navigate(paths.login)}>
+              ¿Ya tienes cuenta? Inicia sesión
+            </button>
+          </form>
+        )}
+
+        {accountType === 'artist' && (
+          <form className="form-stack">
+            <Input label="Nombre artístico o estudio" type="text" placeholder="Valeria Moon Studio" />
+            <Input label="Nombre completo" type="text" placeholder="Valeria Hernandez" />
+            <Input label="Correo electrónico" type="email" placeholder="contacto@studio.com" />
+            <Input label="Número celular" type="tel" placeholder="55 1234 5678" />
+            <Input label="Crear contraseña" type="password" placeholder="********" />
+            <Input label="Confirmar contraseña" type="password" placeholder="********" />
+
+            <div style={{ borderTop: '1px solid var(--line)', display: 'grid', gap: '14px', paddingTop: '18px' }}>
+              <div>
+                <span className="eyebrow">Información profesional</span>
+                <p style={{ color: 'var(--muted)', fontSize: '14px', lineHeight: 1.45 }}>
+                  Datos visibles para preparar tu perfil público más adelante.
+                </p>
+              </div>
+
+              <Input label="Dirección del estudio" type="text" placeholder="Av. Horacio 123, Polanco" />
+              <Input label="Ciudad" type="text" placeholder="Ciudad de México" />
+
+              <div className="input-field">
+                <span>Métodos de pago</span>
+                <label style={{ alignItems: 'center', display: 'flex', gap: '10px', fontWeight: 700 }}>
+                  <input type="checkbox" /> Efectivo
+                </label>
+                <label style={{ alignItems: 'center', display: 'flex', gap: '10px', fontWeight: 700 }}>
+                  <input type="checkbox" /> Transferencia
+                </label>
+                <label style={{ alignItems: 'center', display: 'flex', gap: '10px', fontWeight: 700 }}>
+                  <input type="checkbox" /> Tarjeta
+                </label>
+              </div>
+
+              <label
+                className="input-field"
+                style={{
+                  border: '1px dashed var(--rose)',
+                  borderRadius: '16px',
+                  color: 'var(--muted)',
+                  padding: '18px',
+                  textAlign: 'center',
+                }}
+              >
+                <span>Foto del artista o estudio</span>
+                <input type="file" accept="image/*" />
+              </label>
+            </div>
+
+            <Button className="full-width" onClick={() => navigate(paths.artistAgenda)}>Crear cuenta artista</Button>
+            <button className="text-link center-link" type="button" onClick={() => navigate(paths.login)}>
+              ¿Ya tienes cuenta? Inicia sesión
+            </button>
+          </form>
+        )}
       </div>
     </AuthLayout>
   )
