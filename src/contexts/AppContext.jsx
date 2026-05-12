@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from 'react'
 import { AppContext } from './appContextCore'
-import { weeklySchedule } from '../services/mockData'
+import { artistAppointments, clientHistory, managedArtists, managedClients, recurringClients, weeklySchedule } from '../services/mockData'
 
 const initialSession = {
   user: null,
@@ -42,6 +42,64 @@ function createInitialAgendaSettings() {
     intervalMinutes: 15,
     minAdvanceHours: 2,
     bookedSlots: [],
+  }
+}
+
+function createInitialAdminState() {
+  return {
+    artists: managedArtists.map((artist, index) => ({
+      ...artist,
+      id: `artist-${index + 1}`,
+      description: artist.description || 'Perfil profesional beauty listo para recibir reservas.',
+      services: artist.services || 'Lashes, brows, makeup',
+    })),
+    clients: managedClients.map((client, index) => ({
+      ...client,
+      id: `client-${index + 1}`,
+      email: client.email || `${client.name.toLowerCase().replaceAll(' ', '.')}@studioflow.demo`,
+      phone: client.phone || '55 0000 0000',
+      notes: client.notes || 'Perfil mock administrable.',
+      history: clientHistory.map((item, historyIndex) => ({
+        id: `${client.name}-${historyIndex + 1}`,
+        artist: item.artist,
+        date: item.date,
+        service: item.service,
+        status: historyIndex === 0 ? 'Completada' : 'Finalizada',
+      })),
+    })),
+  }
+}
+
+function createInitialClientState() {
+  return {
+    profile: {
+      name: 'Mariana Lopez',
+      email: 'mariana.lopez@studioflow.demo',
+      phone: '55 0000 0000',
+      notes: 'Clienta premium Studio Flow.',
+    },
+    favoriteArtistIds: ['artist-1', 'artist-3'],
+  }
+}
+
+function createInitialArtistState() {
+  return {
+    appointments: artistAppointments.map((appointment, index) => ({
+      ...appointment,
+      id: `artist-appointment-${index + 1}`,
+      date: index < 3 ? '2026-05-18' : '2026-05-10',
+      status: index < 3 ? appointment.status : 'Completada',
+    })),
+    clients: recurringClients.map((client, index) => ({
+      ...client,
+      id: `artist-client-${index + 1}`,
+      phone: `55 100${index} 20${index}0`,
+      email: `${client.name.toLowerCase().replaceAll(' ', '.').replace('.', '')}@studioflow.demo`,
+      history: [
+        { service: 'Lash lifting', date: '2026-04-28', status: 'Completada' },
+        { service: 'Brow design', date: '2026-04-10', status: 'Completada' },
+      ],
+    })),
   }
 }
 
@@ -95,6 +153,9 @@ function isSameDate(dateValue, comparisonDate) {
 export function AppProvider({ children }) {
   const [session, setSession] = useState(getStoredSession)
   const [agendaSettings, setAgendaSettings] = useState(createInitialAgendaSettings)
+  const [adminState, setAdminState] = useState(createInitialAdminState)
+  const [clientState, setClientState] = useState(createInitialClientState)
+  const [artistState, setArtistState] = useState(createInitialArtistState)
 
   const login = (role) => {
     const nextSession = {
@@ -217,9 +278,52 @@ export function AppProvider({ children }) {
     }))
   }, [])
 
+  const toggleManagedArtistStatus = useCallback((artistId) => {
+    setAdminState((currentState) => ({
+      ...currentState,
+      artists: currentState.artists.map((artist) =>
+        artist.id === artistId
+          ? { ...artist, status: artist.status === 'Activo' ? 'Inactivo' : 'Activo' }
+          : artist,
+      ),
+    }))
+  }, [])
+
+  const updateManagedArtistProfile = useCallback((artistId, updates) => {
+    setAdminState((currentState) => ({
+      ...currentState,
+      artists: currentState.artists.map((artist) =>
+        artist.id === artistId ? { ...artist, ...updates } : artist,
+      ),
+    }))
+  }, [])
+
+  const toggleManagedClientStatus = useCallback((clientId) => {
+    setAdminState((currentState) => ({
+      ...currentState,
+      clients: currentState.clients.map((client) =>
+        client.id === clientId
+          ? { ...client, status: client.status === 'Activo' ? 'Inactivo' : 'Activo' }
+          : client,
+      ),
+    }))
+  }, [])
+
+  const updateManagedClientProfile = useCallback((clientId, updates) => {
+    setAdminState((currentState) => ({
+      ...currentState,
+      clients: currentState.clients.map((client) =>
+        client.id === clientId ? { ...client, ...updates } : client,
+      ),
+    }))
+  }, [])
+
   const getAvailableSlots = useCallback(
     ({ date, durationMinutes = 60 }) => {
       if (!date) return []
+
+      const primaryArtist = adminState.artists.find((artist) => artist.owner === 'Valeria Moon')
+      if (primaryArtist && primaryArtist.status !== 'Activo') return []
 
       const isBlockedDate = agendaSettings.blockedDates.some((blockedDate) => blockedDate.id === date)
       if (isBlockedDate) return []
@@ -259,7 +363,7 @@ export function AppProvider({ children }) {
 
       return slots
     },
-    [agendaSettings],
+    [agendaSettings, adminState.artists],
   )
 
   const bookSlot = useCallback((slot) => {
@@ -277,6 +381,117 @@ export function AppProvider({ children }) {
     })
   }, [])
 
+  const resetBookedSlots = useCallback(() => {
+    setAgendaSettings((currentSettings) => ({
+      ...currentSettings,
+      bookedSlots: [],
+    }))
+  }, [])
+
+  const clearBlockedDates = useCallback(() => {
+    setAgendaSettings((currentSettings) => ({
+      ...currentSettings,
+      blockedDates: [],
+    }))
+  }, [])
+
+  const releaseAgenda = useCallback(() => {
+    setAgendaSettings((currentSettings) => ({
+      ...currentSettings,
+      schedule: currentSettings.schedule.map((day) => ({
+        ...day,
+        active: true,
+        start: day.start === 'Libre' ? '10:00' : day.start,
+        end: day.end === 'Libre' ? '18:00' : day.end,
+        blocks: [],
+      })),
+      blockedDates: [],
+      bookedSlots: [],
+    }))
+  }, [])
+
+  const blockTuesdays = useCallback(() => {
+    setAgendaSettings((currentSettings) => ({
+      ...currentSettings,
+      schedule: currentSettings.schedule.map((day) =>
+        day.day === 'Martes'
+          ? { ...day, active: false, blocks: [] }
+          : day,
+      ),
+    }))
+  }, [])
+
+  const setPrimaryArtistStatus = useCallback((status) => {
+    setAdminState((currentState) => ({
+      ...currentState,
+      artists: currentState.artists.map((artist) =>
+        artist.owner === 'Valeria Moon' ? { ...artist, status } : artist,
+      ),
+    }))
+  }, [])
+
+  const addMockBooking = useCallback(() => {
+    const mockSlot = {
+      date: '2026-05-18',
+      time: '10:00',
+      end: '11:10',
+      artist: 'Valeria Moon',
+      service: 'Lash lifting',
+      durationMinutes: 70,
+    }
+
+    setAgendaSettings((currentSettings) => {
+      const alreadyBooked = currentSettings.bookedSlots.some(
+        (bookedSlot) => bookedSlot.date === mockSlot.date && bookedSlot.time === mockSlot.time,
+      )
+
+      if (alreadyBooked) return currentSettings
+
+      return {
+        ...currentSettings,
+        bookedSlots: [...currentSettings.bookedSlots, mockSlot],
+      }
+    })
+  }, [])
+
+  const toggleFavoriteArtist = useCallback((artistId) => {
+    setClientState((currentState) => {
+      const isFavorite = currentState.favoriteArtistIds.includes(artistId)
+
+      return {
+        ...currentState,
+        favoriteArtistIds: isFavorite
+          ? currentState.favoriteArtistIds.filter((favoriteId) => favoriteId !== artistId)
+          : [...currentState.favoriteArtistIds, artistId],
+      }
+    })
+  }, [])
+
+  const updateClientProfile = useCallback((updates) => {
+    setClientState((currentState) => ({
+      ...currentState,
+      profile: {
+        ...currentState.profile,
+        ...updates,
+      },
+    }))
+  }, [])
+
+  const addArtistAppointment = useCallback((appointment) => {
+    setArtistState((currentState) => ({
+      ...currentState,
+      appointments: [
+        {
+          ...appointment,
+          id: `artist-appointment-${Date.now()}`,
+          type: 'appointment',
+          status: appointment.status || 'Confirmada',
+        },
+        ...currentState.appointments,
+      ],
+    }))
+  }, [])
+
   const value = useMemo(
     () => ({
       session,
@@ -285,6 +500,9 @@ export function AppProvider({ children }) {
       logout,
       isAuthenticated: Boolean(session.user),
       agendaSettings,
+      adminState,
+      clientState,
+      artistState,
       toggleScheduleDay,
       cancelScheduleDay,
       updateScheduleDayTime,
@@ -293,12 +511,28 @@ export function AppProvider({ children }) {
       addBlockedDate,
       removeBlockedDate,
       updateAgendaRule,
+      toggleManagedArtistStatus,
+      updateManagedArtistProfile,
+      toggleManagedClientStatus,
+      updateManagedClientProfile,
       getAvailableSlots,
       bookSlot,
+      resetBookedSlots,
+      clearBlockedDates,
+      releaseAgenda,
+      blockTuesdays,
+      setPrimaryArtistStatus,
+      addMockBooking,
+      toggleFavoriteArtist,
+      updateClientProfile,
+      addArtistAppointment,
     }),
     [
       session,
       agendaSettings,
+      adminState,
+      clientState,
+      artistState,
       toggleScheduleDay,
       cancelScheduleDay,
       updateScheduleDayTime,
@@ -307,8 +541,21 @@ export function AppProvider({ children }) {
       addBlockedDate,
       removeBlockedDate,
       updateAgendaRule,
+      toggleManagedArtistStatus,
+      updateManagedArtistProfile,
+      toggleManagedClientStatus,
+      updateManagedClientProfile,
       getAvailableSlots,
       bookSlot,
+      resetBookedSlots,
+      clearBlockedDates,
+      releaseAgenda,
+      blockTuesdays,
+      setPrimaryArtistStatus,
+      addMockBooking,
+      toggleFavoriteArtist,
+      updateClientProfile,
+      addArtistAppointment,
     ],
   )
 

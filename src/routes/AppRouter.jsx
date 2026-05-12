@@ -22,6 +22,7 @@ function AppRouter() {
 
       <Route element={<AdminLayout />}>
         <Route path={paths.admin} element={<AdminDashboard />} />
+        <Route path={paths.adminDashboard} element={<AdminDashboard />} />
         <Route path={paths.adminArtists} element={<AdminArtists />} />
         <Route path={paths.adminClients} element={<AdminClients />} />
         <Route path={paths.adminSystem} element={<AdminDashboard />} />
@@ -29,6 +30,7 @@ function AppRouter() {
 
       <Route element={<ArtistLayout />}>
         <Route path={paths.artist} element={<ArtistDashboard view="agenda" />} />
+        <Route path={paths.artistDashboard} element={<ArtistDashboard view="agenda" />} />
         <Route path={paths.artistAppointments} element={<ArtistDashboard view="citas" />} />
         <Route path={paths.artistServices} element={<ArtistServices />} />
         <Route path={paths.artistClients} element={<ArtistDashboard view="clientes" />} />
@@ -37,6 +39,7 @@ function AppRouter() {
 
       <Route element={<ClientLayout />}>
         <Route path={paths.client} element={<ClientDashboard view="inicio" />} />
+        <Route path={paths.clientDashboard} element={<ClientDashboard view="inicio" />} />
         <Route path={paths.clientSearch} element={<ClientDashboard view="explorar" />} />
         <Route path={paths.clientAppointments} element={<ClientDashboard view="citas" />} />
         <Route path={paths.clientFavorites} element={<ClientDashboard view="favoritos" />} />

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Button from '../../components/Button'
 import Card from '../../components/Card'
@@ -7,33 +7,289 @@ import PanelHeader from '../../components/PanelHeader'
 import StatusPill from '../../components/StatusPill'
 import { useApp } from '../../contexts/appContextCore'
 import { paths } from '../../routes/paths'
-import { clientAppointments, clientHistory, favoriteArtists } from '../../services/mockData'
+import { clientAppointments, clientHistory } from '../../services/mockData'
 
-const bookingServices = [
-  { name: 'Lash lifting', durationMinutes: 70 },
-  { name: 'Brow design', durationMinutes: 45 },
-  { name: 'Soft glam makeup', durationMinutes: 90 },
-]
+const searchServices = {
+  Unas: [
+    { name: 'Gelish', durationMinutes: 60 },
+    { name: 'Rubber', durationMinutes: 75 },
+    { name: 'Acrilicas', durationMinutes: 90 },
+    { name: 'Esculturales', durationMinutes: 120 },
+    { name: 'Soft gel', durationMinutes: 80 },
+    { name: 'Nail art', durationMinutes: 75 },
+    { name: 'Francesas', durationMinutes: 70 },
+  ],
+  Pestanas: [
+    { name: 'Clasicas', durationMinutes: 90 },
+    { name: 'Hibridas', durationMinutes: 100 },
+    { name: 'Volumen ruso', durationMinutes: 120 },
+    { name: 'Anime lashes', durationMinutes: 110 },
+    { name: 'Lash lifting', durationMinutes: 70 },
+    { name: 'Wispy', durationMinutes: 105 },
+    { name: 'Mega volumen', durationMinutes: 140 },
+  ],
+  Maquillaje: [
+    { name: 'Soft glam makeup', durationMinutes: 90 },
+    { name: 'Maquillaje social', durationMinutes: 80 },
+    { name: 'Maquillaje de novia', durationMinutes: 120 },
+    { name: 'Maquillaje natural', durationMinutes: 60 },
+    { name: 'Maquillaje editorial', durationMinutes: 110 },
+    { name: 'Maquillaje de noche', durationMinutes: 90 },
+  ],
+  Cejas: [
+    { name: 'Brow design', durationMinutes: 45 },
+    { name: 'Laminado de ceja', durationMinutes: 55 },
+    { name: 'Henna brows', durationMinutes: 50 },
+    { name: 'Perfilado con hilo', durationMinutes: 30 },
+    { name: 'Tinte de ceja', durationMinutes: 35 },
+  ],
+  Faciales: [
+    { name: 'Facial glow', durationMinutes: 60 },
+    { name: 'Limpieza facial profunda', durationMinutes: 80 },
+    { name: 'Facial hidratante', durationMinutes: 70 },
+    { name: 'Facial antiacne', durationMinutes: 75 },
+    { name: 'Peeling facial', durationMinutes: 60 },
+  ],
+  Depilacion: [
+    { name: 'Cera facial', durationMinutes: 30 },
+    { name: 'Cera corporal', durationMinutes: 60 },
+    { name: 'Depilacion con hilo', durationMinutes: 35 },
+    { name: 'Axilas', durationMinutes: 25 },
+    { name: 'Pierna completa', durationMinutes: 70 },
+  ],
+  Peinado: [
+    { name: 'Ondas glam', durationMinutes: 60 },
+    { name: 'Peinado social', durationMinutes: 75 },
+    { name: 'Recogido elegante', durationMinutes: 90 },
+    { name: 'Brushing', durationMinutes: 45 },
+  ],
+  Skincare: [
+    { name: 'Rutina personalizada', durationMinutes: 50 },
+    { name: 'Dermaplaning', durationMinutes: 60 },
+    { name: 'Mascarilla premium', durationMinutes: 40 },
+    { name: 'Tratamiento luminoso', durationMinutes: 70 },
+  ],
+  Spa: [
+    { name: 'Spa manicure', durationMinutes: 75 },
+    { name: 'Spa pedicure', durationMinutes: 80 },
+    { name: 'Ritual relajante', durationMinutes: 90 },
+    { name: 'Exfoliacion corporal', durationMinutes: 60 },
+  ],
+  Masajes: [
+    { name: 'Masaje relajante', durationMinutes: 60 },
+    { name: 'Masaje descontracturante', durationMinutes: 75 },
+    { name: 'Masaje drenante', durationMinutes: 70 },
+    { name: 'Masaje facial', durationMinutes: 40 },
+  ],
+  Microblading: [
+    { name: 'Microblading pelo a pelo', durationMinutes: 120 },
+    { name: 'Microshading', durationMinutes: 130 },
+    { name: 'Retoque microblading', durationMinutes: 80 },
+    { name: 'Diseno previo', durationMinutes: 45 },
+  ],
+  Laminado: [
+    { name: 'Laminado de ceja', durationMinutes: 55 },
+    { name: 'Laminado con tinte', durationMinutes: 65 },
+    { name: 'Lash lifting', durationMinutes: 70 },
+    { name: 'Combo ceja y pestana', durationMinutes: 100 },
+  ],
+}
+
+const artistMarketplaceProfile = {
+  'artist-1': {
+    services: ['Lash lifting', 'Brow design', 'Laminado de ceja', 'Soft glam makeup', 'Combo ceja y pestana'],
+    occupancy: 58,
+  },
+  'artist-2': {
+    services: ['Acrilicas', 'Gelish', 'Nail art', 'Soft gel', 'Francesas'],
+    occupancy: 86,
+  },
+  'artist-3': {
+    services: ['Facial glow', 'Limpieza facial profunda', 'Brow design', 'Facial hidratante', 'Masaje facial'],
+    occupancy: 42,
+  },
+}
+
+const allSearchServices = Object.values(searchServices).flat()
+
+function PremiumDropdown({ label, value, options, open, onToggle, onChange }) {
+  const selectedOption = options.find((option) => option.value === value) || options[0]
+
+  return (
+    <div className="input-field" style={{ position: 'relative' }}>
+      <span>{label}</span>
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={onToggle}
+        style={{
+          alignItems: 'center',
+          background: 'rgba(255, 250, 247, 0.96)',
+          border: '1px solid rgba(214, 186, 177, 0.72)',
+          borderRadius: '18px',
+          boxShadow: open ? '0 16px 34px rgba(118, 77, 67, 0.14)' : '0 10px 24px rgba(118, 77, 67, 0.08)',
+          color: 'var(--ink)',
+          display: 'flex',
+          font: 'inherit',
+          fontWeight: 800,
+          justifyContent: 'space-between',
+          minHeight: '48px',
+          padding: '0 14px',
+          textAlign: 'left',
+          transition: 'box-shadow 180ms ease, transform 180ms ease, border-color 180ms ease',
+          width: '100%',
+        }}
+      >
+        <span style={{ display: 'grid', gap: '2px' }}>
+          {selectedOption?.label || value}
+          {selectedOption?.meta && (
+            <small style={{ color: 'var(--muted)', fontWeight: 700 }}>{selectedOption.meta}</small>
+          )}
+        </span>
+        <span style={{ color: 'var(--rose)', fontSize: '16px', transform: open ? 'rotate(180deg)' : 'rotate(0deg)' }}>
+          v
+        </span>
+      </button>
+      {open && (
+        <div
+          style={{
+            background: 'rgba(255, 251, 248, 0.98)',
+            border: '1px solid rgba(214, 186, 177, 0.7)',
+            borderRadius: '20px',
+            boxShadow: '0 22px 44px rgba(118, 77, 67, 0.18)',
+            left: 0,
+            maxHeight: '260px',
+            overflowY: 'auto',
+            padding: '8px',
+            position: 'absolute',
+            right: 0,
+            top: 'calc(100% + 8px)',
+            zIndex: 40,
+          }}
+        >
+          {options.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              onClick={() => {
+                onChange(option.value)
+                onToggle()
+              }}
+              style={{
+                background: option.value === value ? 'rgba(229, 177, 168, 0.2)' : 'transparent',
+                border: 0,
+                borderRadius: '14px',
+                color: 'var(--ink)',
+                display: 'grid',
+                font: 'inherit',
+                fontWeight: option.value === value ? 900 : 750,
+                gap: '2px',
+                padding: '12px',
+                textAlign: 'left',
+                width: '100%',
+              }}
+            >
+              {option.label}
+              {option.meta && <small style={{ color: 'var(--muted)', fontWeight: 700 }}>{option.meta}</small>}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function getArtistMarketplaceProfile(artist) {
+  return artistMarketplaceProfile[artist.id] || {
+    services: ['Lash lifting', 'Brow design'],
+    occupancy: 64,
+  }
+}
+
+function getMarketplaceBadge(availableCount, occupancy) {
+  if (availableCount >= 8 && occupancy <= 65) return { label: 'Alta disponibilidad', tone: 'success' }
+  if (availableCount >= 4 && occupancy <= 75) return { label: 'Disponible hoy', tone: 'success' }
+  if (availableCount > 0) return { label: 'Ultimos espacios', tone: 'warm' }
+  return { label: 'Alta demanda', tone: 'rose' }
+}
 
 function ClientDashboard({ view = 'inicio' }) {
   const navigate = useNavigate()
-  const { bookSlot, getAvailableSlots } = useApp()
+  const {
+    adminState,
+    agendaSettings,
+    clientState,
+    bookSlot,
+    getAvailableSlots,
+    toggleFavoriteArtist,
+    updateClientProfile,
+  } = useApp()
   const [bookingDate, setBookingDate] = useState('2026-05-18')
-  const [selectedService, setSelectedService] = useState(bookingServices[0].name)
-  const selectedServiceDetails = bookingServices.find((service) => service.name === selectedService) || bookingServices[0]
+  const [profileDraft, setProfileDraft] = useState(clientState.profile)
+  const [searchMode, setSearchMode] = useState('Servicio')
+  const [primaryService, setPrimaryService] = useState('Pestanas')
+  const [secondaryService, setSecondaryService] = useState(searchServices.Pestanas[0].name)
+  const [studioQuery, setStudioQuery] = useState('')
+  const [selectedArtistProfile, setSelectedArtistProfile] = useState(null)
+  const [openDropdown, setOpenDropdown] = useState(null)
+  const marketplaceService = allSearchServices.find((service) => service.name === secondaryService) || searchServices[primaryService][0]
   const availableSlots = getAvailableSlots({
     date: bookingDate,
-    durationMinutes: selectedServiceDetails.durationMinutes,
+    durationMinutes: marketplaceService.durationMinutes || 60,
   })
+  const activeArtists = adminState.artists.filter((artist) => artist.status === 'Activo')
+  const favoriteArtists = adminState.artists.filter((artist) => clientState.favoriteArtistIds.includes(artist.id))
+  const marketplaceArtists = useMemo(
+    () => {
+      const visibleSlots = availableSlots.filter((slot) => slot.available).length
+
+      return activeArtists
+        .map((artist) => {
+          const profile = getArtistMarketplaceProfile(artist)
+          const availabilityScore = Math.max(0, visibleSlots - Math.floor(profile.occupancy / 25))
+          const badge = getMarketplaceBadge(availabilityScore, profile.occupancy)
+
+          return {
+            ...artist,
+            marketplaceServices: profile.services,
+            occupancy: profile.occupancy,
+            availabilityScore,
+            badge,
+          }
+        })
+        .filter((artist) => {
+          if (searchMode === 'Nombre estudio') {
+            const searchable = `${artist.name} ${artist.owner} ${artist.city}`.toLowerCase()
+            return searchable.includes(studioQuery.toLowerCase())
+          }
+
+          return artist.marketplaceServices.includes(secondaryService)
+        })
+        .sort((firstArtist, secondArtist) => (
+          secondArtist.availabilityScore - firstArtist.availabilityScore
+          || firstArtist.occupancy - secondArtist.occupancy
+        ))
+    },
+    [activeArtists, availableSlots, searchMode, secondaryService, studioQuery],
+  )
+  const bookedAppointments = agendaSettings.bookedSlots.map((slot) => ({
+    artist: slot.artist || 'Valeria Moon',
+    service: slot.service || 'Servicio reservado',
+    date: slot.date,
+    time: slot.time,
+    address: 'Agenda Studio Flow',
+    status: 'Reservada',
+  }))
+  const upcomingAppointments = [...bookedAppointments, ...clientAppointments]
 
   const reserveSlot = (slot) => {
     if (!slot.available) return
 
     bookSlot({
       ...slot,
-      artist: 'Valeria Moon',
-      service: selectedServiceDetails.name,
-      durationMinutes: selectedServiceDetails.durationMinutes,
+      artist: selectedArtistProfile?.owner || selectedArtistProfile?.name || 'Valeria Moon',
+      service: marketplaceService.name,
+      durationMinutes: marketplaceService.durationMinutes,
     })
   }
 
@@ -61,7 +317,7 @@ function ClientDashboard({ view = 'inicio' }) {
             <Card className="wide-card mobile-screen primary-panel">
               <PanelHeader title="Proximas citas" eyebrow="Confirmadas" />
               <div className="appointment-stack">
-                {clientAppointments.slice(0, 1).map((appointment) => (
+                {upcomingAppointments.slice(0, 1).map((appointment) => (
                   <article className="client-appointment" key={`${appointment.artist}-${appointment.time}`}>
                     <div className="date-block">
                       <strong>{appointment.date}</strong>
@@ -80,91 +336,206 @@ function ClientDashboard({ view = 'inicio' }) {
         )}
 
         {view === 'citas' && (
-          <Card className="wide-card mobile-screen primary-panel">
-            <PanelHeader title="Proximas citas" eyebrow="Confirmadas" />
-            <div className="appointment-stack">
-              {clientAppointments.map((appointment) => (
-                <article className="client-appointment" key={`${appointment.artist}-${appointment.time}`}>
-                  <div className="date-block">
-                    <strong>{appointment.date}</strong>
-                    <span>{appointment.time}</span>
+          <>
+            <Card className="wide-card mobile-screen primary-panel">
+              <PanelHeader title="Proximas citas" eyebrow="Confirmadas" />
+              <div className="appointment-stack">
+                {upcomingAppointments.map((appointment) => (
+                  <article className="client-appointment" key={`${appointment.artist}-${appointment.time}-${appointment.date}`}>
+                    <div className="date-block">
+                      <strong>{appointment.date}</strong>
+                      <span>{appointment.time}</span>
+                    </div>
+                    <div>
+                      <h3>{appointment.service}</h3>
+                      <p>{appointment.artist} / {appointment.address}</p>
+                    </div>
+                    <StatusPill tone="success">{appointment.status || 'Lista'}</StatusPill>
+                  </article>
+                ))}
+              </div>
+            </Card>
+            <Card className="mobile-screen">
+              <PanelHeader title="Historial" eyebrow="Reservas anteriores" />
+              <div className="compact-list">
+                {clientHistory.map((item) => (
+                  <div className="list-row elevated-row" key={`${item.service}-${item.date}`}>
+                    <div>
+                      <strong>{item.service}</strong>
+                      <small>{item.artist} / {item.date}</small>
+                    </div>
+                    <StatusPill tone="neutral">Finalizada</StatusPill>
                   </div>
-                  <div>
-                    <h3>{appointment.service}</h3>
-                    <p>{appointment.artist} / {appointment.address}</p>
-                  </div>
-                  <StatusPill tone="success">Lista</StatusPill>
-                </article>
-              ))}
-            </div>
-          </Card>
+                ))}
+              </div>
+            </Card>
+          </>
         )}
 
         {view === 'explorar' && (
           <Card className="mobile-screen primary-panel">
             <PanelHeader title="Busqueda de artistas" eyebrow="Explorar" />
-            <div className="search-box">
-              <Input label="Servicio" type="search" placeholder="Lashes, makeup, faciales..." />
-              <Button size="sm">Buscar</Button>
+            <div className="form-stack compact-form">
+              <PremiumDropdown
+                label="Buscar por"
+                value={searchMode}
+                open={openDropdown === 'searchMode'}
+                onToggle={() => setOpenDropdown(openDropdown === 'searchMode' ? null : 'searchMode')}
+                onChange={(nextMode) => {
+                  setSearchMode(nextMode)
+                  setSelectedArtistProfile(null)
+                }}
+                options={[
+                  { value: 'Servicio', label: 'Servicio', meta: 'Encuentra disponibilidad por tratamiento' },
+                  { value: 'Nombre estudio', label: 'Nombre estudio', meta: 'Busca directo por artista o studio' },
+                ]}
+              />
+              {searchMode === 'Servicio' ? (
+                <>
+                  <PremiumDropdown
+                    label="Servicio primario"
+                    value={primaryService}
+                    open={openDropdown === 'primaryService'}
+                    onToggle={() => setOpenDropdown(openDropdown === 'primaryService' ? null : 'primaryService')}
+                    onChange={(nextPrimary) => {
+                      setPrimaryService(nextPrimary)
+                      setSecondaryService(searchServices[nextPrimary][0].name)
+                      setSelectedArtistProfile(null)
+                    }}
+                    options={Object.keys(searchServices).map((service) => ({
+                      value: service,
+                      label: service,
+                      meta: `${searchServices[service].length} opciones`,
+                    }))}
+                  />
+                  <PremiumDropdown
+                    label="Servicio secundario"
+                    value={secondaryService}
+                    open={openDropdown === 'secondaryService'}
+                    onToggle={() => setOpenDropdown(openDropdown === 'secondaryService' ? null : 'secondaryService')}
+                    onChange={(nextService) => {
+                      setSecondaryService(nextService)
+                      setSelectedArtistProfile(null)
+                    }}
+                    options={searchServices[primaryService].map((service) => ({
+                      value: service.name,
+                      label: service.name,
+                      meta: `${service.durationMinutes} min`,
+                    }))}
+                  />
+                </>
+              ) : (
+                <Input
+                  label="Nombre estudio"
+                  type="search"
+                  placeholder="Valeria Moon, Aura Nails..."
+                  value={studioQuery}
+                  onChange={(event) => setStudioQuery(event.target.value)}
+                />
+              )}
             </div>
-            <div className="artist-results">
-              {favoriteArtists.map((artist) => (
+            <div className="artist-results" style={{ marginTop: '14px' }}>
+              {marketplaceArtists.map((artist) => (
                 <div className="artist-result" key={artist.name}>
                   <div className="avatar small">{artist.name.slice(0, 2)}</div>
                   <div>
                     <strong>{artist.name}</strong>
-                    <small>{artist.specialty} / {artist.nextSlot}</small>
+                    <small>{artist.marketplaceServices.slice(0, 3).join(', ')}</small>
                   </div>
-                  <span>{artist.distance}</span>
+                  <StatusPill tone={artist.badge.tone}>{artist.badge.label}</StatusPill>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedArtistProfile(artist)
+                      setSecondaryService(artist.marketplaceServices[0])
+                      setOpenDropdown(null)
+                    }}
+                  >
+                    Ver perfil
+                  </button>
+                  <button type="button" onClick={() => toggleFavoriteArtist(artist.id)}>
+                    {clientState.favoriteArtistIds.includes(artist.id) ? 'Quitar' : 'Favorito'}
+                  </button>
                 </div>
               ))}
-            </div>
-
-            <div className="form-stack compact-form" style={{ marginTop: '18px' }}>
-              <label className="input-field">
-                <span>Servicio</span>
-                <select value={selectedService} onChange={(event) => setSelectedService(event.target.value)}>
-                  {bookingServices.map((service) => (
-                    <option key={service.name} value={service.name}>
-                      {service.name} / {service.durationMinutes} min
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="input-field">
-                <span>Fecha</span>
-                <input type="date" value={bookingDate} onChange={(event) => setBookingDate(event.target.value)} />
-              </label>
-            </div>
-
-            <div className="compact-list" style={{ marginTop: '14px' }}>
-              {availableSlots.length > 0 ? (
-                availableSlots.map((slot) => (
-                  <div className="list-row elevated-row" key={`${slot.date}-${slot.time}`}>
-                    <div>
-                      <strong>{slot.time} - {slot.end}</strong>
-                      <small>{selectedServiceDetails.name}</small>
-                    </div>
-                    <Button
-                      size="sm"
-                      variant={slot.available ? 'primary' : 'ghost'}
-                      disabled={!slot.available}
-                      onClick={() => reserveSlot(slot)}
-                    >
-                      {slot.available ? 'Reservar' : 'Ocupado'}
-                    </Button>
-                  </div>
-                ))
-              ) : (
-                <div className="list-row elevated-row">
+              {marketplaceArtists.length === 0 && (
+                <div className="artist-result">
                   <div>
-                    <strong>Sin horarios disponibles</strong>
-                    <small>La agenda del artista no permite reservas en esta fecha.</small>
+                    <strong>Sin resultados disponibles</strong>
+                    <small>Prueba otro servicio o nombre de estudio.</small>
                   </div>
-                  <StatusPill tone="neutral">No disponible</StatusPill>
+                  <StatusPill tone="neutral">Marketplace</StatusPill>
                 </div>
               )}
             </div>
+
+            {selectedArtistProfile && (
+              <>
+                <div className="compact-list" style={{ marginTop: '18px' }}>
+                  <div className="list-row elevated-row">
+                    <div>
+                      <strong>{selectedArtistProfile.name}</strong>
+                      <small>{selectedArtistProfile.city} / Ocupacion {selectedArtistProfile.occupancy}%</small>
+                    </div>
+                    <StatusPill tone={selectedArtistProfile.badge.tone}>{selectedArtistProfile.badge.label}</StatusPill>
+                  </div>
+                </div>
+
+                <div className="form-stack compact-form" style={{ marginTop: '18px' }}>
+                  <PremiumDropdown
+                    label="Servicio"
+                    value={secondaryService}
+                    open={openDropdown === 'profileService'}
+                    onToggle={() => setOpenDropdown(openDropdown === 'profileService' ? null : 'profileService')}
+                    onChange={(nextService) => setSecondaryService(nextService)}
+                    options={selectedArtistProfile.marketplaceServices.map((serviceName) => {
+                      const service =
+                        allSearchServices.find((item) => item.name === serviceName)
+                        || { name: serviceName, durationMinutes: 60 }
+
+                      return {
+                        value: service.name,
+                        label: service.name,
+                        meta: `${service.durationMinutes} min`,
+                      }
+                    })}
+                  />
+                  <label className="input-field">
+                    <span>Fecha</span>
+                    <input type="date" value={bookingDate} onChange={(event) => setBookingDate(event.target.value)} />
+                  </label>
+                </div>
+
+                <div className="compact-list" style={{ marginTop: '14px' }}>
+                  {availableSlots.length > 0 ? (
+                    availableSlots.map((slot) => (
+                      <div className="list-row elevated-row" key={`${slot.date}-${slot.time}`}>
+                        <div>
+                          <strong>{slot.time} - {slot.end}</strong>
+                          <small>{marketplaceService.name}</small>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant={slot.available ? 'primary' : 'ghost'}
+                          disabled={!slot.available}
+                          onClick={() => reserveSlot(slot)}
+                        >
+                          {slot.available ? 'Reservar' : 'Ocupado'}
+                        </Button>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="list-row elevated-row">
+                      <div>
+                        <strong>Sin horarios disponibles</strong>
+                        <small>La agenda del artista no permite reservas en esta fecha.</small>
+                      </div>
+                      <StatusPill tone="neutral">No disponible</StatusPill>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
           </Card>
         )}
 
@@ -177,12 +548,24 @@ function ClientDashboard({ view = 'inicio' }) {
                   <article className="favorite-card" key={artist.name}>
                     <div className="favorite-topline">
                       <strong>{artist.name}</strong>
-                      <StatusPill tone="rose">{artist.rating}</StatusPill>
+                      <StatusPill tone={artist.status === 'Activo' ? 'success' : 'neutral'}>{artist.status}</StatusPill>
                     </div>
-                    <span>{artist.specialty}</span>
-                    <small>Disponible {artist.nextSlot}</small>
+                    <span>{artist.services}</span>
+                    <small>{artist.city} / {artist.plan}</small>
+                    <div className="row-actions">
+                      <button type="button" onClick={() => toggleFavoriteArtist(artist.id)}>Quitar favorito</button>
+                    </div>
                   </article>
                 ))}
+                {favoriteArtists.length === 0 && (
+                  <article className="favorite-card">
+                    <div className="favorite-topline">
+                      <strong>Sin favoritos</strong>
+                      <StatusPill tone="neutral">Vacio</StatusPill>
+                    </div>
+                    <span>Agrega artistas desde Buscar.</span>
+                  </article>
+                )}
               </div>
             </Card>
             <Card className="mobile-screen">
@@ -197,6 +580,59 @@ function ClientDashboard({ view = 'inicio' }) {
                     <span>{item.amount}</span>
                   </div>
                 ))}
+              </div>
+            </Card>
+          </>
+        )}
+
+        {view === 'perfil' && (
+          <>
+            <Card className="mobile-screen primary-panel">
+              <PanelHeader title="Perfil" eyebrow="Cliente" />
+              <div className="form-stack compact-form">
+                <Input
+                  label="Nombre"
+                  value={profileDraft.name}
+                  onChange={(event) => setProfileDraft({ ...profileDraft, name: event.target.value })}
+                />
+                <Input
+                  label="Correo"
+                  value={profileDraft.email}
+                  onChange={(event) => setProfileDraft({ ...profileDraft, email: event.target.value })}
+                />
+                <Input
+                  label="Telefono"
+                  value={profileDraft.phone}
+                  onChange={(event) => setProfileDraft({ ...profileDraft, phone: event.target.value })}
+                />
+                <label className="input-field">
+                  <span>Notas</span>
+                  <textarea
+                    value={profileDraft.notes}
+                    onChange={(event) => setProfileDraft({ ...profileDraft, notes: event.target.value })}
+                    rows="3"
+                  />
+                </label>
+                <Button className="full-width" onClick={() => updateClientProfile(profileDraft)}>Guardar perfil</Button>
+              </div>
+            </Card>
+            <Card className="mobile-screen">
+              <PanelHeader title="Resumen" eyebrow="Actividad" />
+              <div className="compact-list">
+                <div className="list-row elevated-row">
+                  <div>
+                    <strong>{upcomingAppointments.length}</strong>
+                    <small>Citas proximas y reservas mock.</small>
+                  </div>
+                  <StatusPill tone="success">Activas</StatusPill>
+                </div>
+                <div className="list-row elevated-row">
+                  <div>
+                    <strong>{favoriteArtists.length}</strong>
+                    <small>Artistas favoritos guardados.</small>
+                  </div>
+                  <StatusPill tone="rose">Favoritos</StatusPill>
+                </div>
               </div>
             </Card>
           </>

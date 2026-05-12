@@ -3,8 +3,8 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { paths } from '../routes/paths'
 import { isActivePath } from '../routes/routerUtils'
 import BrandLogo from '../components/BrandLogo'
-import Button from '../components/Button'
 import { useApp } from '../contexts/appContextCore'
+import drawerLogo from '../assets/studioflowlogo2.png'
 
 const roleNavigation = {
   admin: [
@@ -61,6 +61,9 @@ function DashboardLayout({ children, role, title, subtitle, showMobileAppbar = t
   const currentPath = location.pathname
   const bottomNavigation = bottomNavigationByRole[role]
   const homePath = role === 'admin' ? paths.admin : role === 'client' ? paths.client : paths.artist
+  const drawerHomePath = role === 'admin' ? paths.admin : role === 'client' ? paths.client : paths.artist
+  const primaryActionPath = role === 'client' ? paths.clientExplore : role === 'admin' ? paths.adminArtists : paths.artistAppointments
+  const primaryActionLabel = role === 'client' ? 'Reservar' : 'Nueva cita'
 
   const handleNavigate = (path) => {
     navigate(path)
@@ -84,8 +87,8 @@ function DashboardLayout({ children, role, title, subtitle, showMobileAppbar = t
       <button className="sidebar-backdrop" type="button" aria-label="Cerrar menu" onClick={() => setIsMenuOpen(false)}></button>
 
       <aside className="sidebar">
-        <button className="brand-button sidebar-brand" type="button" onClick={() => handleNavigate(role === 'client' ? paths.client : paths.artistAgenda)}>
-          <BrandLogo />
+        <button className="brand-button sidebar-brand drawer-brand-logo" type="button" onClick={() => handleNavigate(drawerHomePath)}>
+          <img src={drawerLogo} alt="Studio Flow" />
         </button>
 
         <div className="sidebar-profile">
@@ -116,6 +119,13 @@ function DashboardLayout({ children, role, title, subtitle, showMobileAppbar = t
           ))}
         </nav>
 
+        <div className="sidebar-switcher drawer-actions">
+          <small>Acciones</small>
+          <button type="button" onClick={() => handleNavigate(drawerHomePath)}>Inicio</button>
+          <button type="button" onClick={() => handleNavigate(primaryActionPath)}>{primaryActionLabel}</button>
+          <button type="button" onClick={handleLogout}>Cerrar sesion</button>
+        </div>
+
         <div className="sidebar-switcher">
           <small>Workspaces</small>
           <button type="button" onClick={() => handleNavigate(paths.admin)}>Admin</button>
@@ -141,26 +151,24 @@ function DashboardLayout({ children, role, title, subtitle, showMobileAppbar = t
         )}
 
         <header className="topbar">
-          <button className="menu-button" type="button" aria-label="Abrir menu" onClick={() => setIsMenuOpen(true)}>
+          <button className="menu-button topbar-menu-button" type="button" aria-label="Abrir menu" onClick={() => setIsMenuOpen(true)}>
+            <span></span>
             <span></span>
             <span></span>
           </button>
-          <button className="brand-button" type="button" onClick={() => handleNavigate(homePath)}>
-            <BrandLogo compact />
+          <div className="topbar-center">
+            <img className="mobile-brand-logo" src={drawerLogo} alt="Studio Flow" />
+          </div>
+          <button className="avatar mini topbar-profile-avatar" type="button" onClick={() => setIsMenuOpen(true)}>
+            {role === 'admin' ? 'HQ' : role === 'client' ? 'ML' : 'VM'}
           </button>
-          <div>
-            <span className="eyebrow">Studio Flow</span>
-            <h1>{title}</h1>
-            <p>{subtitle}</p>
-          </div>
-          <div className="topbar-actions">
-            <Button variant="ghost" onClick={() => handleNavigate(homePath)}>Inicio</Button>
-            <Button variant="ghost" onClick={handleLogout}>Salir</Button>
-            <Button onClick={() => handleNavigate(role === 'client' ? paths.clientExplore : paths.artistAppointments)}>
-              {role === 'client' ? 'Reservar' : 'Nueva cita'}
-            </Button>
-          </div>
         </header>
+
+        <div className="topbar-titles">
+          <span className="eyebrow">Studio Flow</span>
+          <h1>{title}</h1>
+          <p>{subtitle}</p>
+        </div>
 
         {children}
       </div>

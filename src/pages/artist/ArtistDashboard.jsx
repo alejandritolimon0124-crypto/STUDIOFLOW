@@ -1,17 +1,50 @@
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import AgendaCard from '../../components/AgendaCard'
 import Button from '../../components/Button'
 import Card from '../../components/Card'
+import Input from '../../components/Input'
 import MetricCard from '../../components/MetricCard'
 import Modal from '../../components/Modal'
 import PanelHeader from '../../components/PanelHeader'
 import StatsCard from '../../components/StatsCard'
+import { useApp } from '../../contexts/appContextCore'
 import { paths } from '../../routes/paths'
 import { artistAppointments, artistProfile, artistServices, recurringClients } from '../../services/mockData'
 import { formatCurrency } from '../../utils/formatters'
 
 function ArtistDashboard({ view = 'agenda' }) {
   const navigate = useNavigate()
+  const { artistState, addArtistAppointment, bookSlot } = useApp()
+  const [showAppointmentForm, setShowAppointmentForm] = useState(false)
+  const [appointmentDraft, setAppointmentDraft] = useState({
+    client: artistState.clients[0]?.name || 'Mariana L.',
+    service: artistServices[0].name,
+    date: '2026-05-18',
+    time: '10:00',
+  })
+
+  const saveAppointment = () => {
+    const service = artistServices.find((item) => item.name === appointmentDraft.service) || artistServices[0]
+
+    addArtistAppointment({
+      ...appointmentDraft,
+      end: appointmentDraft.time,
+      duration: service.duration,
+      room: 'Agenda',
+      status: 'Confirmada',
+    })
+    bookSlot({
+      date: appointmentDraft.date,
+      time: appointmentDraft.time,
+      end: appointmentDraft.time,
+      artist: 'Valeria Moon',
+      service: appointmentDraft.service,
+      durationMinutes: Number.parseInt(service.duration, 10) || 60,
+    })
+    setShowAppointmentForm(false)
+  }
+
   return (
     <main className={`dashboard-grid artist-grid view-${view}`}>
         {view === 'agenda' && (
@@ -22,7 +55,7 @@ function ArtistDashboard({ view = 'agenda' }) {
                 <h2>{artistProfile.name}</h2>
                 <p>Tu agenda esta equilibrada, con mayor demanda en lashes y cejas durante la tarde.</p>
                 <div className="hero-actions">
-                  <Button onClick={() => navigate(paths.artistAppointments)}>Agregar cita</Button>
+                  <Button onClick={() => setShowAppointmentForm((current) => !current)}>Agregar cita</Button>
                   <Button variant="ghost" onClick={() => navigate(paths.artistSchedule)}>Editar horario</Button>
                 </div>
               </div>
@@ -36,6 +69,29 @@ function ArtistDashboard({ view = 'agenda' }) {
             <MetricCard label="Citas hoy" value="8" trend="+2 vs ayer" className="mobile-compact" />
             <MetricCard label="Ingresos estimados" value="$7.8K" trend="+14%" tone="nude" className="mobile-compact" />
             <MetricCard label="Rating promedio" value={artistProfile.rating} trend="312 reviews" tone="sage" className="mobile-compact" />
+
+            {showAppointmentForm && (
+              <Card className="mobile-screen primary-panel">
+                <PanelHeader title="Nueva cita" eyebrow="Mock" />
+                <div className="form-stack compact-form">
+                  <label className="input-field">
+                    <span>Cliente</span>
+                    <select value={appointmentDraft.client} onChange={(event) => setAppointmentDraft({ ...appointmentDraft, client: event.target.value })}>
+                      {artistState.clients.map((client) => <option key={client.id}>{client.name}</option>)}
+                    </select>
+                  </label>
+                  <label className="input-field">
+                    <span>Servicio</span>
+                    <select value={appointmentDraft.service} onChange={(event) => setAppointmentDraft({ ...appointmentDraft, service: event.target.value })}>
+                      {artistServices.map((service) => <option key={service.name}>{service.name}</option>)}
+                    </select>
+                  </label>
+                  <Input label="Fecha" type="date" value={appointmentDraft.date} onChange={(event) => setAppointmentDraft({ ...appointmentDraft, date: event.target.value })} />
+                  <Input label="Hora" type="time" value={appointmentDraft.time} onChange={(event) => setAppointmentDraft({ ...appointmentDraft, time: event.target.value })} />
+                  <Button className="full-width" onClick={saveAppointment}>Guardar cita</Button>
+                </div>
+              </Card>
+            )}
 
             <Card className="calendar-card mobile-screen primary-panel">
               <PanelHeader title="Agenda visual" eyebrow="Lunes 11 mayo" action={<Button variant="ghost" size="sm">Filtrar</Button>} />
@@ -53,7 +109,7 @@ function ArtistDashboard({ view = 'agenda' }) {
                 ))}
               </div>
               <div className="timeline">
-                {artistAppointments.map((item, index) => (
+                {artistState.appointments.map((item, index) => (
                   <AgendaCard
                     accent={index % 2 === 0 ? 'rose' : 'nude'}
                     key={`${item.time}-${item.client}`}
