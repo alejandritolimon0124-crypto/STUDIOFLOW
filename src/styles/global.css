@@ -2563,6 +2563,158 @@ select:focus {
   }
 }
 
+.automations-grid {
+  display: grid;
+  gap: 14px;
+}
+
+.automations-stack {
+  display: grid;
+  gap: 12px;
+}
+
+.automation-card {
+  background: linear-gradient(135deg, rgba(255, 250, 247, 0.95), rgba(255, 245, 240, 0.88));
+  border-left: 4px solid var(--rose);
+  border-radius: 20px;
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+}
+
+.automation-header {
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.automation-header h3 {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.2;
+}
+
+.automation-header p {
+  margin: 4px 0 0;
+  font-size: 0.9rem;
+  color: var(--muted);
+  line-height: 1.3;
+}
+
+.automation-badge {
+  display: inline-flex;
+  font-size: 1.2rem;
+  flex-shrink: 0;
+}
+
+.automation-badge.priority-critical {
+  opacity: 1;
+  animation: pulse-critical 2s ease-in-out infinite;
+}
+
+.automation-badge.priority-high {
+  opacity: 0.9;
+}
+
+@keyframes pulse-critical {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+}
+
+.automations-artist-stack {
+  display: grid;
+  gap: 12px;
+}
+
+.automation-insight {
+  background: rgba(255, 250, 247, 0.8);
+  border-left: 3px solid var(--rose);
+  border-radius: 16px;
+  padding: 16px;
+}
+
+.insight-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.insight-header h4 {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.insight-badge {
+  display: inline-flex;
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+.insight-badge.priority-critical {
+  animation: pulse-critical 2s ease-in-out infinite;
+}
+
+.automation-insight p {
+  margin: 0 0 10px;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.agenda-economy {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+  display: grid;
+  gap: 4px;
+}
+
+.economy-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.85rem;
+}
+
+.economy-label {
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.economy-value {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.economy-fee {
+  color: var(--rose);
+}
+
+.insights-stack {
+  display: grid;
+  gap: 16px;
+}
+
+.insight-item {
+  background: rgba(255, 250, 247, 0.8);
+  border-left: 3px solid var(--rose);
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.insight-item h4 {
+  margin: 0 0 6px 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.insight-item p {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
 .points-feedback {
   background: linear-gradient(135deg, var(--gold), var(--rose));
   border-radius: var(--radius);

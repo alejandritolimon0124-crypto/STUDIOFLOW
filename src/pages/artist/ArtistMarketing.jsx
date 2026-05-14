@@ -4,11 +4,13 @@ import Card from '../../components/Card'
 import MetricCard from '../../components/MetricCard'
 import PanelHeader from '../../components/PanelHeader'
 import StatusPill from '../../components/StatusPill'
+import { useApp } from '../../contexts/appContextCore'
 import { calculateWeeklyOccupancy } from '../../modules/marketing/occupancyEngine'
 import { generateAutomaticPromotion } from '../../modules/marketing/promotionEngine'
 import { detectInactiveClients } from '../../modules/marketing/reactivationEngine'
 import { calculateClientTier } from '../../modules/marketing/loyaltyEngine'
 import { generateInsights } from '../../modules/marketing/smartInsights'
+import { generateArtistAutomations } from '../../modules/automation/smartAutomationEngine'
 
 const vipClients = [
   { name: 'Mariana Lopez', visits: 12, benefits: ['Prioridad agenda', 'Promociones privadas'] },
@@ -32,6 +34,7 @@ const toastLabels = {
 }
 
 function ArtistMarketing() {
+  const { artistState, selectedDate } = useApp()
   const [happyHour, setHappyHour] = useState(false)
   const [lowOccupancy, setLowOccupancy] = useState(true)
   const [silentPromo, setSilentPromo] = useState(false)
@@ -67,6 +70,7 @@ function ArtistMarketing() {
     inactiveCount: inactiveClients.length,
     happyHourActive: happyHour,
   })
+  const artistAutomations = generateArtistAutomations(artistState, selectedDate)
 
   const loyaltyPreview = `${visitsRequired} visitas = ${discountPercent}% OFF por ${validityDays} días`
 
@@ -220,6 +224,31 @@ function ArtistMarketing() {
       <MetricCard label="Ocupación semanal" value="78%" trend={happyHour ? '+12%' : '+5%'} tone="nude" className="mobile-compact" />
       <MetricCard label="Promociones activas" value="3" trend={silentPromo ? 'Silenciosa' : 'Activas'} tone="sage" className="mobile-compact" />
       <MetricCard label="Recompensas utilizadas" value="18" trend={loyaltyActive ? '+12%' : '+8%'} tone="rose" className="mobile-compact" />
+
+      {artistAutomations.length > 0 && (
+        <Card className="wide-card mobile-screen primary-panel automations-panel">
+          <PanelHeader title="Automatizaciones inteligentes" eyebrow="Insights en tiempo real" />
+          <div className="automations-artist-stack">
+            {artistAutomations.map((automation) => (
+              <div key={automation.type} className="automation-insight">
+                <div className="insight-header">
+                  <h4>{automation.title}</h4>
+                  <span className={`insight-badge priority-${automation.priority}`}>
+                    {automation.priority === 'critical' && '🔴'}
+                    {automation.priority === 'high' && '🟠'}
+                    {automation.priority === 'medium' && '🟡'}
+                    {automation.priority === 'low' && '🟢'}
+                  </span>
+                </div>
+                <p>{automation.message}</p>
+                {automation.ctaText && (
+                  <Button variant="text" onClick={() => {}}>{automation.ctaText}</Button>
+                )}
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
 
       <Card className="wide-card mobile-screen primary-panel">
         <PanelHeader title="Promociones inteligentes" eyebrow="Automatización" />

@@ -10,6 +10,7 @@ import { paths } from '../../routes/paths'
 import { clientAppointments, clientHistory, artistServices } from '../../services/mockData'
 import { getClientById } from '../../utils/clientHelpers'
 import { calculateFlowPoints, flowPointRewards, getActivePoints, getExpiringPoints, vipTierThresholds } from '../../modules/loyalty/flowPointsEngine'
+import { generateClientAutomations } from '../../modules/automation/smartAutomationEngine'
 
 const searchServices = {
   Unas: [
@@ -293,6 +294,9 @@ function ClientDashboard({ view = 'inicio' }) {
 
   const clientBenefits = vipBenefits[currentClient.vipTier] || vipBenefits.Glow
 
+  // Generar automatizaciones inteligentes
+  const clientAutomations = generateClientAutomations(currentClient, artistServices)
+
   const marketplaceArtists = useMemo(
     () => {
       const visibleSlots = availableSlots.filter((slot) => slot.available).length
@@ -427,6 +431,31 @@ function ClientDashboard({ view = 'inicio' }) {
                 </ul>
               </Card>
             </section>
+
+            {clientAutomations.length > 0 && (
+              <section className="automations-grid mobile-screen">
+                <PanelHeader title="Recomendaciones inteligentes" eyebrow="Para ti" />
+                <div className="automations-stack">
+                  {clientAutomations.map((automation) => (
+                    <Card key={automation.type} className="automation-card">
+                      <div className="automation-header">
+                        <div>
+                          <h3>{automation.title}</h3>
+                          <p>{automation.message}</p>
+                        </div>
+                        <span className={`automation-badge priority-${automation.priority}`}>
+                          {automation.priority === 'critical' && '🔴'}
+                          {automation.priority === 'high' && '🟠'}
+                          {automation.priority === 'medium' && '🟡'}
+                          {automation.priority === 'low' && '🟢'}
+                        </span>
+                      </div>
+                      <Button onClick={() => navigate(paths.clientExplore)}>{automation.ctaText}</Button>
+                    </Card>
+                  ))}
+                </div>
+              </section>
+            )}
 
             <Card className="mobile-screen primary-panel history-card">
               <PanelHeader title="Historial conectado" eyebrow="Tus últimos servicios" />

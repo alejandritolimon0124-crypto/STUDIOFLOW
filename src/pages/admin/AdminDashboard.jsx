@@ -5,10 +5,14 @@ import StatusPill from '../../components/StatusPill'
 import Button from '../../components/Button'
 import { useNavigate } from 'react-router-dom'
 import { paths } from '../../routes/paths'
-import { adminMetrics, managedArtists, managedClients, systemStatus } from '../../services/mockData'
+import { adminMetrics, managedArtists, managedClients, systemStatus, artistAppointments } from '../../services/mockData'
+import { generateOwnerDashboardSummary } from '../../modules/business/businessMetricsEngine'
 
 function AdminDashboard() {
   const navigate = useNavigate()
+
+  // Business metrics calculation
+  const businessSummary = generateOwnerDashboardSummary(artistAppointments, [])
 
   return (
     <main className="dashboard-grid admin-grid">
@@ -34,6 +38,45 @@ function AdminDashboard() {
             tone={index % 2 === 0 ? 'rose' : 'nude'}
           />
         ))}
+
+        <MetricCard
+          label="Ingresos totales"
+          value={`$${businessSummary.totalRevenue.toLocaleString()}`}
+          trend="+18%"
+          tone="rose"
+        />
+        <MetricCard
+          label="Ingresos plataforma"
+          value={`$${businessSummary.platformRevenue.toLocaleString()}`}
+          trend="+15%"
+          tone="sage"
+        />
+        <MetricCard
+          label="Eventos con riesgo"
+          value={businessSummary.flaggedAppointments}
+          trend={businessSummary.flaggedAppointments > 0 ? "Revisar" : "Limpio"}
+          tone={businessSummary.flaggedAppointments > 0 ? "warm" : "success"}
+        />
+
+        <Card className="wide-card">
+          <PanelHeader title="Business Insights" eyebrow="Vista ejecutiva" />
+          <div className="insights-stack">
+            {businessSummary.insights.slice(0, 3).map((insight, index) => (
+              <div key={index} className="insight-item">
+                <div className="insight-header">
+                  <h4>{insight.title}</h4>
+                  <span className={`insight-badge priority-${insight.priority}`}>
+                    {insight.priority === 'critical' && '🔴'}
+                    {insight.priority === 'high' && '🟠'}
+                    {insight.priority === 'medium' && '🟡'}
+                    {insight.priority === 'low' && '🟢'}
+                  </span>
+                </div>
+                <p>{insight.message}</p>
+              </div>
+            ))}
+          </div>
+        </Card>
 
         <Card className="wide-card">
           <PanelHeader title="Gestion de artistas" eyebrow="Operaciones" action={<Button size="sm" onClick={() => navigate(paths.adminArtists)}>Abrir</Button>} />

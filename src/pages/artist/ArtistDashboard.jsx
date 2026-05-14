@@ -14,6 +14,7 @@ import { artistAppointments, artistProfile, artistServices, recurringClients } f
 import { getClientById } from '../../utils/clientHelpers'
 import { formatCurrency } from '../../utils/formatters'
 import { calculateFlowPoints, addPointsToClient, vipTierThresholds } from '../../modules/loyalty/flowPointsEngine'
+import { calculateAppointmentEconomy } from '../../modules/business/appointmentEconomyEngine'
 
 function ArtistDashboard({ view = 'agenda' }) {
   const navigate = useNavigate()
@@ -95,7 +96,7 @@ function ArtistDashboard({ view = 'agenda' }) {
       ? newClient.name
       : artistState.clients.find((client) => client.id === nextClientId)?.name || appointmentDraft.client
 
-    addArtistAppointment({
+    const appointmentPayload = {
       ...appointmentDraft,
       clientId: nextClientId,
       client: clientName,
@@ -103,7 +104,22 @@ function ArtistDashboard({ view = 'agenda' }) {
       duration: service.duration,
       room: 'Agenda',
       status: 'Confirmada',
+      serviceTier: service.serviceTier,
+      rewardApplied: null,
+      pointsGranted: calculateFlowPoints(service.serviceTier),
+      appointmentStatus: 'scheduled',
+    }
+
+    const economy = calculateAppointmentEconomy(appointmentPayload, service)
+
+    addArtistAppointment({
+      ...appointmentPayload,
+      grossAmount: economy.grossAmount,
+      platformFee: economy.platformFee,
+      artistRevenue: economy.artistRevenue,
+      riskScore: economy.riskScore,
     })
+
     bookSlot({
       date: appointmentDraft.date,
       time: appointmentDraft.time,
@@ -334,6 +350,8 @@ function ArtistDashboard({ view = 'agenda' }) {
                 <div className="timeline">
                   {appointmentsForSelectedDate.map((item, index) => {
                     const client = getClientById(artistState.clients, item.clientId)
+                    const serviceData = artistServices.find(s => s.name === item.service)
+                    const economyData = calculateAppointmentEconomy(item, serviceData)
                     return (
                       <AgendaCard
                         accent={index % 2 === 0 ? 'rose' : 'nude'}
@@ -343,6 +361,8 @@ function ArtistDashboard({ view = 'agenda' }) {
                         subtitle={`${item.service} / ${item.duration} / ${item.room}`}
                         status={item.status}
                         type={item.type}
+                        showEconomy={true}
+                        economyData={economyData}
                       />
                     )
                   })}
