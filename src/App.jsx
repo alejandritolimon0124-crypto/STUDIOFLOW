@@ -11,6 +11,7 @@ import ArtistClients from './pages/artist/ArtistClients'
 import ArtistDashboard from './pages/artist/ArtistDashboard'
 import ArtistScheduleSettings from './pages/artist/ArtistScheduleSettings'
 import ArtistServices from './pages/artist/ArtistServices'
+import ArtistMarketing from './pages/artist/ArtistMarketing'
 import ClientLayout from './layouts/ClientLayout'
 import Login from './pages/auth/Login'
 import Register from './pages/auth/Register'
@@ -40,6 +41,7 @@ function App() {
             <Route path="schedule" element={<ArtistScheduleSettings />} />
             <Route path="appointments" element={<ArtistAppointments />} />
             <Route path="clients" element={<ArtistClients />} />
+            <Route path="marketing" element={<ArtistMarketing />} />
           </Route>
 
           <Route path="/admin" element={<ProtectedRoute allowedRole="admin"><AdminLayout /></ProtectedRoute>}>

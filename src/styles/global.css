@@ -1284,6 +1284,205 @@ select:focus {
   font-size: 20px;
 }
 
+.premium-toast-container {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 10px;
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  padding: 0 12px;
+  margin-top: 0;
+}
+
+.premium-toast {
+  background: rgba(255, 255, 255, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  border-radius: 18px;
+  box-shadow: 0 18px 50px rgba(24, 20, 18, 0.08);
+  color: #3d3130;
+  font-weight: 700;
+  padding: 12px 18px;
+  backdrop-filter: blur(14px);
+}
+
+.premium-hero {
+  background: linear-gradient(180deg, rgba(255, 253, 249, 0.95), rgba(255, 246, 241, 0.55));
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  box-shadow: 0 24px 60px rgba(68, 49, 43, 0.06);
+}
+
+.toggle-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.marketing-modal-overlay {
+  align-items: center;
+  background: rgba(24, 20, 18, 0.28);
+  backdrop-filter: blur(10px);
+  bottom: 0;
+  display: flex;
+  inset: 0;
+  justify-content: center;
+  left: 0;
+  padding: 18px;
+  position: fixed;
+  right: 0;
+  top: 0;
+  z-index: 50;
+}
+
+.marketing-modal-card {
+  background: rgba(255, 251, 247, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  border-radius: 28px;
+  box-shadow: 0 28px 70px rgba(32, 24, 18, 0.12);
+  max-width: 520px;
+  max-height: 88vh;
+  padding: 24px;
+  width: 100%;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.marketing-modal-header {
+  align-items: start;
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.marketing-modal-header h3 {
+  font-size: 26px;
+}
+
+.marketing-modal-close {
+  background: rgba(255, 255, 255, 0.8);
+  border: 0;
+  border-radius: 14px;
+  color: #5d4b45;
+  font-size: 20px;
+  height: 44px;
+  width: 44px;
+}
+
+.marketing-modal-body p {
+  margin-bottom: 18px;
+}
+
+.marketing-modal-body ul {
+  display: grid;
+  gap: 10px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.marketing-modal-body li {
+  background: rgba(255, 246, 240, 0.82);
+  border: 1px solid rgba(242, 221, 216, 0.85);
+  border-radius: 16px;
+  color: #4d3f39;
+  padding: 12px 14px;
+}
+
+.marketing-modal-note {
+  color: #6b5a51;
+  font-size: 14px;
+  line-height: 1.5;
+  margin-bottom: 20px;
+}
+
+.marketing-modal-benefits {
+  display: grid;
+  gap: 14px;
+  margin-bottom: 22px;
+}
+
+.marketing-benefit-row {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(238, 226, 220, 0.9);
+  border-radius: 18px;
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px;
+}
+
+.marketing-benefit-row small {
+  color: #7a6a63;
+  display: block;
+  margin-top: 6px;
+}
+
+.benefit-actions {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+}
+
+.marketing-modal-vip-section {
+  margin-top: 24px;
+}
+
+.modal-section-header {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.vip-card-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.vip-card {
+  align-items: center;
+  background: rgba(255, 251, 247, 0.95);
+  border: 1px solid rgba(255, 241, 236, 0.9);
+  border-radius: 20px;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+}
+
+.vip-card small {
+  color: #8a7469;
+  display: block;
+  margin-top: 4px;
+}
+
+.vip-card-badge {
+  align-items: center;
+  background: rgba(248, 228, 219, 0.95);
+  border-radius: 999px;
+  color: #7a5845;
+  font-size: 12px;
+  font-weight: 800;
+  padding: 8px 12px;
+  text-transform: uppercase;
+}
+
+@media (min-width: 640px) {
+  .vip-card-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.marketing-modal-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  margin-top: 20px;
+}
+
 .modal-close {
   background: var(--surface-soft);
   border: 1px solid var(--line);
@@ -1574,14 +1773,13 @@ select:focus {
     background:
       linear-gradient(145deg, rgba(255, 255, 255, 0.98), rgba(246, 222, 219, 0.72));
     border: 1px solid rgba(220, 190, 182, 0.76);
-    box-shadow: 0 12px 28px rgba(118, 77, 67, 0.12);
-    display: grid;
     flex: 0 0 44px;
-    flex-shrink: 0;
     height: 44px;
     justify-content: center;
     justify-self: end;
-    min-width: 44px;
+    min-width: 44px
+    justify-content: center;
+    justify-self: end;
     width: 44px;
   }
 

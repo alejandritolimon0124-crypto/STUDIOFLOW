@@ -8,6 +8,7 @@ const copyByPath = {
   [paths.artistServices]: ['Servicios', 'Crea, edita, activa o suspende servicios de tu menu.'],
   [paths.artistSchedule]: ['Horarios', 'Define disponibilidad, descansos, bloqueos y reglas de agenda.'],
   [paths.artistClients]: ['Clientas', 'Seguimiento de clientas recurrentes y valor historico.'],
+  [paths.artistMarketing]: ['Marketing & Growth', 'Automatiza promociones, fidelización y crecimiento inteligente.'],
   [paths.artistSettings]: ['Ajustes', 'Configuraciones rapidas del workspace.'],
 }
 

@@ -15,6 +15,7 @@ export const paths = {
   artistClients: '/artist/clients',
   artistSettings: '/artist/settings',
   artistSchedule: '/artist/schedule',
+  artistMarketing: '/artist/marketing',
   client: '/client',
   clientDashboard: '/client/dashboard',
   clientAppointments: '/client/appointments',

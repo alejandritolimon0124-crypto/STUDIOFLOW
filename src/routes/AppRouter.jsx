@@ -5,6 +5,7 @@ import AdminClients from '../pages/admin/AdminClients'
 import ArtistDashboard from '../pages/artist/ArtistDashboard'
 import ArtistScheduleSettings from '../pages/artist/ArtistScheduleSettings'
 import ArtistServices from '../pages/artist/ArtistServices'
+import ArtistMarketing from '../pages/artist/ArtistMarketing'
 import ClientDashboard from '../pages/client/ClientDashboard'
 import Login from '../pages/auth/Login'
 import Register from '../pages/auth/Register'
@@ -35,6 +36,7 @@ function AppRouter() {
         <Route path={paths.artistServices} element={<ArtistServices />} />
         <Route path={paths.artistClients} element={<ArtistDashboard view="clientes" />} />
         <Route path={paths.artistSchedule} element={<ArtistScheduleSettings />} />
+        <Route path={paths.artistMarketing} element={<ArtistMarketing />} />
       </Route>
 
       <Route element={<ClientLayout />}>

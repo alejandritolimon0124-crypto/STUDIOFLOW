@@ -19,7 +19,7 @@ const roleNavigation = {
     { label: 'Servicios', path: paths.artistServices },
     { label: 'Clientes', path: paths.artistClients },
     { label: 'Horarios', path: paths.artistSchedule },
-    { label: 'Ajustes', path: paths.artistSettings },
+    { label: 'Impulsa tu negocio', path: paths.artistMarketing },
   ],
   client: [
     { label: 'Inicio', path: paths.client },
@@ -164,11 +164,13 @@ function DashboardLayout({ children, role, title, subtitle, showMobileAppbar = t
           </button>
         </header>
 
-        <div className="topbar-titles">
-          <span className="eyebrow">Studio Flow</span>
-          <h1>{title}</h1>
-          <p>{subtitle}</p>
-        </div>
+        {!([paths.artistMarketing].includes(currentPath)) && (
+          <div className="topbar-titles">
+            <span className="eyebrow">Studio Flow</span>
+            <h1>{title}</h1>
+            <p>{subtitle}</p>
+          </div>
+        )}
 
         {children}
       </div>
