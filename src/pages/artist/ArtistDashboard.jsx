@@ -13,11 +13,13 @@ import { paths } from '../../routes/paths'
 import { artistAppointments, artistProfile, artistServices, recurringClients } from '../../services/mockData'
 import { getClientById } from '../../utils/clientHelpers'
 import { formatCurrency } from '../../utils/formatters'
+import { calculateFlowPoints, addPointsToClient, vipTierThresholds } from '../../modules/loyalty/flowPointsEngine'
 
 function ArtistDashboard({ view = 'agenda' }) {
   const navigate = useNavigate()
-  const { artistState, addArtistAppointment, addArtistClient, bookSlot, selectedDate, setSelectedDate } = useApp()
+  const { artistState, addArtistAppointment, addArtistClient, updateArtistClient, bookSlot, selectedDate, setSelectedDate } = useApp()
   const [showAppointmentForm, setShowAppointmentForm] = useState(false)
+  const [pointsFeedback, setPointsFeedback] = useState(null)
   const [showDatePicker, setShowDatePicker] = useState(false)
   const [appointmentDraft, setAppointmentDraft] = useState({
     clientId: artistState.clients[0]?.id || '',
@@ -67,13 +69,15 @@ function ArtistDashboard({ view = 'agenda' }) {
   const saveAppointment = () => {
     let nextClientId = appointmentDraft.clientId
 
+    let createdClient = null
+
     if (isCreatingNewClient) {
       nextClientId = `artist-client-${Date.now()}`
-      addArtistClient({
+      createdClient = {
         ...newClient,
         id: nextClientId,
-        vipTier: 'Basic',
-        flowPoints: 40,
+        vipTier: 'Glow',
+        flowPoints: 0,
         streak: 1,
         totalVisits: 1,
         pointsExpirationDate: '2026-12-31',
@@ -82,7 +86,8 @@ function ArtistDashboard({ view = 'agenda' }) {
         lastVisit: appointmentDraft.date,
         nextRecommendedVisit: appointmentDraft.date,
         rewardsHistory: [],
-      })
+      }
+      addArtistClient(createdClient)
     }
 
     const service = artistServices.find((item) => item.name === appointmentDraft.service) || artistServices.find(s => s.status === 'Activo')
@@ -107,6 +112,23 @@ function ArtistDashboard({ view = 'agenda' }) {
       service: appointmentDraft.service,
       durationMinutes: Number.parseInt(service.duration, 10) || 60,
     })
+
+    // Calculate and add Flow Points
+    const pointsEarned = calculateFlowPoints(service.serviceTier)
+    const client = artistState.clients.find(c => c.id === nextClientId) || createdClient
+    if (client) {
+      const updatedClient = addPointsToClient(client, pointsEarned)
+      updateArtistClient(client.id, updatedClient)
+      const nextTier = vipTierThresholds.find((tier) => tier.minPoints > updatedClient.flowPoints)
+      const pointsToNext = nextTier ? nextTier.minPoints - updatedClient.flowPoints : 0
+      setPointsFeedback({
+        clientName: clientName,
+        points: pointsEarned,
+        pointsToNext,
+      })
+      setTimeout(() => setPointsFeedback(null), 3000)
+    }
+
     setShowAppointmentForm(false)
     setClientSearch('')
     setIsCreatingNewClient(false)
@@ -133,6 +155,13 @@ function ArtistDashboard({ view = 'agenda' }) {
                 <small>ocupacion de hoy</small>
               </div>
             </section>
+
+            {pointsFeedback && (
+              <div className="points-feedback">
+                <strong>✨ +{pointsFeedback.points} Flow Points</strong>
+                <p>{pointsFeedback.pointsToNext > 0 ? `Estás a ${pointsFeedback.pointsToNext} puntos de tu próxima recompensa.` : 'Ya estás listo para tu próxima recompensa.'}</p>
+              </div>
+            )}
 
             <MetricCard label="Citas" value={appointmentCount} trend={appointmentCount === 0 ? 'Agenda libre' : `+${appointmentCount} vs promedio`} className="mobile-compact" />
             <MetricCard label="Ocupación" value={`${occupancy}%`} trend={occupancy > 80 ? 'Día full' : 'Oportunidad'} tone={occupancy > 80 ? 'sage' : 'rose'} className="mobile-compact" />

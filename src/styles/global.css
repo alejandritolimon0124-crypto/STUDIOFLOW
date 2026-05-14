@@ -2381,3 +2381,24 @@ select:focus {
     color: #fff;
   }
 }
+
+.points-feedback {
+  background: linear-gradient(135deg, var(--gold), var(--rose));
+  border-radius: var(--radius);
+  color: white;
+  font-weight: 600;
+  padding: 12px 16px;
+  text-align: center;
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

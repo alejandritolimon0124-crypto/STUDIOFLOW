@@ -35,9 +35,8 @@ export const artistAppointments = [
   {
     time: '14:00',
     end: '15:00',
-    client: null,
-    clientId: null,
     client: 'Descanso',
+    clientId: null,
     service: 'Bloque no disponible',
     duration: '60 min',
     status: 'Descanso',
@@ -66,7 +65,7 @@ export const artistClients = [
     phone: '55 1234 5678',
     birthday: '1993-03-18',
     flowPoints: 98,
-    vipTier: 'Premium',
+    vipTier: 'Glow',
     streak: 4,
     totalVisits: 14,
     pointsExpirationDate: '2026-12-31',
@@ -86,7 +85,7 @@ export const artistClients = [
     phone: '55 9876 5432',
     birthday: '1995-10-12',
     flowPoints: 72,
-    vipTier: 'Medium',
+    vipTier: 'Glow',
     streak: 2,
     totalVisits: 9,
     pointsExpirationDate: '2026-10-30',
@@ -105,7 +104,7 @@ export const artistClients = [
     phone: '55 1122 3344',
     birthday: '1990-06-02',
     flowPoints: 124,
-    vipTier: 'VIP',
+    vipTier: 'Glow',
     streak: 7,
     totalVisits: 21,
     pointsExpirationDate: '2027-01-15',
@@ -121,9 +120,9 @@ export const artistClients = [
 ]
 
 export const artistServices = [
-  { name: 'Lash lifting', category: 'Colocación de Pestañas', price: 680, duration: '70 min', bookings: 18, demand: 'Alta', status: 'Activo' },
-  { name: 'Brow design', category: 'Microblading', price: 420, duration: '45 min', bookings: 24, demand: 'Top', status: 'Activo' },
-  { name: 'Soft glam makeup', category: 'Maquillaje', price: 1250, duration: '90 min', bookings: 11, demand: 'Media', status: 'Suspendido' },
+  { name: 'Lash lifting', category: 'Colocación de Pestañas', price: 680, duration: '70 min', bookings: 18, demand: 'Alta', status: 'Activo', serviceTier: 'premium' },
+  { name: 'Brow design', category: 'Microblading', price: 420, duration: '45 min', bookings: 24, demand: 'Top', status: 'Activo', serviceTier: 'medium' },
+  { name: 'Soft glam makeup', category: 'Maquillaje', price: 1250, duration: '90 min', bookings: 11, demand: 'Media', status: 'Suspendido', serviceTier: 'vip' },
 ]
 
 export const serviceCatalog = {

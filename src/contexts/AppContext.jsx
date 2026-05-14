@@ -486,6 +486,15 @@ export function AppProvider({ children }) {
     }))
   }, [])
 
+  const updateArtistClient = useCallback((clientId, updates) => {
+    setArtistState((currentState) => ({
+      ...currentState,
+      clients: currentState.clients.map((client) =>
+        client.id === clientId ? { ...client, ...updates } : client,
+      ),
+    }))
+  }, [])
+
   const addArtistAppointment = useCallback((appointment) => {
     setArtistState((currentState) => ({
       ...currentState,
@@ -535,6 +544,7 @@ export function AppProvider({ children }) {
       toggleFavoriteArtist,
       updateClientProfile,
       addArtistClient,
+      updateArtistClient,
       addArtistAppointment,
       selectedDate,
       setSelectedDate,
@@ -568,6 +578,7 @@ export function AppProvider({ children }) {
       toggleFavoriteArtist,
       updateClientProfile,
       addArtistClient,
+      updateArtistClient,
       addArtistAppointment,
       selectedDate,
       setSelectedDate,
