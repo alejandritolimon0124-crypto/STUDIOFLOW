@@ -156,6 +156,7 @@ export function AppProvider({ children }) {
   const [adminState, setAdminState] = useState(createInitialAdminState)
   const [clientState, setClientState] = useState(createInitialClientState)
   const [artistState, setArtistState] = useState(createInitialArtistState)
+  const [selectedDate, setSelectedDate] = useState('2026-05-18')
 
   const login = (role) => {
     const nextSession = {
@@ -477,6 +478,20 @@ export function AppProvider({ children }) {
     }))
   }, [])
 
+  const addArtistClient = useCallback((client) => {
+    setArtistState((currentState) => ({
+      ...currentState,
+      clients: [
+        ...currentState.clients,
+        {
+          ...client,
+          id: `artist-client-${Date.now()}`,
+          history: [],
+        },
+      ],
+    }))
+  }, [])
+
   const addArtistAppointment = useCallback((appointment) => {
     setArtistState((currentState) => ({
       ...currentState,
@@ -525,7 +540,10 @@ export function AppProvider({ children }) {
       addMockBooking,
       toggleFavoriteArtist,
       updateClientProfile,
+      addArtistClient,
       addArtistAppointment,
+      selectedDate,
+      setSelectedDate,
     }),
     [
       session,
@@ -555,7 +573,10 @@ export function AppProvider({ children }) {
       addMockBooking,
       toggleFavoriteArtist,
       updateClientProfile,
+      addArtistClient,
       addArtistAppointment,
+      selectedDate,
+      setSelectedDate,
     ],
   )
 

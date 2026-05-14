@@ -342,6 +342,7 @@ p {
   font-size: 13px;
   font-weight: 800;
   gap: 8px;
+  position: relative;
 }
 
 .input-field small {
@@ -365,6 +366,71 @@ input:focus,
 select:focus {
   border-color: var(--rose);
   box-shadow: 0 0 0 4px rgba(201, 135, 145, 0.13);
+}
+
+.autocomplete-suggestions {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-soft);
+  margin-top: 4px;
+  max-height: 200px;
+  overflow-y: auto;
+  position: absolute;
+  width: 100%;
+  z-index: 10;
+}
+
+.suggestion-item {
+  background: none;
+  border: none;
+  color: var(--text);
+  cursor: pointer;
+  display: block;
+  font-size: 14px;
+  padding: 12px 14px;
+  text-align: left;
+  width: 100%;
+}
+
+.suggestion-item:hover,
+.suggestion-item:focus {
+  background: var(--surface-soft);
+}
+
+.suggestion-item.create-new {
+  border-top: 1px solid var(--line);
+  color: var(--rose);
+  font-weight: 600;
+}
+
+.new-client-form {
+  display: grid;
+  gap: 12px;
+}
+
+.new-client-form input,
+.new-client-form textarea {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  color: var(--text);
+  min-height: 48px;
+  outline: none;
+  padding: 0 14px;
+  width: 100%;
+}
+
+.new-client-form textarea {
+  min-height: 60px;
+  padding: 12px 14px;
+  resize: vertical;
+}
+
+.form-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
 }
 
 .role-shortcuts {

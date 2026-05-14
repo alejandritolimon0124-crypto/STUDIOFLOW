@@ -15,17 +15,66 @@ import { formatCurrency } from '../../utils/formatters'
 
 function ArtistDashboard({ view = 'agenda' }) {
   const navigate = useNavigate()
-  const { artistState, addArtistAppointment, bookSlot } = useApp()
+  const { artistState, addArtistAppointment, addArtistClient, bookSlot, selectedDate, setSelectedDate } = useApp()
   const [showAppointmentForm, setShowAppointmentForm] = useState(false)
+  const [showDatePicker, setShowDatePicker] = useState(false)
   const [appointmentDraft, setAppointmentDraft] = useState({
     client: artistState.clients[0]?.name || 'Mariana L.',
-    service: artistServices[0].name,
+    phone: artistState.clients[0]?.phone || '',
+    service: artistServices.find(s => s.status === 'Activo')?.name || '',
     date: '2026-05-18',
     time: '10:00',
   })
+  const [clientSearch, setClientSearch] = useState('')
+  const [isCreatingNewClient, setIsCreatingNewClient] = useState(false)
+  const [newClient, setNewClient] = useState({ name: '', phone: '', notes: '' })
+
+  // Lógica de agenda dinámica
+  const appointmentsForSelectedDate = artistState.appointments.filter(apt => apt.date === selectedDate && apt.type === 'appointment')
+  const hasAppointments = appointmentsForSelectedDate.length > 0
+  
+  const appointmentCount = appointmentsForSelectedDate.length
+  const totalDuration = appointmentsForSelectedDate.reduce((sum, apt) => {
+    const minutes = parseInt(apt.duration) || 60
+    return sum + minutes
+  }, 0)
+  const occupancy = Math.round((totalDuration / 480) * 100) // 480 min = 8 horas
+  const estimatedRevenue = appointmentsForSelectedDate.reduce((sum, apt) => {
+    const service = artistServices.find(s => s.name === apt.service)
+    return sum + (service?.price || 0)
+  }, 0)
+
+  // Determinar el día de la semana
+  const [year, month, day] = selectedDate.split('-').map(Number)
+  const dateObj = new Date(year, month - 1, day)
+  const dayOfWeek = dateObj.toLocaleDateString('es-MX', { weekday: 'short', month: 'short', day: 'numeric' })
+
+  // Recomendaciones para días vacíos
+  const emptyDayRecommendations = [
+    { icon: '⏰', text: 'Happy Hour recomendado para Lash lifting' },
+    { icon: '🔄', text: 'Reactivar clientas con oferta especial' },
+    { icon: '✨', text: 'Promoción silenciosa a seguidoras' },
+  ]
+
+  const filteredClients = artistState.clients.filter(client =>
+    client.name.toLowerCase().includes(clientSearch.toLowerCase())
+  )
+  const hasMatches = filteredClients.length > 0
+  const showCreateOption = clientSearch.trim() && !hasMatches
 
   const saveAppointment = () => {
-    const service = artistServices.find((item) => item.name === appointmentDraft.service) || artistServices[0]
+    if (isCreatingNewClient) {
+      // Create new client
+      addArtistClient({
+        name: newClient.name,
+        phone: newClient.phone,
+        notes: newClient.notes,
+      })
+      // Set the client in appointment
+      setAppointmentDraft(prev => ({ ...prev, client: newClient.name, phone: newClient.phone }))
+    }
+
+    const service = artistServices.find((item) => item.name === appointmentDraft.service) || artistServices.find(s => s.status === 'Activo')
 
     addArtistAppointment({
       ...appointmentDraft,
@@ -43,6 +92,9 @@ function ArtistDashboard({ view = 'agenda' }) {
       durationMinutes: Number.parseInt(service.duration, 10) || 60,
     })
     setShowAppointmentForm(false)
+    setClientSearch('')
+    setIsCreatingNewClient(false)
+    setNewClient({ name: '', phone: '', notes: '' })
   }
 
   return (
@@ -66,9 +118,9 @@ function ArtistDashboard({ view = 'agenda' }) {
               </div>
             </section>
 
-            <MetricCard label="Citas hoy" value="8" trend="+2 vs ayer" className="mobile-compact" />
-            <MetricCard label="Ingresos estimados" value="$7.8K" trend="+14%" tone="nude" className="mobile-compact" />
-            <MetricCard label="Rating promedio" value={artistProfile.rating} trend="312 reviews" tone="sage" className="mobile-compact" />
+            <MetricCard label="Citas" value={appointmentCount} trend={appointmentCount === 0 ? 'Agenda libre' : `+${appointmentCount} vs promedio`} className="mobile-compact" />
+            <MetricCard label="Ocupación" value={`${occupancy}%`} trend={occupancy > 80 ? 'Día full' : 'Oportunidad'} tone={occupancy > 80 ? 'sage' : 'rose'} className="mobile-compact" />
+            <MetricCard label="Ingresos estimados" value={formatCurrency(estimatedRevenue)} trend={estimatedRevenue === 0 ? 'Sin reservas' : '+18%'} tone="nude" className="mobile-compact" />
 
             {showAppointmentForm && (
               <Card className="mobile-screen primary-panel">
@@ -76,51 +128,223 @@ function ArtistDashboard({ view = 'agenda' }) {
                 <div className="form-stack compact-form">
                   <label className="input-field">
                     <span>Cliente</span>
-                    <select value={appointmentDraft.client} onChange={(event) => setAppointmentDraft({ ...appointmentDraft, client: event.target.value })}>
-                      {artistState.clients.map((client) => <option key={client.id}>{client.name}</option>)}
-                    </select>
-                  </label>
-                  <label className="input-field">
+                    {!isCreatingNewClient ? (
+                      <>
+                        <input
+                          type="text"
+                          placeholder="Buscar clienta..."
+                          value={clientSearch}
+                          onChange={(e) => setClientSearch(e.target.value)}
+                          onFocus={() => setClientSearch(appointmentDraft.client)}
+                        />
+                        {clientSearch && (
+                          <div className="autocomplete-suggestions">
+                            {filteredClients.map((client) => (
+                              <button
+                                key={client.id}
+                                type="button"
+                                className="suggestion-item"
+                                onClick={() => {
+                                  setAppointmentDraft({ ...appointmentDraft, client: client.name, phone: client.phone })
+                                  setClientSearch('')
+                                }}
+                              >
+                                {client.name}
+                              </button>
+                            ))}
+                            {showCreateOption && (
+                              <button
+                                type="button"
+                                className="suggestion-item create-new"
+                                onClick={() => {
+                                  setIsCreatingNewClient(true)
+                                  setNewClient({ name: clientSearch, phone: '', notes: '' })
+                                }}
+                              >
+                                + Crear nueva clienta
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <div className="new-client-form">
+                        <input
+                          type="text"
+                          placeholder="Nombre"
+                          value={newClient.name}
+                          onChange={(e) => setNewClient({ ...newClient, name: e.target.value })}
+                        />
+                        <input
+                          type="tel"
+                          placeholder="Número celular"
+                          value={newClient.phone}
+                          onChange={(e) => setNewClient({ ...newClient, phone: e.target.value })}
+                        />
+                        <textarea
+                          placeholder="Notas (opcional)"
+                          value={newClient.notes}
+                          onChange={(e) => setNewClient({ ...newClient, notes: e.target.value })}
+                          rows="2"
+                        />
+                        <div className="form-actions">
+                          <Button variant="ghost" size="sm" onClick={() => setIsCreatingNewClient(false)}>Cancelar</Button>
+                        </div>
+                      </div>
+                    )}
+                  </label>                  {!isCreatingNewClient && (
+                    <Input
+                      label="Número celular"
+                      type="tel"
+                      placeholder="55 0000 0000"
+                      value={appointmentDraft.phone}
+                      onChange={(event) => setAppointmentDraft({ ...appointmentDraft, phone: event.target.value })}
+                    />
+                  )}                  <label className="input-field">
                     <span>Servicio</span>
                     <select value={appointmentDraft.service} onChange={(event) => setAppointmentDraft({ ...appointmentDraft, service: event.target.value })}>
-                      {artistServices.map((service) => <option key={service.name}>{service.name}</option>)}
+                      {artistServices.filter(s => s.status === 'Activo').map((service) => <option key={service.name} value={service.name}>{service.name} · {service.duration}</option>)}
                     </select>
                   </label>
                   <Input label="Fecha" type="date" value={appointmentDraft.date} onChange={(event) => setAppointmentDraft({ ...appointmentDraft, date: event.target.value })} />
                   <Input label="Hora" type="time" value={appointmentDraft.time} onChange={(event) => setAppointmentDraft({ ...appointmentDraft, time: event.target.value })} />
-                  <Button className="full-width" onClick={saveAppointment}>Guardar cita</Button>
+                  <Button className="full-width" onClick={saveAppointment}>Confirmar cita</Button>
                 </div>
               </Card>
             )}
 
             <Card className="calendar-card mobile-screen primary-panel">
-              <PanelHeader title="Agenda visual" eyebrow="Lunes 11 mayo" action={<Button variant="ghost" size="sm">Filtrar</Button>} />
+              <PanelHeader 
+                title="Agenda visual" 
+                eyebrow={dayOfWeek.charAt(0).toUpperCase() + dayOfWeek.slice(1)} 
+                action={
+                  <div style={{ position: 'relative' }}>
+                    <Button variant="ghost" size="sm" onClick={() => setShowDatePicker(!showDatePicker)}>Filtrar</Button>
+                    {showDatePicker && (
+                      <div style={{ 
+                        position: 'absolute', 
+                        top: '100%', 
+                        right: 0, 
+                        zIndex: 20, 
+                        background: 'var(--surface)', 
+                        border: '1px solid var(--line)', 
+                        borderRadius: 'var(--radius)',
+                        boxShadow: 'var(--shadow-soft)',
+                        padding: '12px',
+                        marginTop: '4px',
+                        minWidth: '200px'
+                      }}>
+                        <input 
+                          type="date" 
+                          value={selectedDate} 
+                          onChange={(e) => {
+                            setSelectedDate(e.target.value)
+                            setShowDatePicker(false)
+                          }}
+                          style={{
+                            background: '#fff',
+                            border: '1px solid var(--line)',
+                            borderRadius: 'var(--radius)',
+                            padding: '8px 12px',
+                            width: '100%',
+                            fontSize: '14px',
+                            cursor: 'pointer',
+                          }}
+                        />
+                      </div>
+                    )}
+                  </div>
+                } 
+              />
               <div className="agenda-rules-strip">
                 <span>Intervalo 15 min</span>
                 <span>Anticipacion minima 2 h</span>
                 <span>Descanso 14:00 - 15:00</span>
               </div>
               <div className="day-strip">
-                {['Lun', 'Mar', 'Mie', 'Jue', 'Vie'].map((day, index) => (
-                  <button className={index === 0 ? 'active' : ''} type="button" key={day}>
-                    <span>{day}</span>
-                    <strong>{11 + index}</strong>
-                  </button>
-                ))}
+                {['2026-05-13', '2026-05-14', '2026-05-15', '2026-05-16', '2026-05-17'].map((dateValue) => {
+                  const d = new Date(dateValue.split('-')[0], parseInt(dateValue.split('-')[1]) - 1, parseInt(dateValue.split('-')[2]))
+                  const dayLabel = d.toLocaleDateString('es-MX', { weekday: 'short' }).substring(0, 3)
+                  const dayNum = d.getDate()
+                  return (
+                    <button 
+                      className={selectedDate === dateValue ? 'active' : ''} 
+                      type="button" 
+                      key={dateValue}
+                      onClick={() => setSelectedDate(dateValue)}
+                    >
+                      <span>{dayLabel}</span>
+                      <strong>{dayNum}</strong>
+                    </button>
+                  )
+                })}
               </div>
-              <div className="timeline">
-                {artistState.appointments.map((item, index) => (
-                  <AgendaCard
-                    accent={index % 2 === 0 ? 'rose' : 'nude'}
-                    key={`${item.time}-${item.client}`}
-                    time={`${item.time} - ${item.end}`}
-                    title={item.client}
-                    subtitle={`${item.service} / ${item.duration} / ${item.room}`}
-                    status={item.status}
-                    type={item.type}
-                  />
-                ))}
-              </div>
+              {hasAppointments ? (
+                <div className="timeline">
+                  {appointmentsForSelectedDate.map((item, index) => (
+                    <AgendaCard
+                      accent={index % 2 === 0 ? 'rose' : 'nude'}
+                      key={`${item.id}-${item.time}`}
+                      time={`${item.time} - ${item.end}`}
+                      title={item.client}
+                      subtitle={`${item.service} / ${item.duration} / ${item.room}`}
+                      status={item.status}
+                      type={item.type}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div style={{
+                  background: 'linear-gradient(135deg, rgba(245, 221, 223, 0.3), rgba(234, 219, 210, 0.2))',
+                  borderRadius: 'var(--radius)',
+                  padding: '28px 20px',
+                  textAlign: 'center',
+                  marginTop: '16px',
+                }}>
+                  <p style={{
+                    fontSize: '16px',
+                    fontWeight: '600',
+                    color: 'var(--text)',
+                    margin: '0 0 8px 0',
+                  }}>Tu agenda está libre este día ✨</p>
+                  <p style={{
+                    fontSize: '13px',
+                    color: 'var(--muted)',
+                    margin: '0 0 16px 0',
+                  }}>Es un excelente momento para activar promociones inteligentes y atraer más clientas.</p>
+                  
+                  <div style={{ marginTop: '16px' }}>
+                    <p style={{
+                      fontSize: '12px',
+                      fontWeight: '700',
+                      color: 'var(--text)',
+                      margin: '12px 0 8px 0',
+                      textAlign: 'left',
+                    }}>Recomendaciones:</p>
+                    {emptyDayRecommendations.map((rec, idx) => (
+                      <div key={idx} style={{
+                        display: 'flex',
+                        gap: '8px',
+                        padding: '8px 0',
+                        fontSize: '13px',
+                        color: 'var(--text)',
+                        textAlign: 'left',
+                      }}>
+                        <span>{rec.icon}</span>
+                        <span>{rec.text}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <Button 
+                    className="full-width" 
+                    onClick={() => navigate(paths.artistMarketing)}
+                    style={{ marginTop: '16px' }}
+                  >
+                    Impulsar este día
+                  </Button>
+                </div>
+              )}
             </Card>
           </>
         )}
