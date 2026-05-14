@@ -7,7 +7,9 @@ import PanelHeader from '../../components/PanelHeader'
 import StatusPill from '../../components/StatusPill'
 import { useApp } from '../../contexts/appContextCore'
 import { paths } from '../../routes/paths'
-import { clientAppointments, clientHistory } from '../../services/mockData'
+import { clientAppointments, clientHistory, artistServices } from '../../services/mockData'
+import { getClientById } from '../../utils/clientHelpers'
+import { calculateFlowPoints, flowPointRewards, getActivePoints, getExpiringPoints, vipTierThresholds } from '../../modules/loyalty/flowPointsEngine'
 
 const searchServices = {
   Unas: [
@@ -218,6 +220,7 @@ function ClientDashboard({ view = 'inicio' }) {
   const {
     adminState,
     agendaSettings,
+    artistState,
     clientState,
     bookSlot,
     getAvailableSlots,
@@ -239,6 +242,57 @@ function ClientDashboard({ view = 'inicio' }) {
   })
   const activeArtists = adminState.artists.filter((artist) => artist.status === 'Activo')
   const favoriteArtists = adminState.artists.filter((artist) => clientState.favoriteArtistIds.includes(artist.id))
+  const clientLookupId = clientState.profile?.id || 'client-mf'
+  const currentClient = getClientById(artistState.clients, clientLookupId) || {
+    ...clientState.profile,
+    flowPoints: clientState.profile?.flowPoints || 0,
+    vipTier: clientState.profile?.vipTier || 'Glow',
+    streak: clientState.profile?.streak || 0,
+    rewardsHistory: [],
+  }
+  const currentClientActivePoints = getActivePoints(currentClient)
+  const nextReward = flowPointRewards.discount10
+  const nextRewardProgress = Math.min(100, Math.round((currentClientActivePoints / nextReward.pointsCost) * 100))
+  const pointsToNextReward = Math.max(0, nextReward.pointsCost - currentClientActivePoints)
+  const tierProgressTarget = vipTierThresholds.find((tier) => tier.minPoints > (currentClient.flowPoints || 0))
+  const pointsToNextTier = tierProgressTarget ? tierProgressTarget.minPoints - (currentClient.flowPoints || 0) : 0
+  const expiringSoon = getExpiringPoints(currentClient, 30)
+
+  const expiringEntries = (currentClient.rewardsHistory || [])
+    .filter((entry) => entry.points && entry.points > 0 && entry.expirationDate)
+    .map((entry) => {
+      const expiration = new Date(entry.expirationDate)
+      const now = new Date()
+      return {
+        ...entry,
+        daysUntil: Math.max(0, Math.ceil((expiration - now) / (1000 * 60 * 60 * 24))),
+      }
+    })
+    .filter((entry) => entry.daysUntil >= 0)
+    .sort((a, b) => a.daysUntil - b.daysUntil)
+
+  const nearestExpiration = expiringEntries[0]
+
+  const clientHistoryConnected = artistState.appointments
+    .filter((item) => item.clientId === clientLookupId && item.type === 'appointment')
+    .map((item) => {
+      const service = artistServices.find((serviceItem) => serviceItem.name === item.service)
+      return {
+        ...item,
+        points: calculateFlowPoints(service?.serviceTier || 'basic'),
+        artist: 'Valeria Moon',
+      }
+    })
+
+  const vipBenefits = {
+    Glow: ['Promociones privadas', 'Bonus cumpleaños', 'Prioridad agenda'],
+    Muse: ['Reservas ultra-rápidas', 'Acceso a productos exclusivos', 'Invitaciones VIP'],
+    Icon: ['Estilo personalizado', 'Servicio exprés', 'Beneficios especiales de otoño'],
+    Elite: ['Atención prioritaria', 'Experiencias a la medida', 'Eventos de lanzamiento'],
+  }
+
+  const clientBenefits = vipBenefits[currentClient.vipTier] || vipBenefits.Glow
+
   const marketplaceArtists = useMemo(
     () => {
       const visibleSlots = availableSlots.filter((slot) => slot.available).length
@@ -299,37 +353,102 @@ function ClientDashboard({ view = 'inicio' }) {
           <>
             <section className="hero-panel client-hero mobile-screen">
               <div>
-                <span className="eyebrow">Clienta premium</span>
-                <h2>Hola, Mariana</h2>
-                <p>Tu proxima cita esta confirmada. Descubre artistas cerca de ti y guarda tus estudios favoritos.</p>
+                <span className="eyebrow">✨ Hola {currentClient.name}</span>
+                <h2>Tu universo beauty premium</h2>
+                <p>Estás acumulando Flow Points con cada experiencia. Mantén tu ritmo en Studio Flow y desbloquea beneficios exclusivos.</p>
                 <div className="hero-actions">
-                  <Button onClick={() => navigate(paths.clientExplore)}>Reservar cita</Button>
-                  <Button variant="ghost" onClick={() => navigate(paths.clientExplore)}>Explorar artistas</Button>
+                  <Button onClick={() => navigate(paths.clientExplore)}>Agendar ahora</Button>
+                  <Button variant="ghost" onClick={() => navigate(paths.clientAppointments)}>Ver mis citas</Button>
                 </div>
               </div>
-              <div className="hero-summary">
-                <span>Glow plan</span>
-                <strong>2</strong>
-                <small>citas activas</small>
+              <div className="hero-summary client-hero-summary">
+                <span>{currentClient.vipTier || 'Glow'} VIP</span>
+                <strong>{currentClient.flowPoints || 0} Flow Points</strong>
+                <small>{pointsToNextTier > 0 ? `A solo ${pointsToNextTier} puntos de tu siguiente tier` : 'Estás en el máximo tier'}</small>
               </div>
             </section>
 
-            <Card className="wide-card mobile-screen primary-panel">
-              <PanelHeader title="Proximas citas" eyebrow="Confirmadas" />
-              <div className="appointment-stack">
-                {upcomingAppointments.slice(0, 1).map((appointment) => (
-                  <article className="client-appointment" key={`${appointment.artist}-${appointment.time}`}>
-                    <div className="date-block">
-                      <strong>{appointment.date}</strong>
-                      <span>{appointment.time}</span>
-                    </div>
-                    <div>
-                      <h3>{appointment.service}</h3>
-                      <p>{appointment.artist} / {appointment.address}</p>
-                    </div>
-                    <StatusPill tone="success">Lista</StatusPill>
-                  </article>
-                ))}
+            <aside className="client-metrics-grid mobile-screen">
+              <Card className="loyalty-card">
+                <PanelHeader title="Flow Points" eyebrow="Balance actual" />
+                <div className="loyalty-status">
+                  <div>
+                    <strong>{currentClient.flowPoints || 0}</strong>
+                    <span>puntos disponibles</span>
+                  </div>
+                  <div>
+                    <strong>{currentClient.vipTier || 'Glow'}</strong>
+                    <span>tier VIP</span>
+                  </div>
+                </div>
+                <div className="progress-row">
+                  <span>Próxima recompensa</span>
+                  <strong>{nextReward.name}</strong>
+                </div>
+                <div className="progress-bar">
+                  <div className="progress-fill" style={{ width: `${nextRewardProgress}%` }} />
+                </div>
+                <small>{pointsToNextReward > 0 ? `A solo ${pointsToNextReward} puntos de ${nextReward.name}` : 'Listo para redimir tu próxima recompensa'}</small>
+              </Card>
+
+              <Card className="loyalty-card streak-card">
+                <PanelHeader title="Streak" eyebrow="Ritmo de visitas" />
+                <div className="streak-block">
+                  <strong>🔥 {currentClient.streak || 0} visitas consecutivas</strong>
+                  <p>Mantén tu streak y gana bonus rewards.</p>
+                </div>
+                <div className="reward-callout">
+                  <span>Próxima recompensa</span>
+                  <strong>10% OFF</strong>
+                </div>
+              </Card>
+            </aside>
+
+            <section className="client-summary-grid mobile-screen">
+              <Card className="points-expire-card">
+                <PanelHeader title="Puntos por vencer" eyebrow="Atención" />
+                {nearestExpiration ? (
+                  <>
+                    <strong>⚠️ {expiringSoon} puntos expiran en {nearestExpiration.daysUntil} días</strong>
+                    <p>Activa tu próxima cita para conservar tu saldo premium.</p>
+                    <Button onClick={() => navigate(paths.clientExplore)}>Agendar ahora</Button>
+                  </>
+                ) : (
+                  <p>No hay puntos en riesgo en los próximos 30 días.</p>
+                )}
+              </Card>
+
+              <Card className="vip-benefits-card">
+                <PanelHeader title="Beneficios" eyebrow={`${currentClient.vipTier || 'Glow'} VIP`} />
+                <ul className="benefits-list">
+                  {clientBenefits.map((benefit) => (
+                    <li key={benefit}>{benefit}</li>
+                  ))}
+                </ul>
+              </Card>
+            </section>
+
+            <Card className="mobile-screen primary-panel history-card">
+              <PanelHeader title="Historial conectado" eyebrow="Tus últimos servicios" />
+              <div className="history-table">
+                <div className="history-row header-row">
+                  <span>Fecha</span>
+                  <span>Servicio</span>
+                  <span>Artista</span>
+                  <span>Puntos</span>
+                </div>
+                {clientHistoryConnected.length > 0 ? clientHistoryConnected.map((item) => (
+                  <div className="history-row" key={`${item.service}-${item.date}-${item.time}`}>
+                    <span>{item.date}</span>
+                    <span>{item.service}</span>
+                    <span>{item.artist}</span>
+                    <strong>+{item.points}</strong>
+                  </div>
+                )) : (
+                  <div className="history-row empty-row">
+                    <span>Aún no tienes historial conectado con tus citas.</span>
+                  </div>
+                )}
               </div>
             </Card>
           </>

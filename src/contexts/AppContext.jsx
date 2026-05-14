@@ -73,10 +73,15 @@ function createInitialAdminState() {
 function createInitialClientState() {
   return {
     profile: {
-      name: 'Mariana Lopez',
+      id: 'client-mf',
+      name: 'María Fernanda',
       email: 'mariana.lopez@studioflow.demo',
       phone: '55 0000 0000',
       notes: 'Clienta premium Studio Flow.',
+      flowPoints: 98,
+      vipTier: 'Glow',
+      streak: 4,
+      pointsExpirationDate: '2026-12-31',
     },
     favoriteArtistIds: ['artist-1', 'artist-3'],
   }
