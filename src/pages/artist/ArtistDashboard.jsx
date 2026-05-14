@@ -11,6 +11,7 @@ import StatsCard from '../../components/StatsCard'
 import { useApp } from '../../contexts/appContextCore'
 import { paths } from '../../routes/paths'
 import { artistAppointments, artistProfile, artistServices, recurringClients } from '../../services/mockData'
+import { getClientById } from '../../utils/clientHelpers'
 import { formatCurrency } from '../../utils/formatters'
 
 function ArtistDashboard({ view = 'agenda' }) {
@@ -19,6 +20,7 @@ function ArtistDashboard({ view = 'agenda' }) {
   const [showAppointmentForm, setShowAppointmentForm] = useState(false)
   const [showDatePicker, setShowDatePicker] = useState(false)
   const [appointmentDraft, setAppointmentDraft] = useState({
+    clientId: artistState.clients[0]?.id || '',
     client: artistState.clients[0]?.name || 'Mariana L.',
     phone: artistState.clients[0]?.phone || '',
     service: artistServices.find(s => s.status === 'Activo')?.name || '',
@@ -63,21 +65,35 @@ function ArtistDashboard({ view = 'agenda' }) {
   const showCreateOption = clientSearch.trim() && !hasMatches
 
   const saveAppointment = () => {
+    let nextClientId = appointmentDraft.clientId
+
     if (isCreatingNewClient) {
-      // Create new client
+      nextClientId = `artist-client-${Date.now()}`
       addArtistClient({
-        name: newClient.name,
-        phone: newClient.phone,
-        notes: newClient.notes,
+        ...newClient,
+        id: nextClientId,
+        vipTier: 'Basic',
+        flowPoints: 40,
+        streak: 1,
+        totalVisits: 1,
+        pointsExpirationDate: '2026-12-31',
+        preferredServices: [appointmentDraft.service],
+        favoriteArtist: 'Valeria Moon',
+        lastVisit: appointmentDraft.date,
+        nextRecommendedVisit: appointmentDraft.date,
+        rewardsHistory: [],
       })
-      // Set the client in appointment
-      setAppointmentDraft(prev => ({ ...prev, client: newClient.name, phone: newClient.phone }))
     }
 
     const service = artistServices.find((item) => item.name === appointmentDraft.service) || artistServices.find(s => s.status === 'Activo')
+    const clientName = isCreatingNewClient
+      ? newClient.name
+      : artistState.clients.find((client) => client.id === nextClientId)?.name || appointmentDraft.client
 
     addArtistAppointment({
       ...appointmentDraft,
+      clientId: nextClientId,
+      client: clientName,
       end: appointmentDraft.time,
       duration: service.duration,
       room: 'Agenda',
@@ -145,7 +161,7 @@ function ArtistDashboard({ view = 'agenda' }) {
                                 type="button"
                                 className="suggestion-item"
                                 onClick={() => {
-                                  setAppointmentDraft({ ...appointmentDraft, client: client.name, phone: client.phone })
+                                  setAppointmentDraft({ ...appointmentDraft, clientId: client.id, client: client.name, phone: client.phone })
                                   setClientSearch('')
                                 }}
                               >
@@ -158,6 +174,12 @@ function ArtistDashboard({ view = 'agenda' }) {
                                 className="suggestion-item create-new"
                                 onClick={() => {
                                   setIsCreatingNewClient(true)
+                                  setAppointmentDraft((prev) => ({
+                                    ...prev,
+                                    clientId: '',
+                                    client: clientSearch,
+                                    phone: '',
+                                  }))
                                   setNewClient({ name: clientSearch, phone: '', notes: '' })
                                 }}
                               >
@@ -281,17 +303,20 @@ function ArtistDashboard({ view = 'agenda' }) {
               </div>
               {hasAppointments ? (
                 <div className="timeline">
-                  {appointmentsForSelectedDate.map((item, index) => (
-                    <AgendaCard
-                      accent={index % 2 === 0 ? 'rose' : 'nude'}
-                      key={`${item.id}-${item.time}`}
-                      time={`${item.time} - ${item.end}`}
-                      title={item.client}
-                      subtitle={`${item.service} / ${item.duration} / ${item.room}`}
-                      status={item.status}
-                      type={item.type}
-                    />
-                  ))}
+                  {appointmentsForSelectedDate.map((item, index) => {
+                    const client = getClientById(artistState.clients, item.clientId)
+                    return (
+                      <AgendaCard
+                        accent={index % 2 === 0 ? 'rose' : 'nude'}
+                        key={`${item.id}-${item.time}`}
+                        time={`${item.time} - ${item.end}`}
+                        title={client?.name || item.client}
+                        subtitle={`${item.service} / ${item.duration} / ${item.room}`}
+                        status={item.status}
+                        type={item.type}
+                      />
+                    )
+                  })}
                 </div>
               ) : (
                 <div style={{

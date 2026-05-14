@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from 'react'
 import { AppContext } from './appContextCore'
-import { artistAppointments, clientHistory, managedArtists, managedClients, recurringClients, weeklySchedule } from '../services/mockData'
+import { artistAppointments, artistClients, clientHistory, managedArtists, managedClients, weeklySchedule } from '../services/mockData'
 
 const initialSession = {
   user: null,
@@ -86,19 +86,13 @@ function createInitialArtistState() {
   return {
     appointments: artistAppointments.map((appointment, index) => ({
       ...appointment,
-      id: `artist-appointment-${index + 1}`,
-      date: index < 3 ? '2026-05-18' : '2026-05-10',
-      status: index < 3 ? appointment.status : 'Completada',
+      id: appointment.id || `artist-appointment-${index + 1}`,
+      date: appointment.date || '2026-05-18',
+      status: appointment.status || 'Confirmada',
     })),
-    clients: recurringClients.map((client, index) => ({
+    clients: artistClients.map((client) => ({
       ...client,
-      id: `artist-client-${index + 1}`,
-      phone: `55 100${index} 20${index}0`,
-      email: `${client.name.toLowerCase().replaceAll(' ', '.').replace('.', '')}@studioflow.demo`,
-      history: [
-        { service: 'Lash lifting', date: '2026-04-28', status: 'Completada' },
-        { service: 'Brow design', date: '2026-04-10', status: 'Completada' },
-      ],
+      history: client.history || [],
     })),
   }
 }
@@ -485,8 +479,8 @@ export function AppProvider({ children }) {
         ...currentState.clients,
         {
           ...client,
-          id: `artist-client-${Date.now()}`,
-          history: [],
+          id: client.id || `artist-client-${Date.now()}`,
+          history: client.history || [],
         },
       ],
     }))
