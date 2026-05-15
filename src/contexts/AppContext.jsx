@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from 'react'
 import { AppContext } from './appContextCore'
 import { artistAppointments, artistClients, clientHistory, managedArtists, managedClients, weeklySchedule } from '../services/mockData'
+import { canUseOperationalFeature, getDefaultStudioStatus } from '../modules/governance/studioGovernance'
 
 const initialSession = {
   user: null,
@@ -50,6 +51,7 @@ function createInitialAdminState() {
     artists: managedArtists.map((artist, index) => ({
       ...artist,
       id: `artist-${index + 1}`,
+      studioStatus: artist.studioStatus || getDefaultStudioStatus(),
       description: artist.description || 'Perfil profesional beauty listo para recibir reservas.',
       services: artist.services || 'Lashes, brows, makeup',
     })),
@@ -324,6 +326,7 @@ export function AppProvider({ children }) {
 
       const primaryArtist = adminState.artists.find((artist) => artist.owner === 'Valeria Moon')
       if (primaryArtist && primaryArtist.status !== 'Activo') return []
+      if (primaryArtist && !canUseOperationalFeature(primaryArtist, 'publicAgenda')) return []
 
       const isBlockedDate = agendaSettings.blockedDates.some((blockedDate) => blockedDate.id === date)
       if (isBlockedDate) return []

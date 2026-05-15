@@ -74,6 +74,12 @@ p {
   transform: translateY(-1px);
 }
 
+.button:disabled {
+  cursor: not-allowed;
+  opacity: 0.54;
+  transform: none;
+}
+
 .button-primary {
   background: linear-gradient(135deg, #2d2527, #5e3d43);
   box-shadow: 0 16px 28px rgba(45, 37, 39, 0.18);
@@ -803,6 +809,26 @@ select:focus {
   color: var(--muted);
 }
 
+.status-pending {
+  background: rgba(199, 164, 106, 0.2);
+  color: #8a6a2d;
+}
+
+.status-approved {
+  background: rgba(154, 170, 145, 0.2);
+  color: #60725a;
+}
+
+.status-suspended {
+  background: rgba(207, 143, 91, 0.18);
+  color: #9a5e2f;
+}
+
+.status-rejected {
+  background: rgba(127, 113, 116, 0.14);
+  color: var(--muted);
+}
+
 .metric-card {
   display: grid;
   gap: 8px;
@@ -1345,6 +1371,99 @@ select:focus {
 
 .executive-table .table-row {
   background: linear-gradient(135deg, rgba(255, 250, 247, 0.96), rgba(247, 238, 235, 0.82));
+}
+
+.studio-review-stack,
+.access-guard-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.studio-review-row {
+  align-items: center;
+  background: linear-gradient(135deg, rgba(255, 250, 247, 0.96), rgba(247, 238, 235, 0.82));
+  border: 1px solid rgba(234, 223, 218, 0.86);
+  border-radius: var(--radius);
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  padding: 14px;
+}
+
+.studio-review-row small {
+  color: var(--muted);
+  display: block;
+  line-height: 1.45;
+  margin-top: 4px;
+}
+
+.studio-review-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.studio-validation-banner,
+.studio-validation-note,
+.studio-access-card {
+  background: linear-gradient(135deg, rgba(255, 250, 247, 0.94), rgba(245, 221, 223, 0.46));
+  border: 1px solid rgba(234, 223, 218, 0.9);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-soft);
+}
+
+.studio-validation-banner {
+  align-items: center;
+  display: grid;
+  gap: 14px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  margin: 0 auto 16px;
+  max-width: 1280px;
+  padding: 16px 18px;
+}
+
+.studio-validation-banner h3 {
+  font-size: 18px;
+  letter-spacing: 0;
+  margin: 0;
+}
+
+.studio-validation-banner p,
+.studio-validation-note p {
+  color: var(--muted);
+  line-height: 1.45;
+  margin-top: 6px;
+}
+
+.studio-validation-note {
+  display: grid;
+  gap: 4px;
+  padding: 16px;
+  text-align: left;
+}
+
+.studio-validation-note strong {
+  font-size: 20px;
+}
+
+.access-guard-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-bottom: 16px;
+}
+
+.access-guard-grid > div {
+  background: rgba(247, 238, 235, 0.76);
+  border: 1px solid rgba(234, 223, 218, 0.84);
+  border-radius: var(--radius);
+  padding: 14px;
+}
+
+.access-guard-grid small {
+  color: var(--muted);
+  display: block;
+  line-height: 1.45;
+  margin-top: 5px;
 }
 
 .system-stack {
@@ -2353,8 +2472,15 @@ select:focus {
 
   .executive-alert,
   .flow-economy-grid,
-  .tier-strip {
+  .tier-strip,
+  .studio-review-row,
+  .studio-validation-banner,
+  .access-guard-grid {
     grid-template-columns: 1fr;
+  }
+
+  .studio-review-actions {
+    justify-content: flex-start;
   }
 
   .table-head {

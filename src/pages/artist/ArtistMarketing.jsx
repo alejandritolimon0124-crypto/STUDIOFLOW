@@ -1,5 +1,6 @@
 ﻿import { useMemo, useState } from 'react'
 import Button from '../../components/Button'
+import { useRef } from 'react'
 import Card from '../../components/Card'
 import MetricCard from '../../components/MetricCard'
 import PanelHeader from '../../components/PanelHeader'
@@ -11,6 +12,7 @@ import { detectInactiveClients } from '../../modules/marketing/reactivationEngin
 import { calculateClientTier } from '../../modules/marketing/loyaltyEngine'
 import { generateInsights } from '../../modules/marketing/smartInsights'
 import { generateArtistAutomations } from '../../modules/automation/smartAutomationEngine'
+import { canUseOperationalFeature, getStudioStatusLabel, getStudioStatusTone } from '../../modules/governance/studioGovernance'
 
 const vipClients = [
   { name: 'Mariana Lopez', visits: 12, benefits: ['Prioridad agenda', 'Promociones privadas'] },
@@ -34,7 +36,7 @@ const toastLabels = {
 }
 
 function ArtistMarketing() {
-  const { artistState, selectedDate } = useApp()
+  const { adminState, artistState, selectedDate } = useApp()
   const [happyHour, setHappyHour] = useState(false)
   const [lowOccupancy, setLowOccupancy] = useState(true)
   const [silentPromo, setSilentPromo] = useState(false)
@@ -52,6 +54,9 @@ function ArtistMarketing() {
   const [preferentialSupport, setPreferentialSupport] = useState(true)
   const [toasts, setToasts] = useState([])
   const [isPremiumModalOpen, setIsPremiumModalOpen] = useState(false)
+  const toastIdRef = useRef(0)
+  const currentStudio = adminState.artists.find((artist) => artist.owner === 'Valeria Moon') || adminState.artists[0]
+  const canUseMarketing = canUseOperationalFeature(currentStudio, 'marketing')
 
   const premiumClients = [
     { name: 'Ana López', tier: 'VIP', visits: 15 },
@@ -75,7 +80,8 @@ function ArtistMarketing() {
   const loyaltyPreview = `${visitsRequired} visitas = ${discountPercent}% OFF por ${validityDays} días`
 
   const triggerToast = (message) => {
-    const id = Date.now() + Math.random()
+    toastIdRef.current += 1
+    const id = toastIdRef.current
     setToasts((prev) => [...prev, { id, message }])
     setTimeout(() => {
       setToasts((current) => current.filter((toast) => toast.id !== id))
@@ -204,6 +210,45 @@ function ArtistMarketing() {
       label: happyHour || loyaltyActive ? 'Creciente' : 'Atento',
     },
   ]
+
+  if (!canUseMarketing) {
+    return (
+      <main className="dashboard-grid artist-grid">
+        <section className="hero-panel studio-hero mobile-screen premium-hero">
+          <div>
+            <span className="eyebrow">Studio Flow Curated Access</span>
+            <h2>Growth preparado para tu aprobacion</h2>
+            <p>Tu estudio esta siendo validado para mantener la calidad premium de Studio Flow. Mientras tanto puedes dejar listos servicios, horarios y perfil.</p>
+          </div>
+          <div className="hero-summary">
+            <span>Estado del estudio</span>
+            <strong>Review</strong>
+            <small>{getStudioStatusLabel(currentStudio?.studioStatus)}</small>
+          </div>
+        </section>
+
+        <Card className="wide-card studio-access-card">
+          <PanelHeader title="Herramientas reservadas" eyebrow="Gobernanza premium" />
+          <div className="access-guard-grid">
+            {[
+              ['Marketing', 'Disponible al completar la validacion del estudio.'],
+              ['Automatizaciones', 'Se activaran cuando la experiencia este aprobada.'],
+              ['Economia', 'Revenue y comisiones quedan en modo preparacion.'],
+              ['Agenda publica', 'Tu estudio no aparece en busqueda hasta finalizar revision.'],
+            ].map(([title, description]) => (
+              <div key={title}>
+                <strong>{title}</strong>
+                <small>{description}</small>
+              </div>
+            ))}
+          </div>
+          <StatusPill tone={getStudioStatusTone(currentStudio?.studioStatus)}>
+            {getStudioStatusLabel(currentStudio?.studioStatus)}
+          </StatusPill>
+        </Card>
+      </main>
+    )
+  }
 
   return (
     <main className="dashboard-grid artist-grid">

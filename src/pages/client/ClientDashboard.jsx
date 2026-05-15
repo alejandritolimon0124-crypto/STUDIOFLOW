@@ -11,6 +11,7 @@ import { clientAppointments, clientHistory, artistServices } from '../../service
 import { getClientById } from '../../utils/clientHelpers'
 import { calculateFlowPoints, flowPointRewards, getActivePoints, getExpiringPoints, vipTierThresholds } from '../../modules/loyalty/flowPointsEngine'
 import { generateClientAutomations } from '../../modules/automation/smartAutomationEngine'
+import { canUseOperationalFeature } from '../../modules/governance/studioGovernance'
 
 const searchServices = {
   Unas: [
@@ -237,12 +238,18 @@ function ClientDashboard({ view = 'inicio' }) {
   const [selectedArtistProfile, setSelectedArtistProfile] = useState(null)
   const [openDropdown, setOpenDropdown] = useState(null)
   const marketplaceService = allSearchServices.find((service) => service.name === secondaryService) || searchServices[primaryService][0]
-  const availableSlots = getAvailableSlots({
-    date: bookingDate,
-    durationMinutes: marketplaceService.durationMinutes || 60,
-  })
-  const activeArtists = adminState.artists.filter((artist) => artist.status === 'Activo')
-  const favoriteArtists = adminState.artists.filter((artist) => clientState.favoriteArtistIds.includes(artist.id))
+  const availableSlots = useMemo(
+    () => getAvailableSlots({
+      date: bookingDate,
+      durationMinutes: marketplaceService.durationMinutes || 60,
+    }),
+    [bookingDate, getAvailableSlots, marketplaceService.durationMinutes],
+  )
+  const visibleSlotCount = availableSlots.filter((slot) => slot.available).length
+  const activeArtists = adminState.artists.filter((artist) => artist.status === 'Activo' && canUseOperationalFeature(artist, 'publicAgenda'))
+  const favoriteArtists = adminState.artists.filter((artist) => (
+    clientState.favoriteArtistIds.includes(artist.id) && canUseOperationalFeature(artist, 'publicAgenda')
+  ))
   const clientLookupId = clientState.profile?.id || 'client-mf'
   const currentClient = getClientById(artistState.clients, clientLookupId) || {
     ...clientState.profile,
@@ -299,12 +306,10 @@ function ClientDashboard({ view = 'inicio' }) {
 
   const marketplaceArtists = useMemo(
     () => {
-      const visibleSlots = availableSlots.filter((slot) => slot.available).length
-
       return activeArtists
         .map((artist) => {
           const profile = getArtistMarketplaceProfile(artist)
-          const availabilityScore = Math.max(0, visibleSlots - Math.floor(profile.occupancy / 25))
+          const availabilityScore = Math.max(0, visibleSlotCount - Math.floor(profile.occupancy / 25))
           const badge = getMarketplaceBadge(availabilityScore, profile.occupancy)
 
           return {
@@ -328,7 +333,7 @@ function ClientDashboard({ view = 'inicio' }) {
           || firstArtist.occupancy - secondArtist.occupancy
         ))
     },
-    [activeArtists, availableSlots, searchMode, secondaryService, studioQuery],
+    [activeArtists, searchMode, secondaryService, studioQuery, visibleSlotCount],
   )
   const bookedAppointments = agendaSettings.bookedSlots.map((slot) => ({
     artist: slot.artist || 'Valeria Moon',

@@ -5,10 +5,12 @@ import BrandLogo from '../../components/BrandLogo'
 import Button from '../../components/Button'
 import Input from '../../components/Input'
 import { paths } from '../../routes/paths'
+import { getDefaultStudioStatus, getStudioStatusLabel } from '../../modules/governance/studioGovernance'
 
 function Register() {
   const navigate = useNavigate()
   const [accountType, setAccountType] = useState(null)
+  const defaultStudioStatus = getDefaultStudioStatus()
 
   return (
     <AuthLayout>
@@ -81,6 +83,12 @@ function Register() {
 
         {accountType === 'artist' && (
           <form className="form-stack">
+            <div className="studio-validation-note">
+              <span className="eyebrow">Acceso curado</span>
+              <strong>{getStudioStatusLabel(defaultStudioStatus)}</strong>
+              <p>Tu estudio entrara a validacion para mantener la calidad premium de Studio Flow.</p>
+              <input type="hidden" name="studioStatus" value={defaultStudioStatus} />
+            </div>
             <Input label="Nombre artístico o estudio" type="text" placeholder="Valeria Moon Studio" />
             <Input label="Nombre completo" type="text" placeholder="Valeria Hernandez" />
             <Input label="Correo electrónico" type="email" placeholder="contacto@studio.com" />

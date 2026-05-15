@@ -15,10 +15,11 @@ import { getClientById } from '../../utils/clientHelpers'
 import { formatCurrency } from '../../utils/formatters'
 import { calculateFlowPoints, addPointsToClient, vipTierThresholds } from '../../modules/loyalty/flowPointsEngine'
 import { calculateAppointmentEconomy } from '../../modules/business/appointmentEconomyEngine'
+import { canUseOperationalFeature } from '../../modules/governance/studioGovernance'
 
 function ArtistDashboard({ view = 'agenda' }) {
   const navigate = useNavigate()
-  const { artistState, addArtistAppointment, addArtistClient, updateArtistClient, bookSlot, selectedDate, setSelectedDate } = useApp()
+  const { adminState, artistState, addArtistAppointment, addArtistClient, updateArtistClient, bookSlot, selectedDate, setSelectedDate } = useApp()
   const [showAppointmentForm, setShowAppointmentForm] = useState(false)
   const [pointsFeedback, setPointsFeedback] = useState(null)
   const [showDatePicker, setShowDatePicker] = useState(false)
@@ -33,6 +34,9 @@ function ArtistDashboard({ view = 'agenda' }) {
   const [clientSearch, setClientSearch] = useState('')
   const [isCreatingNewClient, setIsCreatingNewClient] = useState(false)
   const [newClient, setNewClient] = useState({ name: '', phone: '', notes: '' })
+  const currentStudio = adminState.artists.find((artist) => artist.owner === 'Valeria Moon') || adminState.artists[0]
+  const canUseEconomy = canUseOperationalFeature(currentStudio, 'economy')
+  const canUsePublicAgenda = canUseOperationalFeature(currentStudio, 'publicAgenda')
 
   // Lógica de agenda dinámica
   const appointmentsForSelectedDate = artistState.appointments.filter(apt => apt.date === selectedDate && apt.type === 'appointment')
@@ -68,6 +72,8 @@ function ArtistDashboard({ view = 'agenda' }) {
   const showCreateOption = clientSearch.trim() && !hasMatches
 
   const saveAppointment = () => {
+    if (!canUsePublicAgenda) return
+
     let nextClientId = appointmentDraft.clientId
 
     let createdClient = null
@@ -161,7 +167,7 @@ function ArtistDashboard({ view = 'agenda' }) {
                 <h2>{artistProfile.name}</h2>
                 <p>Tu agenda esta equilibrada, con mayor demanda en lashes y cejas durante la tarde.</p>
                 <div className="hero-actions">
-                  <Button onClick={() => setShowAppointmentForm((current) => !current)}>Agregar cita</Button>
+                  <Button disabled={!canUsePublicAgenda} onClick={() => setShowAppointmentForm((current) => !current)}>Agregar cita</Button>
                   <Button variant="ghost" onClick={() => navigate(paths.artistSchedule)}>Editar horario</Button>
                 </div>
               </div>
@@ -181,7 +187,7 @@ function ArtistDashboard({ view = 'agenda' }) {
 
             <MetricCard label="Citas" value={appointmentCount} trend={appointmentCount === 0 ? 'Agenda libre' : `+${appointmentCount} vs promedio`} className="mobile-compact" />
             <MetricCard label="Ocupación" value={`${occupancy}%`} trend={occupancy > 80 ? 'Día full' : 'Oportunidad'} tone={occupancy > 80 ? 'sage' : 'rose'} className="mobile-compact" />
-            <MetricCard label="Ingresos estimados" value={formatCurrency(estimatedRevenue)} trend={estimatedRevenue === 0 ? 'Sin reservas' : '+18%'} tone="nude" className="mobile-compact" />
+            <MetricCard label="Ingresos estimados" value={canUseEconomy ? formatCurrency(estimatedRevenue) : 'Preparacion'} trend={canUseEconomy ? (estimatedRevenue === 0 ? 'Sin reservas' : '+18%') : 'Modo validacion'} tone="nude" className="mobile-compact" />
 
             {showAppointmentForm && (
               <Card className="mobile-screen primary-panel">
@@ -275,7 +281,7 @@ function ArtistDashboard({ view = 'agenda' }) {
                   </label>
                   <Input label="Fecha" type="date" value={appointmentDraft.date} onChange={(event) => setAppointmentDraft({ ...appointmentDraft, date: event.target.value })} />
                   <Input label="Hora" type="time" value={appointmentDraft.time} onChange={(event) => setAppointmentDraft({ ...appointmentDraft, time: event.target.value })} />
-                  <Button className="full-width" onClick={saveAppointment}>Confirmar cita</Button>
+                  <Button className="full-width" disabled={!canUsePublicAgenda} onClick={saveAppointment}>Confirmar cita</Button>
                 </div>
               </Card>
             )}
@@ -361,7 +367,7 @@ function ArtistDashboard({ view = 'agenda' }) {
                         subtitle={`${item.service} / ${item.duration} / ${item.room}`}
                         status={item.status}
                         type={item.type}
-                        showEconomy={true}
+                        showEconomy={canUseEconomy}
                         economyData={economyData}
                       />
                     )

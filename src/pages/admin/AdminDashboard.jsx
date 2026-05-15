@@ -3,6 +3,7 @@ import MetricCard from '../../components/MetricCard'
 import PanelHeader from '../../components/PanelHeader'
 import StatusPill from '../../components/StatusPill'
 import Button from '../../components/Button'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { paths } from '../../routes/paths'
 import {
@@ -23,6 +24,12 @@ import {
 } from '../../modules/business/businessMetricsEngine'
 import { calculateAppointmentEconomy } from '../../modules/business/appointmentEconomyEngine'
 import { flowPointRewards, getVipTierForPoints, vipTierThresholds } from '../../modules/loyalty/flowPointsEngine'
+import {
+  STUDIO_STATUS,
+  calculateEcosystemGovernanceMetrics,
+  getStudioStatusLabel,
+  getStudioStatusTone,
+} from '../../modules/governance/studioGovernance'
 
 const executiveRiskEvents = [
   {
@@ -117,6 +124,7 @@ const formatCurrency = (value) => `$${Math.round(value).toLocaleString('es-MX')}
 
 function AdminDashboard() {
   const navigate = useNavigate()
+  const [reviewStudios, setReviewStudios] = useState(managedArtists)
 
   const ownerAppointments = [...artistAppointments, ...executiveRiskEvents]
   const ownerSummary = generateOwnerDashboardSummary(ownerAppointments, artistServices)
@@ -162,6 +170,22 @@ function AdminDashboard() {
   const potentialRewards = Object.values(flowPointRewards).filter((reward) =>
     executiveClients.some((client) => (client.flowPoints || 0) >= reward.pointsCost),
   ).length
+  const ecosystemMetrics = calculateEcosystemGovernanceMetrics(reviewStudios)
+  const pendingReviewStudios = reviewStudios.filter((studio) => studio.studioStatus === STUDIO_STATUS.PENDING)
+
+  const updateReviewStatus = (studioName, studioStatus) => {
+    setReviewStudios((currentStudios) =>
+      currentStudios.map((studio) =>
+        studio.name === studioName
+          ? {
+              ...studio,
+              studioStatus,
+              status: studioStatus === STUDIO_STATUS.APPROVED ? 'Activo' : studio.status,
+            }
+          : studio,
+      ),
+    )
+  }
 
   const topArtists = [
     { artist: 'Valeria Moon Studio', appointments: ownerAppointments.filter((item) => item.artistId === 'valeria-moon' || !item.artistId) },
@@ -189,6 +213,10 @@ function AdminDashboard() {
     { label: 'Ocupacion global', value: `${occupancyMetrics.occupancyRate}%`, trend: `${occupancyMetrics.bookedSlots}/${occupancyMetrics.totalSlots} slots`, tone: 'nude' },
     { label: 'Clientas activas', value: executiveClients.length, trend: `${managedClients.filter((client) => client.status === 'Activo').length} segmentos admin`, tone: 'rose' },
     { label: 'Flow Points activos', value: totalActivePoints.toLocaleString('es-MX'), trend: `${clientsNearReward.length} cerca de recompensa`, tone: 'sage' },
+    { label: 'Estudios pendientes', value: ecosystemMetrics.pending, trend: 'Curaduria activa', tone: 'warm' },
+    { label: 'Estudios aprobados', value: ecosystemMetrics.approved, trend: 'Marketplace premium', tone: 'success' },
+    { label: 'Estudios suspendidos', value: ecosystemMetrics.suspended, trend: 'Revision elegante', tone: 'nude' },
+    { label: 'Riesgo ecosistema', value: ecosystemMetrics.ecosystemRisk, trend: ecosystemMetrics.ecosystemRisk > 3 ? 'Atencion owner' : 'Controlado', tone: ecosystemMetrics.ecosystemRisk > 3 ? 'warm' : 'sage' },
   ]
 
   return (
@@ -215,6 +243,37 @@ function AdminDashboard() {
           tone={metric.tone}
         />
       ))}
+
+      <Card className="wide-card executive-card">
+        <PanelHeader title="Estudios pendientes de validacion" eyebrow="Ecosystem governance" />
+        <div className="studio-review-stack">
+          {pendingReviewStudios.map((studio) => (
+            <div className="studio-review-row" key={studio.name}>
+              <div>
+                <strong>{studio.name}</strong>
+                <small>{studio.city} · {studio.specialties.join(', ')} · Registro {studio.registeredAt}</small>
+              </div>
+              <StatusPill tone={getStudioStatusTone(studio.studioStatus)}>
+                {getStudioStatusLabel(studio.studioStatus)}
+              </StatusPill>
+              <div className="studio-review-actions">
+                <Button size="sm" onClick={() => updateReviewStatus(studio.name, STUDIO_STATUS.APPROVED)}>Aprobar</Button>
+                <Button size="sm" variant="ghost" onClick={() => updateReviewStatus(studio.name, STUDIO_STATUS.SUSPENDED)}>Suspender</Button>
+                <Button size="sm" variant="ghost" onClick={() => updateReviewStatus(studio.name, STUDIO_STATUS.PENDING)}>Solicitar cambios</Button>
+              </div>
+            </div>
+          ))}
+          {pendingReviewStudios.length === 0 && (
+            <div className="studio-review-row">
+              <div>
+                <strong>Pipeline curado al dia</strong>
+                <small>No hay estudios esperando validacion en este mock.</small>
+              </div>
+              <StatusPill tone="approved">Listo</StatusPill>
+            </div>
+          )}
+        </div>
+      </Card>
 
       <Card className="wide-card executive-card">
         <PanelHeader title="Alertas de negocio" eyebrow="Riesgo operativo" />
@@ -312,13 +371,13 @@ function AdminDashboard() {
             <span>Ingresos</span>
             <span>Estado</span>
           </div>
-          {managedArtists.map((artist) => (
+          {reviewStudios.map((artist) => (
             <div className="table-row" key={artist.name}>
               <strong>{artist.name}</strong>
               <span>{artist.city}</span>
               <span>{artist.plan}</span>
               <span>{artist.revenue}</span>
-              <StatusPill tone={artist.status === 'Activo' ? 'success' : 'warm'}>{artist.status}</StatusPill>
+              <StatusPill tone={getStudioStatusTone(artist.studioStatus)}>{getStudioStatusLabel(artist.studioStatus)}</StatusPill>
             </div>
           ))}
         </div>

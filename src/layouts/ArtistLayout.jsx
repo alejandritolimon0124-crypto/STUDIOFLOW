@@ -1,6 +1,9 @@
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import DashboardLayout from './DashboardLayout'
 import { paths } from '../routes/paths'
+import StatusPill from '../components/StatusPill'
+import { useApp } from '../contexts/appContextCore'
+import { getStudioAccess, getStudioStatusLabel, getStudioStatusTone } from '../modules/governance/studioGovernance'
 
 const copyByPath = {
   [paths.artist]: ['Agenda de artista', 'Tu dia, proximas citas y acciones rapidas.'],
@@ -14,11 +17,27 @@ const copyByPath = {
 
 function ArtistLayout() {
   const { pathname } = useLocation()
+  const { adminState } = useApp()
   const [title, subtitle] = copyByPath[pathname] || copyByPath[paths.artist]
+  const currentStudio = adminState.artists.find((artist) => artist.owner === 'Valeria Moon') || adminState.artists[0]
+  const studioAccess = getStudioAccess(currentStudio)
+  const isPendingExperience = !studioAccess.publicAgenda
 
   return (
     <DashboardLayout role="artist" title={title} subtitle={subtitle} showMobileAppbar={false}>
       <div className="role-layout-shell">
+        {isPendingExperience && (
+          <section className="studio-validation-banner">
+            <div>
+              <span className="eyebrow">Studio Flow Curated Access</span>
+              <h3>Tu estudio esta siendo validado para mantener la calidad premium de Studio Flow.</h3>
+              <p>Puedes preparar perfil, branding, horarios y servicios mientras el equipo revisa la experiencia completa.</p>
+            </div>
+            <StatusPill tone={getStudioStatusTone(currentStudio?.studioStatus)}>
+              {getStudioStatusLabel(currentStudio?.studioStatus)}
+            </StatusPill>
+          </section>
+        )}
         <Outlet />
         <nav className="role-bottom-nav" aria-label="Navegacion de artista">
           <NavLink to="/artist">Inicio</NavLink>
