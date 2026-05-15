@@ -5,6 +5,7 @@ import { isActivePath } from '../routes/routerUtils'
 import BrandLogo from '../components/BrandLogo'
 import { useApp } from '../contexts/appContextCore'
 import drawerLogo from '../assets/studioflowlogo2.png'
+import { getRoleLabel } from '../modules/permissions/rolePermissions'
 
 const roleNavigation = {
   admin: [
@@ -56,11 +57,10 @@ function DashboardLayout({ children, role, title, subtitle, showMobileAppbar = t
   const navigation = roleNavigation[role]
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const navigate = useNavigate()
-  const { logout } = useApp()
+  const { logout, session } = useApp()
   const location = useLocation()
   const currentPath = location.pathname
   const bottomNavigation = bottomNavigationByRole[role]
-  const homePath = role === 'admin' ? paths.admin : role === 'client' ? paths.client : paths.artist
   const drawerHomePath = role === 'admin' ? paths.admin : role === 'client' ? paths.client : paths.artist
   const primaryActionPath = role === 'client' ? paths.clientExplore : role === 'admin' ? paths.adminArtists : paths.artistAppointments
   const primaryActionLabel = role === 'client' ? 'Reservar' : 'Nueva cita'
@@ -94,8 +94,8 @@ function DashboardLayout({ children, role, title, subtitle, showMobileAppbar = t
         <div className="sidebar-profile">
           <div className="avatar">VM</div>
           <div>
-            <strong>{role === 'admin' ? 'Studio Flow HQ' : role === 'client' ? 'Mariana Lopez' : 'Valeria Moon'}</strong>
-            <small>{role === 'admin' ? 'Administrador' : role === 'client' ? 'Clienta premium' : 'Artista Pro'}</small>
+            <strong>{session.user?.name || (role === 'admin' ? 'Studio Flow HQ' : role === 'client' ? 'Mariana Lopez' : 'Valeria Moon')}</strong>
+            <small>{getRoleLabel(session.user?.role)}</small>
           </div>
         </div>
 

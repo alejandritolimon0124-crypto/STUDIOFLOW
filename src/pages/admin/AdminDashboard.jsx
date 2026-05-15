@@ -14,7 +14,9 @@ import {
   managedClients,
   studios,
   systemStatus,
+  users,
 } from '../../services/mockData'
+import { useApp } from '../../contexts/appContextCore'
 import {
   calculateFlaggedAppointments,
   calculateOccupancyMetrics,
@@ -32,6 +34,12 @@ import {
   getStudioStatusTone,
 } from '../../modules/governance/studioGovernance'
 import { generateStudioInsights, generateStudioPortfolioSummary } from '../../modules/studio/studioMetricsEngine'
+import {
+  filterByStudioAccess,
+  getRoleLabel,
+  hasPermission,
+  permissions,
+} from '../../modules/permissions/rolePermissions'
 
 const executiveRiskEvents = [
   {
@@ -130,11 +138,26 @@ const formatCurrency = (value) => `$${Math.round(value).toLocaleString('es-MX')}
 
 function AdminDashboard() {
   const navigate = useNavigate()
+  const { session } = useApp()
+  const currentUser = session.user
   const [reviewStudios, setReviewStudios] = useState(studios)
 
   const ownerAppointments = [...artistAppointments, ...executiveRiskEvents]
-  const portfolioSummary = generateStudioPortfolioSummary(reviewStudios, managedArtists, executiveClients, ownerAppointments)
-  const studioInsights = generateStudioInsights(reviewStudios, managedArtists, executiveClients, ownerAppointments)
+  const accessibleStudios = filterByStudioAccess(reviewStudios, currentUser)
+  const accessibleStudioIds = accessibleStudios.map((studio) => studio.id)
+  const accessibleArtists = filterByStudioAccess(managedArtists, currentUser)
+  const accessibleClients = filterByStudioAccess(executiveClients, currentUser)
+  const accessibleAppointments = ownerAppointments.filter((appointment) => (
+    !appointment.studioId || accessibleStudioIds.includes(appointment.studioId) || hasPermission(currentUser, permissions.GLOBAL_REVENUE)
+  ))
+  const canSeeGovernance = hasPermission(currentUser, permissions.GOVERNANCE)
+  const canSeeGlobalRevenue = hasPermission(currentUser, permissions.GLOBAL_REVENUE)
+  const canSeeGlobalInsights = hasPermission(currentUser, permissions.GLOBAL_INSIGHTS)
+  const canSeeEcosystemRisk = hasPermission(currentUser, permissions.ECOSYSTEM_RISK)
+  const canSeeStudioRevenue = hasPermission(currentUser, permissions.STUDIO_REVENUE)
+  const canSeeStudioMarketing = hasPermission(currentUser, permissions.STUDIO_MARKETING)
+  const portfolioSummary = generateStudioPortfolioSummary(accessibleStudios, accessibleArtists, accessibleClients, accessibleAppointments)
+  const studioInsights = generateStudioInsights(accessibleStudios, accessibleArtists, accessibleClients, accessibleAppointments)
   const ownerSummary = generateOwnerDashboardSummary(ownerAppointments, artistServices)
   const totalRevenue = calculateTotalRevenue(ownerAppointments)
   const platformRevenue = calculatePlatformRevenue(ownerAppointments)
@@ -178,8 +201,17 @@ function AdminDashboard() {
   const potentialRewards = Object.values(flowPointRewards).filter((reward) =>
     executiveClients.some((client) => (client.flowPoints || 0) >= reward.pointsCost),
   ).length
-  const ecosystemMetrics = calculateEcosystemGovernanceMetrics(reviewStudios)
-  const pendingReviewStudios = reviewStudios.filter((studio) => studio.studioStatus === STUDIO_STATUS.PENDING)
+  const ecosystemMetrics = calculateEcosystemGovernanceMetrics(accessibleStudios)
+  const pendingReviewStudios = accessibleStudios.filter((studio) => studio.studioStatus === STUDIO_STATUS.PENDING)
+  const roleDistribution = users.reduce((distribution, user) => ({
+    ...distribution,
+    [user.role]: (distribution[user.role] || 0) + 1,
+  }), {})
+  const managersActive = users.filter((user) => user.role === 'studio_manager' && user.status === 'Activo').length
+  const studiosByOwner = users.filter((user) => user.role === 'studio_owner').map((owner) => ({
+    owner: owner.name,
+    studios: reviewStudios.filter((studio) => studio.id === owner.studioId),
+  }))
 
   const updateReviewStatus = (studioName, studioStatus) => {
     setReviewStudios((currentStudios) =>
@@ -214,22 +246,22 @@ function AdminDashboard() {
   })
 
   const ownerKpis = [
-    { label: 'Ingresos totales', value: formatCurrency(totalRevenue), trend: 'Gross mock conectado', tone: 'rose' },
-    { label: 'Comision Studio Flow', value: formatCurrency(platformRevenue), trend: '10% foundation', tone: 'sage' },
-    { label: 'Eventos con riesgo', value: flaggedAppointments.length, trend: riskAlerts.length ? 'Revision activa' : 'Sin alertas', tone: flaggedAppointments.length ? 'warm' : 'success' },
+    canSeeGlobalRevenue && { label: 'Ingresos totales', value: formatCurrency(totalRevenue), trend: 'Gross mock conectado', tone: 'rose' },
+    canSeeGlobalRevenue && { label: 'Comision Studio Flow', value: formatCurrency(platformRevenue), trend: '10% foundation', tone: 'sage' },
+    canSeeEcosystemRisk && { label: 'Eventos con riesgo', value: flaggedAppointments.length, trend: riskAlerts.length ? 'Revision activa' : 'Sin alertas', tone: flaggedAppointments.length ? 'warm' : 'success' },
     { label: 'Ocupacion global', value: `${occupancyMetrics.occupancyRate}%`, trend: `${occupancyMetrics.bookedSlots}/${occupancyMetrics.totalSlots} slots`, tone: 'nude' },
     { label: 'Clientas activas', value: executiveClients.length, trend: `${managedClients.filter((client) => client.status === 'Activo').length} segmentos admin`, tone: 'rose' },
     { label: 'Flow Points activos', value: totalActivePoints.toLocaleString('es-MX'), trend: `${clientsNearReward.length} cerca de recompensa`, tone: 'sage' },
-    { label: 'Estudios pendientes', value: ecosystemMetrics.pending, trend: 'Curaduria activa', tone: 'warm' },
+    canSeeGovernance && { label: 'Estudios pendientes', value: ecosystemMetrics.pending, trend: 'Curaduria activa', tone: 'warm' },
     { label: 'Estudios aprobados', value: ecosystemMetrics.approved, trend: 'Marketplace premium', tone: 'success' },
     { label: 'Estudios suspendidos', value: ecosystemMetrics.suspended, trend: 'Revision elegante', tone: 'nude' },
-    { label: 'Riesgo ecosistema', value: ecosystemMetrics.ecosystemRisk, trend: ecosystemMetrics.ecosystemRisk > 3 ? 'Atencion owner' : 'Controlado', tone: ecosystemMetrics.ecosystemRisk > 3 ? 'warm' : 'sage' },
-    { label: 'Studio revenue', value: formatCurrency(portfolioSummary.totalRevenue), trend: `${reviewStudios.length} studios`, tone: 'rose' },
+    canSeeEcosystemRisk && { label: 'Riesgo ecosistema', value: ecosystemMetrics.ecosystemRisk, trend: ecosystemMetrics.ecosystemRisk > 3 ? 'Atencion owner' : 'Controlado', tone: ecosystemMetrics.ecosystemRisk > 3 ? 'warm' : 'sage' },
+    canSeeStudioRevenue && { label: 'Studio revenue', value: formatCurrency(portfolioSummary.totalRevenue), trend: `${accessibleStudios.length} studios`, tone: 'rose' },
     { label: 'Studio occupancy', value: `${portfolioSummary.averageOccupancy}%`, trend: 'Promedio portfolio', tone: 'nude' },
     { label: 'Active artists', value: portfolioSummary.activeArtists, trend: 'Multi-studio', tone: 'success' },
     { label: 'Active clients', value: portfolioSummary.activeClients, trend: 'Relacion studioId', tone: 'sage' },
-    { label: 'Studio risk', value: portfolioSummary.studioRisk, trend: 'Portfolio score', tone: portfolioSummary.studioRisk > 8 ? 'warm' : 'sage' },
-  ]
+    canSeeEcosystemRisk && { label: 'Studio risk', value: portfolioSummary.studioRisk, trend: 'Portfolio score', tone: portfolioSummary.studioRisk > 8 ? 'warm' : 'sage' },
+  ].filter(Boolean)
 
   return (
     <main className="dashboard-grid admin-grid">
@@ -256,6 +288,33 @@ function AdminDashboard() {
         />
       ))}
 
+      <Card className="wide-card executive-card">
+        <PanelHeader title="Roles & permisos" eyebrow="Organizacion enterprise" />
+        <div className="role-governance-grid">
+          <div>
+            <span>Rol actual</span>
+            <strong>{getRoleLabel(currentUser?.role)}</strong>
+            <small>{currentUser?.studioId || 'Acceso ecosistema completo'}</small>
+          </div>
+          <div>
+            <span>Managers activos</span>
+            <strong>{managersActive}</strong>
+            <small>Operan agenda, clientas y marketing.</small>
+          </div>
+          <div>
+            <span>Artistas activas</span>
+            <strong>{managedArtists.filter((artist) => artist.status === 'Activo').length}</strong>
+            <small>Distribuidas por studioId.</small>
+          </div>
+          <div>
+            <span>Distribucion roles</span>
+            <strong>{Object.keys(roleDistribution).length}</strong>
+            <small>{Object.entries(roleDistribution).map(([role, count]) => `${getRoleLabel(role)} ${count}`).join(' · ')}</small>
+          </div>
+        </div>
+      </Card>
+
+      {canSeeGovernance && (
       <Card className="wide-card executive-card">
         <PanelHeader title="Estudios pendientes de validacion" eyebrow="Ecosystem governance" />
         <div className="studio-review-stack">
@@ -286,7 +345,9 @@ function AdminDashboard() {
           )}
         </div>
       </Card>
+      )}
 
+      {canSeeEcosystemRisk && (
       <Card className="wide-card executive-card">
         <PanelHeader title="Alertas de negocio" eyebrow="Riesgo operativo" />
         <div className="executive-alert-stack">
@@ -304,6 +365,7 @@ function AdminDashboard() {
           ))}
         </div>
       </Card>
+      )}
 
       <Card className="wide-card executive-card">
         <PanelHeader title="Portfolio multi-studio" eyebrow="Studio intelligence" />
@@ -318,7 +380,7 @@ function AdminDashboard() {
           {portfolioSummary.studioMetrics.map((studio) => (
             <div className="table-row" key={studio.studioId}>
               <strong>{studio.studioName}</strong>
-              <span>{formatCurrency(studio.revenue)}</span>
+              <span>{canSeeStudioRevenue ? formatCurrency(studio.revenue) : 'Vista studio'}</span>
               <span>{studio.occupancy}%</span>
               <span>{studio.activeArtists} artistas / {studio.activeClients} clientas</span>
               <StatusPill tone={studio.studioRisk > 4 ? 'warm' : 'success'}>{studio.studioRisk}</StatusPill>
@@ -327,6 +389,7 @@ function AdminDashboard() {
         </div>
       </Card>
 
+      {(canSeeGlobalInsights || canSeeStudioMarketing) && (
       <Card className="executive-card">
         <PanelHeader title="Studio Flow Insights" eyebrow="Lectura ejecutiva" />
         <div className="insights-stack">
@@ -353,6 +416,7 @@ function AdminDashboard() {
           ))}
         </div>
       </Card>
+      )}
 
       <Card className="executive-card">
         <PanelHeader title="Economia Flow Points" eyebrow="Loyalty" />
@@ -380,6 +444,21 @@ function AdminDashboard() {
       </Card>
 
       <Card className="wide-card executive-card">
+        <PanelHeader title="Studios por owner" eyebrow="Ownership map" />
+        <div className="compact-list">
+          {studiosByOwner.map((row) => (
+            <div className="list-row elevated-row" key={row.owner}>
+              <div>
+                <strong>{row.owner}</strong>
+                <small>{row.studios.map((studio) => studio.name).join(', ') || 'Sin estudio asignado'}</small>
+              </div>
+              <StatusPill tone="approved">{row.studios.length} studio</StatusPill>
+            </div>
+          ))}
+        </div>
+      </Card>
+
+      <Card className="wide-card executive-card">
         <PanelHeader title="Top artistas" eyebrow="Ranking mock ejecutivo" />
         <div className="data-table executive-table">
           <div className="table-head">
@@ -392,8 +471,8 @@ function AdminDashboard() {
           {topArtists.map((artist) => (
             <div className="table-row" key={artist.artist}>
               <strong>{artist.artist}</strong>
-              <span>{formatCurrency(artist.revenue)}</span>
-              <span>{formatCurrency(artist.commission)}</span>
+              <span>{canSeeStudioRevenue ? formatCurrency(artist.revenue) : 'Privado'}</span>
+              <span>{canSeeGlobalRevenue ? formatCurrency(artist.commission) : 'Privado'}</span>
               <span>{artist.occupancy}%</span>
               <StatusPill tone={artist.risk > 0 ? 'warm' : 'success'}>{artist.risk > 0 ? `${artist.risk} eventos` : 'Controlado'}</StatusPill>
             </div>

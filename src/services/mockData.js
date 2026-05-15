@@ -373,6 +373,57 @@ export const studios = [
   },
 ]
 
+export const users = [
+  {
+    id: 'user-platform-owner',
+    name: 'Studio Flow HQ',
+    email: 'owner@studioflow.mx',
+    role: 'platform_owner',
+    studioId: null,
+    status: 'Activo',
+  },
+  {
+    id: 'user-studio-owner-glow',
+    name: 'Valeria Moon',
+    email: 'valeria@studioflow.mx',
+    role: 'studio_owner',
+    studioId: 'studio-glow',
+    status: 'Activo',
+  },
+  {
+    id: 'user-manager-glow',
+    name: 'Lucia Manager',
+    email: 'manager.glow@studioflow.mx',
+    role: 'studio_manager',
+    studioId: 'studio-glow',
+    status: 'Activo',
+  },
+  {
+    id: 'user-artist-glow',
+    name: 'Valeria Artist',
+    email: 'artist.glow@studioflow.mx',
+    role: 'artist',
+    studioId: 'studio-glow',
+    status: 'Activo',
+  },
+  {
+    id: 'user-client-demo',
+    name: 'Mariana Lopez',
+    email: 'mariana@studioflow.mx',
+    role: 'client',
+    studioId: 'studio-glow',
+    status: 'Activo',
+  },
+  {
+    id: 'user-owner-velvet',
+    name: 'Sofia Lab',
+    email: 'sofia@studioflow.mx',
+    role: 'studio_owner',
+    studioId: 'studio-velvet',
+    status: 'Activo',
+  },
+]
+
 export const managedArtists = [
   {
     studioId: 'studio-glow',

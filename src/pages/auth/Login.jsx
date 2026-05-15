@@ -53,6 +53,12 @@ function Login() {
           <Button className="full-width" variant="ghost" onClick={() => handleLogin('admin', paths.admin)}>
             Entrar como admin demo
           </Button>
+          <Button className="full-width" variant="ghost" onClick={() => handleLogin('studio_owner', paths.admin)}>
+            Entrar como studio owner demo
+          </Button>
+          <Button className="full-width" variant="ghost" onClick={() => handleLogin('studio_manager', paths.admin)}>
+            Entrar como manager demo
+          </Button>
         </div>
       </div>
     </AuthLayout>

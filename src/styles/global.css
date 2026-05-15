@@ -1466,6 +1466,42 @@ select:focus {
   margin-top: 5px;
 }
 
+.role-governance-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.role-governance-grid > div {
+  background: linear-gradient(135deg, rgba(255, 250, 247, 0.96), rgba(247, 238, 235, 0.78));
+  border: 1px solid rgba(234, 223, 218, 0.84);
+  border-radius: var(--radius);
+  min-width: 0;
+  padding: 14px;
+}
+
+.role-governance-grid span {
+  color: var(--muted);
+  display: block;
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.role-governance-grid strong {
+  display: block;
+  font-size: 22px;
+  letter-spacing: 0;
+  margin-top: 4px;
+}
+
+.role-governance-grid small {
+  color: var(--muted);
+  display: block;
+  line-height: 1.45;
+  margin-top: 4px;
+}
+
 .system-stack {
   display: grid;
   gap: 10px;
@@ -2475,7 +2511,8 @@ select:focus {
   .tier-strip,
   .studio-review-row,
   .studio-validation-banner,
-  .access-guard-grid {
+  .access-guard-grid,
+  .role-governance-grid {
     grid-template-columns: 1fr;
   }
 

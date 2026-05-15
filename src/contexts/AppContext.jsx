@@ -1,7 +1,8 @@
 import { useCallback, useMemo, useState } from 'react'
 import { AppContext } from './appContextCore'
-import { artistAppointments, artistClients, clientHistory, managedArtists, managedClients, studios, weeklySchedule } from '../services/mockData'
+import { artistAppointments, artistClients, clientHistory, managedArtists, managedClients, studios, users, weeklySchedule } from '../services/mockData'
 import { canUseOperationalFeature, getDefaultStudioStatus } from '../modules/governance/studioGovernance'
+import { ROLES } from '../modules/permissions/rolePermissions'
 
 const initialSession = {
   user: null,
@@ -20,9 +21,11 @@ function getStoredSession() {
 }
 
 const mockUsers = {
-  client: { id: 'client-demo', name: 'Mariana Lopez', role: 'client' },
-  artist: { id: 'artist-demo', name: 'Valeria Moon', role: 'artist' },
-  admin: { id: 'admin-demo', name: 'Studio Flow HQ', role: 'admin' },
+  client: users.find((user) => user.role === ROLES.CLIENT) || { id: 'client-demo', name: 'Mariana Lopez', role: ROLES.CLIENT, studioId: 'studio-glow' },
+  artist: users.find((user) => user.role === ROLES.ARTIST) || { id: 'artist-demo', name: 'Valeria Moon', role: ROLES.ARTIST, studioId: 'studio-glow' },
+  admin: users.find((user) => user.role === ROLES.PLATFORM_OWNER) || { id: 'admin-demo', name: 'Studio Flow HQ', role: ROLES.PLATFORM_OWNER, studioId: null },
+  studio_owner: users.find((user) => user.role === ROLES.STUDIO_OWNER) || { id: 'studio-owner-demo', name: 'Valeria Moon', role: ROLES.STUDIO_OWNER, studioId: 'studio-glow' },
+  studio_manager: users.find((user) => user.role === ROLES.STUDIO_MANAGER) || { id: 'studio-manager-demo', name: 'Lucia Manager', role: ROLES.STUDIO_MANAGER, studioId: 'studio-glow' },
 }
 
 const initialBlockedDates = [
@@ -49,6 +52,7 @@ function createInitialAgendaSettings() {
 function createInitialAdminState() {
   return {
     studios,
+    users,
     artists: managedArtists.map((artist, index) => ({
       ...artist,
       id: `artist-${index + 1}`,
