@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from 'react'
 import { AppContext } from './appContextCore'
-import { artistAppointments, artistClients, clientHistory, managedArtists, managedClients, weeklySchedule } from '../services/mockData'
+import { artistAppointments, artistClients, clientHistory, managedArtists, managedClients, studios, weeklySchedule } from '../services/mockData'
 import { canUseOperationalFeature, getDefaultStudioStatus } from '../modules/governance/studioGovernance'
 
 const initialSession = {
@@ -48,9 +48,11 @@ function createInitialAgendaSettings() {
 
 function createInitialAdminState() {
   return {
+    studios,
     artists: managedArtists.map((artist, index) => ({
       ...artist,
       id: `artist-${index + 1}`,
+      studioId: artist.studioId || studios[index]?.id || 'studio-glow',
       studioStatus: artist.studioStatus || getDefaultStudioStatus(),
       description: artist.description || 'Perfil profesional beauty listo para recibir reservas.',
       services: artist.services || 'Lashes, brows, makeup',
@@ -58,6 +60,7 @@ function createInitialAdminState() {
     clients: managedClients.map((client, index) => ({
       ...client,
       id: `client-${index + 1}`,
+      studioId: client.studioId || studios[index % studios.length]?.id || 'studio-glow',
       email: client.email || `${client.name.toLowerCase().replaceAll(' ', '.')}@studioflow.demo`,
       phone: client.phone || '55 0000 0000',
       notes: client.notes || 'Perfil mock administrable.',
@@ -94,6 +97,7 @@ function createInitialArtistState() {
     appointments: artistAppointments.map((appointment, index) => ({
       ...appointment,
       id: appointment.id || `artist-appointment-${index + 1}`,
+      studioId: appointment.studioId || 'studio-glow',
       date: appointment.date || '2026-05-18',
       status: appointment.status || 'Confirmada',
     })),
@@ -325,8 +329,9 @@ export function AppProvider({ children }) {
       if (!date) return []
 
       const primaryArtist = adminState.artists.find((artist) => artist.owner === 'Valeria Moon')
+      const primaryStudio = adminState.studios.find((studio) => studio.id === primaryArtist?.studioId)
       if (primaryArtist && primaryArtist.status !== 'Activo') return []
-      if (primaryArtist && !canUseOperationalFeature(primaryArtist, 'publicAgenda')) return []
+      if (primaryArtist && !canUseOperationalFeature(primaryStudio || primaryArtist, 'publicAgenda')) return []
 
       const isBlockedDate = agendaSettings.blockedDates.some((blockedDate) => blockedDate.id === date)
       if (isBlockedDate) return []
@@ -366,7 +371,7 @@ export function AppProvider({ children }) {
 
       return slots
     },
-    [agendaSettings, adminState.artists],
+    [agendaSettings, adminState.artists, adminState.studios],
   )
 
   const bookSlot = useCallback((slot) => {
@@ -436,6 +441,7 @@ export function AppProvider({ children }) {
   const addMockBooking = useCallback(() => {
     const mockSlot = {
       date: '2026-05-18',
+      studioId: 'studio-glow',
       time: '10:00',
       end: '11:10',
       artist: 'Valeria Moon',
@@ -488,6 +494,7 @@ export function AppProvider({ children }) {
         {
           ...client,
           id: client.id || `artist-client-${Date.now()}`,
+          studioId: client.studioId || 'studio-glow',
           history: client.history || [],
         },
       ],
@@ -509,6 +516,7 @@ export function AppProvider({ children }) {
       appointments: [
         {
           ...appointment,
+          studioId: appointment.studioId || 'studio-glow',
           id: `artist-appointment-${Date.now()}`,
           type: 'appointment',
           status: appointment.status || 'Confirmada',

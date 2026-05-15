@@ -55,7 +55,8 @@ function ArtistMarketing() {
   const [toasts, setToasts] = useState([])
   const [isPremiumModalOpen, setIsPremiumModalOpen] = useState(false)
   const toastIdRef = useRef(0)
-  const currentStudio = adminState.artists.find((artist) => artist.owner === 'Valeria Moon') || adminState.artists[0]
+  const primaryArtist = adminState.artists.find((artist) => artist.owner === 'Valeria Moon') || adminState.artists[0]
+  const currentStudio = adminState.studios.find((studio) => studio.id === primaryArtist?.studioId) || adminState.studios[0]
   const canUseMarketing = canUseOperationalFeature(currentStudio, 'marketing')
 
   const premiumClients = [

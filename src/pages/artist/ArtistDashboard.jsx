@@ -34,7 +34,8 @@ function ArtistDashboard({ view = 'agenda' }) {
   const [clientSearch, setClientSearch] = useState('')
   const [isCreatingNewClient, setIsCreatingNewClient] = useState(false)
   const [newClient, setNewClient] = useState({ name: '', phone: '', notes: '' })
-  const currentStudio = adminState.artists.find((artist) => artist.owner === 'Valeria Moon') || adminState.artists[0]
+  const primaryArtist = adminState.artists.find((artist) => artist.owner === 'Valeria Moon') || adminState.artists[0]
+  const currentStudio = adminState.studios.find((studio) => studio.id === primaryArtist?.studioId) || adminState.studios[0]
   const canUseEconomy = canUseOperationalFeature(currentStudio, 'economy')
   const canUsePublicAgenda = canUseOperationalFeature(currentStudio, 'publicAgenda')
 
@@ -82,6 +83,7 @@ function ArtistDashboard({ view = 'agenda' }) {
       nextClientId = `artist-client-${Date.now()}`
       createdClient = {
         ...newClient,
+        studioId: currentStudio?.id || 'studio-glow',
         id: nextClientId,
         vipTier: 'Glow',
         flowPoints: 0,
@@ -104,6 +106,7 @@ function ArtistDashboard({ view = 'agenda' }) {
 
     const appointmentPayload = {
       ...appointmentDraft,
+      studioId: currentStudio?.id || 'studio-glow',
       clientId: nextClientId,
       client: clientName,
       end: appointmentDraft.time,
@@ -128,6 +131,7 @@ function ArtistDashboard({ view = 'agenda' }) {
 
     bookSlot({
       date: appointmentDraft.date,
+      studioId: currentStudio?.id || 'studio-glow',
       time: appointmentDraft.time,
       end: appointmentDraft.time,
       artist: 'Valeria Moon',

@@ -1,4 +1,5 @@
 export const artistProfile = {
+  studioId: 'studio-glow',
   name: 'Valeria Moon Studio',
   role: 'Artista principal',
   location: 'Polanco, CDMX',
@@ -9,6 +10,7 @@ export const artistProfile = {
 
 export const artistAppointments = [
   {
+    studioId: 'studio-glow',
     time: '09:30',
     end: '10:15',
     clientId: 'client-mf',
@@ -29,6 +31,7 @@ export const artistAppointments = [
     appointmentStatus: 'scheduled',
   },
   {
+    studioId: 'studio-glow',
     time: '11:00',
     end: '12:10',
     clientId: 'client-ct',
@@ -49,6 +52,7 @@ export const artistAppointments = [
     appointmentStatus: 'scheduled',
   },
   {
+    studioId: 'studio-glow',
     time: '14:00',
     end: '15:00',
     client: 'Descanso',
@@ -69,6 +73,7 @@ export const artistAppointments = [
     appointmentStatus: 'scheduled',
   },
   {
+    studioId: 'studio-glow',
     time: '16:00',
     end: '17:30',
     clientId: 'client-as',
@@ -93,6 +98,7 @@ export const artistAppointments = [
 export const artistClients = [
   {
     id: 'client-mf',
+    studioId: 'studio-glow',
     name: 'María Fernanda',
     phone: '55 1234 5678',
     birthday: '1993-03-18',
@@ -113,6 +119,7 @@ export const artistClients = [
   },
   {
     id: 'client-as',
+    studioId: 'studio-glow',
     name: 'Ana Sofía',
     phone: '55 9876 5432',
     birthday: '1995-10-12',
@@ -132,6 +139,7 @@ export const artistClients = [
   },
   {
     id: 'client-ct',
+    studioId: 'studio-glow',
     name: 'Camila Torres',
     phone: '55 1122 3344',
     birthday: '1990-06-02',
@@ -297,8 +305,77 @@ export const adminMetrics = [
   { label: 'Clientes registradas', value: '12.6K', trend: '+9%' },
 ]
 
+export const studios = [
+  {
+    id: 'studio-glow',
+    name: 'Studio Glow Beauty',
+    city: 'CDMX',
+    specialty: 'Lashes, brows, makeup',
+    studioStatus: 'approved',
+    createdAt: '2026-04-18',
+    totalArtists: 3,
+    totalClients: 148,
+    occupancy: 82,
+    revenue: 84000,
+    riskScore: 'low',
+  },
+  {
+    id: 'studio-aura',
+    name: 'Studio Aura Nails',
+    city: 'Guadalajara',
+    specialty: 'Nails, nail art, spa manicure',
+    studioStatus: 'pending',
+    createdAt: '2026-05-12',
+    totalArtists: 2,
+    totalClients: 12,
+    occupancy: 36,
+    revenue: 0,
+    riskScore: 'medium',
+  },
+  {
+    id: 'studio-velvet',
+    name: 'Studio Velvet Skin',
+    city: 'Monterrey',
+    specialty: 'Skincare, faciales, brows',
+    studioStatus: 'approved',
+    createdAt: '2026-03-28',
+    totalArtists: 4,
+    totalClients: 96,
+    occupancy: 74,
+    revenue: 63000,
+    riskScore: 'low',
+  },
+  {
+    id: 'studio-muse',
+    name: 'Casa Muse Beauty',
+    city: 'Puebla',
+    specialty: 'Peinado, makeup social, novias',
+    studioStatus: 'pending',
+    createdAt: '2026-05-14',
+    totalArtists: 1,
+    totalClients: 4,
+    occupancy: 24,
+    revenue: 0,
+    riskScore: 'medium',
+  },
+  {
+    id: 'studio-icon',
+    name: 'Icon Brow Atelier',
+    city: 'Queretaro',
+    specialty: 'Microblading, brows',
+    studioStatus: 'suspended',
+    createdAt: '2026-04-30',
+    totalArtists: 1,
+    totalClients: 24,
+    occupancy: 48,
+    revenue: 12000,
+    riskScore: 'high',
+  },
+]
+
 export const managedArtists = [
   {
+    studioId: 'studio-glow',
     name: 'Valeria Moon Studio',
     city: 'CDMX',
     plan: 'Studio Pro',
@@ -310,6 +387,7 @@ export const managedArtists = [
     owner: 'Valeria Moon',
   },
   {
+    studioId: 'studio-aura',
     name: 'Aura Nails',
     city: 'Guadalajara',
     plan: 'Premium',
@@ -321,6 +399,7 @@ export const managedArtists = [
     owner: 'Renata Sol',
   },
   {
+    studioId: 'studio-velvet',
     name: 'Nude Beauty Lab',
     city: 'Monterrey',
     plan: 'Studio Pro',
@@ -332,6 +411,7 @@ export const managedArtists = [
     owner: 'Sofia Lab',
   },
   {
+    studioId: 'studio-muse',
     name: 'Casa Muse Beauty',
     city: 'Puebla',
     plan: 'Studio Curated',
@@ -343,6 +423,7 @@ export const managedArtists = [
     owner: 'Daniela Muse',
   },
   {
+    studioId: 'studio-icon',
     name: 'Icon Brow Atelier',
     city: 'Queretaro',
     plan: 'Premium',
@@ -356,9 +437,9 @@ export const managedArtists = [
 ]
 
 export const managedClients = [
-  { name: 'Mariana Lopez', appointments: 12, status: 'Activo', segment: 'VIP', spend: '$8.4K' },
-  { name: 'Camila Ruiz', appointments: 7, status: 'Activo', segment: 'Frecuente', spend: '$4.2K' },
-  { name: 'Ana Garza', appointments: 4, status: 'Inactivo', segment: 'Nueva', spend: '$1.8K' },
+  { studioId: 'studio-glow', name: 'Mariana Lopez', appointments: 12, status: 'Activo', segment: 'VIP', spend: '$8.4K' },
+  { studioId: 'studio-velvet', name: 'Camila Ruiz', appointments: 7, status: 'Activo', segment: 'Frecuente', spend: '$4.2K' },
+  { studioId: 'studio-aura', name: 'Ana Garza', appointments: 4, status: 'Inactivo', segment: 'Nueva', spend: '$1.8K' },
 ]
 
 export const systemStatus = [

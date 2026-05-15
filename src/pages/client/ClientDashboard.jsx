@@ -246,9 +246,13 @@ function ClientDashboard({ view = 'inicio' }) {
     [bookingDate, getAvailableSlots, marketplaceService.durationMinutes],
   )
   const visibleSlotCount = availableSlots.filter((slot) => slot.available).length
-  const activeArtists = adminState.artists.filter((artist) => artist.status === 'Activo' && canUseOperationalFeature(artist, 'publicAgenda'))
+  const activeArtists = adminState.artists.filter((artist) => {
+    const artistStudio = adminState.studios.find((studio) => studio.id === artist.studioId)
+    return artist.status === 'Activo' && canUseOperationalFeature(artistStudio || artist, 'publicAgenda')
+  })
   const favoriteArtists = adminState.artists.filter((artist) => (
-    clientState.favoriteArtistIds.includes(artist.id) && canUseOperationalFeature(artist, 'publicAgenda')
+    clientState.favoriteArtistIds.includes(artist.id)
+    && canUseOperationalFeature(adminState.studios.find((studio) => studio.id === artist.studioId) || artist, 'publicAgenda')
   ))
   const clientLookupId = clientState.profile?.id || 'client-mf'
   const currentClient = getClientById(artistState.clients, clientLookupId) || {
@@ -350,6 +354,7 @@ function ClientDashboard({ view = 'inicio' }) {
 
     bookSlot({
       ...slot,
+      studioId: selectedArtistProfile?.studioId || 'studio-glow',
       artist: selectedArtistProfile?.owner || selectedArtistProfile?.name || 'Valeria Moon',
       service: marketplaceService.name,
       durationMinutes: marketplaceService.durationMinutes,

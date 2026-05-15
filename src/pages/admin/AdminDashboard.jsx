@@ -12,6 +12,7 @@ import {
   artistServices,
   managedArtists,
   managedClients,
+  studios,
   systemStatus,
 } from '../../services/mockData'
 import {
@@ -30,6 +31,7 @@ import {
   getStudioStatusLabel,
   getStudioStatusTone,
 } from '../../modules/governance/studioGovernance'
+import { generateStudioInsights, generateStudioPortfolioSummary } from '../../modules/studio/studioMetricsEngine'
 
 const executiveRiskEvents = [
   {
@@ -42,6 +44,7 @@ const executiveRiskEvents = [
     status: 'Revision',
     room: 'Studio Norte',
     type: 'appointment',
+    studioId: 'studio-aura',
     date: '2026-05-18',
     grossAmount: 360,
     serviceTier: 'basic',
@@ -60,6 +63,7 @@ const executiveRiskEvents = [
     status: 'Revision',
     room: 'Suite Glow',
     type: 'appointment',
+    studioId: 'studio-velvet',
     date: '2026-05-18',
     grossAmount: 980,
     serviceTier: 'premium',
@@ -78,6 +82,7 @@ const executiveRiskEvents = [
     status: 'Revision urgente',
     room: 'Suite Rose',
     type: 'appointment',
+    studioId: 'studio-glow',
     date: '2026-05-18',
     grossAmount: 520,
     serviceTier: 'basic',
@@ -96,6 +101,7 @@ const executiveRiskEvents = [
     status: 'Confirmada',
     room: 'Makeup bar',
     type: 'appointment',
+    studioId: 'studio-glow',
     date: '2026-05-18',
     grossAmount: 1180,
     serviceTier: 'vip',
@@ -108,10 +114,10 @@ const executiveRiskEvents = [
 
 const executiveClients = [
   ...artistClients,
-  { id: 'client-muse', name: 'Daniela Muse', flowPoints: 640, vipTier: 'Muse' },
-  { id: 'client-icon', name: 'Elena Icon', flowPoints: 1320, vipTier: 'Icon' },
-  { id: 'client-elite', name: 'Marina Elite', flowPoints: 2680, vipTier: 'Elite' },
-  { id: 'client-near', name: 'Claudia Near', flowPoints: 142, vipTier: 'Glow' },
+  { id: 'client-muse', studioId: 'studio-velvet', name: 'Daniela Muse', flowPoints: 640, vipTier: 'Muse' },
+  { id: 'client-icon', studioId: 'studio-glow', name: 'Elena Icon', flowPoints: 1320, vipTier: 'Icon' },
+  { id: 'client-elite', studioId: 'studio-glow', name: 'Marina Elite', flowPoints: 2680, vipTier: 'Elite' },
+  { id: 'client-near', studioId: 'studio-aura', name: 'Claudia Near', flowPoints: 142, vipTier: 'Glow' },
 ]
 
 const executiveAlertMessages = {
@@ -124,9 +130,11 @@ const formatCurrency = (value) => `$${Math.round(value).toLocaleString('es-MX')}
 
 function AdminDashboard() {
   const navigate = useNavigate()
-  const [reviewStudios, setReviewStudios] = useState(managedArtists)
+  const [reviewStudios, setReviewStudios] = useState(studios)
 
   const ownerAppointments = [...artistAppointments, ...executiveRiskEvents]
+  const portfolioSummary = generateStudioPortfolioSummary(reviewStudios, managedArtists, executiveClients, ownerAppointments)
+  const studioInsights = generateStudioInsights(reviewStudios, managedArtists, executiveClients, ownerAppointments)
   const ownerSummary = generateOwnerDashboardSummary(ownerAppointments, artistServices)
   const totalRevenue = calculateTotalRevenue(ownerAppointments)
   const platformRevenue = calculatePlatformRevenue(ownerAppointments)
@@ -180,7 +188,6 @@ function AdminDashboard() {
           ? {
               ...studio,
               studioStatus,
-              status: studioStatus === STUDIO_STATUS.APPROVED ? 'Activo' : studio.status,
             }
           : studio,
       ),
@@ -217,6 +224,11 @@ function AdminDashboard() {
     { label: 'Estudios aprobados', value: ecosystemMetrics.approved, trend: 'Marketplace premium', tone: 'success' },
     { label: 'Estudios suspendidos', value: ecosystemMetrics.suspended, trend: 'Revision elegante', tone: 'nude' },
     { label: 'Riesgo ecosistema', value: ecosystemMetrics.ecosystemRisk, trend: ecosystemMetrics.ecosystemRisk > 3 ? 'Atencion owner' : 'Controlado', tone: ecosystemMetrics.ecosystemRisk > 3 ? 'warm' : 'sage' },
+    { label: 'Studio revenue', value: formatCurrency(portfolioSummary.totalRevenue), trend: `${reviewStudios.length} studios`, tone: 'rose' },
+    { label: 'Studio occupancy', value: `${portfolioSummary.averageOccupancy}%`, trend: 'Promedio portfolio', tone: 'nude' },
+    { label: 'Active artists', value: portfolioSummary.activeArtists, trend: 'Multi-studio', tone: 'success' },
+    { label: 'Active clients', value: portfolioSummary.activeClients, trend: 'Relacion studioId', tone: 'sage' },
+    { label: 'Studio risk', value: portfolioSummary.studioRisk, trend: 'Portfolio score', tone: portfolioSummary.studioRisk > 8 ? 'warm' : 'sage' },
   ]
 
   return (
@@ -251,7 +263,7 @@ function AdminDashboard() {
             <div className="studio-review-row" key={studio.name}>
               <div>
                 <strong>{studio.name}</strong>
-                <small>{studio.city} · {studio.specialties.join(', ')} · Registro {studio.registeredAt}</small>
+                <small>{studio.city} · {studio.specialty} · Registro {studio.createdAt}</small>
               </div>
               <StatusPill tone={getStudioStatusTone(studio.studioStatus)}>
                 {getStudioStatusLabel(studio.studioStatus)}
@@ -293,6 +305,28 @@ function AdminDashboard() {
         </div>
       </Card>
 
+      <Card className="wide-card executive-card">
+        <PanelHeader title="Portfolio multi-studio" eyebrow="Studio intelligence" />
+        <div className="data-table executive-table">
+          <div className="table-head">
+            <span>Studio</span>
+            <span>Revenue</span>
+            <span>Ocupacion</span>
+            <span>Activos</span>
+            <span>Riesgo</span>
+          </div>
+          {portfolioSummary.studioMetrics.map((studio) => (
+            <div className="table-row" key={studio.studioId}>
+              <strong>{studio.studioName}</strong>
+              <span>{formatCurrency(studio.revenue)}</span>
+              <span>{studio.occupancy}%</span>
+              <span>{studio.activeArtists} artistas / {studio.activeClients} clientas</span>
+              <StatusPill tone={studio.studioRisk > 4 ? 'warm' : 'success'}>{studio.studioRisk}</StatusPill>
+            </div>
+          ))}
+        </div>
+      </Card>
+
       <Card className="executive-card">
         <PanelHeader title="Studio Flow Insights" eyebrow="Lectura ejecutiva" />
         <div className="insights-stack">
@@ -311,6 +345,12 @@ function AdminDashboard() {
             <h4>Activacion inteligente</h4>
             <p>La ocupacion global puede mejorar activando campanas en dias bajos y reforzando promociones con doble puntos.</p>
           </div>
+          {studioInsights.map((insight) => (
+            <div key={insight} className="insight-item executive-insight">
+              <h4>Studio insight</h4>
+              <p>{insight}</p>
+            </div>
+          ))}
         </div>
       </Card>
 
@@ -362,22 +402,22 @@ function AdminDashboard() {
       </Card>
 
       <Card className="wide-card">
-        <PanelHeader title="Gestion de artistas" eyebrow="Operaciones" action={<Button size="sm" onClick={() => navigate(paths.adminArtists)}>Abrir</Button>} />
+        <PanelHeader title="Gestion de studios" eyebrow="Operaciones" action={<Button size="sm" onClick={() => navigate(paths.adminArtists)}>Abrir</Button>} />
         <div className="data-table">
           <div className="table-head">
-            <span>Estudio</span>
+            <span>Studio</span>
             <span>Ciudad</span>
-            <span>Plan</span>
+            <span>Especialidad</span>
             <span>Ingresos</span>
             <span>Estado</span>
           </div>
-          {reviewStudios.map((artist) => (
-            <div className="table-row" key={artist.name}>
-              <strong>{artist.name}</strong>
-              <span>{artist.city}</span>
-              <span>{artist.plan}</span>
-              <span>{artist.revenue}</span>
-              <StatusPill tone={getStudioStatusTone(artist.studioStatus)}>{getStudioStatusLabel(artist.studioStatus)}</StatusPill>
+          {reviewStudios.map((studio) => (
+            <div className="table-row" key={studio.id}>
+              <strong>{studio.name}</strong>
+              <span>{studio.city}</span>
+              <span>{studio.specialty}</span>
+              <span>{formatCurrency(studio.revenue)}</span>
+              <StatusPill tone={getStudioStatusTone(studio.studioStatus)}>{getStudioStatusLabel(studio.studioStatus)}</StatusPill>
             </div>
           ))}
         </div>
