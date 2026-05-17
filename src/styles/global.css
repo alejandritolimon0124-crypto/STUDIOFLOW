@@ -1898,10 +1898,10 @@ select:focus {
     background: rgba(251, 247, 245, 0.86);
     border-bottom: 1px solid rgba(234, 223, 218, 0.76);
     display: flex;
-    height: 78px;
+    height: calc(78px + env(safe-area-inset-top, 0px));
     justify-content: space-between;
     left: 0;
-    padding: 0 6px;
+    padding: env(safe-area-inset-top, 0px) 6px 0;
     position: sticky;
     right: 0;
     top: 0;
@@ -2055,14 +2055,14 @@ select:focus {
     flex-direction: row;
     flex-wrap: nowrap;
     justify-content: space-between;
-    margin: -8px auto -10px;
+    margin: 8px auto 0;
     padding: 0 4px;
     position: relative;
     width: 100%;
   }
 
   .topbar-titles {
-    margin-top: -18px;
+    margin-top: 18px;
     padding: 0 2px;
   }
 
@@ -2075,7 +2075,7 @@ select:focus {
     display: flex;
     flex: 1;
     justify-content: center;
-    margin: -76px -28px -72px;
+    margin: -48px -28px -44px;
   }
 
   .topbar > div:not(.topbar-actions) {
@@ -2398,7 +2398,7 @@ select:focus {
 
   .topbar {
     width: 100%;
-    margin: -8px 0 -8px;
+    margin: 8px 0 4px;
   }
 
   .topbar h1 {
