@@ -2795,7 +2795,23 @@ select:focus {
 }
 
 .studio-hero {
+  --artist-avatar-space: calc(clamp(82px, 22vw, 112px) + 28px);
   position: relative;
+}
+
+.studio-hero > div:not(.artist-hero-photo):first-of-type {
+  max-width: calc(100% - var(--artist-avatar-space));
+  padding-right: 8px;
+}
+
+.studio-hero > .hero-summary {
+  margin-top: 14px;
+}
+
+@media (min-width: 861px) {
+  .studio-hero > div:not(.artist-hero-photo):first-of-type {
+    max-width: min(680px, calc(100% - var(--artist-avatar-space)));
+  }
 }
 
 .client-hero-photo img,
