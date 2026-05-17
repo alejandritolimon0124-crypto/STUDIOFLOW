@@ -2795,19 +2795,32 @@ select:focus {
 }
 
 .artist-profile-hero {
-  align-items: end;
+  align-items: start;
   display: grid;
+  grid-template-areas:
+    "copy avatar"
+    "actions actions"
+    "summary summary";
   grid-template-columns: minmax(0, 1fr) auto;
+  row-gap: 16px;
 }
 
-.artist-profile-hero > div:first-child {
+.artist-profile-hero .artist-hero-copy {
+  grid-area: copy;
   min-width: 0;
 }
 
+.artist-profile-hero .artist-hero-photo {
+  grid-area: avatar;
+}
+
+.artist-profile-hero .artist-hero-actions {
+  grid-area: actions;
+}
+
 .artist-profile-hero > .hero-summary {
-  grid-column: 1 / -1;
+  grid-area: summary;
   justify-self: stretch;
-  margin-top: 6px;
 }
 
 .client-hero-photo img,

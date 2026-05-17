@@ -182,14 +182,10 @@ function ArtistDashboard({ view = 'agenda' }) {
         {view === 'agenda' && (
           <>
             <section className="hero-panel studio-hero artist-profile-hero mobile-screen">
-              <div>
+              <div className="artist-hero-copy">
                 <span className="eyebrow">{artistProfile.location}</span>
                 <h2>{artistProfile.name}</h2>
                 <p>Tu agenda esta equilibrada, con mayor demanda en lashes y cejas durante la tarde.</p>
-                <div className="hero-actions">
-                  <Button disabled={!canUsePublicAgenda} onClick={() => setShowAppointmentForm((current) => !current)}>Agregar cita</Button>
-                  <Button variant="ghost" onClick={() => navigate(paths.artistSchedule)}>Editar horario</Button>
-                </div>
               </div>
               <div className="artist-hero-photo">
                 {artistState.profile?.photoUrl ? (
@@ -197,6 +193,10 @@ function ArtistDashboard({ view = 'agenda' }) {
                 ) : (
                   <span>Agregar foto</span>
                 )}
+              </div>
+              <div className="hero-actions artist-hero-actions">
+                <Button disabled={!canUsePublicAgenda} onClick={() => setShowAppointmentForm((current) => !current)}>Agregar cita</Button>
+                <Button variant="ghost" onClick={() => navigate(paths.artistSchedule)}>Editar horario</Button>
               </div>
               <div className="hero-summary">
                 <span>{artistProfile.plan}</span>
