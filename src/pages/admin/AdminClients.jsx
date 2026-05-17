@@ -5,10 +5,12 @@ import Input from '../../components/Input'
 import PanelHeader from '../../components/PanelHeader'
 import StatusPill from '../../components/StatusPill'
 import { useApp } from '../../contexts/appContextCore'
+import { filterByStudioAccess, hasPermission, permissions } from '../../modules/permissions/rolePermissions'
 
 function AdminClients() {
   const {
     adminState,
+    session,
     toggleManagedClientStatus,
     updateManagedClientProfile,
   } = useApp()
@@ -18,12 +20,13 @@ function AdminClients() {
 
   const filteredClients = useMemo(
     () =>
-      adminState.clients.filter((client) => {
+      filterByStudioAccess(adminState.clients, session.user).filter((client) => {
         const searchable = `${client.name} ${client.segment} ${client.status}`.toLowerCase()
         return searchable.includes(query.toLowerCase())
       }),
-    [adminState.clients, query],
+    [adminState.clients, query, session.user],
   )
+  const canSeeStudioRevenue = hasPermission(session.user, permissions.STUDIO_REVENUE)
 
   const saveClientProfile = () => {
     if (!profileClient) return
@@ -50,7 +53,7 @@ function AdminClients() {
               <article className="master-row" key={client.name}>
                 <div>
                   <strong>{client.name}</strong>
-                  <small>{client.segment} / {client.appointments} citas / {client.spend}</small>
+                  <small>{client.segment} / {client.appointments} citas{canSeeStudioRevenue ? ` / ${client.spend}` : ''}</small>
                 </div>
                 <StatusPill tone={client.status === 'Activo' ? 'success' : 'neutral'}>{client.status}</StatusPill>
                 <div className="row-actions">

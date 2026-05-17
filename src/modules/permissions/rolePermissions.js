@@ -53,6 +53,7 @@ export const permissionsByRole = {
     permissions.AGENDA,
     permissions.CLIENTS,
     permissions.STUDIO_MARKETING,
+    permissions.STUDIO_OCCUPANCY,
   ],
   [ROLES.ARTIST]: [
     permissions.OWN_AGENDA,

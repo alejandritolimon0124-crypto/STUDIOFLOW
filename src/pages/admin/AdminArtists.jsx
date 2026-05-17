@@ -7,11 +7,13 @@ import PanelHeader from '../../components/PanelHeader'
 import StatusPill from '../../components/StatusPill'
 import { useApp } from '../../contexts/appContextCore'
 import { paths } from '../../routes/paths'
+import { filterByStudioAccess, hasPermission, permissions } from '../../modules/permissions/rolePermissions'
 
 function AdminArtists() {
   const navigate = useNavigate()
   const {
     adminState,
+    session,
     toggleManagedArtistStatus,
     updateManagedArtistProfile,
   } = useApp()
@@ -21,12 +23,13 @@ function AdminArtists() {
 
   const filteredArtists = useMemo(
     () =>
-      adminState.artists.filter((artist) => {
+      filterByStudioAccess(adminState.artists, session.user).filter((artist) => {
         const searchable = `${artist.name} ${artist.owner} ${artist.city} ${artist.plan}`.toLowerCase()
         return searchable.includes(query.toLowerCase())
       }),
-    [adminState.artists, query],
+    [adminState.artists, query, session.user],
   )
+  const canSeeStudioRevenue = hasPermission(session.user, permissions.STUDIO_REVENUE)
 
   const openDashboard = (artist) => {
     setDashboardArtist(artist)
@@ -91,7 +94,7 @@ function AdminArtists() {
                   <strong>{dashboardArtist.city}</strong>
                   <small>{dashboardArtist.plan} / {dashboardArtist.services}</small>
                 </div>
-                <span>{dashboardArtist.revenue}</span>
+                {canSeeStudioRevenue && <span>{dashboardArtist.revenue}</span>}
               </div>
             </div>
           </Card>

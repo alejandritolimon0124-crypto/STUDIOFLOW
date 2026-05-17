@@ -11,7 +11,6 @@ import {
   artistClients,
   artistServices,
   managedArtists,
-  managedClients,
   studios,
   systemStatus,
   users,
@@ -39,6 +38,7 @@ import {
   getRoleLabel,
   hasPermission,
   permissions,
+  ROLES,
 } from '../../modules/permissions/rolePermissions'
 
 const executiveRiskEvents = [
@@ -156,14 +156,66 @@ function AdminDashboard() {
   const canSeeEcosystemRisk = hasPermission(currentUser, permissions.ECOSYSTEM_RISK)
   const canSeeStudioRevenue = hasPermission(currentUser, permissions.STUDIO_REVENUE)
   const canSeeStudioMarketing = hasPermission(currentUser, permissions.STUDIO_MARKETING)
+  const canSeeStudioOccupancy = hasPermission(currentUser, permissions.STUDIO_OCCUPANCY)
+  const canSeeStudioArtists = hasPermission(currentUser, permissions.STUDIO_ARTISTS)
+  const canSeeStudioClients = hasPermission(currentUser, permissions.STUDIO_CLIENTS) || hasPermission(currentUser, permissions.CLIENTS)
+  const normalizedRole = currentUser?.role === 'admin' ? ROLES.PLATFORM_OWNER : currentUser?.role
+  const isPlatformOwner = normalizedRole === ROLES.PLATFORM_OWNER
+  const isStudioOwner = normalizedRole === ROLES.STUDIO_OWNER
+  const isStudioManager = normalizedRole === ROLES.STUDIO_MANAGER
+  const roleExperience = {
+    [ROLES.PLATFORM_OWNER]: {
+      eyebrow: 'Platform owner',
+      title: 'Control completo del ecosistema Studio Flow',
+      description: 'Gobernanza, ingresos globales, riesgo, insights, roles y portfolio multi-studio en la vista mas completa del sistema.',
+      summaryLabel: 'Revenue global',
+      portfolioTitle: 'Portfolio multi-studio',
+      portfolioEyebrow: 'Studio intelligence global',
+      insightsTitle: 'Insights globales',
+      insightsEyebrow: 'Lectura ejecutiva',
+      flowTitle: 'Economia Flow Points global',
+    },
+    [ROLES.STUDIO_OWNER]: {
+      eyebrow: 'Studio owner',
+      title: 'Direccion ejecutiva de tu estudio',
+      description: 'Revenue, artistas, ocupacion, campanas, clientas, metricas y Flow Points filtrados al studio asignado.',
+      summaryLabel: 'Revenue del estudio',
+      portfolioTitle: 'Metricas del estudio',
+      portfolioEyebrow: 'Studio intelligence local',
+      insightsTitle: 'Insights del estudio',
+      insightsEyebrow: 'Crecimiento local',
+      flowTitle: 'Flow Points del estudio',
+    },
+    [ROLES.STUDIO_MANAGER]: {
+      eyebrow: 'Studio manager',
+      title: 'Operacion diaria del estudio',
+      description: 'Agenda global del estudio, citas, clientas, automatizaciones, campanas y ocupacion sin gobierno ni finanzas profundas.',
+      summaryLabel: 'Ocupacion estudio',
+      portfolioTitle: 'Ocupacion y operacion',
+      portfolioEyebrow: 'Gestion del estudio',
+      insightsTitle: 'Automatizaciones operativas',
+      insightsEyebrow: 'Acciones del dia',
+      flowTitle: 'Senales de clientas',
+    },
+  }[normalizedRole] || {
+    eyebrow: 'Workspace',
+    title: 'Panel organizacional',
+    description: 'Vista adaptada por permisos.',
+    summaryLabel: 'Resumen',
+    portfolioTitle: 'Metricas',
+    portfolioEyebrow: 'Operacion',
+    insightsTitle: 'Insights',
+    insightsEyebrow: 'Workspace',
+    flowTitle: 'Flow Points',
+  }
   const portfolioSummary = generateStudioPortfolioSummary(accessibleStudios, accessibleArtists, accessibleClients, accessibleAppointments)
   const studioInsights = generateStudioInsights(accessibleStudios, accessibleArtists, accessibleClients, accessibleAppointments)
-  const ownerSummary = generateOwnerDashboardSummary(ownerAppointments, artistServices)
-  const totalRevenue = calculateTotalRevenue(ownerAppointments)
-  const platformRevenue = calculatePlatformRevenue(ownerAppointments)
-  const flaggedAppointments = calculateFlaggedAppointments(ownerAppointments)
-  const occupancyMetrics = calculateOccupancyMetrics(ownerAppointments, 32)
-  const businessInsights = generateBusinessInsights(ownerAppointments)
+  const ownerSummary = generateOwnerDashboardSummary(accessibleAppointments, artistServices)
+  const totalRevenue = calculateTotalRevenue(accessibleAppointments)
+  const platformRevenue = calculatePlatformRevenue(accessibleAppointments)
+  const flaggedAppointments = calculateFlaggedAppointments(accessibleAppointments)
+  const occupancyMetrics = calculateOccupancyMetrics(accessibleAppointments, isPlatformOwner ? 32 : 12)
+  const businessInsights = generateBusinessInsights(accessibleAppointments)
   const executiveInsights = businessInsights.map((insight) => {
     const copyByType = {
       promotion: 'Las promociones con doble puntos generan mayor recurrencia y sostienen ingresos incrementales.',
@@ -177,7 +229,13 @@ function AdminDashboard() {
       message: copyByType[insight.type] || insight.message,
     }
   })
-  const riskAlerts = ownerAppointments
+  const visibleInsights = executiveInsights.filter((insight) => {
+    if (isPlatformOwner) return true
+    if (isStudioOwner) return insight.type !== 'risk'
+    if (isStudioManager) return ['promotion', 'occupancy'].includes(insight.type)
+    return false
+  })
+  const riskAlerts = accessibleAppointments
     .map((appointment) => ({
       ...appointment,
       economy: calculateAppointmentEconomy(appointment),
@@ -188,18 +246,18 @@ function AdminDashboard() {
       return order[b.economy.riskScore] - order[a.economy.riskScore]
     })
 
-  const totalActivePoints = executiveClients.reduce((total, client) => total + (client.flowPoints || 0), 0)
+  const totalActivePoints = accessibleClients.reduce((total, client) => total + (client.flowPoints || 0), 0)
   const rewardThreshold = flowPointRewards.freeService.pointsCost
-  const clientsNearReward = executiveClients.filter((client) => {
+  const clientsNearReward = accessibleClients.filter((client) => {
     const points = client.flowPoints || 0
     return points < rewardThreshold && rewardThreshold - points <= 30
   })
   const tierCounts = vipTierThresholds.map((tier) => ({
     ...tier,
-    count: executiveClients.filter((client) => getVipTierForPoints(client.flowPoints || 0) === tier.name).length,
+    count: accessibleClients.filter((client) => getVipTierForPoints(client.flowPoints || 0) === tier.name).length,
   }))
   const potentialRewards = Object.values(flowPointRewards).filter((reward) =>
-    executiveClients.some((client) => (client.flowPoints || 0) >= reward.pointsCost),
+    accessibleClients.some((client) => (client.flowPoints || 0) >= reward.pointsCost),
   ).length
   const ecosystemMetrics = calculateEcosystemGovernanceMetrics(accessibleStudios)
   const pendingReviewStudios = accessibleStudios.filter((studio) => studio.studioStatus === STUDIO_STATUS.PENDING)
@@ -207,7 +265,8 @@ function AdminDashboard() {
     ...distribution,
     [user.role]: (distribution[user.role] || 0) + 1,
   }), {})
-  const managersActive = users.filter((user) => user.role === 'studio_manager' && user.status === 'Activo').length
+  const scopedUsers = isPlatformOwner ? users : users.filter((user) => user.studioId === currentUser?.studioId)
+  const managersActive = scopedUsers.filter((user) => user.role === 'studio_manager' && user.status === 'Activo').length
   const studiosByOwner = users.filter((user) => user.role === 'studio_owner').map((owner) => ({
     owner: owner.name,
     studios: reviewStudios.filter((studio) => studio.id === owner.studioId),
@@ -227,10 +286,14 @@ function AdminDashboard() {
   }
 
   const topArtists = [
-    { artist: 'Valeria Moon Studio', appointments: ownerAppointments.filter((item) => item.artistId === 'valeria-moon' || !item.artistId) },
-    { artist: 'Nude Beauty Lab', appointments: ownerAppointments.filter((item) => item.artistId === 'nude-beauty-lab') },
-    { artist: 'Aura Nails', appointments: ownerAppointments.filter((item) => item.artistId === 'aura-nails') },
-  ].map((artist) => {
+    { artist: 'Valeria Moon Studio', artistId: 'valeria-moon', appointments: accessibleAppointments.filter((item) => item.artistId === 'valeria-moon' || !item.artistId) },
+    { artist: 'Nude Beauty Lab', artistId: 'nude-beauty-lab', appointments: accessibleAppointments.filter((item) => item.artistId === 'nude-beauty-lab') },
+    { artist: 'Aura Nails', artistId: 'aura-nails', appointments: accessibleAppointments.filter((item) => item.artistId === 'aura-nails') },
+  ].filter((artist) => (
+    isPlatformOwner || accessibleArtists.some((accessibleArtist) => (
+      accessibleArtist.name === artist.artist || accessibleArtist.owner === artist.artist || accessibleArtist.id === artist.artistId
+    ))
+  )).map((artist) => {
     const revenue = calculateTotalRevenue(artist.appointments)
     const commission = calculatePlatformRevenue(artist.appointments)
     const occupancy = calculateOccupancyMetrics(artist.appointments, 10).occupancyRate
@@ -249,32 +312,33 @@ function AdminDashboard() {
     canSeeGlobalRevenue && { label: 'Ingresos totales', value: formatCurrency(totalRevenue), trend: 'Gross mock conectado', tone: 'rose' },
     canSeeGlobalRevenue && { label: 'Comision Studio Flow', value: formatCurrency(platformRevenue), trend: '10% foundation', tone: 'sage' },
     canSeeEcosystemRisk && { label: 'Eventos con riesgo', value: flaggedAppointments.length, trend: riskAlerts.length ? 'Revision activa' : 'Sin alertas', tone: flaggedAppointments.length ? 'warm' : 'success' },
-    { label: 'Ocupacion global', value: `${occupancyMetrics.occupancyRate}%`, trend: `${occupancyMetrics.bookedSlots}/${occupancyMetrics.totalSlots} slots`, tone: 'nude' },
-    { label: 'Clientas activas', value: executiveClients.length, trend: `${managedClients.filter((client) => client.status === 'Activo').length} segmentos admin`, tone: 'rose' },
-    { label: 'Flow Points activos', value: totalActivePoints.toLocaleString('es-MX'), trend: `${clientsNearReward.length} cerca de recompensa`, tone: 'sage' },
+    canSeeStudioRevenue && !canSeeGlobalRevenue && { label: 'Revenue estudio', value: formatCurrency(totalRevenue), trend: accessibleStudios[0]?.name || 'Studio asignado', tone: 'rose' },
+    canSeeStudioOccupancy && { label: isPlatformOwner ? 'Ocupacion global' : 'Ocupacion estudio', value: `${occupancyMetrics.occupancyRate}%`, trend: `${occupancyMetrics.bookedSlots}/${occupancyMetrics.totalSlots} slots`, tone: 'nude' },
+    canSeeStudioClients && { label: isPlatformOwner ? 'Clientas activas' : 'Clientas estudio', value: accessibleClients.length, trend: `${accessibleClients.filter((client) => client.status === 'Activo').length} activas`, tone: 'rose' },
+    (isPlatformOwner || isStudioOwner) && { label: 'Flow Points activos', value: totalActivePoints.toLocaleString('es-MX'), trend: `${clientsNearReward.length} cerca de recompensa`, tone: 'sage' },
     canSeeGovernance && { label: 'Estudios pendientes', value: ecosystemMetrics.pending, trend: 'Curaduria activa', tone: 'warm' },
-    { label: 'Estudios aprobados', value: ecosystemMetrics.approved, trend: 'Marketplace premium', tone: 'success' },
-    { label: 'Estudios suspendidos', value: ecosystemMetrics.suspended, trend: 'Revision elegante', tone: 'nude' },
+    canSeeGovernance && { label: 'Estudios aprobados', value: ecosystemMetrics.approved, trend: 'Marketplace premium', tone: 'success' },
+    canSeeGovernance && { label: 'Estudios suspendidos', value: ecosystemMetrics.suspended, trend: 'Revision elegante', tone: 'nude' },
     canSeeEcosystemRisk && { label: 'Riesgo ecosistema', value: ecosystemMetrics.ecosystemRisk, trend: ecosystemMetrics.ecosystemRisk > 3 ? 'Atencion owner' : 'Controlado', tone: ecosystemMetrics.ecosystemRisk > 3 ? 'warm' : 'sage' },
-    canSeeStudioRevenue && { label: 'Studio revenue', value: formatCurrency(portfolioSummary.totalRevenue), trend: `${accessibleStudios.length} studios`, tone: 'rose' },
-    { label: 'Studio occupancy', value: `${portfolioSummary.averageOccupancy}%`, trend: 'Promedio portfolio', tone: 'nude' },
-    { label: 'Active artists', value: portfolioSummary.activeArtists, trend: 'Multi-studio', tone: 'success' },
-    { label: 'Active clients', value: portfolioSummary.activeClients, trend: 'Relacion studioId', tone: 'sage' },
+    canSeeStudioRevenue && isPlatformOwner && { label: 'Studio revenue', value: formatCurrency(portfolioSummary.totalRevenue), trend: `${accessibleStudios.length} studios`, tone: 'rose' },
+    canSeeStudioOccupancy && isPlatformOwner && { label: 'Studio occupancy', value: `${portfolioSummary.averageOccupancy}%`, trend: 'Promedio portfolio', tone: 'nude' },
+    canSeeStudioArtists && { label: isPlatformOwner ? 'Active artists' : 'Artistas estudio', value: portfolioSummary.activeArtists, trend: isPlatformOwner ? 'Multi-studio' : 'Equipo local', tone: 'success' },
+    canSeeStudioClients && isPlatformOwner && { label: 'Active clients', value: portfolioSummary.activeClients, trend: 'Relacion studioId', tone: 'sage' },
     canSeeEcosystemRisk && { label: 'Studio risk', value: portfolioSummary.studioRisk, trend: 'Portfolio score', tone: portfolioSummary.studioRisk > 8 ? 'warm' : 'sage' },
   ].filter(Boolean)
 
   return (
     <main className="dashboard-grid admin-grid">
-      <section className="hero-panel admin-hero executive-hero">
+      <section className={`hero-panel admin-hero executive-hero role-hero-${normalizedRole}`}>
         <div>
-          <span className="eyebrow">Executive Owner Dashboard</span>
-          <h2>Control de negocio Studio Flow</h2>
-          <p>Ingresos, comision, ocupacion, riesgo operativo y economia Flow Points en una vista premium lista para conectar datos reales.</p>
+          <span className="eyebrow">{roleExperience.eyebrow}</span>
+          <h2>{roleExperience.title}</h2>
+          <p>{roleExperience.description}</p>
         </div>
         <div className="hero-summary">
-          <span>Revenue owner</span>
-          <strong>{formatCurrency(ownerSummary.totalRevenue)}</strong>
-          <small>{ownerSummary.flaggedAppointments} eventos a revisar</small>
+          <span>{roleExperience.summaryLabel}</span>
+          <strong>{isStudioManager ? `${occupancyMetrics.occupancyRate}%` : formatCurrency(ownerSummary.totalRevenue)}</strong>
+          <small>{isStudioManager ? `${accessibleAppointments.length} citas visibles` : `${ownerSummary.flaggedAppointments} eventos a revisar`}</small>
         </div>
       </section>
 
@@ -303,13 +367,13 @@ function AdminDashboard() {
           </div>
           <div>
             <span>Artistas activas</span>
-            <strong>{managedArtists.filter((artist) => artist.status === 'Activo').length}</strong>
-            <small>Distribuidas por studioId.</small>
+            <strong>{accessibleArtists.filter((artist) => artist.status === 'Activo').length}</strong>
+            <small>{isPlatformOwner ? 'Distribuidas por studioId.' : 'Equipo del estudio asignado.'}</small>
           </div>
           <div>
-            <span>Distribucion roles</span>
-            <strong>{Object.keys(roleDistribution).length}</strong>
-            <small>{Object.entries(roleDistribution).map(([role, count]) => `${getRoleLabel(role)} ${count}`).join(' · ')}</small>
+            <span>{isPlatformOwner ? 'Distribucion roles' : 'Equipo visible'}</span>
+            <strong>{isPlatformOwner ? Object.keys(roleDistribution).length : scopedUsers.length}</strong>
+            <small>{isPlatformOwner ? Object.entries(roleDistribution).map(([role, count]) => `${getRoleLabel(role)} ${count}`).join(' / ') : scopedUsers.map((user) => getRoleLabel(user.role)).join(' / ')}</small>
           </div>
         </div>
       </Card>
@@ -368,32 +432,54 @@ function AdminDashboard() {
       )}
 
       <Card className="wide-card executive-card">
-        <PanelHeader title="Portfolio multi-studio" eyebrow="Studio intelligence" />
+        <PanelHeader title={roleExperience.portfolioTitle} eyebrow={roleExperience.portfolioEyebrow} />
         <div className="data-table executive-table">
           <div className="table-head">
             <span>Studio</span>
-            <span>Revenue</span>
+            {canSeeStudioRevenue && <span>Revenue</span>}
             <span>Ocupacion</span>
             <span>Activos</span>
-            <span>Riesgo</span>
+            {isPlatformOwner && <span>Riesgo</span>}
           </div>
           {portfolioSummary.studioMetrics.map((studio) => (
             <div className="table-row" key={studio.studioId}>
               <strong>{studio.studioName}</strong>
-              <span>{canSeeStudioRevenue ? formatCurrency(studio.revenue) : 'Vista studio'}</span>
+              {canSeeStudioRevenue && <span>{formatCurrency(studio.revenue)}</span>}
               <span>{studio.occupancy}%</span>
               <span>{studio.activeArtists} artistas / {studio.activeClients} clientas</span>
-              <StatusPill tone={studio.studioRisk > 4 ? 'warm' : 'success'}>{studio.studioRisk}</StatusPill>
+              {isPlatformOwner && <StatusPill tone={studio.studioRisk > 4 ? 'warm' : 'success'}>{studio.studioRisk}</StatusPill>}
             </div>
           ))}
         </div>
       </Card>
 
+      {(isStudioManager || isStudioOwner) && (
+      <Card className="wide-card executive-card">
+        <PanelHeader title="Agenda global estudio" eyebrow="Citas y ocupacion" />
+        <div className="data-table executive-table">
+          <div className="table-head">
+            <span>Hora</span>
+            <span>Clienta</span>
+            <span>Servicio</span>
+            <span>Estado</span>
+          </div>
+          {accessibleAppointments.slice(0, 6).map((appointment) => (
+            <div className="table-row" key={`${appointment.client}-${appointment.time}-${appointment.service}`}>
+              <strong>{appointment.time}</strong>
+              <span>{appointment.client}</span>
+              <span>{appointment.service}</span>
+              <StatusPill tone={appointment.status === 'Confirmada' ? 'success' : 'warm'}>{appointment.status}</StatusPill>
+            </div>
+          ))}
+        </div>
+      </Card>
+      )}
+
       {(canSeeGlobalInsights || canSeeStudioMarketing) && (
       <Card className="executive-card">
-        <PanelHeader title="Studio Flow Insights" eyebrow="Lectura ejecutiva" />
+        <PanelHeader title={roleExperience.insightsTitle} eyebrow={roleExperience.insightsEyebrow} />
         <div className="insights-stack">
-          {executiveInsights.slice(0, 4).map((insight) => (
+          {visibleInsights.slice(0, 4).map((insight) => (
             <div key={`${insight.type}-${insight.priority}`} className="insight-item executive-insight">
               <div className="insight-header">
                 <h4>{insight.type === 'promotion' ? 'Promociones y recurrencia' : insight.type === 'occupancy' ? 'Ocupacion global' : insight.type === 'risk' ? 'Riesgo operativo' : 'Economia del negocio'}</h4>
@@ -405,8 +491,8 @@ function AdminDashboard() {
             </div>
           ))}
           <div className="insight-item executive-insight">
-            <h4>Activacion inteligente</h4>
-            <p>La ocupacion global puede mejorar activando campanas en dias bajos y reforzando promociones con doble puntos.</p>
+            <h4>{isStudioManager ? 'Automatizacion recomendada' : 'Activacion inteligente'}</h4>
+            <p>{isPlatformOwner ? 'La ocupacion global puede mejorar activando campanas en dias bajos y reforzando promociones con doble puntos.' : 'La ocupacion del estudio puede mejorar con campanas en dias bajos y recordatorios a clientas inactivas.'}</p>
           </div>
           {studioInsights.map((insight) => (
             <div key={insight} className="insight-item executive-insight">
@@ -418,8 +504,9 @@ function AdminDashboard() {
       </Card>
       )}
 
+      {(isPlatformOwner || isStudioOwner) && (
       <Card className="executive-card">
-        <PanelHeader title="Economia Flow Points" eyebrow="Loyalty" />
+        <PanelHeader title={roleExperience.flowTitle} eyebrow="Loyalty" />
         <div className="flow-economy-grid">
           <div>
             <span>Puntos activos</span>
@@ -442,7 +529,9 @@ function AdminDashboard() {
           ))}
         </div>
       </Card>
+      )}
 
+      {isPlatformOwner && (
       <Card className="wide-card executive-card">
         <PanelHeader title="Studios por owner" eyebrow="Ownership map" />
         <div className="compact-list">
@@ -457,66 +546,74 @@ function AdminDashboard() {
           ))}
         </div>
       </Card>
+      )}
 
+      {(isPlatformOwner || isStudioOwner) && (
       <Card className="wide-card executive-card">
-        <PanelHeader title="Top artistas" eyebrow="Ranking mock ejecutivo" />
+        <PanelHeader title={isPlatformOwner ? 'Top artistas' : 'Artistas del estudio'} eyebrow={isPlatformOwner ? 'Ranking mock ejecutivo' : 'Equipo y rendimiento'} />
         <div className="data-table executive-table">
           <div className="table-head">
             <span>Artista</span>
             <span>Ingresos</span>
-            <span>Comision</span>
+            {isPlatformOwner && <span>Comision</span>}
             <span>Ocupacion</span>
-            <span>Riesgo</span>
+            {isPlatformOwner && <span>Riesgo</span>}
           </div>
           {topArtists.map((artist) => (
             <div className="table-row" key={artist.artist}>
               <strong>{artist.artist}</strong>
               <span>{canSeeStudioRevenue ? formatCurrency(artist.revenue) : 'Privado'}</span>
-              <span>{canSeeGlobalRevenue ? formatCurrency(artist.commission) : 'Privado'}</span>
+              {isPlatformOwner && <span>{canSeeGlobalRevenue ? formatCurrency(artist.commission) : 'Privado'}</span>}
               <span>{artist.occupancy}%</span>
-              <StatusPill tone={artist.risk > 0 ? 'warm' : 'success'}>{artist.risk > 0 ? `${artist.risk} eventos` : 'Controlado'}</StatusPill>
+              {isPlatformOwner && <StatusPill tone={artist.risk > 0 ? 'warm' : 'success'}>{artist.risk > 0 ? `${artist.risk} eventos` : 'Controlado'}</StatusPill>}
             </div>
           ))}
         </div>
       </Card>
+      )}
 
+      {(isPlatformOwner || isStudioOwner) && (
       <Card className="wide-card">
-        <PanelHeader title="Gestion de studios" eyebrow="Operaciones" action={<Button size="sm" onClick={() => navigate(paths.adminArtists)}>Abrir</Button>} />
+        <PanelHeader title={isPlatformOwner ? 'Gestion de studios' : 'Mi estudio'} eyebrow="Operaciones" action={<Button size="sm" onClick={() => navigate(paths.adminArtists)}>Abrir</Button>} />
         <div className="data-table">
           <div className="table-head">
             <span>Studio</span>
             <span>Ciudad</span>
             <span>Especialidad</span>
-            <span>Ingresos</span>
+            {canSeeStudioRevenue && <span>Ingresos</span>}
             <span>Estado</span>
           </div>
-          {reviewStudios.map((studio) => (
+          {accessibleStudios.map((studio) => (
             <div className="table-row" key={studio.id}>
               <strong>{studio.name}</strong>
               <span>{studio.city}</span>
               <span>{studio.specialty}</span>
-              <span>{formatCurrency(studio.revenue)}</span>
+              {canSeeStudioRevenue && <span>{formatCurrency(studio.revenue)}</span>}
               <StatusPill tone={getStudioStatusTone(studio.studioStatus)}>{getStudioStatusLabel(studio.studioStatus)}</StatusPill>
             </div>
           ))}
         </div>
       </Card>
+      )}
 
+      {canSeeStudioClients && (
       <Card>
-        <PanelHeader title="Gestion de clientes" eyebrow="Comunidad" action={<Button size="sm" onClick={() => navigate(paths.adminClients)}>Abrir</Button>} />
+        <PanelHeader title={isPlatformOwner ? 'Gestion de clientes' : 'Clientas del estudio'} eyebrow="Comunidad" action={<Button size="sm" onClick={() => navigate(paths.adminClients)}>Abrir</Button>} />
         <div className="compact-list">
-          {managedClients.map((client) => (
+          {accessibleClients.map((client) => (
             <div className="list-row elevated-row" key={client.name}>
               <div>
                 <strong>{client.name}</strong>
-                <small>{client.appointments} citas / {client.spend}</small>
+                <small>{client.appointments || 0} citas{isStudioManager ? '' : ` / ${client.spend || `${client.flowPoints || 0} pts`}`}</small>
               </div>
               <StatusPill tone={client.status === 'VIP' ? 'rose' : 'neutral'}>{client.status}</StatusPill>
             </div>
           ))}
         </div>
       </Card>
+      )}
 
+      {isPlatformOwner && (
       <Card className="system-card">
         <PanelHeader title="Estado del sistema" eyebrow="Infraestructura futura" />
         <div className="system-stack">
@@ -531,6 +628,7 @@ function AdminDashboard() {
           ))}
         </div>
       </Card>
+      )}
     </main>
   )
 }

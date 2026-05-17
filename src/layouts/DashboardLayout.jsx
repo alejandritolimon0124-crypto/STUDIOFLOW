@@ -5,7 +5,7 @@ import { isActivePath } from '../routes/routerUtils'
 import BrandLogo from '../components/BrandLogo'
 import { useApp } from '../contexts/appContextCore'
 import drawerLogo from '../assets/studioflowlogo2.png'
-import { getRoleLabel } from '../modules/permissions/rolePermissions'
+import { getRoleLabel, hasPermission, permissions } from '../modules/permissions/rolePermissions'
 
 const roleNavigation = {
   admin: [
@@ -24,8 +24,8 @@ const roleNavigation = {
   ],
   client: [
     { label: 'Inicio', path: paths.client },
-    { label: 'Citas', path: paths.clientAppointments },
-    { label: 'Explorar', path: paths.clientExplore },
+    { label: 'Mis citas', path: paths.clientAppointments },
+    { label: 'Reservar', path: paths.clientExplore },
     { label: 'Favoritos', path: paths.clientFavorites },
   ],
 }
@@ -33,10 +33,10 @@ const roleNavigation = {
 const bottomNavigationByRole = {
   client: [
     { label: 'Inicio', path: paths.client },
-    { label: 'Buscar', path: paths.clientSearch },
-    { label: 'Citas', path: paths.clientAppointments },
+    { label: 'Reservar', path: paths.clientSearch },
+    { label: 'Mis citas', path: paths.clientAppointments },
     { label: 'Favoritos', path: paths.clientFavorites },
-    { label: 'Perfil', path: paths.client },
+    { label: 'Mi perfil', path: paths.clientProfile },
   ],
   artist: [
     { label: 'Dashboard', path: paths.artist },
@@ -54,16 +54,37 @@ const bottomNavigationByRole = {
 }
 
 function DashboardLayout({ children, role, title, subtitle, showMobileAppbar = true }) {
-  const navigation = roleNavigation[role]
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const navigate = useNavigate()
   const { logout, session } = useApp()
   const location = useLocation()
   const currentPath = location.pathname
-  const bottomNavigation = bottomNavigationByRole[role]
+  const canUseAdminItem = (item) => {
+    if (role !== 'admin') return true
+    if (item.path === paths.adminArtists) return hasPermission(session.user, permissions.STUDIO_ARTISTS)
+    if (item.path === paths.adminClients) return hasPermission(session.user, permissions.CLIENTS) || hasPermission(session.user, permissions.STUDIO_CLIENTS)
+    if (item.path === paths.adminSystem) return hasPermission(session.user, permissions.GOVERNANCE)
+    return true
+  }
+  const navigation = roleNavigation[role].filter(canUseAdminItem)
+  const bottomNavigation = bottomNavigationByRole[role].filter(canUseAdminItem)
   const drawerHomePath = role === 'admin' ? paths.admin : role === 'client' ? paths.client : paths.artist
-  const primaryActionPath = role === 'client' ? paths.clientExplore : role === 'admin' ? paths.adminArtists : paths.artistAppointments
-  const primaryActionLabel = role === 'client' ? 'Reservar' : 'Nueva cita'
+  const adminPrimaryAction = hasPermission(session.user, permissions.STUDIO_ARTISTS)
+    ? { label: 'Artistas', path: paths.adminArtists }
+    : hasPermission(session.user, permissions.CLIENTS) || hasPermission(session.user, permissions.STUDIO_CLIENTS)
+      ? { label: 'Clientas', path: paths.adminClients }
+      : { label: 'Inicio', path: paths.admin }
+  const primaryActionPath = role === 'client' ? paths.clientExplore : role === 'admin' ? adminPrimaryAction.path : paths.artistAppointments
+  const primaryActionLabel = role === 'client' ? 'Reservar' : role === 'admin' ? adminPrimaryAction.label : 'Nueva cita'
+  const drawerActions = role === 'client'
+    ? [
+        { label: 'Inicio', path: drawerHomePath },
+        { label: 'Mi perfil', path: paths.clientProfile },
+      ]
+    : [
+        { label: 'Inicio', path: drawerHomePath },
+        { label: primaryActionLabel, path: primaryActionPath },
+      ]
 
   const handleNavigate = (path) => {
     navigate(path)
@@ -121,8 +142,11 @@ function DashboardLayout({ children, role, title, subtitle, showMobileAppbar = t
 
         <div className="sidebar-switcher drawer-actions">
           <small>Acciones</small>
-          <button type="button" onClick={() => handleNavigate(drawerHomePath)}>Inicio</button>
-          <button type="button" onClick={() => handleNavigate(primaryActionPath)}>{primaryActionLabel}</button>
+          {drawerActions.map((item) => (
+            <button type="button" onClick={() => handleNavigate(item.path)} key={item.label}>
+              {item.label}
+            </button>
+          ))}
           <button type="button" onClick={handleLogout}>Cerrar sesion</button>
         </div>
 
