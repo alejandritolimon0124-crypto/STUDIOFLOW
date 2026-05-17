@@ -181,14 +181,7 @@ function ArtistDashboard({ view = 'agenda' }) {
     <main className={`dashboard-grid artist-grid view-${view}`}>
         {view === 'agenda' && (
           <>
-            <section className="hero-panel studio-hero mobile-screen">
-              <div className="artist-hero-photo">
-                {artistState.profile?.photoUrl ? (
-                  <img src={artistState.profile.photoUrl} alt={`Foto de ${artistProfile.name}`} />
-                ) : (
-                  <span>Agregar foto</span>
-                )}
-              </div>
+            <section className="hero-panel studio-hero artist-profile-hero mobile-screen">
               <div>
                 <span className="eyebrow">{artistProfile.location}</span>
                 <h2>{artistProfile.name}</h2>
@@ -197,6 +190,13 @@ function ArtistDashboard({ view = 'agenda' }) {
                   <Button disabled={!canUsePublicAgenda} onClick={() => setShowAppointmentForm((current) => !current)}>Agregar cita</Button>
                   <Button variant="ghost" onClick={() => navigate(paths.artistSchedule)}>Editar horario</Button>
                 </div>
+              </div>
+              <div className="artist-hero-photo">
+                {artistState.profile?.photoUrl ? (
+                  <img src={artistState.profile.photoUrl} alt={`Foto de ${artistProfile.name}`} />
+                ) : (
+                  <span>Agregar foto</span>
+                )}
               </div>
               <div className="hero-summary">
                 <span>{artistProfile.plan}</span>

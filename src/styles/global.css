@@ -2785,33 +2785,29 @@ select:focus {
   justify-content: center;
   letter-spacing: 0.08em;
   overflow: hidden;
-  position: absolute;
-  right: 22px;
+  flex-shrink: 0;
+  justify-self: end;
+  position: relative;
   text-align: center;
   text-transform: uppercase;
-  top: 22px;
   width: clamp(82px, 22vw, 112px);
   z-index: 2;
 }
 
-.studio-hero {
-  --artist-avatar-space: calc(clamp(82px, 22vw, 112px) + 28px);
-  position: relative;
+.artist-profile-hero {
+  align-items: end;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
 }
 
-.studio-hero > div:not(.artist-hero-photo):first-of-type {
-  max-width: calc(100% - var(--artist-avatar-space));
-  padding-right: 8px;
+.artist-profile-hero > div:first-child {
+  min-width: 0;
 }
 
-.studio-hero > .hero-summary {
-  margin-top: 14px;
-}
-
-@media (min-width: 861px) {
-  .studio-hero > div:not(.artist-hero-photo):first-of-type {
-    max-width: min(680px, calc(100% - var(--artist-avatar-space)));
-  }
+.artist-profile-hero > .hero-summary {
+  grid-column: 1 / -1;
+  justify-self: stretch;
+  margin-top: 6px;
 }
 
 .client-hero-photo img,
