@@ -17,6 +17,7 @@ import Login from './pages/auth/Login'
 import Register from './pages/auth/Register'
 import ClientDashboard from './pages/client/ClientDashboard'
 import ProtectedRoute from './routes/ProtectedRoute'
+import PWAInstallPrompt from './components/PWAInstallPrompt'
 import './styles/global.css'
 
 function App() {
@@ -52,6 +53,7 @@ function App() {
             <Route path="system" element={<QASandbox />} />
           </Route>
         </Routes>
+        <PWAInstallPrompt />
       </BrowserRouter>
     </AppProvider>
   )
