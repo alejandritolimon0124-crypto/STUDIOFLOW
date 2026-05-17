@@ -11,6 +11,7 @@ const initialSession = {
 
 const storageKey = 'studio-flow-session'
 const clientStateStorageKey = 'studio-flow-client-state'
+const artistStateStorageKey = 'studio-flow-artist-state'
 
 function getStoredSession() {
   try {
@@ -120,6 +121,9 @@ function getStoredClientState() {
 
 function createInitialArtistState() {
   return {
+    profile: {
+      photoUrl: '',
+    },
     appointments: artistAppointments.map((appointment, index) => ({
       ...appointment,
       id: appointment.id || `artist-appointment-${index + 1}`,
@@ -131,6 +135,27 @@ function createInitialArtistState() {
       ...client,
       history: client.history || [],
     })),
+  }
+}
+
+function getStoredArtistState() {
+  const initialArtistState = createInitialArtistState()
+
+  try {
+    const storedArtistState = localStorage.getItem(artistStateStorageKey)
+    const parsedArtistState = storedArtistState ? JSON.parse(storedArtistState) : null
+    return parsedArtistState
+      ? {
+          ...initialArtistState,
+          ...parsedArtistState,
+          profile: {
+            ...initialArtistState.profile,
+            ...parsedArtistState.profile,
+          },
+        }
+      : initialArtistState
+  } catch {
+    return initialArtistState
   }
 }
 
@@ -186,7 +211,7 @@ export function AppProvider({ children }) {
   const [agendaSettings, setAgendaSettings] = useState(createInitialAgendaSettings)
   const [adminState, setAdminState] = useState(createInitialAdminState)
   const [clientState, setClientState] = useState(getStoredClientState)
-  const [artistState, setArtistState] = useState(createInitialArtistState)
+  const [artistState, setArtistState] = useState(getStoredArtistState)
   const [selectedDate, setSelectedDate] = useState('2026-05-18')
 
   const login = (role) => {
@@ -211,6 +236,14 @@ export function AppProvider({ children }) {
       // Data URL photos can exceed localStorage in some browsers; keep runtime state even if persistence fails.
     }
   }, [clientState])
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(artistStateStorageKey, JSON.stringify(artistState))
+    } catch {
+      // Data URL photos can exceed localStorage in some browsers; keep runtime state even if persistence fails.
+    }
+  }, [artistState])
 
   const toggleScheduleDay = useCallback((dayName) => {
     setAgendaSettings((currentSettings) => ({
@@ -544,6 +577,16 @@ export function AppProvider({ children }) {
     }))
   }, [])
 
+  const updateArtistProfile = useCallback((updates) => {
+    setArtistState((currentState) => ({
+      ...currentState,
+      profile: {
+        ...currentState.profile,
+        ...updates,
+      },
+    }))
+  }, [])
+
   const addArtistAppointment = useCallback((appointment) => {
     setArtistState((currentState) => ({
       ...currentState,
@@ -595,6 +638,7 @@ export function AppProvider({ children }) {
       updateClientProfile,
       addArtistClient,
       updateArtistClient,
+      updateArtistProfile,
       addArtistAppointment,
       selectedDate,
       setSelectedDate,
@@ -629,6 +673,7 @@ export function AppProvider({ children }) {
       updateClientProfile,
       addArtistClient,
       updateArtistClient,
+      updateArtistProfile,
       addArtistAppointment,
       selectedDate,
       setSelectedDate,

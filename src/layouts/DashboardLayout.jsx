@@ -56,7 +56,7 @@ const bottomNavigationByRole = {
 function DashboardLayout({ children, role, title, subtitle, showMobileAppbar = true }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const navigate = useNavigate()
-  const { clientState, logout, session } = useApp()
+  const { artistState, clientState, logout, session } = useApp()
   const location = useLocation()
   const currentPath = location.pathname
   const canUseAdminItem = (item) => {
@@ -86,9 +86,11 @@ function DashboardLayout({ children, role, title, subtitle, showMobileAppbar = t
         { label: primaryActionLabel, path: primaryActionPath },
       ]
   const clientPhotoUrl = role === 'client' ? clientState.profile?.photoUrl : ''
+  const artistPhotoUrl = role === 'artist' ? artistState.profile?.photoUrl : ''
+  const profilePhotoUrl = clientPhotoUrl || artistPhotoUrl
   const fallbackAvatar = role === 'admin' ? 'HQ' : role === 'client' ? 'ML' : 'VM'
   const renderAvatarContent = () => (
-    clientPhotoUrl ? <img src={clientPhotoUrl} alt="Foto de perfil" /> : fallbackAvatar
+    profilePhotoUrl ? <img src={profilePhotoUrl} alt="Foto de perfil" /> : fallbackAvatar
   )
 
   const handleNavigate = (path) => {

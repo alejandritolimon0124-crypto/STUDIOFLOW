@@ -19,7 +19,7 @@ import { canUseOperationalFeature } from '../../modules/governance/studioGoverna
 
 function ArtistDashboard({ view = 'agenda' }) {
   const navigate = useNavigate()
-  const { adminState, artistState, addArtistAppointment, addArtistClient, updateArtistClient, bookSlot, selectedDate, setSelectedDate } = useApp()
+  const { adminState, artistState, addArtistAppointment, addArtistClient, updateArtistClient, updateArtistProfile, bookSlot, selectedDate, setSelectedDate } = useApp()
   const [showAppointmentForm, setShowAppointmentForm] = useState(false)
   const [pointsFeedback, setPointsFeedback] = useState(null)
   const [showDatePicker, setShowDatePicker] = useState(false)
@@ -161,11 +161,34 @@ function ArtistDashboard({ view = 'agenda' }) {
     setNewClient({ name: '', phone: '', notes: '' })
   }
 
+  const handleArtistPhotoChange = (event) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    const reader = new FileReader()
+    reader.onload = () => {
+      updateArtistProfile({ photoUrl: String(reader.result || '') })
+    }
+    reader.readAsDataURL(file)
+    event.target.value = ''
+  }
+
+  const removeArtistPhoto = () => {
+    updateArtistProfile({ photoUrl: '' })
+  }
+
   return (
     <main className={`dashboard-grid artist-grid view-${view}`}>
         {view === 'agenda' && (
           <>
             <section className="hero-panel studio-hero mobile-screen">
+              <div className="artist-hero-photo">
+                {artistState.profile?.photoUrl ? (
+                  <img src={artistState.profile.photoUrl} alt={`Foto de ${artistProfile.name}`} />
+                ) : (
+                  <span>Agregar foto</span>
+                )}
+              </div>
               <div>
                 <span className="eyebrow">{artistProfile.location}</span>
                 <h2>{artistProfile.name}</h2>
@@ -192,6 +215,37 @@ function ArtistDashboard({ view = 'agenda' }) {
             <MetricCard label="Citas" value={appointmentCount} trend={appointmentCount === 0 ? 'Agenda libre' : `+${appointmentCount} vs promedio`} className="mobile-compact" />
             <MetricCard label="Ocupación" value={`${occupancy}%`} trend={occupancy > 80 ? 'Día full' : 'Oportunidad'} tone={occupancy > 80 ? 'sage' : 'rose'} className="mobile-compact" />
             <MetricCard label="Ingresos estimados" value={canUseEconomy ? formatCurrency(estimatedRevenue) : 'Preparacion'} trend={canUseEconomy ? (estimatedRevenue === 0 ? 'Sin reservas' : '+18%') : 'Modo validacion'} tone="nude" className="mobile-compact" />
+
+            <Card className="mobile-screen artist-photo-card">
+              <div className="artist-photo-editor">
+                <div className="artist-photo-preview">
+                  {artistState.profile?.photoUrl ? (
+                    <img src={artistState.profile.photoUrl} alt={`Foto de ${artistProfile.name}`} />
+                  ) : (
+                    <span>VM</span>
+                  )}
+                </div>
+                <div>
+                  <strong>Branding personal</strong>
+                  <small>Tu foto aparece en el hero, navegación y perfil de artista.</small>
+                  <div className="artist-photo-actions">
+                    <label className="button button-ghost button-sm" htmlFor="artist-photo-input">
+                      {artistState.profile?.photoUrl ? 'Cambiar foto' : 'Subir foto'}
+                    </label>
+                    <input
+                      accept="image/*"
+                      className="visually-hidden"
+                      id="artist-photo-input"
+                      type="file"
+                      onChange={handleArtistPhotoChange}
+                    />
+                    {artistState.profile?.photoUrl && (
+                      <button type="button" onClick={removeArtistPhoto}>Eliminar foto</button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </Card>
 
             {showAppointmentForm && (
               <Card className="mobile-screen primary-panel">
