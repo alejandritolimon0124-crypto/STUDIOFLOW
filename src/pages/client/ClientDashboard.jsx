@@ -367,7 +367,8 @@ function ClientDashboard({ view = 'inicio' }) {
           <>
             <section className="hero-panel client-hero mobile-screen">
               <div>
-                <span className="eyebrow">✨ Hola {currentClient.name}</span>
+                <span className="client-hero-greeting">Hola</span>
+                <strong className="client-hero-name">{currentClient.name}</strong>
                 <h2>Tu universo beauty premium</h2>
                 <p>Estás acumulando Flow Points con cada experiencia. Mantén tu ritmo en Studio Flow y desbloquea beneficios exclusivos.</p>
                 <div className="hero-actions">

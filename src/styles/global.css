@@ -1898,10 +1898,10 @@ select:focus {
     background: rgba(251, 247, 245, 0.86);
     border-bottom: 1px solid rgba(234, 223, 218, 0.76);
     display: flex;
-    height: 64px;
+    height: 78px;
     justify-content: space-between;
     left: 0;
-    padding: 0 16px;
+    padding: 0 6px;
     position: sticky;
     right: 0;
     top: 0;
@@ -1917,10 +1917,10 @@ select:focus {
     border-radius: 22px;
     box-shadow: 0 16px 34px rgba(118, 77, 67, 0.14);
     display: grid;
-    height: 60px;
+    height: 76px;
     justify-content: center;
-    padding: 6px;
-    width: 60px;
+    padding: 0;
+    width: 76px;
   }
 
   .topbar .topbar-brand-editorial {
@@ -1956,11 +1956,11 @@ select:focus {
   .topbar .mobile-brand-logo {
     border-radius: 0;
     display: block;
-    height: 96px;
-    max-height: 96px;
+    height: clamp(220px, 58vw, 288px);
+    max-height: 288px;
     object-fit: contain;
     width: auto;
-    max-width: 260px;
+    max-width: min(98vw, 560px);
   }
 
   .mobile-appbar .brand-logo,
@@ -1975,10 +1975,10 @@ select:focus {
 
   .mobile-appbar .brand-logo-compact img,
   .topbar .topbar-brand-avatar .brand-logo-compact img {
-    border-radius: 18px;
-    height: 52px;
+    border-radius: 20px;
+    height: 74px;
     object-fit: contain;
-    width: 52px;
+    width: 74px;
   }
 
   .menu-button {
@@ -2055,15 +2055,19 @@ select:focus {
     flex-direction: row;
     flex-wrap: nowrap;
     justify-content: space-between;
-    margin: 2px auto 0;
-    padding: 0 18px;
+    margin: -8px auto -10px;
+    padding: 0 4px;
     position: relative;
     width: 100%;
   }
 
   .topbar-titles {
-    margin-top: 4px;
+    margin-top: -18px;
     padding: 0 2px;
+  }
+
+  .topbar-titles > .eyebrow {
+    display: none;
   }
 
   .topbar-center {
@@ -2071,7 +2075,7 @@ select:focus {
     display: flex;
     flex: 1;
     justify-content: center;
-    margin: 0 -18px;
+    margin: -76px -28px -72px;
   }
 
   .topbar > div:not(.topbar-actions) {
@@ -2102,7 +2106,7 @@ select:focus {
     height: 44px;
     justify-content: center;
     justify-self: end;
-    min-width: 44px
+    min-width: 44px;
     justify-content: center;
     justify-self: end;
     width: 44px;
@@ -2394,7 +2398,7 @@ select:focus {
 
   .topbar {
     width: 100%;
-    margin: 14px 0 12px;
+    margin: -8px 0 -8px;
   }
 
   .topbar h1 {
@@ -2671,10 +2675,34 @@ select:focus {
   text-transform: uppercase;
 }
 
+.client-hero-greeting {
+  color: var(--rose-dark);
+  display: block;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.18em;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+}
+
+.client-hero-name {
+  color: #2d2527;
+  display: block;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: clamp(3.2rem, 13vw, 5.8rem);
+  font-weight: 900;
+  line-height: 0.86;
+  max-width: 10ch;
+  text-transform: uppercase;
+}
+
 .client-hero h2 {
-  margin: 12px 0 10px;
-  font-size: clamp(2rem, 3vw, 3rem);
-  line-height: 1.05;
+  color: var(--rose-dark);
+  font-size: clamp(1.1rem, 5vw, 1.65rem);
+  font-weight: 800;
+  line-height: 1.08;
+  margin: 18px 0 10px;
+  max-width: 14ch;
 }
 
 .client-hero p {
