@@ -607,16 +607,24 @@ select:focus {
 .avatar {
   align-items: center;
   background: linear-gradient(135deg, #e5b8bd, #b7838a);
-  border-radius: 8px;
+  border-radius: 50%;
   color: #fff;
   display: inline-flex;
   font-size: 12px;
   font-weight: 900;
   height: 42px;
   justify-content: center;
+  overflow: hidden;
   text-transform: uppercase;
   width: 42px;
   border: 0;
+}
+
+.avatar img {
+  display: block;
+  height: 100%;
+  object-fit: cover;
+  width: 100%;
 }
 
 .avatar.mini {
@@ -2735,6 +2743,43 @@ select:focus {
   display: grid;
   gap: 24px;
   padding: 30px;
+  position: relative;
+}
+
+.client-hero-photo {
+  align-items: center;
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.94), rgba(247, 226, 221, 0.86));
+  border: 1px solid rgba(214, 186, 177, 0.9);
+  border-radius: 50%;
+  box-shadow: 0 18px 44px rgba(118, 77, 67, 0.16);
+  color: var(--rose-dark);
+  display: inline-flex;
+  font-size: 11px;
+  font-weight: 900;
+  height: clamp(82px, 22vw, 112px);
+  justify-content: center;
+  letter-spacing: 0.08em;
+  overflow: hidden;
+  position: absolute;
+  right: 22px;
+  text-align: center;
+  text-transform: uppercase;
+  top: 22px;
+  width: clamp(82px, 22vw, 112px);
+  z-index: 2;
+}
+
+.client-hero-photo img,
+.client-photo-preview img {
+  display: block;
+  height: 100%;
+  object-fit: cover;
+  width: 100%;
+}
+
+.client-hero-photo span {
+  max-width: 58px;
 }
 
 .client-hero .eyebrow {
@@ -2761,7 +2806,7 @@ select:focus {
   font-size: clamp(3.2rem, 13vw, 5.8rem);
   font-weight: 900;
   line-height: 0.86;
-  max-width: 10ch;
+  max-width: 8ch;
   text-transform: uppercase;
 }
 
@@ -2800,6 +2845,74 @@ select:focus {
   display: block;
   font-size: 2rem;
   margin-bottom: 6px;
+}
+
+.client-photo-editor {
+  align-items: center;
+  background:
+    linear-gradient(145deg, rgba(255, 250, 247, 0.96), rgba(247, 226, 221, 0.7));
+  border: 1px solid rgba(234, 223, 218, 0.92);
+  border-radius: 22px;
+  display: grid;
+  gap: 16px;
+  grid-template-columns: auto 1fr;
+  padding: 16px;
+}
+
+.client-photo-preview {
+  align-items: center;
+  background: linear-gradient(135deg, #e5b8bd, #b7838a);
+  border: 2px solid rgba(255, 255, 255, 0.94);
+  border-radius: 50%;
+  box-shadow: 0 16px 34px rgba(118, 77, 67, 0.15);
+  color: #fff;
+  display: inline-flex;
+  font-size: 20px;
+  font-weight: 900;
+  height: 86px;
+  justify-content: center;
+  overflow: hidden;
+  width: 86px;
+}
+
+.client-photo-editor strong,
+.client-photo-editor small {
+  display: block;
+}
+
+.client-photo-editor small {
+  margin-top: 4px;
+}
+
+.client-photo-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.client-photo-actions button {
+  background: transparent;
+  border: 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 900;
+  padding: 0;
+}
+
+.client-photo-actions label {
+  cursor: pointer;
+}
+
+.visually-hidden {
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  position: absolute;
+  width: 1px;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
 }
 
 .client-metrics-grid,

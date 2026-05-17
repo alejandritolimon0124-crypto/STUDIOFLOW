@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Button from '../../components/Button'
 import Card from '../../components/Card'
@@ -254,10 +254,6 @@ function ClientDashboard({ view = 'inicio' }) {
     clientState.favoriteArtistIds.includes(artist.id)
     && canUseOperationalFeature(adminState.studios.find((studio) => studio.id === artist.studioId) || artist, 'publicAgenda')
   ))
-  useEffect(() => {
-    setProfileDraft(clientState.profile)
-  }, [clientState.profile])
-
   const clientLookupId = clientState.profile?.id || 'client-mf'
   const artistClientProfile = getClientById(artistState.clients, clientLookupId)
   const currentClient = {

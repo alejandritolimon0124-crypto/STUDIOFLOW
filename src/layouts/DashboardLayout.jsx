@@ -56,7 +56,7 @@ const bottomNavigationByRole = {
 function DashboardLayout({ children, role, title, subtitle, showMobileAppbar = true }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const navigate = useNavigate()
-  const { logout, session } = useApp()
+  const { clientState, logout, session } = useApp()
   const location = useLocation()
   const currentPath = location.pathname
   const canUseAdminItem = (item) => {
@@ -85,6 +85,11 @@ function DashboardLayout({ children, role, title, subtitle, showMobileAppbar = t
         { label: 'Inicio', path: drawerHomePath },
         { label: primaryActionLabel, path: primaryActionPath },
       ]
+  const clientPhotoUrl = role === 'client' ? clientState.profile?.photoUrl : ''
+  const fallbackAvatar = role === 'admin' ? 'HQ' : role === 'client' ? 'ML' : 'VM'
+  const renderAvatarContent = () => (
+    clientPhotoUrl ? <img src={clientPhotoUrl} alt="Foto de perfil" /> : fallbackAvatar
+  )
 
   const handleNavigate = (path) => {
     navigate(path)
@@ -113,7 +118,7 @@ function DashboardLayout({ children, role, title, subtitle, showMobileAppbar = t
         </button>
 
         <div className="sidebar-profile">
-          <div className="avatar">VM</div>
+          <div className="avatar">{renderAvatarContent()}</div>
           <div>
             <strong>{session.user?.name || (role === 'admin' ? 'Studio Flow HQ' : role === 'client' ? 'Mariana Lopez' : 'Valeria Moon')}</strong>
             <small>{getRoleLabel(session.user?.role)}</small>
@@ -169,7 +174,7 @@ function DashboardLayout({ children, role, title, subtitle, showMobileAppbar = t
               <BrandLogo compact />
             </button>
             <button className="avatar mini" type="button" onClick={() => setIsMenuOpen(true)}>
-              {role === 'admin' ? 'HQ' : role === 'client' ? 'ML' : 'VM'}
+              {renderAvatarContent()}
             </button>
           </header>
         )}
@@ -184,7 +189,7 @@ function DashboardLayout({ children, role, title, subtitle, showMobileAppbar = t
             <img className="mobile-brand-logo" src={drawerLogo} alt="Studio Flow" />
           </div>
           <button className="avatar mini topbar-profile-avatar" type="button" onClick={() => setIsMenuOpen(true)}>
-            {role === 'admin' ? 'HQ' : role === 'client' ? 'ML' : 'VM'}
+            {renderAvatarContent()}
           </button>
         </header>
 
