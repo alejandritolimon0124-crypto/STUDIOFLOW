@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { AppContext } from './appContextCore'
 import { artistAppointments, artistClients, clientHistory, managedArtists, managedClients, studios, users, weeklySchedule } from '../services/mockData'
 import { canUseOperationalFeature, getDefaultStudioStatus } from '../modules/governance/studioGovernance'
@@ -10,6 +10,7 @@ const initialSession = {
 }
 
 const storageKey = 'studio-flow-session'
+const clientStateStorageKey = 'studio-flow-client-state'
 
 function getStoredSession() {
   try {
@@ -91,8 +92,29 @@ function createInitialClientState() {
       vipTier: 'Glow',
       streak: 4,
       pointsExpirationDate: '2026-12-31',
+      photoUrl: '',
     },
     favoriteArtistIds: ['artist-1', 'artist-3'],
+  }
+}
+
+function getStoredClientState() {
+  const initialClientState = createInitialClientState()
+
+  try {
+    const storedClientState = localStorage.getItem(clientStateStorageKey)
+    return storedClientState
+      ? {
+          ...initialClientState,
+          ...JSON.parse(storedClientState),
+          profile: {
+            ...initialClientState.profile,
+            ...JSON.parse(storedClientState).profile,
+          },
+        }
+      : initialClientState
+  } catch {
+    return initialClientState
   }
 }
 
@@ -163,7 +185,7 @@ export function AppProvider({ children }) {
   const [session, setSession] = useState(getStoredSession)
   const [agendaSettings, setAgendaSettings] = useState(createInitialAgendaSettings)
   const [adminState, setAdminState] = useState(createInitialAdminState)
-  const [clientState, setClientState] = useState(createInitialClientState)
+  const [clientState, setClientState] = useState(getStoredClientState)
   const [artistState, setArtistState] = useState(createInitialArtistState)
   const [selectedDate, setSelectedDate] = useState('2026-05-18')
 
@@ -181,6 +203,14 @@ export function AppProvider({ children }) {
     localStorage.removeItem(storageKey)
     setSession(initialSession)
   }
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(clientStateStorageKey, JSON.stringify(clientState))
+    } catch {
+      // Data URL photos can exceed localStorage in some browsers; keep runtime state even if persistence fails.
+    }
+  }, [clientState])
 
   const toggleScheduleDay = useCallback((dayName) => {
     setAgendaSettings((currentSettings) => ({

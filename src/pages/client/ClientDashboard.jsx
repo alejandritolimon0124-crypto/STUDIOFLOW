@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Button from '../../components/Button'
 import Card from '../../components/Card'
@@ -254,13 +254,24 @@ function ClientDashboard({ view = 'inicio' }) {
     clientState.favoriteArtistIds.includes(artist.id)
     && canUseOperationalFeature(adminState.studios.find((studio) => studio.id === artist.studioId) || artist, 'publicAgenda')
   ))
+  useEffect(() => {
+    setProfileDraft(clientState.profile)
+  }, [clientState.profile])
+
   const clientLookupId = clientState.profile?.id || 'client-mf'
-  const currentClient = getClientById(artistState.clients, clientLookupId) || {
+  const artistClientProfile = getClientById(artistState.clients, clientLookupId)
+  const currentClient = {
     ...clientState.profile,
+    ...artistClientProfile,
+    name: clientState.profile?.name || artistClientProfile?.name,
+    email: clientState.profile?.email || artistClientProfile?.email,
+    phone: clientState.profile?.phone || artistClientProfile?.phone,
+    notes: clientState.profile?.notes || artistClientProfile?.notes,
+    photoUrl: clientState.profile?.photoUrl || '',
     flowPoints: clientState.profile?.flowPoints || 0,
     vipTier: clientState.profile?.vipTier || 'Glow',
     streak: clientState.profile?.streak || 0,
-    rewardsHistory: [],
+    rewardsHistory: artistClientProfile?.rewardsHistory || [],
   }
   const currentClientActivePoints = getActivePoints(currentClient)
   const nextReward = flowPointRewards.discount10
@@ -282,6 +293,25 @@ function ClientDashboard({ view = 'inicio' }) {
     })
     .filter((entry) => entry.daysUntil >= 0)
     .sort((a, b) => a.daysUntil - b.daysUntil)
+
+  const handleClientPhotoChange = (event) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    const reader = new FileReader()
+    reader.onload = () => {
+      const photoUrl = String(reader.result || '')
+      setProfileDraft((currentDraft) => ({ ...currentDraft, photoUrl }))
+      updateClientProfile({ photoUrl })
+    }
+    reader.readAsDataURL(file)
+    event.target.value = ''
+  }
+
+  const removeClientPhoto = () => {
+    setProfileDraft((currentDraft) => ({ ...currentDraft, photoUrl: '' }))
+    updateClientProfile({ photoUrl: '' })
+  }
 
   const nearestExpiration = expiringEntries[0]
 
@@ -366,6 +396,13 @@ function ClientDashboard({ view = 'inicio' }) {
         {view === 'inicio' && (
           <>
             <section className="hero-panel client-hero mobile-screen">
+              <div className="client-hero-photo">
+                {currentClient.photoUrl ? (
+                  <img src={currentClient.photoUrl} alt={`Foto de ${currentClient.name}`} />
+                ) : (
+                  <span>Agregar foto</span>
+                )}
+              </div>
               <div>
                 <span className="client-hero-greeting">Hola</span>
                 <strong className="client-hero-name">{currentClient.name}</strong>
@@ -749,6 +786,34 @@ function ClientDashboard({ view = 'inicio' }) {
             <Card className="mobile-screen primary-panel">
               <PanelHeader title="Perfil" eyebrow="Cliente" />
               <div className="form-stack compact-form">
+                <div className="client-photo-editor">
+                  <div className="client-photo-preview">
+                    {profileDraft.photoUrl ? (
+                      <img src={profileDraft.photoUrl} alt={`Foto de ${profileDraft.name}`} />
+                    ) : (
+                      <span>MF</span>
+                    )}
+                  </div>
+                  <div>
+                    <strong>Foto de perfil</strong>
+                    <small>Visible en tu dashboard, navegación y perfil.</small>
+                    <div className="client-photo-actions">
+                      <label className="button button-ghost button-sm" htmlFor="client-photo-input">
+                        {profileDraft.photoUrl ? 'Cambiar foto' : 'Subir foto'}
+                      </label>
+                      <input
+                        accept="image/*"
+                        className="visually-hidden"
+                        id="client-photo-input"
+                        type="file"
+                        onChange={handleClientPhotoChange}
+                      />
+                      {profileDraft.photoUrl && (
+                        <button type="button" onClick={removeClientPhoto}>Eliminar foto</button>
+                      )}
+                    </div>
+                  </div>
+                </div>
                 <Input
                   label="Nombre"
                   value={profileDraft.name}
