@@ -3,12 +3,14 @@ import { AppProvider } from './contexts/AppContext'
 import AdminArtists from './pages/admin/AdminArtists'
 import AdminClients from './pages/admin/AdminClients'
 import AdminDashboard from './pages/admin/AdminDashboard'
+import AdminStudioProfile from './pages/admin/AdminStudioProfile'
 import QASandbox from './pages/admin/QASandbox'
 import AdminLayout from './layouts/AdminLayout'
 import ArtistLayout from './layouts/ArtistLayout'
 import ArtistAppointments from './pages/artist/ArtistAppointments'
 import ArtistClients from './pages/artist/ArtistClients'
 import ArtistDashboard from './pages/artist/ArtistDashboard'
+import ArtistProfileSettings from './pages/artist/ArtistProfileSettings'
 import ArtistScheduleSettings from './pages/artist/ArtistScheduleSettings'
 import ArtistServices from './pages/artist/ArtistServices'
 import ArtistMarketing from './pages/artist/ArtistMarketing'
@@ -44,12 +46,14 @@ function App() {
             <Route path="appointments" element={<ArtistAppointments />} />
             <Route path="clients" element={<ArtistClients />} />
             <Route path="marketing" element={<ArtistMarketing />} />
+            <Route path="settings" element={<ArtistProfileSettings />} />
           </Route>
 
           <Route path="/admin" element={<ProtectedRoute allowedRole="admin"><AdminLayout /></ProtectedRoute>}>
             <Route index element={<AdminDashboard />} />
             <Route path="artists" element={<AdminArtists />} />
             <Route path="clients" element={<AdminClients />} />
+            <Route path="studio" element={<AdminStudioProfile />} />
             <Route path="system" element={<QASandbox />} />
           </Route>
         </Routes>
