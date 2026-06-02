@@ -11,6 +11,7 @@ const initialSession = {
 }
 
 const storageKey = 'studio-flow-session'
+const adminStateStorageKey = 'studio-flow-admin-state'
 const clientStateStorageKey = 'studio-flow-client-state'
 const artistStateStorageKey = 'studio-flow-artist-state'
 
@@ -37,6 +38,45 @@ const initialBlockedDates = [
   { id: '2026-06-02', label: '02 junio / Evento privado' },
 ]
 
+function createArtistProfessionalProfile(overrides = {}) {
+  return {
+    personalInfo: {
+      fullName: 'Valeria Moon',
+      phone: '55 0000 0000',
+      email: 'valeria@studioflow.mx',
+      ...(overrides.personalInfo || {}),
+    },
+    professionalProfile: {
+      primarySpecialty: 'Lash lifting y brow design',
+      shortBio: '',
+      experienceYears: '',
+      ...(overrides.professionalProfile || {}),
+    },
+    contactLinks: {
+      whatsapp: '',
+      instagram: '',
+      facebook: '',
+      ...(overrides.contactLinks || {}),
+    },
+    security: {
+      email: overrides.security?.email || overrides.personalInfo?.email || 'valeria@studioflow.mx',
+      password: overrides.security?.password || '',
+    },
+  }
+}
+
+function createStudioProfessionalProfile(studio, overrides = {}) {
+  return {
+    commercialName: overrides.commercialName || studio.name || '',
+    description: overrides.description || 'Experiencia beauty profesional preparada para perfil publico.',
+    phone: overrides.phone || '55 0000 0000',
+    email: overrides.email || 'contacto@studioflow.mx',
+    hours: overrides.hours || 'Lunes a sabado, 10:00 - 19:00',
+    logoUrl: overrides.logoUrl || '',
+    gallery: Array.isArray(overrides.gallery) ? overrides.gallery.slice(0, 6) : [],
+  }
+}
+
 function createInitialAgendaSettings() {
   return {
     schedule: weeklySchedule.map((day) => ({
@@ -56,6 +96,7 @@ function createInitialAdminState() {
   return {
     studios: studios.map((studio) => ({
       ...studio,
+      profile: createStudioProfessionalProfile(studio, studio.profile),
       professionalLocation: createProfessionalLocation({
         businessName: studio.name,
         city: studio.city,
@@ -128,9 +169,57 @@ function getStoredClientState() {
   }
 }
 
+function getStoredAdminState() {
+  const initialAdminState = createInitialAdminState()
+
+  try {
+    const storedAdminState = localStorage.getItem(adminStateStorageKey)
+    const parsedAdminState = storedAdminState ? JSON.parse(storedAdminState) : null
+
+    if (!parsedAdminState) return initialAdminState
+
+    return {
+      ...initialAdminState,
+      ...parsedAdminState,
+      studios: initialAdminState.studios.map((studio) => {
+        const storedStudio = parsedAdminState.studios?.find((item) => item.id === studio.id)
+
+        return storedStudio
+          ? {
+              ...studio,
+              ...storedStudio,
+              profile: createStudioProfessionalProfile(studio, storedStudio.profile),
+              professionalLocation: createProfessionalLocation({
+                ...studio.professionalLocation,
+                ...(storedStudio.professionalLocation || {}),
+              }),
+            }
+          : studio
+      }),
+      artists: initialAdminState.artists.map((artist) => {
+        const storedArtist = parsedAdminState.artists?.find((item) => item.id === artist.id)
+
+        return storedArtist
+          ? {
+              ...artist,
+              ...storedArtist,
+              professionalLocation: createArtistLocationSettings(storedArtist.professionalLocation),
+            }
+          : artist
+      }),
+      clients: parsedAdminState.clients || initialAdminState.clients,
+    }
+  } catch {
+    return initialAdminState
+  }
+}
+
 function createInitialArtistState() {
+  const artistProfessionalProfile = createArtistProfessionalProfile()
+
   return {
     profile: {
+      ...artistProfessionalProfile,
       photoUrl: '',
       professionalLocation: createArtistLocationSettings(),
     },
@@ -161,6 +250,23 @@ function getStoredArtistState() {
           profile: {
             ...initialArtistState.profile,
             ...parsedArtistState.profile,
+            personalInfo: {
+              ...initialArtistState.profile.personalInfo,
+              ...parsedArtistState.profile?.personalInfo,
+            },
+            professionalProfile: {
+              ...initialArtistState.profile.professionalProfile,
+              ...parsedArtistState.profile?.professionalProfile,
+            },
+            contactLinks: {
+              ...initialArtistState.profile.contactLinks,
+              ...parsedArtistState.profile?.contactLinks,
+            },
+            security: {
+              ...initialArtistState.profile.security,
+              ...parsedArtistState.profile?.security,
+            },
+            professionalLocation: createArtistLocationSettings(parsedArtistState.profile?.professionalLocation),
           },
         }
       : initialArtistState
@@ -239,7 +345,7 @@ function hasDuplicateClientServiceBooking(bookedSlots, nextSlot) {
 export function AppProvider({ children }) {
   const [session, setSession] = useState(getStoredSession)
   const [agendaSettings, setAgendaSettings] = useState(createInitialAgendaSettings)
-  const [adminState, setAdminState] = useState(createInitialAdminState)
+  const [adminState, setAdminState] = useState(getStoredAdminState)
   const [clientState, setClientState] = useState(getStoredClientState)
   const [artistState, setArtistState] = useState(getStoredArtistState)
   const [selectedDate, setSelectedDate] = useState('2026-05-18')
@@ -258,6 +364,14 @@ export function AppProvider({ children }) {
     localStorage.removeItem(storageKey)
     setSession(initialSession)
   }
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(adminStateStorageKey, JSON.stringify(adminState))
+    } catch {
+      // Keep runtime profile state if gallery/logo data URLs exceed localStorage.
+    }
+  }, [adminState])
 
   useEffect(() => {
     try {

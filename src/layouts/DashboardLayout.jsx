@@ -5,19 +5,21 @@ import { isActivePath } from '../routes/routerUtils'
 import BrandLogo from '../components/BrandLogo'
 import { useApp } from '../contexts/appContextCore'
 import drawerLogo from '../assets/studioflowlogo2.png'
-import { getRoleLabel, hasPermission, permissions } from '../modules/permissions/rolePermissions'
+import { ROLES, getRoleLabel, hasPermission, permissions } from '../modules/permissions/rolePermissions'
 
 const roleNavigation = {
   admin: [
     { label: 'Dashboard', path: paths.admin },
     { label: 'Artistas', path: paths.adminArtists },
     { label: 'Clientes', path: paths.adminClients },
+    { label: 'Mi Estudio', path: paths.adminStudio },
     { label: 'Sistema', path: paths.adminSystem },
   ],
   artist: [
     { label: 'Agenda', path: paths.artistAgenda },
     { label: 'Citas', path: paths.artistAppointments },
     { label: 'Servicios', path: paths.artistServices },
+    { label: 'Mi Perfil', path: paths.artistSettings },
     { label: 'Clientes', path: paths.artistClients },
     { label: 'Horarios', path: paths.artistSchedule },
     { label: 'Impulsa tu negocio', path: paths.artistMarketing },
@@ -49,6 +51,7 @@ const bottomNavigationByRole = {
     { label: 'Dashboard', path: paths.admin },
     { label: 'Artistas', path: paths.adminArtists },
     { label: 'Clientes', path: paths.adminClients },
+    { label: 'Mi Estudio', path: paths.adminStudio },
     { label: 'Sistema', path: paths.adminSystem },
   ],
 }
@@ -63,6 +66,7 @@ function DashboardLayout({ children, role, title, subtitle, showMobileAppbar = t
     if (role !== 'admin') return true
     if (item.path === paths.adminArtists) return hasPermission(session.user, permissions.STUDIO_ARTISTS)
     if (item.path === paths.adminClients) return hasPermission(session.user, permissions.CLIENTS) || hasPermission(session.user, permissions.STUDIO_CLIENTS)
+    if (item.path === paths.adminStudio) return [ROLES.PLATFORM_OWNER, ROLES.STUDIO_OWNER].includes(session.user?.role)
     if (item.path === paths.adminSystem) return hasPermission(session.user, permissions.GOVERNANCE)
     return true
   }

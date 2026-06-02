@@ -2,7 +2,9 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import AdminDashboard from '../pages/admin/AdminDashboard'
 import AdminArtists from '../pages/admin/AdminArtists'
 import AdminClients from '../pages/admin/AdminClients'
+import AdminStudioProfile from '../pages/admin/AdminStudioProfile'
 import ArtistDashboard from '../pages/artist/ArtistDashboard'
+import ArtistProfileSettings from '../pages/artist/ArtistProfileSettings'
 import ArtistScheduleSettings from '../pages/artist/ArtistScheduleSettings'
 import ArtistServices from '../pages/artist/ArtistServices'
 import ArtistMarketing from '../pages/artist/ArtistMarketing'
@@ -26,6 +28,7 @@ function AppRouter() {
         <Route path={paths.adminDashboard} element={<AdminDashboard />} />
         <Route path={paths.adminArtists} element={<AdminArtists />} />
         <Route path={paths.adminClients} element={<AdminClients />} />
+        <Route path={paths.adminStudio} element={<AdminStudioProfile />} />
         <Route path={paths.adminSystem} element={<AdminDashboard />} />
       </Route>
 
@@ -35,6 +38,7 @@ function AppRouter() {
         <Route path={paths.artistAppointments} element={<ArtistDashboard view="citas" />} />
         <Route path={paths.artistServices} element={<ArtistServices />} />
         <Route path={paths.artistClients} element={<ArtistDashboard view="clientes" />} />
+        <Route path={paths.artistSettings} element={<ArtistProfileSettings />} />
         <Route path={paths.artistSchedule} element={<ArtistScheduleSettings />} />
         <Route path={paths.artistMarketing} element={<ArtistMarketing />} />
       </Route>

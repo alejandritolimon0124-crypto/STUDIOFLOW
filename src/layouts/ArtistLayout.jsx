@@ -12,7 +12,7 @@ const copyByPath = {
   [paths.artistSchedule]: ['Horarios', 'Define disponibilidad, descansos, bloqueos y reglas de agenda.'],
   [paths.artistClients]: ['Clientas', 'Seguimiento de clientas recurrentes y valor historico.'],
   [paths.artistMarketing]: ['Marketing & Growth', 'Automatiza promociones, fidelización y crecimiento inteligente.'],
-  [paths.artistSettings]: ['Ajustes', 'Configuraciones rapidas del workspace.'],
+  [paths.artistSettings]: ['Mi perfil', 'Administra la fuente profesional que alimentara tu Perfil Publico.'],
 }
 
 function ArtistLayout() {
@@ -45,7 +45,7 @@ function ArtistLayout() {
           <NavLink to="/artist/services">Servicios</NavLink>
           <NavLink to="/artist/schedule">Agenda</NavLink>
           <NavLink to="/artist/appointments">Citas</NavLink>
-          <NavLink to="/artist/clients">Clientes</NavLink>
+          <NavLink to="/artist/settings">Mi Perfil</NavLink>
         </nav>
       </div>
     </DashboardLayout>
