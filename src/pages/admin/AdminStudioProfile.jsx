@@ -6,7 +6,7 @@ import PanelHeader from '../../components/PanelHeader'
 import { useApp } from '../../contexts/appContextCore'
 import { buildGoogleMapsUrl, createProfessionalLocation, validateProfessionalLocation } from '../../utils/locationHelpers'
 
-const galleryLimit = 6
+const galleryLimit = 5
 
 function AdminStudioProfile() {
   const { adminState, session, updateManagedStudioProfile } = useApp()
@@ -15,7 +15,8 @@ function AdminStudioProfile() {
   const [locationDraft, setLocationDraft] = useState(createProfessionalLocation(currentStudio.professionalLocation))
   const [locationErrors, setLocationErrors] = useState({})
   const mapsUrl = buildGoogleMapsUrl(locationDraft)
-  const hasGalleryCapacity = (profileDraft.gallery || []).length < galleryLimit
+  const galleryCount = (profileDraft.gallery || []).length
+  const hasGalleryCapacity = galleryCount < galleryLimit
 
   const updateProfileField = (field, value) => {
     setProfileDraft((currentDraft) => ({
@@ -233,10 +234,14 @@ function AdminStudioProfile() {
           </section>
 
           <section className="profile-foundation-card">
-            <div>
-              <span className="eyebrow">Galeria</span>
-              <h3>Galeria del estudio</h3>
-              <small>Hasta 6 fotografias: fachada, recepcion o areas de servicio.</small>
+            <div className="studio-gallery-heading">
+              <div>
+                <span className="eyebrow">Fotos del Estudio</span>
+                <h3>📸 Fotos del Estudio</h3>
+                <small>Estas imágenes serán visibles para las clientas en tu perfil público.</small>
+                <small>Comparte únicamente fotografías de tus instalaciones, recepción y áreas de atención.</small>
+              </div>
+              <span className="studio-gallery-counter">{galleryCount}/{galleryLimit} fotos</span>
             </div>
             <div className="studio-gallery-grid">
               {(profileDraft.gallery || []).map((image) => (
@@ -245,15 +250,19 @@ function AdminStudioProfile() {
                   <button type="button" onClick={() => removeGalleryImage(image.id)}>Quitar</button>
                 </article>
               ))}
-              {hasGalleryCapacity && (
-                <label className="studio-gallery-upload" htmlFor="studio-gallery-input">
-                  <span>Agregar foto</span>
-                  <small>{(profileDraft.gallery || []).length}/{galleryLimit}</small>
-                </label>
-              )}
+              <label className={`studio-gallery-upload${hasGalleryCapacity ? '' : ' is-disabled'}`} htmlFor={hasGalleryCapacity ? 'studio-gallery-input' : undefined}>
+                <span>{hasGalleryCapacity ? 'Agregar foto' : 'Límite alcanzado'}</span>
+                <small>{galleryCount}/{galleryLimit} fotos</small>
+              </label>
             </div>
+            {!hasGalleryCapacity && (
+              <small className="studio-gallery-limit-message">
+                Has alcanzado el límite máximo de 5 fotografías.
+              </small>
+            )}
             <input
               accept="image/*"
+              disabled={!hasGalleryCapacity}
               className="visually-hidden"
               id="studio-gallery-input"
               multiple

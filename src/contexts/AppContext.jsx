@@ -73,7 +73,7 @@ function createStudioProfessionalProfile(studio, overrides = {}) {
     email: overrides.email || 'contacto@studioflow.mx',
     hours: overrides.hours || 'Lunes a sabado, 10:00 - 19:00',
     logoUrl: overrides.logoUrl || '',
-    gallery: Array.isArray(overrides.gallery) ? overrides.gallery.slice(0, 6) : [],
+    gallery: Array.isArray(overrides.gallery) ? overrides.gallery.slice(0, 5) : [],
   }
 }
 
