@@ -227,6 +227,53 @@ function getArtistInitials(name = '') {
     .toUpperCase()
 }
 
+function getArtistPublicProfile(artistState, artist) {
+  const profile = artist?.id === 'artist-1' ? artistState.profile || {} : {}
+
+  return {
+    photoUrl: profile.photoUrl || artist?.photoUrl || '',
+    fullName: profile.personalInfo?.fullName || artist?.owner || artist?.name || '',
+    primarySpecialty: profile.professionalProfile?.primarySpecialty || artist?.specialties?.[0] || artist?.services || '',
+    biography: profile.professionalProfile?.biography || profile.professionalProfile?.shortBio || '',
+    contactLinks: profile.contactLinks || {},
+    professionalLocation: profile.professionalLocation,
+  }
+}
+
+function getStudioPublicProfile(adminState, artist) {
+  return adminState.studios.find((studio) => studio.id === artist?.studioId) || {}
+}
+
+function getEffectiveProfessionalLocation(artistProfile, studio) {
+  if (artistProfile.professionalLocation?.useStudioLocation === false) {
+    return artistProfile.professionalLocation.customLocation || {}
+  }
+
+  return studio?.professionalLocation || {}
+}
+
+function formatProfessionalAddress(location = {}, fallbackCity = '') {
+  return [
+    location.address,
+    location.city || fallbackCity,
+    location.state,
+    location.postalCode,
+  ].filter(Boolean).join(' / ')
+}
+
+function openWhatsAppContact(whatsapp) {
+  const cleanNumber = String(whatsapp || '').replace(/\D/g, '')
+  if (!cleanNumber) return
+
+  window.open(`https://wa.me/${cleanNumber}`, '_blank', 'noopener,noreferrer')
+}
+
+function getSocialUrl(value, baseUrl) {
+  if (!value) return ''
+  if (String(value).startsWith('http')) return value
+  return `${baseUrl}${String(value).replace('@', '')}`
+}
+
 function ClientDashboard({ view = 'inicio' }) {
   const navigate = useNavigate()
   const {
@@ -639,46 +686,227 @@ function ClientDashboard({ view = 'inicio' }) {
             <div className="artist-results" style={{ marginTop: '14px' }}>
               {marketplaceArtists.map((artist) => {
                 const isFavorite = clientState.favoriteArtistIds.includes(artist.id)
-                const artistPhotoUrl = artist.photoUrl || (artist.id === 'artist-1' ? artistState.profile?.photoUrl : '')
+                const publicArtistProfile = getArtistPublicProfile(artistState, artist)
+                const studioProfile = getStudioPublicProfile(adminState, artist)
+                const effectiveLocation = getEffectiveProfessionalLocation(publicArtistProfile, studioProfile)
+                const professionalAddress = formatProfessionalAddress(effectiveLocation, artist.city)
+                const studioGallery = (studioProfile.profile?.gallery || []).slice(0, 6)
+                const contactLinks = publicArtistProfile.contactLinks || {}
+                const isProfileOpen = selectedArtistProfile?.id === artist.id
+                const artistPhotoUrl = publicArtistProfile.photoUrl
                 const artistInitials = getArtistInitials(artist.owner || artist.name)
+                const artistBiography = publicArtistProfile.biography?.trim()
+                const hasSocialLinks = contactLinks.whatsapp || contactLinks.instagram || contactLinks.facebook
 
                 return (
-                  <article className="artist-result marketplace-result-card" key={artist.name}>
-                    <div className="marketplace-artist-avatar avatar">
-                      {artistPhotoUrl ? (
-                        <img src={artistPhotoUrl} alt={`Foto de ${artist.owner || artist.name}`} />
-                      ) : (
-                        <span>{artistInitials}</span>
-                      )}
+                  <article className={`artist-result marketplace-result-card${isProfileOpen ? ' is-expanded' : ''}`} key={artist.name}>
+                    <div className="marketplace-result-summary">
+                      <div className="marketplace-artist-avatar avatar">
+                        {artistPhotoUrl ? (
+                          <img src={artistPhotoUrl} alt={`Foto de ${publicArtistProfile.fullName || artist.name}`} />
+                        ) : (
+                          <span>{artistInitials}</span>
+                        )}
+                      </div>
+                      <div className="marketplace-result-copy">
+                        <strong>{artist.name}</strong>
+                        <small>{artist.marketplaceServices.slice(0, 3).join(' • ')}</small>
+                        <span className={`marketplace-availability availability-${artist.badge.level}`}>
+                          {artist.badge.label}
+                        </span>
+                      </div>
+                      <div className="marketplace-result-actions">
+                        <button
+                          className="marketplace-profile-button"
+                          type="button"
+                          aria-expanded={isProfileOpen}
+                          onClick={() => {
+                            if (isProfileOpen) {
+                              setSelectedArtistProfile(null)
+                              setOpenDropdown(null)
+                              return
+                            }
+
+                            setSelectedArtistProfile(artist)
+                            setSecondaryService(artist.marketplaceServices[0])
+                            setOpenDropdown(null)
+                          }}
+                        >
+                          {isProfileOpen ? 'Ocultar perfil' : 'Ver perfil'}
+                        </button>
+                        <button
+                          className={`marketplace-favorite-button${isFavorite ? ' is-saved' : ''}`}
+                          type="button"
+                          aria-pressed={isFavorite}
+                          onClick={() => toggleFavoriteArtist(artist.id)}
+                        >
+                          {isFavorite ? '❤️ Guardado' : '♡ Guardar'}
+                        </button>
+                      </div>
                     </div>
-                    <div className="marketplace-result-copy">
-                      <strong>{artist.name}</strong>
-                      <small>{artist.marketplaceServices.slice(0, 3).join(' • ')}</small>
-                      <span className={`marketplace-availability availability-${artist.badge.level}`}>
-                        {artist.badge.label}
-                      </span>
-                    </div>
-                    <div className="marketplace-result-actions">
-                      <button
-                        className="marketplace-profile-button"
-                        type="button"
-                        onClick={() => {
-                          setSelectedArtistProfile(artist)
-                          setSecondaryService(artist.marketplaceServices[0])
-                          setOpenDropdown(null)
-                        }}
-                      >
-                        Ver perfil
-                      </button>
-                      <button
-                        className={`marketplace-favorite-button${isFavorite ? ' is-saved' : ''}`}
-                        type="button"
-                        aria-pressed={isFavorite}
-                        onClick={() => toggleFavoriteArtist(artist.id)}
-                      >
-                        {isFavorite ? '❤️ Guardado' : '♡ Guardar'}
-                      </button>
-                    </div>
+
+                    {isProfileOpen && (
+                      <div className="public-profile-panel">
+                        <section className="public-profile-hero">
+                          <div className="public-profile-photo">
+                            {artistPhotoUrl ? (
+                              <img src={artistPhotoUrl} alt={`Foto profesional de ${publicArtistProfile.fullName || artist.name}`} />
+                            ) : (
+                              <span>{artistInitials}</span>
+                            )}
+                          </div>
+                          <div className="public-profile-hero-copy">
+                            <span className="eyebrow">{publicArtistProfile.primarySpecialty || 'Artista beauty'}</span>
+                            <h3>{publicArtistProfile.fullName || artist.name}</h3>
+                            <span className={`marketplace-availability availability-${artist.badge.level}`}>
+                              {artist.badge.label}
+                            </span>
+                            <small>{professionalAddress || artist.city || 'Ubicacion profesional por confirmar'}</small>
+                          </div>
+                        </section>
+
+                        <section className="public-profile-section">
+                          <h4>Sobre mi</h4>
+                          <p>{artistBiography || 'Esta artista aún está completando su perfil profesional.'}</p>
+                        </section>
+
+                        <section className="public-profile-section">
+                          <h4>Servicios destacados</h4>
+                          <div className="public-service-badges">
+                            {artist.marketplaceServices.slice(0, 5).map((serviceName) => (
+                              <span key={serviceName}>✨ {serviceName}</span>
+                            ))}
+                          </div>
+                        </section>
+
+                        <section className="public-studio-card">
+                          <div className="public-studio-logo">
+                            {studioProfile.profile?.logoUrl ? (
+                              <img src={studioProfile.profile.logoUrl} alt={`Logo de ${studioProfile.profile?.commercialName || studioProfile.name}`} />
+                            ) : (
+                              <span>{getArtistInitials(studioProfile.profile?.commercialName || studioProfile.name || artist.name)}</span>
+                            )}
+                          </div>
+                          <div>
+                            <h4>{studioProfile.profile?.commercialName || studioProfile.name || artist.name}</h4>
+                            {studioProfile.profile?.description && <p>{studioProfile.profile.description}</p>}
+                          </div>
+                        </section>
+
+                        {studioGallery.length > 0 && (
+                          <section className="public-profile-section">
+                            <h4>Galeria del estudio</h4>
+                            <div className="public-gallery-strip">
+                              {studioGallery.map((image) => (
+                                <img src={image.url} alt={image.label || 'Foto del estudio'} key={image.id || image.url} />
+                              ))}
+                            </div>
+                          </section>
+                        )}
+
+                        {professionalAddress && (
+                          <section className="public-profile-section">
+                            <h4>Ubicacion</h4>
+                            <p>📍 {professionalAddress}</p>
+                          </section>
+                        )}
+
+                        {hasSocialLinks && (
+                          <section className="public-profile-section">
+                            <h4>Redes y contacto</h4>
+                            <div className="public-contact-actions">
+                              {contactLinks.whatsapp && (
+                                <button type="button" onClick={() => openWhatsAppContact(contactLinks.whatsapp)}>WhatsApp</button>
+                              )}
+                              {contactLinks.instagram && (
+                                <a href={getSocialUrl(contactLinks.instagram, 'https://instagram.com/')} target="_blank" rel="noreferrer">
+                                  Instagram
+                                </a>
+                              )}
+                              {contactLinks.facebook && (
+                                <a href={getSocialUrl(contactLinks.facebook, 'https://facebook.com/')} target="_blank" rel="noreferrer">
+                                  Facebook
+                                </a>
+                              )}
+                            </div>
+                          </section>
+                        )}
+
+                        <div className="form-stack compact-form public-booking-flow">
+                          <PremiumDropdown
+                            label="Servicio"
+                            value={secondaryService}
+                            open={openDropdown === 'profileService'}
+                            onToggle={() => setOpenDropdown(openDropdown === 'profileService' ? null : 'profileService')}
+                            onChange={(nextService) => setSecondaryService(nextService)}
+                            options={artist.marketplaceServices.map((serviceName) => {
+                              const service =
+                                allSearchServices.find((item) => item.name === serviceName)
+                                || { name: serviceName, durationMinutes: 60 }
+
+                              return {
+                                value: service.name,
+                                label: service.name,
+                                meta: `${service.durationMinutes} min`,
+                              }
+                            })}
+                          />
+                          <label className="input-field">
+                            <span>Fecha</span>
+                            <input type="date" value={bookingDate} onChange={(event) => setBookingDate(event.target.value)} />
+                          </label>
+                        </div>
+
+                        <div className="compact-list public-slot-list" id={`marketplace-slots-${artist.id}`}>
+                          {availableSlots.length > 0 ? (
+                            availableSlots.map((slot) => (
+                              <div className="list-row elevated-row" key={`${artist.id}-${slot.date}-${slot.time}`}>
+                                <div>
+                                  <strong>{slot.time} - {slot.end}</strong>
+                                  <small>{marketplaceService.name}</small>
+                                </div>
+                                <Button
+                                  size="sm"
+                                  variant={slot.available ? 'primary' : 'ghost'}
+                                  disabled={!slot.available}
+                                  onClick={() => reserveSlot(slot)}
+                                >
+                                  {slot.available ? 'Reservar' : 'Ocupado'}
+                                </Button>
+                              </div>
+                            ))
+                          ) : (
+                            <div className="list-row elevated-row">
+                              <div>
+                                <strong>Sin horarios disponibles</strong>
+                                <small>La agenda del artista no permite reservas en esta fecha.</small>
+                              </div>
+                              <StatusPill tone="neutral">No disponible</StatusPill>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="public-profile-final-actions">
+                          <Button
+                            onClick={() => document.getElementById(`marketplace-slots-${artist.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
+                            disabled={!availableSlots.some((slot) => slot.available)}
+                          >
+                            📅 Reservar cita
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            disabled={!contactLinks.whatsapp}
+                            onClick={() => openWhatsAppContact(contactLinks.whatsapp)}
+                          >
+                            💬 Contactar artista
+                          </Button>
+                        </div>
+
+                        <button className="public-profile-hide" type="button" onClick={() => setSelectedArtistProfile(null)}>
+                          Ocultar perfil
+                        </button>
+                      </div>
+                    )}
                   </article>
                 )
               })}
@@ -692,74 +920,6 @@ function ClientDashboard({ view = 'inicio' }) {
                 </div>
               )}
             </div>
-
-            {selectedArtistProfile && (
-              <>
-                <div className="compact-list" style={{ marginTop: '18px' }}>
-                  <div className="list-row elevated-row">
-                    <div>
-                      <strong>{selectedArtistProfile.name}</strong>
-                      <small>{selectedArtistProfile.city} / Ocupacion {selectedArtistProfile.occupancy}%</small>
-                    </div>
-                    <StatusPill tone={selectedArtistProfile.badge.tone}>{selectedArtistProfile.badge.label}</StatusPill>
-                  </div>
-                </div>
-
-                <div className="form-stack compact-form" style={{ marginTop: '18px' }}>
-                  <PremiumDropdown
-                    label="Servicio"
-                    value={secondaryService}
-                    open={openDropdown === 'profileService'}
-                    onToggle={() => setOpenDropdown(openDropdown === 'profileService' ? null : 'profileService')}
-                    onChange={(nextService) => setSecondaryService(nextService)}
-                    options={selectedArtistProfile.marketplaceServices.map((serviceName) => {
-                      const service =
-                        allSearchServices.find((item) => item.name === serviceName)
-                        || { name: serviceName, durationMinutes: 60 }
-
-                      return {
-                        value: service.name,
-                        label: service.name,
-                        meta: `${service.durationMinutes} min`,
-                      }
-                    })}
-                  />
-                  <label className="input-field">
-                    <span>Fecha</span>
-                    <input type="date" value={bookingDate} onChange={(event) => setBookingDate(event.target.value)} />
-                  </label>
-                </div>
-
-                <div className="compact-list" style={{ marginTop: '14px' }}>
-                  {availableSlots.length > 0 ? (
-                    availableSlots.map((slot) => (
-                      <div className="list-row elevated-row" key={`${slot.date}-${slot.time}`}>
-                        <div>
-                          <strong>{slot.time} - {slot.end}</strong>
-                          <small>{marketplaceService.name}</small>
-                        </div>
-                        <Button
-                          size="sm"
-                          variant={slot.available ? 'primary' : 'ghost'}
-                          disabled={!slot.available}
-                          onClick={() => reserveSlot(slot)}
-                        >
-                          {slot.available ? 'Reservar' : 'Ocupado'}
-                        </Button>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="list-row elevated-row">
-                      <div>
-                        <strong>Sin horarios disponibles</strong>
-                        <small>La agenda del artista no permite reservas en esta fecha.</small>
-                      </div>
-                      <StatusPill tone="neutral">No disponible</StatusPill>
-                    </div>
-                  )}
-                </div>
-              </>
-            )}
           </Card>
         )}
 
