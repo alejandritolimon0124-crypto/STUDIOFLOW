@@ -414,7 +414,8 @@ p {
 }
 
 input,
-select {
+select,
+.input-field textarea {
   background: #fff;
   border: 1px solid var(--line);
   border-radius: var(--radius);
@@ -425,9 +426,86 @@ select {
 }
 
 input:focus,
-select:focus {
+select:focus,
+.input-field textarea:focus {
   border-color: var(--rose);
   box-shadow: 0 0 0 4px rgba(201, 135, 145, 0.13);
+}
+
+.input-field textarea {
+  min-height: 92px;
+  padding: 12px 14px;
+  resize: vertical;
+  width: 100%;
+}
+
+.location-foundation-card {
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.94), rgba(255, 250, 247, 0.86));
+  border: 1px solid rgba(234, 223, 218, 0.9);
+  border-radius: var(--radius);
+  display: grid;
+  gap: 14px;
+  padding: 14px;
+}
+
+.location-foundation-card h3 {
+  font-size: 18px;
+  letter-spacing: 0;
+}
+
+.location-foundation-card > div > small,
+.location-helper-text {
+  color: var(--muted);
+  display: block;
+  font-size: 12px;
+  font-weight: 750;
+  line-height: 1.45;
+}
+
+.location-form-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.location-option-stack {
+  display: grid;
+  gap: 8px;
+}
+
+.location-toggle-row {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(234, 223, 218, 0.9);
+  border-radius: 14px;
+  display: flex;
+  gap: 10px;
+  min-height: 46px;
+  padding: 10px 12px;
+}
+
+.location-toggle-row input {
+  accent-color: var(--rose-dark);
+  min-height: auto;
+  width: auto;
+}
+
+.location-toggle-row span {
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.location-summary {
+  background: rgba(247, 238, 235, 0.68);
+  border: 1px solid rgba(234, 223, 218, 0.9);
+  border-radius: 14px;
+  display: grid;
+  gap: 5px;
+  padding: 12px;
+}
+
+.location-summary strong {
+  letter-spacing: 0;
 }
 
 .autocomplete-suggestions {
@@ -2669,6 +2747,7 @@ select:focus {
   }
 
   .form-row-2,
+  .location-form-grid,
   .schedule-controls,
   .search-box {
     grid-template-columns: 1fr;

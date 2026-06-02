@@ -3,6 +3,7 @@ import { AppContext } from './appContextCore'
 import { artistAppointments, artistClients, clientHistory, managedArtists, managedClients, studios, users, weeklySchedule } from '../services/mockData'
 import { canUseOperationalFeature, getDefaultStudioStatus } from '../modules/governance/studioGovernance'
 import { ROLES } from '../modules/permissions/rolePermissions'
+import { createArtistLocationSettings, createProfessionalLocation } from '../utils/locationHelpers'
 
 const initialSession = {
   user: null,
@@ -53,7 +54,14 @@ function createInitialAgendaSettings() {
 
 function createInitialAdminState() {
   return {
-    studios,
+    studios: studios.map((studio) => ({
+      ...studio,
+      professionalLocation: createProfessionalLocation({
+        businessName: studio.name,
+        city: studio.city,
+        ...(studio.professionalLocation || {}),
+      }),
+    })),
     users,
     artists: managedArtists.map((artist, index) => ({
       ...artist,
@@ -62,6 +70,7 @@ function createInitialAdminState() {
       studioStatus: artist.studioStatus || getDefaultStudioStatus(),
       description: artist.description || 'Perfil profesional beauty listo para recibir reservas.',
       services: artist.services || 'Lashes, brows, makeup',
+      professionalLocation: createArtistLocationSettings(artist.professionalLocation),
     })),
     clients: managedClients.map((client, index) => ({
       ...client,
@@ -123,6 +132,7 @@ function createInitialArtistState() {
   return {
     profile: {
       photoUrl: '',
+      professionalLocation: createArtistLocationSettings(),
     },
     appointments: artistAppointments.map((appointment, index) => ({
       ...appointment,
@@ -387,6 +397,15 @@ export function AppProvider({ children }) {
       ...currentState,
       artists: currentState.artists.map((artist) =>
         artist.id === artistId ? { ...artist, ...updates } : artist,
+      ),
+    }))
+  }, [])
+
+  const updateManagedStudioProfile = useCallback((studioId, updates) => {
+    setAdminState((currentState) => ({
+      ...currentState,
+      studios: currentState.studios.map((studio) =>
+        studio.id === studioId ? { ...studio, ...updates } : studio,
       ),
     }))
   }, [])
@@ -659,6 +678,7 @@ export function AppProvider({ children }) {
       updateAgendaRule,
       toggleManagedArtistStatus,
       updateManagedArtistProfile,
+      updateManagedStudioProfile,
       toggleManagedClientStatus,
       updateManagedClientProfile,
       getAvailableSlots,
@@ -694,6 +714,7 @@ export function AppProvider({ children }) {
       updateAgendaRule,
       toggleManagedArtistStatus,
       updateManagedArtistProfile,
+      updateManagedStudioProfile,
       toggleManagedClientStatus,
       updateManagedClientProfile,
       getAvailableSlots,
