@@ -211,10 +211,20 @@ function getArtistMarketplaceProfile(artist) {
 }
 
 function getMarketplaceBadge(availableCount, occupancy) {
-  if (availableCount >= 8 && occupancy <= 65) return { label: 'Alta disponibilidad', tone: 'success' }
-  if (availableCount >= 4 && occupancy <= 75) return { label: 'Disponible hoy', tone: 'success' }
-  if (availableCount > 0) return { label: 'Ultimos espacios', tone: 'warm' }
-  return { label: 'Alta demanda', tone: 'rose' }
+  if (availableCount >= 8 && occupancy <= 65) return { label: 'Alta disponibilidad', tone: 'success', level: 'high' }
+  if (availableCount >= 4 && occupancy <= 75) return { label: 'Disponibilidad media', tone: 'success', level: 'medium' }
+  if (availableCount > 0) return { label: 'Pocos horarios', tone: 'warm', level: 'low' }
+  return { label: 'Pocos horarios', tone: 'rose', level: 'low' }
+}
+
+function getArtistInitials(name = '') {
+  return name
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((word) => word[0])
+    .join('')
+    .toUpperCase()
 }
 
 function ClientDashboard({ view = 'inicio' }) {
@@ -627,29 +637,51 @@ function ClientDashboard({ view = 'inicio' }) {
               )}
             </div>
             <div className="artist-results" style={{ marginTop: '14px' }}>
-              {marketplaceArtists.map((artist) => (
-                <div className="artist-result" key={artist.name}>
-                  <div className="avatar small">{artist.name.slice(0, 2)}</div>
-                  <div>
-                    <strong>{artist.name}</strong>
-                    <small>{artist.marketplaceServices.slice(0, 3).join(', ')}</small>
-                  </div>
-                  <StatusPill tone={artist.badge.tone}>{artist.badge.label}</StatusPill>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelectedArtistProfile(artist)
-                      setSecondaryService(artist.marketplaceServices[0])
-                      setOpenDropdown(null)
-                    }}
-                  >
-                    Ver perfil
-                  </button>
-                  <button type="button" onClick={() => toggleFavoriteArtist(artist.id)}>
-                    {clientState.favoriteArtistIds.includes(artist.id) ? 'Quitar' : 'Favorito'}
-                  </button>
-                </div>
-              ))}
+              {marketplaceArtists.map((artist) => {
+                const isFavorite = clientState.favoriteArtistIds.includes(artist.id)
+                const artistPhotoUrl = artist.photoUrl || (artist.id === 'artist-1' ? artistState.profile?.photoUrl : '')
+                const artistInitials = getArtistInitials(artist.owner || artist.name)
+
+                return (
+                  <article className="artist-result marketplace-result-card" key={artist.name}>
+                    <div className="marketplace-artist-avatar avatar">
+                      {artistPhotoUrl ? (
+                        <img src={artistPhotoUrl} alt={`Foto de ${artist.owner || artist.name}`} />
+                      ) : (
+                        <span>{artistInitials}</span>
+                      )}
+                    </div>
+                    <div className="marketplace-result-copy">
+                      <strong>{artist.name}</strong>
+                      <small>{artist.marketplaceServices.slice(0, 3).join(' • ')}</small>
+                      <span className={`marketplace-availability availability-${artist.badge.level}`}>
+                        {artist.badge.label}
+                      </span>
+                    </div>
+                    <div className="marketplace-result-actions">
+                      <button
+                        className="marketplace-profile-button"
+                        type="button"
+                        onClick={() => {
+                          setSelectedArtistProfile(artist)
+                          setSecondaryService(artist.marketplaceServices[0])
+                          setOpenDropdown(null)
+                        }}
+                      >
+                        Ver perfil
+                      </button>
+                      <button
+                        className={`marketplace-favorite-button${isFavorite ? ' is-saved' : ''}`}
+                        type="button"
+                        aria-pressed={isFavorite}
+                        onClick={() => toggleFavoriteArtist(artist.id)}
+                      >
+                        {isFavorite ? '❤️ Guardado' : '♡ Guardar'}
+                      </button>
+                    </div>
+                  </article>
+                )
+              })}
               {marketplaceArtists.length === 0 && (
                 <div className="artist-result">
                   <div>
