@@ -206,6 +206,26 @@ function isSameDate(dateValue, comparisonDate) {
   )
 }
 
+function normalizeBookingField(value) {
+  return String(value || '').trim().toLowerCase()
+}
+
+function hasDuplicateClientServiceBooking(bookedSlots, nextSlot) {
+  const nextClientId = normalizeBookingField(nextSlot.clientId)
+  const nextArtist = normalizeBookingField(nextSlot.artistId || nextSlot.artist)
+  const nextService = normalizeBookingField(nextSlot.service)
+  const nextDate = normalizeBookingField(nextSlot.date)
+
+  if (!nextClientId || !nextArtist || !nextService || !nextDate) return false
+
+  return bookedSlots.some((bookedSlot) => (
+    normalizeBookingField(bookedSlot.clientId) === nextClientId
+    && normalizeBookingField(bookedSlot.artistId || bookedSlot.artist) === nextArtist
+    && normalizeBookingField(bookedSlot.service) === nextService
+    && normalizeBookingField(bookedSlot.date) === nextDate
+  ))
+}
+
 export function AppProvider({ children }) {
   const [session, setSession] = useState(getStoredSession)
   const [agendaSettings, setAgendaSettings] = useState(createInitialAgendaSettings)
@@ -442,19 +462,34 @@ export function AppProvider({ children }) {
   )
 
   const bookSlot = useCallback((slot) => {
+    const slotWithClient = {
+      ...slot,
+      clientId: slot.clientId || (session.role === ROLES.CLIENT ? clientState.profile?.id : ''),
+    }
+
+    const duplicateClientServiceBooking = hasDuplicateClientServiceBooking(
+      agendaSettings.bookedSlots,
+      slotWithClient,
+    )
+
+    if (duplicateClientServiceBooking) {
+      window.alert('Ya tienes una cita agendada para este servicio con esta artista en la fecha seleccionada.')
+      return
+    }
+
     setAgendaSettings((currentSettings) => {
       const alreadyBooked = currentSettings.bookedSlots.some(
-        (bookedSlot) => bookedSlot.date === slot.date && bookedSlot.time === slot.time,
+        (bookedSlot) => bookedSlot.date === slotWithClient.date && bookedSlot.time === slotWithClient.time,
       )
 
       if (alreadyBooked) return currentSettings
 
       return {
         ...currentSettings,
-        bookedSlots: [...currentSettings.bookedSlots, slot],
+        bookedSlots: [...currentSettings.bookedSlots, slotWithClient],
       }
     })
-  }, [])
+  }, [agendaSettings.bookedSlots, clientState.profile?.id, session.role])
 
   const resetBookedSlots = useCallback(() => {
     setAgendaSettings((currentSettings) => ({
