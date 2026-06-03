@@ -825,13 +825,15 @@ function ClientDashboard({ view = 'inicio' }) {
                 return (
                   <article className={`artist-result marketplace-result-card${isProfileOpen ? ' is-expanded' : ''}`} key={artist.name}>
                     <div className="marketplace-result-summary">
-                      <div className="marketplace-artist-avatar avatar">
-                        {artistPhotoUrl ? (
-                          <img src={artistPhotoUrl} alt={`Foto de ${artistDisplayName}`} />
-                        ) : (
-                          <span>{artistInitials}</span>
-                        )}
-                      </div>
+                      {!isProfileOpen && (
+                        <div className="marketplace-artist-avatar avatar">
+                          {artistPhotoUrl ? (
+                            <img src={artistPhotoUrl} alt={`Foto de ${artistDisplayName}`} />
+                          ) : (
+                            <span>{artistInitials}</span>
+                          )}
+                        </div>
+                      )}
                       <div className="marketplace-result-copy">
                         <strong>{artistDisplayName}</strong>
                         <small>{artist.marketplaceServices.slice(0, 3).join(' • ')}</small>
@@ -894,7 +896,7 @@ function ClientDashboard({ view = 'inicio' }) {
 
                         {artistPortfolio.length > 0 && (
                           <section className="public-profile-section">
-                            <h4>📸 Trabajos Realizados</h4>
+                            <h4>✨ Conoce mi estudio y mis trabajos</h4>
                             <div className="public-portfolio-strip">
                               {artistPortfolio.map((image) => (
                                 <img src={image.url} alt={image.label || 'Trabajo realizado por la artista'} key={image.id || image.url} />
@@ -1090,13 +1092,15 @@ function ClientDashboard({ view = 'inicio' }) {
                   return (
                     <article className={`favorite-card marketplace-result-card${isProfileOpen ? ' is-expanded' : ''}`} key={artist.name}>
                       <div className="marketplace-result-summary">
-                        <div className="marketplace-artist-avatar avatar">
-                          {artistPhotoUrl ? (
-                            <img src={artistPhotoUrl} alt={`Foto de ${artistDisplayName}`} />
-                          ) : (
-                            <span>{artistInitials}</span>
-                          )}
-                        </div>
+                        {!isProfileOpen && (
+                          <div className="marketplace-artist-avatar avatar">
+                            {artistPhotoUrl ? (
+                              <img src={artistPhotoUrl} alt={`Foto de ${artistDisplayName}`} />
+                            ) : (
+                              <span>{artistInitials}</span>
+                            )}
+                          </div>
+                        )}
                         <div className="marketplace-result-copy">
                           <strong>{artistDisplayName}</strong>
                           <small>{artist.marketplaceServices.slice(0, 3).join(' • ')}</small>
@@ -1158,7 +1162,7 @@ function ClientDashboard({ view = 'inicio' }) {
 
                           {artistPortfolio.length > 0 && (
                             <section className="public-profile-section">
-                              <h4>📸 Trabajos Realizados</h4>
+                              <h4>✨ Conoce mi estudio y mis trabajos</h4>
                               <div className="public-portfolio-strip">
                                 {artistPortfolio.map((image) => (
                                   <img src={image.url} alt={image.label || 'Trabajo realizado por la artista'} key={image.id || image.url} />
