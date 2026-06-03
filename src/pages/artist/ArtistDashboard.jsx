@@ -42,7 +42,17 @@ function getConfiguredStudioName(...names) {
     const normalizedName = String(name || '').trim()
 
     return normalizedName && !mockStudioNames.includes(normalizedName)
-  }) || 'Estudio profesional'
+  }) || ''
+}
+
+function getInitials(name = '') {
+  return String(name || '')
+    .split(' ')
+    .filter(Boolean)
+    .map((item) => item[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase()
 }
 
 function ArtistDashboard({ view = 'agenda' }) {
@@ -225,13 +235,12 @@ function ArtistDashboard({ view = 'agenda' }) {
               <div className="artist-hero-copy">
                 <span className="eyebrow">{heroLocation || 'Ubicacion profesional por confirmar'}</span>
                 <h2>{studioDisplayName}</h2>
-                <p>{artistDisplayName} administra su agenda profesional desde este estudio.</p>
               </div>
               <div className="artist-hero-photo">
-                {artistState.profile?.photoUrl ? (
-                  <img src={artistState.profile.photoUrl} alt={`Foto de ${artistDisplayName}`} />
+                {studioProfile.logoUrl ? (
+                  <img src={studioProfile.logoUrl} alt={`Logo de ${studioDisplayName}`} />
                 ) : (
-                  <span>Agregar foto</span>
+                  <span>{getInitials(studioDisplayName)}</span>
                 )}
               </div>
               <div className="hero-actions artist-hero-actions">

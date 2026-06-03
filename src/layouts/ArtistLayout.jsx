@@ -6,7 +6,7 @@ import { useApp } from '../contexts/appContextCore'
 import { getStudioAccess, getStudioStatusLabel, getStudioStatusTone } from '../modules/governance/studioGovernance'
 
 const copyByPath = {
-  [paths.artist]: ['Agenda de artista', 'Tu dia, proximas citas y acciones rapidas.'],
+  [paths.artist]: ['', ''],
   [paths.artistAppointments]: ['Citas', 'Gestiona reservas confirmadas y solicitudes pendientes.'],
   [paths.artistServices]: ['Servicios', 'Crea, edita, activa o suspende servicios de tu menu.'],
   [paths.artistSchedule]: ['Horarios', 'Define disponibilidad, descansos, bloqueos y reglas de agenda.'],

@@ -199,7 +199,7 @@ function DashboardLayout({ children, role, title, subtitle, showMobileAppbar = t
           </button>
         </header>
 
-        {!([paths.artistMarketing].includes(currentPath)) && (
+        {(title || subtitle) && !([paths.artistMarketing].includes(currentPath)) && (
           <div className="topbar-titles">
             <span className="eyebrow">Studio Flow</span>
             <h1>{title}</h1>
