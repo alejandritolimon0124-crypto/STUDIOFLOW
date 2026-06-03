@@ -3,7 +3,7 @@ import DashboardLayout from './DashboardLayout'
 import { paths } from '../routes/paths'
 
 const copyByPath = {
-  [paths.client]: ['Mi belleza', 'Reserva, revisa tus citas y descubre artistas premium.'],
+  [paths.client]: ['', ''],
   [paths.clientAppointments]: ['Mis citas', 'Tus proximas reservas y servicios confirmados.'],
   [paths.clientSearch]: ['Explorar', 'Encuentra artistas, servicios y horarios cerca de ti.'],
   [paths.clientFavorites]: ['Favoritos', 'Tus estudios y artistas guardadas.'],

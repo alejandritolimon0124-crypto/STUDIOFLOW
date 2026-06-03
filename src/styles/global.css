@@ -3649,10 +3649,27 @@ select:focus,
   white-space: nowrap;
 }
 
+.client-action-grid,
 .client-metrics-grid,
 .client-summary-grid {
   display: grid;
   gap: 18px;
+}
+
+.client-action-card {
+  align-content: start;
+  display: grid;
+  gap: 10px;
+  padding: 20px;
+}
+
+.client-action-card strong {
+  color: var(--ink);
+  font-size: 1rem;
+}
+
+.client-action-card small {
+  color: var(--muted);
 }
 
 .loyalty-card,
@@ -3769,6 +3786,10 @@ select:focus,
 @media (min-width: 900px) {
   .client-hero {
     grid-template-columns: 1.8fr 1fr;
+  }
+
+  .client-action-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .client-metrics-grid {

@@ -567,29 +567,29 @@ function ClientDashboard({ view = 'inicio' }) {
     <main className={`dashboard-grid client-grid view-${view}`}>
         {view === 'inicio' && (
           <>
-            <section className="hero-panel client-hero mobile-screen">
-              <div className="client-hero-photo">
-                {currentClient.photoUrl ? (
-                  <img src={currentClient.photoUrl} alt={`Foto de ${currentClient.name}`} />
-                ) : (
-                  <span>Agregar foto</span>
-                )}
-              </div>
-              <div>
-                <span className="client-hero-greeting">Hola</span>
-                <strong className="client-hero-name">{currentClient.name}</strong>
-                <h2>Tu universo beauty premium</h2>
-                <p>Estás acumulando Flow Points con cada experiencia. Mantén tu ritmo en Studio Flow y desbloquea beneficios exclusivos.</p>
-                <div className="hero-actions">
-                  <Button onClick={() => navigate(paths.clientExplore)}>Agendar ahora</Button>
-                  <Button variant="ghost" onClick={() => navigate(paths.clientAppointments)}>Ver mis citas</Button>
-                </div>
-              </div>
-              <div className="hero-summary client-hero-summary">
-                <span>{currentClient.vipTier || 'Glow'} VIP</span>
-                <strong>{currentClient.flowPoints || 0} Flow Points</strong>
-                <small>{pointsToNextTier > 0 ? `A solo ${pointsToNextTier} puntos de tu siguiente tier` : 'Estás en el máximo tier'}</small>
-              </div>
+            <section className="client-action-grid mobile-screen">
+              {upcomingAppointments[0] && (
+                <Card className="client-action-card">
+                  <PanelHeader title="Próxima cita" eyebrow={upcomingAppointments[0].date} />
+                  <strong>{upcomingAppointments[0].service}</strong>
+                  <small>{upcomingAppointments[0].artist} / {upcomingAppointments[0].time}</small>
+                  <Button size="sm" onClick={() => navigate(paths.clientAppointments)}>Ver citas</Button>
+                </Card>
+              )}
+              {favoriteArtists.length > 0 && (
+                <Card className="client-action-card">
+                  <PanelHeader title="Favoritos" eyebrow={`${favoriteArtists.length} guardados`} />
+                  <strong>{favoriteArtists[0].owner || favoriteArtists[0].name}</strong>
+                  <small>{favoriteArtists[0].marketplaceServices?.slice(0, 2).join(' / ')}</small>
+                  <Button size="sm" variant="ghost" onClick={() => navigate(paths.clientFavorites)}>Abrir favoritos</Button>
+                </Card>
+              )}
+              <Card className="client-action-card">
+                <PanelHeader title="Buscar artistas" eyebrow="Marketplace" />
+                <strong>Encuentra horarios disponibles</strong>
+                <small>Explora servicios, perfiles y disponibilidad.</small>
+                <Button size="sm" onClick={() => navigate(paths.clientExplore)}>Buscar</Button>
+              </Card>
             </section>
 
             <aside className="client-metrics-grid mobile-screen">
