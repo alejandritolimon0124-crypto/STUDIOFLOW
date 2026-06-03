@@ -237,11 +237,16 @@ function getArtistPublicProfile(artistState, artist) {
     biography: profile.professionalProfile?.biography || profile.professionalProfile?.shortBio || '',
     contactLinks: profile.contactLinks || {},
     professionalLocation: profile.professionalLocation,
+    portfolio: Array.isArray(profile.portfolio) ? profile.portfolio : [],
   }
 }
 
 function getStudioPublicProfile(adminState, artist) {
   return adminState.studios.find((studio) => studio.id === artist?.studioId) || {}
+}
+
+function getStudioDisplayName(studio = {}) {
+  return studio.profile?.commercialName || studio.professionalLocation?.businessName || ''
 }
 
 function getEffectiveProfessionalLocation(artistProfile, studio) {
@@ -688,13 +693,16 @@ function ClientDashboard({ view = 'inicio' }) {
                 const isFavorite = clientState.favoriteArtistIds.includes(artist.id)
                 const publicArtistProfile = getArtistPublicProfile(artistState, artist)
                 const studioProfile = getStudioPublicProfile(adminState, artist)
+                const studioDisplayName = getStudioDisplayName(studioProfile)
                 const effectiveLocation = getEffectiveProfessionalLocation(publicArtistProfile, studioProfile)
                 const professionalAddress = formatProfessionalAddress(effectiveLocation, artist.city)
-                const studioGallery = (studioProfile.profile?.gallery || []).slice(0, 6)
+                const studioGallery = (studioProfile.profile?.gallery || []).slice(0, 5)
+                const artistPortfolio = publicArtistProfile.portfolio.slice(0, 12)
                 const contactLinks = publicArtistProfile.contactLinks || {}
                 const isProfileOpen = selectedArtistProfile?.id === artist.id
                 const artistPhotoUrl = publicArtistProfile.photoUrl
-                const artistInitials = getArtistInitials(artist.owner || artist.name)
+                const artistDisplayName = publicArtistProfile.fullName || artist.owner || 'Artista beauty'
+                const artistInitials = getArtistInitials(artistDisplayName)
                 const artistBiography = publicArtistProfile.biography?.trim()
                 const hasSocialLinks = contactLinks.whatsapp || contactLinks.instagram || contactLinks.facebook
 
@@ -703,13 +711,13 @@ function ClientDashboard({ view = 'inicio' }) {
                     <div className="marketplace-result-summary">
                       <div className="marketplace-artist-avatar avatar">
                         {artistPhotoUrl ? (
-                          <img src={artistPhotoUrl} alt={`Foto de ${publicArtistProfile.fullName || artist.name}`} />
+                          <img src={artistPhotoUrl} alt={`Foto de ${artistDisplayName}`} />
                         ) : (
                           <span>{artistInitials}</span>
                         )}
                       </div>
                       <div className="marketplace-result-copy">
-                        <strong>{artist.name}</strong>
+                        <strong>{artistDisplayName}</strong>
                         <small>{artist.marketplaceServices.slice(0, 3).join(' • ')}</small>
                         <span className={`marketplace-availability availability-${artist.badge.level}`}>
                           {artist.badge.label}
@@ -750,14 +758,14 @@ function ClientDashboard({ view = 'inicio' }) {
                         <section className="public-profile-hero">
                           <div className="public-profile-photo">
                             {artistPhotoUrl ? (
-                              <img src={artistPhotoUrl} alt={`Foto profesional de ${publicArtistProfile.fullName || artist.name}`} />
+                              <img src={artistPhotoUrl} alt={`Foto profesional de ${artistDisplayName}`} />
                             ) : (
                               <span>{artistInitials}</span>
                             )}
                           </div>
                           <div className="public-profile-hero-copy">
                             <span className="eyebrow">{publicArtistProfile.primarySpecialty || 'Artista beauty'}</span>
-                            <h3>{publicArtistProfile.fullName || artist.name}</h3>
+                            <h3>{artistDisplayName}</h3>
                             <span className={`marketplace-availability availability-${artist.badge.level}`}>
                               {artist.badge.label}
                             </span>
@@ -769,6 +777,17 @@ function ClientDashboard({ view = 'inicio' }) {
                           <h4>Sobre mi</h4>
                           <p>{artistBiography || 'Esta artista aún está completando su perfil profesional.'}</p>
                         </section>
+
+                        {artistPortfolio.length > 0 && (
+                          <section className="public-profile-section">
+                            <h4>📸 Trabajos Realizados</h4>
+                            <div className="public-portfolio-strip">
+                              {artistPortfolio.map((image) => (
+                                <img src={image.url} alt={image.label || 'Trabajo realizado por la artista'} key={image.id || image.url} />
+                              ))}
+                            </div>
+                          </section>
+                        )}
 
                         <section className="public-profile-section">
                           <h4>Servicios destacados</h4>
@@ -782,13 +801,13 @@ function ClientDashboard({ view = 'inicio' }) {
                         <section className="public-studio-card">
                           <div className="public-studio-logo">
                             {studioProfile.profile?.logoUrl ? (
-                              <img src={studioProfile.profile.logoUrl} alt={`Logo de ${studioProfile.profile?.commercialName || studioProfile.name}`} />
+                              <img src={studioProfile.profile.logoUrl} alt={`Logo de ${studioDisplayName}`} />
                             ) : (
-                              <span>{getArtistInitials(studioProfile.profile?.commercialName || studioProfile.name || artist.name)}</span>
+                              <span>{getArtistInitials(studioDisplayName || 'Studio')}</span>
                             )}
                           </div>
                           <div>
-                            <h4>{studioProfile.profile?.commercialName || studioProfile.name || artist.name}</h4>
+                            <h4>{studioDisplayName || 'Estudio profesional'}</h4>
                             {studioProfile.profile?.description && <p>{studioProfile.profile.description}</p>}
                           </div>
                         </section>

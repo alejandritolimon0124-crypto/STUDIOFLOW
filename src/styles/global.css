@@ -1884,6 +1884,24 @@ select:focus,
   scroll-snap-align: start;
 }
 
+.public-portfolio-strip {
+  display: flex;
+  gap: 10px;
+  margin: 0 -14px;
+  overflow-x: auto;
+  padding: 0 14px 4px;
+  scroll-snap-type: x proximity;
+}
+
+.public-portfolio-strip img {
+  aspect-ratio: 1 / 1.12;
+  border-radius: 16px;
+  flex: 0 0 72%;
+  max-width: 230px;
+  object-fit: cover;
+  scroll-snap-align: start;
+}
+
 .public-booking-flow {
   margin-top: 0;
 }

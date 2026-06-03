@@ -189,7 +189,7 @@ function getStoredAdminState() {
           ? {
               ...studio,
               ...storedStudio,
-              profile: createStudioProfessionalProfile(studio, storedStudio.profile),
+              profile: createStudioProfessionalProfile(storedStudio, storedStudio.profile),
               professionalLocation: createProfessionalLocation({
                 ...studio.professionalLocation,
                 ...(storedStudio.professionalLocation || {}),
