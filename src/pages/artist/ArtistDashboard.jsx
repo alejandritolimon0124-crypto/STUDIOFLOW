@@ -37,14 +37,6 @@ function formatProfessionalLocation(location = {}, fallbackCity = '') {
   ].filter(Boolean).join(' / ')
 }
 
-function getConfiguredStudioName(...names) {
-  return names.find((name) => {
-    const normalizedName = String(name || '').trim()
-
-    return normalizedName && !mockStudioNames.includes(normalizedName)
-  }) || ''
-}
-
 function getInitials(name = '') {
   return String(name || '')
     .split(' ')
@@ -53,6 +45,14 @@ function getInitials(name = '') {
     .join('')
     .slice(0, 2)
     .toUpperCase()
+}
+
+function getConfiguredStudioName(...names) {
+  return names.find((name) => {
+    const normalizedName = String(name || '').trim()
+
+    return normalizedName && !mockStudioNames.includes(normalizedName)
+  }) || ''
 }
 
 function ArtistDashboard({ view = 'agenda' }) {
@@ -80,8 +80,8 @@ function ArtistDashboard({ view = 'agenda' }) {
   const artistDisplayName = artistPersonalInfo.fullName || primaryArtist?.owner || primaryArtist?.name || 'Artista profesional'
   const studioDisplayName = getConfiguredStudioName(
     studioProfile.commercialName,
+    currentStudio?.businessName,
     currentStudio?.professionalLocation?.businessName,
-    currentStudio?.name,
   )
   const artistLocationSettings = artistState.profile?.professionalLocation || {}
   const effectiveLocation = artistLocationSettings.useStudioLocation === false

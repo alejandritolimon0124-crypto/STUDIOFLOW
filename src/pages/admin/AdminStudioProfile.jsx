@@ -106,7 +106,7 @@ function AdminStudioProfile() {
               <h3>Perfil del estudio</h3>
             </div>
             <Input
-              label="Nombre comercial"
+              label="Nombre comercial del estudio"
               value={profileDraft.commercialName}
               onChange={(event) => updateProfileField('commercialName', event.target.value)}
             />
