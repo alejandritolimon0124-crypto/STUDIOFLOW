@@ -42,6 +42,19 @@ function ArtistProfileSettings() {
     }))
   }
 
+  const updatePaymentMethod = (method, checked) => {
+    setProfileDraft((currentDraft) => ({
+      ...currentDraft,
+      professionalProfile: {
+        ...currentDraft.professionalProfile,
+        paymentMethods: {
+          ...(currentDraft.professionalProfile.paymentMethods || {}),
+          [method]: checked,
+        },
+      },
+    }))
+  }
+
   const updateLocationMode = (useStudioLocation) => {
     setProfileDraft((currentDraft) => ({
       ...currentDraft,
@@ -165,6 +178,11 @@ function ArtistProfileSettings() {
               <h3>Informacion personal</h3>
             </div>
             <Input
+              label="Nombre artistico"
+              value={profileDraft.personalInfo.artisticName || ''}
+              onChange={(event) => updateDraftSection('personalInfo', 'artisticName', event.target.value)}
+            />
+            <Input
               label="Nombre completo"
               value={profileDraft.personalInfo.fullName}
               onChange={(event) => updateDraftSection('personalInfo', 'fullName', event.target.value)}
@@ -226,8 +244,13 @@ function ArtistProfileSettings() {
               value={profileDraft.professionalProfile.primarySpecialty}
               onChange={(event) => updateDraftSection('professionalProfile', 'primarySpecialty', event.target.value)}
             />
+            <Input
+              label="Especialidades"
+              value={profileDraft.professionalProfile.specialties || ''}
+              onChange={(event) => updateDraftSection('professionalProfile', 'specialties', event.target.value)}
+            />
             <label className="input-field">
-              <span>Biografia corta</span>
+              <span>Descripcion profesional</span>
               <textarea
                 value={profileDraft.professionalProfile.shortBio}
                 onChange={(event) => updateDraftSection('professionalProfile', 'shortBio', event.target.value)}
@@ -241,6 +264,33 @@ function ArtistProfileSettings() {
               value={profileDraft.professionalProfile.experienceYears}
               onChange={(event) => updateDraftSection('professionalProfile', 'experienceYears', event.target.value)}
             />
+            <div className="input-field">
+              <span>Metodos de pago</span>
+              <label className="location-toggle-row">
+                <input
+                  checked={Boolean(profileDraft.professionalProfile.paymentMethods?.cash)}
+                  type="checkbox"
+                  onChange={(event) => updatePaymentMethod('cash', event.target.checked)}
+                />
+                <span>Efectivo</span>
+              </label>
+              <label className="location-toggle-row">
+                <input
+                  checked={Boolean(profileDraft.professionalProfile.paymentMethods?.transfer)}
+                  type="checkbox"
+                  onChange={(event) => updatePaymentMethod('transfer', event.target.checked)}
+                />
+                <span>Transferencia</span>
+              </label>
+              <label className="location-toggle-row">
+                <input
+                  checked={Boolean(profileDraft.professionalProfile.paymentMethods?.card)}
+                  type="checkbox"
+                  onChange={(event) => updatePaymentMethod('card', event.target.checked)}
+                />
+                <span>Tarjeta</span>
+              </label>
+            </div>
           </section>
 
           <section className="profile-foundation-card">

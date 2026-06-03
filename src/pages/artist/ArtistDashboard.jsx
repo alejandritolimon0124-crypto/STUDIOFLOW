@@ -77,7 +77,7 @@ function ArtistDashboard({ view = 'agenda' }) {
   const currentStudio = adminState.studios.find((studio) => studio.id === primaryArtist?.studioId) || adminState.studios[0]
   const studioProfile = currentStudio?.profile || {}
   const artistPersonalInfo = artistState.profile?.personalInfo || {}
-  const artistDisplayName = artistPersonalInfo.fullName || primaryArtist?.owner || primaryArtist?.name || 'Artista profesional'
+  const artistDisplayName = artistPersonalInfo.artisticName || artistPersonalInfo.fullName || primaryArtist?.owner || primaryArtist?.name || 'Artista profesional'
   const studioDisplayName = getConfiguredStudioName(
     studioProfile.commercialName,
     currentStudio?.businessName,

@@ -41,6 +41,7 @@ const initialBlockedDates = [
 function createArtistProfessionalProfile(overrides = {}) {
   return {
     personalInfo: {
+      artisticName: 'Valeria Moon Studio',
       fullName: 'Valeria Moon',
       phone: '55 0000 0000',
       email: 'valeria@studioflow.mx',
@@ -48,9 +49,16 @@ function createArtistProfessionalProfile(overrides = {}) {
     },
     professionalProfile: {
       primarySpecialty: 'Lash lifting y brow design',
+      specialties: 'Lash lifting, Brow design',
       shortBio: '',
       experienceYears: '',
       ...(overrides.professionalProfile || {}),
+      paymentMethods: {
+        cash: false,
+        transfer: false,
+        card: false,
+        ...(overrides.professionalProfile?.paymentMethods || {}),
+      },
     },
     contactLinks: {
       whatsapp: '',
@@ -258,6 +266,10 @@ function getStoredArtistState() {
             professionalProfile: {
               ...initialArtistState.profile.professionalProfile,
               ...parsedArtistState.profile?.professionalProfile,
+              paymentMethods: {
+                ...initialArtistState.profile.professionalProfile.paymentMethods,
+                ...parsedArtistState.profile?.professionalProfile?.paymentMethods,
+              },
             },
             contactLinks: {
               ...initialArtistState.profile.contactLinks,

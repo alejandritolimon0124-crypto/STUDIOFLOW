@@ -247,12 +247,13 @@ function getArtistPublicProfile(artistState, artist) {
 
   return {
     photoUrl: profile.photoUrl || artist?.photoUrl || '',
-    fullName: profile.personalInfo?.fullName || artist?.owner || artist?.name || '',
-    primarySpecialty: profile.professionalProfile?.primarySpecialty || artist?.specialties?.[0] || artist?.services || '',
+    fullName: profile.personalInfo?.artisticName || profile.personalInfo?.fullName || artist?.owner || artist?.name || '',
+    primarySpecialty: profile.professionalProfile?.primarySpecialty || profile.professionalProfile?.specialties || artist?.specialties?.[0] || artist?.services || '',
     biography: profile.professionalProfile?.biography || profile.professionalProfile?.shortBio || '',
     contactLinks: profile.contactLinks || {},
     professionalLocation: profile.professionalLocation,
     portfolio: Array.isArray(profile.portfolio) ? profile.portfolio : [],
+    specialties: profile.professionalProfile?.specialties || '',
   }
 }
 
