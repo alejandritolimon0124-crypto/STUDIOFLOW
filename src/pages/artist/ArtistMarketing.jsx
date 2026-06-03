@@ -36,7 +36,7 @@ const toastLabels = {
 }
 
 function ArtistMarketing() {
-  const { adminState, artistState, selectedDate } = useApp()
+  const { adminState, artistState, session, selectedDate } = useApp()
   const [happyHour, setHappyHour] = useState(false)
   const [lowOccupancy, setLowOccupancy] = useState(true)
   const [silentPromo, setSilentPromo] = useState(false)
@@ -55,7 +55,7 @@ function ArtistMarketing() {
   const [toasts, setToasts] = useState([])
   const [isPremiumModalOpen, setIsPremiumModalOpen] = useState(false)
   const toastIdRef = useRef(0)
-  const primaryArtist = adminState.artists.find((artist) => artist.owner === 'Valeria Moon') || adminState.artists[0]
+  const primaryArtist = adminState.artists.find((artist) => artist.studioId === session.user?.studioId) || adminState.artists[0]
   const currentStudio = adminState.studios.find((studio) => studio.id === primaryArtist?.studioId) || adminState.studios[0]
   const canUseMarketing = canUseOperationalFeature(currentStudio, 'marketing')
 

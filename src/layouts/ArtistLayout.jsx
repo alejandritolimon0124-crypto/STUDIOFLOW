@@ -17,9 +17,9 @@ const copyByPath = {
 
 function ArtistLayout() {
   const { pathname } = useLocation()
-  const { adminState } = useApp()
+  const { adminState, session } = useApp()
   const [title, subtitle] = copyByPath[pathname] || copyByPath[paths.artist]
-  const primaryArtist = adminState.artists.find((artist) => artist.owner === 'Valeria Moon') || adminState.artists[0]
+  const primaryArtist = adminState.artists.find((artist) => artist.studioId === session.user?.studioId) || adminState.artists[0]
   const currentStudio = adminState.studios.find((studio) => studio.id === primaryArtist?.studioId) || adminState.studios[0]
   const studioAccess = getStudioAccess(currentStudio)
   const isPendingExperience = !studioAccess.publicAgenda

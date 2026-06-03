@@ -10,16 +10,25 @@ import PanelHeader from '../../components/PanelHeader'
 import StatsCard from '../../components/StatsCard'
 import { useApp } from '../../contexts/appContextCore'
 import { paths } from '../../routes/paths'
-import { artistAppointments, artistProfile, artistServices, recurringClients } from '../../services/mockData'
+import { artistAppointments, artistServices, recurringClients } from '../../services/mockData'
 import { getClientById } from '../../utils/clientHelpers'
 import { formatCurrency } from '../../utils/formatters'
 import { calculateFlowPoints, addPointsToClient, vipTierThresholds } from '../../modules/loyalty/flowPointsEngine'
 import { calculateAppointmentEconomy } from '../../modules/business/appointmentEconomyEngine'
 import { canUseOperationalFeature } from '../../modules/governance/studioGovernance'
 
+function formatProfessionalLocation(location = {}, fallbackCity = '') {
+  return [
+    location.address,
+    location.city || fallbackCity,
+    location.state,
+    location.postalCode,
+  ].filter(Boolean).join(' / ')
+}
+
 function ArtistDashboard({ view = 'agenda' }) {
   const navigate = useNavigate()
-  const { adminState, artistState, addArtistAppointment, addArtistClient, updateArtistClient, updateArtistProfile, bookSlot, selectedDate, setSelectedDate } = useApp()
+  const { adminState, artistState, session, addArtistAppointment, addArtistClient, updateArtistClient, updateArtistProfile, bookSlot, selectedDate, setSelectedDate } = useApp()
   const [showAppointmentForm, setShowAppointmentForm] = useState(false)
   const [pointsFeedback, setPointsFeedback] = useState(null)
   const [showDatePicker, setShowDatePicker] = useState(false)
@@ -34,8 +43,21 @@ function ArtistDashboard({ view = 'agenda' }) {
   const [clientSearch, setClientSearch] = useState('')
   const [isCreatingNewClient, setIsCreatingNewClient] = useState(false)
   const [newClient, setNewClient] = useState({ name: '', phone: '', notes: '' })
-  const primaryArtist = adminState.artists.find((artist) => artist.owner === 'Valeria Moon') || adminState.artists[0]
+  const primaryArtist = adminState.artists.find((artist) => artist.studioId === session.user?.studioId) || adminState.artists[0]
   const currentStudio = adminState.studios.find((studio) => studio.id === primaryArtist?.studioId) || adminState.studios[0]
+  const studioProfile = currentStudio?.profile || {}
+  const artistPersonalInfo = artistState.profile?.personalInfo || {}
+  const artistDisplayName = artistPersonalInfo.fullName || primaryArtist?.owner || primaryArtist?.name || 'Artista profesional'
+  const studioDisplayName =
+    studioProfile.commercialName
+    || currentStudio?.professionalLocation?.businessName
+    || currentStudio?.name
+    || 'Estudio profesional'
+  const artistLocationSettings = artistState.profile?.professionalLocation || {}
+  const effectiveLocation = artistLocationSettings.useStudioLocation === false
+    ? artistLocationSettings.customLocation || {}
+    : currentStudio?.professionalLocation || {}
+  const heroLocation = formatProfessionalLocation(effectiveLocation, currentStudio?.city)
   const canUseEconomy = canUseOperationalFeature(currentStudio, 'economy')
   const canUsePublicAgenda = canUseOperationalFeature(currentStudio, 'publicAgenda')
 
@@ -91,7 +113,7 @@ function ArtistDashboard({ view = 'agenda' }) {
         totalVisits: 1,
         pointsExpirationDate: '2026-12-31',
         preferredServices: [appointmentDraft.service],
-        favoriteArtist: 'Valeria Moon',
+        favoriteArtist: artistDisplayName,
         lastVisit: appointmentDraft.date,
         nextRecommendedVisit: appointmentDraft.date,
         rewardsHistory: [],
@@ -134,7 +156,7 @@ function ArtistDashboard({ view = 'agenda' }) {
       studioId: currentStudio?.id || 'studio-glow',
       time: appointmentDraft.time,
       end: appointmentDraft.time,
-      artist: 'Valeria Moon',
+      artist: artistDisplayName,
       service: appointmentDraft.service,
       durationMinutes: Number.parseInt(service.duration, 10) || 60,
     })
@@ -183,13 +205,13 @@ function ArtistDashboard({ view = 'agenda' }) {
           <>
             <section className="hero-panel studio-hero artist-profile-hero mobile-screen">
               <div className="artist-hero-copy">
-                <span className="eyebrow">{artistProfile.location}</span>
-                <h2>{artistProfile.name}</h2>
-                <p>Tu agenda esta equilibrada, con mayor demanda en lashes y cejas durante la tarde.</p>
+                <span className="eyebrow">{heroLocation || 'Ubicacion profesional por confirmar'}</span>
+                <h2>{studioDisplayName}</h2>
+                <p>{artistDisplayName} administra su agenda profesional desde este estudio.</p>
               </div>
               <div className="artist-hero-photo">
                 {artistState.profile?.photoUrl ? (
-                  <img src={artistState.profile.photoUrl} alt={`Foto de ${artistProfile.name}`} />
+                  <img src={artistState.profile.photoUrl} alt={`Foto de ${artistDisplayName}`} />
                 ) : (
                   <span>Agregar foto</span>
                 )}
@@ -199,8 +221,8 @@ function ArtistDashboard({ view = 'agenda' }) {
                 <Button variant="ghost" onClick={() => navigate(paths.artistSchedule)}>Editar horario</Button>
               </div>
               <div className="hero-summary">
-                <span>{artistProfile.plan}</span>
-                <strong>{artistProfile.occupancy}</strong>
+                <span>{primaryArtist?.plan || 'Perfil profesional'}</span>
+                <strong>{`${occupancy}%`}</strong>
                 <small>ocupacion de hoy</small>
               </div>
             </section>
@@ -220,9 +242,9 @@ function ArtistDashboard({ view = 'agenda' }) {
               <div className="artist-photo-editor">
                 <div className="artist-photo-preview">
                   {artistState.profile?.photoUrl ? (
-                    <img src={artistState.profile.photoUrl} alt={`Foto de ${artistProfile.name}`} />
+                    <img src={artistState.profile.photoUrl} alt={`Foto de ${artistDisplayName}`} />
                   ) : (
-                    <span>VM</span>
+                    <span>{artistDisplayName.split(' ').map((item) => item[0]).join('').slice(0, 2).toUpperCase()}</span>
                   )}
                 </div>
                 <div>

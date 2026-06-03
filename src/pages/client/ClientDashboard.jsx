@@ -796,7 +796,7 @@ function ClientDashboard({ view = 'inicio' }) {
                 <Input
                   label="Nombre estudio"
                   type="search"
-                  placeholder="Valeria Moon, Aura Nails..."
+                        placeholder="Nombre de artista o estudio..."
                   value={studioQuery}
                   onChange={(event) => setStudioQuery(event.target.value)}
                 />
@@ -825,15 +825,13 @@ function ClientDashboard({ view = 'inicio' }) {
                 return (
                   <article className={`artist-result marketplace-result-card${isProfileOpen ? ' is-expanded' : ''}`} key={artist.name}>
                     <div className="marketplace-result-summary">
-                      {!isProfileOpen && (
-                        <div className="marketplace-artist-avatar avatar">
-                          {artistPhotoUrl ? (
-                            <img src={artistPhotoUrl} alt={`Foto de ${artistDisplayName}`} />
-                          ) : (
-                            <span>{artistInitials}</span>
-                          )}
-                        </div>
-                      )}
+                      <div className="marketplace-artist-avatar avatar">
+                        {artistPhotoUrl ? (
+                          <img src={artistPhotoUrl} alt={`Foto de ${artistDisplayName}`} />
+                        ) : (
+                          <span>{artistInitials}</span>
+                        )}
+                      </div>
                       <div className="marketplace-result-copy">
                         <strong>{artistDisplayName}</strong>
                         <small>{artist.marketplaceServices.slice(0, 3).join(' • ')}</small>
@@ -872,13 +870,6 @@ function ClientDashboard({ view = 'inicio' }) {
                     {isProfileOpen && (
                       <div className="public-profile-panel">
                         <section className="public-profile-hero">
-                          <div className="public-profile-photo">
-                            {artistPhotoUrl ? (
-                              <img src={artistPhotoUrl} alt={`Foto profesional de ${artistDisplayName}`} />
-                            ) : (
-                              <span>{artistInitials}</span>
-                            )}
-                          </div>
                           <div className="public-profile-hero-copy">
                             <span className="eyebrow">{publicArtistProfile.primarySpecialty || 'Artista beauty'}</span>
                             <h3>{artistDisplayName}</h3>
@@ -1092,15 +1083,13 @@ function ClientDashboard({ view = 'inicio' }) {
                   return (
                     <article className={`favorite-card marketplace-result-card${isProfileOpen ? ' is-expanded' : ''}`} key={artist.name}>
                       <div className="marketplace-result-summary">
-                        {!isProfileOpen && (
-                          <div className="marketplace-artist-avatar avatar">
-                            {artistPhotoUrl ? (
-                              <img src={artistPhotoUrl} alt={`Foto de ${artistDisplayName}`} />
-                            ) : (
-                              <span>{artistInitials}</span>
-                            )}
-                          </div>
-                        )}
+                        <div className="marketplace-artist-avatar avatar">
+                          {artistPhotoUrl ? (
+                            <img src={artistPhotoUrl} alt={`Foto de ${artistDisplayName}`} />
+                          ) : (
+                            <span>{artistInitials}</span>
+                          )}
+                        </div>
                         <div className="marketplace-result-copy">
                           <strong>{artistDisplayName}</strong>
                           <small>{artist.marketplaceServices.slice(0, 3).join(' • ')}</small>
@@ -1138,13 +1127,6 @@ function ClientDashboard({ view = 'inicio' }) {
                       {isProfileOpen && (
                         <div className="public-profile-panel">
                           <section className="public-profile-hero">
-                            <div className="public-profile-photo">
-                              {artistPhotoUrl ? (
-                                <img src={artistPhotoUrl} alt={`Foto profesional de ${artistDisplayName}`} />
-                              ) : (
-                                <span>{artistInitials}</span>
-                              )}
-                            </div>
                             <div className="public-profile-hero-copy">
                               <span className="eyebrow">{publicArtistProfile.primarySpecialty || 'Artista beauty'}</span>
                               <h3>{artistDisplayName}</h3>
