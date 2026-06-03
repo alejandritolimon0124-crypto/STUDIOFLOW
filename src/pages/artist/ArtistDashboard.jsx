@@ -17,6 +17,16 @@ import { calculateFlowPoints, addPointsToClient, vipTierThresholds } from '../..
 import { calculateAppointmentEconomy } from '../../modules/business/appointmentEconomyEngine'
 import { canUseOperationalFeature } from '../../modules/governance/studioGovernance'
 
+const artistMetricsPrivacyKey = 'studio-flow-artist-hide-metrics'
+
+function getStoredMetricsPrivacy() {
+  try {
+    return localStorage.getItem(artistMetricsPrivacyKey) === 'true'
+  } catch {
+    return false
+  }
+}
+
 function formatProfessionalLocation(location = {}, fallbackCity = '') {
   return [
     location.address,
@@ -43,15 +53,16 @@ function ArtistDashboard({ view = 'agenda' }) {
   const [clientSearch, setClientSearch] = useState('')
   const [isCreatingNewClient, setIsCreatingNewClient] = useState(false)
   const [newClient, setNewClient] = useState({ name: '', phone: '', notes: '' })
+  const [hideMetrics, setHideMetrics] = useState(getStoredMetricsPrivacy)
   const primaryArtist = adminState.artists.find((artist) => artist.studioId === session.user?.studioId) || adminState.artists[0]
   const currentStudio = adminState.studios.find((studio) => studio.id === primaryArtist?.studioId) || adminState.studios[0]
   const studioProfile = currentStudio?.profile || {}
   const artistPersonalInfo = artistState.profile?.personalInfo || {}
   const artistDisplayName = artistPersonalInfo.fullName || primaryArtist?.owner || primaryArtist?.name || 'Artista profesional'
+  const configuredStudioLocationName = currentStudio?.professionalLocation?.businessName
   const studioDisplayName =
     studioProfile.commercialName
-    || currentStudio?.professionalLocation?.businessName
-    || currentStudio?.name
+    || (configuredStudioLocationName && configuredStudioLocationName !== currentStudio?.name ? configuredStudioLocationName : '')
     || 'Estudio profesional'
   const artistLocationSettings = artistState.profile?.professionalLocation || {}
   const effectiveLocation = artistLocationSettings.useStudioLocation === false
@@ -199,6 +210,20 @@ function ArtistDashboard({ view = 'agenda' }) {
     updateArtistProfile({ photoUrl: '' })
   }
 
+  const toggleMetricsPrivacy = () => {
+    setHideMetrics((currentValue) => {
+      const nextValue = !currentValue
+
+      try {
+        localStorage.setItem(artistMetricsPrivacyKey, String(nextValue))
+      } catch {
+        // La preferencia visual sigue activa en la sesion aunque localStorage falle.
+      }
+
+      return nextValue
+    })
+  }
+
   return (
     <main className={`dashboard-grid artist-grid view-${view}`}>
         {view === 'agenda' && (
@@ -219,10 +244,13 @@ function ArtistDashboard({ view = 'agenda' }) {
               <div className="hero-actions artist-hero-actions">
                 <Button disabled={!canUsePublicAgenda} onClick={() => setShowAppointmentForm((current) => !current)}>Agregar cita</Button>
                 <Button variant="ghost" onClick={() => navigate(paths.artistSchedule)}>Editar horario</Button>
+                <Button variant="ghost" onClick={toggleMetricsPrivacy}>
+                  {hideMetrics ? '👁 Mostrar métricas' : '👁 Ocultar métricas'}
+                </Button>
               </div>
               <div className="hero-summary">
                 <span>{primaryArtist?.plan || 'Perfil profesional'}</span>
-                <strong>{`${occupancy}%`}</strong>
+                <strong>{hideMetrics ? '•••' : `${occupancy}%`}</strong>
                 <small>ocupacion de hoy</small>
               </div>
             </section>
@@ -234,9 +262,9 @@ function ArtistDashboard({ view = 'agenda' }) {
               </div>
             )}
 
-            <MetricCard label="Citas" value={appointmentCount} trend={appointmentCount === 0 ? 'Agenda libre' : `+${appointmentCount} vs promedio`} className="mobile-compact" />
-            <MetricCard label="Ocupación" value={`${occupancy}%`} trend={occupancy > 80 ? 'Día full' : 'Oportunidad'} tone={occupancy > 80 ? 'sage' : 'rose'} className="mobile-compact" />
-            <MetricCard label="Ingresos estimados" value={canUseEconomy ? formatCurrency(estimatedRevenue) : 'Preparacion'} trend={canUseEconomy ? (estimatedRevenue === 0 ? 'Sin reservas' : '+18%') : 'Modo validacion'} tone="nude" className="mobile-compact" />
+            <MetricCard label="Citas" value={hideMetrics ? '•••' : appointmentCount} trend={hideMetrics ? 'Oculto' : (appointmentCount === 0 ? 'Agenda libre' : `+${appointmentCount} vs promedio`)} className="mobile-compact" />
+            <MetricCard label="Ocupación" value={hideMetrics ? '•••' : `${occupancy}%`} trend={hideMetrics ? 'Oculto' : (occupancy > 80 ? 'Día full' : 'Oportunidad')} tone={occupancy > 80 ? 'sage' : 'rose'} className="mobile-compact" />
+            <MetricCard label="Ingresos estimados" value={hideMetrics ? '•••' : (canUseEconomy ? formatCurrency(estimatedRevenue) : 'Preparacion')} trend={hideMetrics ? 'Oculto' : (canUseEconomy ? (estimatedRevenue === 0 ? 'Sin reservas' : '+18%') : 'Modo validacion')} tone="nude" className="mobile-compact" />
 
             <Card className="mobile-screen artist-photo-card">
               <div className="artist-photo-editor">
