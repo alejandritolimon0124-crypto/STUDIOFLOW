@@ -12,7 +12,7 @@ import { getClientById } from '../../utils/clientHelpers'
 import { calculateFlowPoints, flowPointRewards, getActivePoints, getExpiringPoints, vipTierThresholds } from '../../modules/loyalty/flowPointsEngine'
 import { generateClientAutomations } from '../../modules/automation/smartAutomationEngine'
 import { canUseOperationalFeature } from '../../modules/governance/studioGovernance'
-import { buildGoogleMapsUrl } from '../../utils/locationHelpers'
+import { buildGoogleMapsQuery, buildGoogleMapsUrl } from '../../utils/locationHelpers'
 
 const searchServices = {
   Unas: [
@@ -250,12 +250,68 @@ function getStudioDisplayName(studio = {}) {
   return studio.profile?.commercialName || studio.professionalLocation?.businessName || ''
 }
 
-function getEffectiveProfessionalLocation(artistProfile, studio) {
-  if (artistProfile.professionalLocation?.useStudioLocation === false) {
-    return artistProfile.professionalLocation.customLocation || {}
+function hasUsableProfessionalLocation(location = {}) {
+  return Boolean(
+    String(location.latitude || '').trim() && String(location.longitude || '').trim()
+    || buildGoogleMapsQuery(location),
+  )
+}
+
+function getEffectiveProfessionalLocation(artistProfile, studio, artist = {}) {
+  const artistLocationCandidates = [
+    {
+      settings: artistProfile.professionalLocation,
+      sourcePrefix: 'artistState.profile.professionalLocation',
+    },
+    {
+      settings: artist.professionalLocation,
+      sourcePrefix: 'artist.professionalLocation',
+    },
+  ].filter((candidate) => candidate.settings)
+  const studioLocation = studio?.professionalLocation || {}
+
+  const configuredArtistLocation = artistLocationCandidates.find(({ settings }) => (
+    settings.useStudioLocation === false && hasUsableProfessionalLocation(settings.customLocation || {})
+  ))
+
+  if (configuredArtistLocation) {
+    return {
+      location: configuredArtistLocation.settings.customLocation,
+      source: `${configuredArtistLocation.sourcePrefix}.customLocation`,
+    }
   }
 
-  return studio?.professionalLocation || {}
+  if (hasUsableProfessionalLocation(studioLocation)) {
+    return {
+      location: studioLocation,
+      source: 'studio.professionalLocation',
+    }
+  }
+
+  const fallbackArtistLocation = artistLocationCandidates.find(({ settings }) => (
+    hasUsableProfessionalLocation(settings.customLocation || {})
+  ))
+
+  if (fallbackArtistLocation) {
+    return {
+      location: fallbackArtistLocation.settings.customLocation,
+      source: `${fallbackArtistLocation.sourcePrefix}.customLocation.fallback`,
+    }
+  }
+
+  const flatArtistLocation = artistLocationCandidates.find(({ settings }) => hasUsableProfessionalLocation(settings))
+
+  if (flatArtistLocation) {
+    return {
+      location: flatArtistLocation.settings,
+      source: flatArtistLocation.sourcePrefix,
+    }
+  }
+
+  return {
+    location: {},
+    source: 'empty',
+  }
 }
 
 function formatProfessionalAddress(location = {}, fallbackCity = '') {
@@ -298,9 +354,17 @@ function openWhatsAppContact(whatsapp, serviceName = '') {
   window.open(`https://wa.me/${cleanNumber}?text=${message}`, '_blank', 'noopener,noreferrer')
 }
 
-function openDirections(location) {
+function openDirections(location, source = 'effectiveLocation') {
   const mapsUrl = buildGoogleMapsUrl(location)
   if (!mapsUrl) return
+
+  console.info('[Studio Flow] Como llegar audit', {
+    source,
+    Latitude: location?.latitude || '',
+    Longitude: location?.longitude || '',
+    effectiveLocation: location,
+    MapsURL: mapsUrl,
+  })
 
   window.open(mapsUrl, '_blank', 'noopener,noreferrer')
 }
@@ -726,7 +790,8 @@ function ClientDashboard({ view = 'inicio' }) {
                 const publicArtistProfile = getArtistPublicProfile(artistState, artist)
                 const studioProfile = getStudioPublicProfile(adminState, artist)
                 const studioDisplayName = getStudioDisplayName(studioProfile)
-                const effectiveLocation = getEffectiveProfessionalLocation(publicArtistProfile, studioProfile)
+                const effectiveLocationResult = getEffectiveProfessionalLocation(publicArtistProfile, studioProfile, artist)
+                const effectiveLocation = effectiveLocationResult.location
                 const directionsUrl = buildGoogleMapsUrl(effectiveLocation)
                 const professionalAddress = formatProfessionalAddress(effectiveLocation, artist.city)
                 const studioGallery = (studioProfile.profile?.gallery || []).slice(0, 5)
@@ -955,7 +1020,7 @@ function ClientDashboard({ view = 'inicio' }) {
                           {directionsUrl && (
                             <Button
                               variant="ghost"
-                              onClick={() => openDirections(effectiveLocation)}
+                              onClick={() => openDirections(effectiveLocation, effectiveLocationResult.source)}
                             >
                               📍 Cómo llegar
                             </Button>
