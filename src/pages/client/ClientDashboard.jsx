@@ -12,6 +12,7 @@ import { getClientById } from '../../utils/clientHelpers'
 import { calculateFlowPoints, flowPointRewards, getActivePoints, getExpiringPoints, vipTierThresholds } from '../../modules/loyalty/flowPointsEngine'
 import { generateClientAutomations } from '../../modules/automation/smartAutomationEngine'
 import { canUseOperationalFeature } from '../../modules/governance/studioGovernance'
+import { buildGoogleMapsUrl } from '../../utils/locationHelpers'
 
 const searchServices = {
   Unas: [
@@ -266,11 +267,42 @@ function formatProfessionalAddress(location = {}, fallbackCity = '') {
   ].filter(Boolean).join(' / ')
 }
 
-function openWhatsAppContact(whatsapp) {
+function buildWhatsAppMessage(serviceName) {
+  if (serviceName) {
+    return `Hola 👋
+
+Vi tu perfil en Studio Flow.
+
+Me interesa el servicio de: ${serviceName}
+
+¿Podrías orientarme sobre disponibilidad y detalles del servicio?
+
+Gracias.`
+  }
+
+  return `Hola 👋
+
+Vi tu perfil en Studio Flow y me gustaría recibir más información sobre tus servicios.
+
+¿Podrías ayudarme?
+
+Gracias.`
+}
+
+function openWhatsAppContact(whatsapp, serviceName = '') {
   const cleanNumber = String(whatsapp || '').replace(/\D/g, '')
   if (!cleanNumber) return
 
-  window.open(`https://wa.me/${cleanNumber}`, '_blank', 'noopener,noreferrer')
+  const message = encodeURIComponent(buildWhatsAppMessage(serviceName))
+
+  window.open(`https://wa.me/${cleanNumber}?text=${message}`, '_blank', 'noopener,noreferrer')
+}
+
+function openDirections(location) {
+  const mapsUrl = buildGoogleMapsUrl(location)
+  if (!mapsUrl) return
+
+  window.open(mapsUrl, '_blank', 'noopener,noreferrer')
 }
 
 function getSocialUrl(value, baseUrl) {
@@ -695,6 +727,7 @@ function ClientDashboard({ view = 'inicio' }) {
                 const studioProfile = getStudioPublicProfile(adminState, artist)
                 const studioDisplayName = getStudioDisplayName(studioProfile)
                 const effectiveLocation = getEffectiveProfessionalLocation(publicArtistProfile, studioProfile)
+                const directionsUrl = buildGoogleMapsUrl(effectiveLocation)
                 const professionalAddress = formatProfessionalAddress(effectiveLocation, artist.city)
                 const studioGallery = (studioProfile.profile?.gallery || []).slice(0, 5)
                 const artistPortfolio = publicArtistProfile.portfolio.slice(0, 12)
@@ -835,7 +868,7 @@ function ClientDashboard({ view = 'inicio' }) {
                             <h4>Redes y contacto</h4>
                             <div className="public-contact-actions">
                               {contactLinks.whatsapp && (
-                                <button type="button" onClick={() => openWhatsAppContact(contactLinks.whatsapp)}>WhatsApp</button>
+                                <button type="button" onClick={() => openWhatsAppContact(contactLinks.whatsapp, secondaryService)}>WhatsApp</button>
                               )}
                               {contactLinks.instagram && (
                                 <a href={getSocialUrl(contactLinks.instagram, 'https://instagram.com/')} target="_blank" rel="noreferrer">
@@ -915,10 +948,18 @@ function ClientDashboard({ view = 'inicio' }) {
                           <Button
                             variant="ghost"
                             disabled={!contactLinks.whatsapp}
-                            onClick={() => openWhatsAppContact(contactLinks.whatsapp)}
+                            onClick={() => openWhatsAppContact(contactLinks.whatsapp, secondaryService)}
                           >
                             💬 Contactar artista
                           </Button>
+                          {directionsUrl && (
+                            <Button
+                              variant="ghost"
+                              onClick={() => openDirections(effectiveLocation)}
+                            >
+                              📍 Cómo llegar
+                            </Button>
+                          )}
                         </div>
 
                         <button className="public-profile-hide" type="button" onClick={() => setSelectedArtistProfile(null)}>
