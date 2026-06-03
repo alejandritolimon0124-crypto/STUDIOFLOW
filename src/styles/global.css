@@ -1951,6 +1951,14 @@ select:focus,
   color: var(--muted);
 }
 
+.favorite-card .marketplace-availability,
+.favorite-card .public-service-badges span,
+.favorite-card .public-studio-logo span,
+.favorite-card .public-profile-photo span,
+.favorite-card .marketplace-artist-avatar span {
+  color: inherit;
+}
+
 .empty-state {
   align-items: center;
   color: var(--muted);
