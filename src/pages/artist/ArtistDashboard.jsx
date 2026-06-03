@@ -18,6 +18,7 @@ import { calculateAppointmentEconomy } from '../../modules/business/appointmentE
 import { canUseOperationalFeature } from '../../modules/governance/studioGovernance'
 
 const artistMetricsPrivacyKey = 'studio-flow-artist-hide-metrics'
+const mockStudioNames = ['Studio Glow Beauty', 'Valeria Moon', 'Valeria Moon Studio']
 
 function getStoredMetricsPrivacy() {
   try {
@@ -36,9 +37,17 @@ function formatProfessionalLocation(location = {}, fallbackCity = '') {
   ].filter(Boolean).join(' / ')
 }
 
+function getConfiguredStudioName(...names) {
+  return names.find((name) => {
+    const normalizedName = String(name || '').trim()
+
+    return normalizedName && !mockStudioNames.includes(normalizedName)
+  }) || 'Estudio profesional'
+}
+
 function ArtistDashboard({ view = 'agenda' }) {
   const navigate = useNavigate()
-  const { adminState, artistState, session, addArtistAppointment, addArtistClient, updateArtistClient, updateArtistProfile, bookSlot, selectedDate, setSelectedDate } = useApp()
+  const { adminState, artistState, session, addArtistAppointment, addArtistClient, updateArtistClient, bookSlot, selectedDate, setSelectedDate } = useApp()
   const [showAppointmentForm, setShowAppointmentForm] = useState(false)
   const [pointsFeedback, setPointsFeedback] = useState(null)
   const [showDatePicker, setShowDatePicker] = useState(false)
@@ -59,11 +68,11 @@ function ArtistDashboard({ view = 'agenda' }) {
   const studioProfile = currentStudio?.profile || {}
   const artistPersonalInfo = artistState.profile?.personalInfo || {}
   const artistDisplayName = artistPersonalInfo.fullName || primaryArtist?.owner || primaryArtist?.name || 'Artista profesional'
-  const configuredStudioLocationName = currentStudio?.professionalLocation?.businessName
-  const studioDisplayName =
-    studioProfile.commercialName
-    || (configuredStudioLocationName && configuredStudioLocationName !== currentStudio?.name ? configuredStudioLocationName : '')
-    || 'Estudio profesional'
+  const studioDisplayName = getConfiguredStudioName(
+    studioProfile.commercialName,
+    currentStudio?.professionalLocation?.businessName,
+    currentStudio?.name,
+  )
   const artistLocationSettings = artistState.profile?.professionalLocation || {}
   const effectiveLocation = artistLocationSettings.useStudioLocation === false
     ? artistLocationSettings.customLocation || {}
@@ -194,22 +203,6 @@ function ArtistDashboard({ view = 'agenda' }) {
     setNewClient({ name: '', phone: '', notes: '' })
   }
 
-  const handleArtistPhotoChange = (event) => {
-    const file = event.target.files?.[0]
-    if (!file) return
-
-    const reader = new FileReader()
-    reader.onload = () => {
-      updateArtistProfile({ photoUrl: String(reader.result || '') })
-    }
-    reader.readAsDataURL(file)
-    event.target.value = ''
-  }
-
-  const removeArtistPhoto = () => {
-    updateArtistProfile({ photoUrl: '' })
-  }
-
   const toggleMetricsPrivacy = () => {
     setHideMetrics((currentValue) => {
       const nextValue = !currentValue
@@ -248,11 +241,13 @@ function ArtistDashboard({ view = 'agenda' }) {
                   {hideMetrics ? '👁 Mostrar métricas' : '👁 Ocultar métricas'}
                 </Button>
               </div>
-              <div className="hero-summary">
-                <span>{primaryArtist?.plan || 'Perfil profesional'}</span>
-                <strong>{hideMetrics ? '•••' : `${occupancy}%`}</strong>
-                <small>ocupacion de hoy</small>
-              </div>
+              {!hideMetrics && (
+                <div className="hero-summary">
+                  <span>{primaryArtist?.plan || 'Perfil profesional'}</span>
+                  <strong>{`${occupancy}%`}</strong>
+                  <small>ocupacion de hoy</small>
+                </div>
+              )}
             </section>
 
             {pointsFeedback && (
@@ -262,40 +257,13 @@ function ArtistDashboard({ view = 'agenda' }) {
               </div>
             )}
 
-            <MetricCard label="Citas" value={hideMetrics ? '•••' : appointmentCount} trend={hideMetrics ? 'Oculto' : (appointmentCount === 0 ? 'Agenda libre' : `+${appointmentCount} vs promedio`)} className="mobile-compact" />
-            <MetricCard label="Ocupación" value={hideMetrics ? '•••' : `${occupancy}%`} trend={hideMetrics ? 'Oculto' : (occupancy > 80 ? 'Día full' : 'Oportunidad')} tone={occupancy > 80 ? 'sage' : 'rose'} className="mobile-compact" />
-            <MetricCard label="Ingresos estimados" value={hideMetrics ? '•••' : (canUseEconomy ? formatCurrency(estimatedRevenue) : 'Preparacion')} trend={hideMetrics ? 'Oculto' : (canUseEconomy ? (estimatedRevenue === 0 ? 'Sin reservas' : '+18%') : 'Modo validacion')} tone="nude" className="mobile-compact" />
-
-            <Card className="mobile-screen artist-photo-card">
-              <div className="artist-photo-editor">
-                <div className="artist-photo-preview">
-                  {artistState.profile?.photoUrl ? (
-                    <img src={artistState.profile.photoUrl} alt={`Foto de ${artistDisplayName}`} />
-                  ) : (
-                    <span>{artistDisplayName.split(' ').map((item) => item[0]).join('').slice(0, 2).toUpperCase()}</span>
-                  )}
-                </div>
-                <div>
-                  <strong>Branding personal</strong>
-                  <small>Tu foto aparece en el hero, navegación y perfil de artista.</small>
-                  <div className="artist-photo-actions">
-                    <label className="button button-ghost button-sm" htmlFor="artist-photo-input">
-                      {artistState.profile?.photoUrl ? 'Cambiar foto' : 'Subir foto'}
-                    </label>
-                    <input
-                      accept="image/*"
-                      className="visually-hidden"
-                      id="artist-photo-input"
-                      type="file"
-                      onChange={handleArtistPhotoChange}
-                    />
-                    {artistState.profile?.photoUrl && (
-                      <button type="button" onClick={removeArtistPhoto}>Eliminar foto</button>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </Card>
+            {!hideMetrics && (
+              <>
+                <MetricCard label="Citas" value={appointmentCount} trend={appointmentCount === 0 ? 'Agenda libre' : `+${appointmentCount} vs promedio`} className="mobile-compact" />
+                <MetricCard label="Ocupación" value={`${occupancy}%`} trend={occupancy > 80 ? 'Día full' : 'Oportunidad'} tone={occupancy > 80 ? 'sage' : 'rose'} className="mobile-compact" />
+                <MetricCard label="Ingresos estimados" value={canUseEconomy ? formatCurrency(estimatedRevenue) : 'Preparacion'} trend={canUseEconomy ? (estimatedRevenue === 0 ? 'Sin reservas' : '+18%') : 'Modo validacion'} tone="nude" className="mobile-compact" />
+              </>
+            )}
 
             {showAppointmentForm && (
               <Card className="mobile-screen primary-panel">
@@ -583,16 +551,18 @@ function ArtistDashboard({ view = 'agenda' }) {
                 ))}
               </div>
             </Card>
-            <StatsCard title="Historial" value="$42.6K" caption="Ingresos estimados de los ultimos 30 dias">
-              <div className="history-chart">
-                <span style={{ height: '45%' }}></span>
-                <span style={{ height: '70%' }}></span>
-                <span style={{ height: '58%' }}></span>
-                <span style={{ height: '88%' }}></span>
-                <span style={{ height: '76%' }}></span>
-                <span style={{ height: '92%' }}></span>
-              </div>
-            </StatsCard>
+            {!hideMetrics && (
+              <StatsCard title="Historial" value="$42.6K" caption="Ingresos estimados de los ultimos 30 dias">
+                <div className="history-chart">
+                  <span style={{ height: '45%' }}></span>
+                  <span style={{ height: '70%' }}></span>
+                  <span style={{ height: '58%' }}></span>
+                  <span style={{ height: '88%' }}></span>
+                  <span style={{ height: '76%' }}></span>
+                  <span style={{ height: '92%' }}></span>
+                </div>
+              </StatsCard>
+            )}
           </>
         )}
 
