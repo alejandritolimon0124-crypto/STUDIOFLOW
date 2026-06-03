@@ -6,6 +6,8 @@ import PanelHeader from '../../components/PanelHeader'
 import { useApp } from '../../contexts/appContextCore'
 import { buildGoogleMapsUrl, createArtistLocationSettings, validateProfessionalLocation } from '../../utils/locationHelpers'
 
+const portfolioLimit = 12
+
 function ArtistProfileSettings() {
   const { adminState, artistState, session, updateArtistProfile } = useApp()
   const primaryArtist = adminState.artists.find((artist) => artist.studioId === session.user?.studioId) || adminState.artists[0]
@@ -19,6 +21,8 @@ function ArtistProfileSettings() {
     ? currentStudio?.professionalLocation
     : profileDraft.professionalLocation.customLocation
   const mapsUrl = buildGoogleMapsUrl(effectiveLocation)
+  const portfolioCount = (profileDraft.portfolio || []).length
+  const hasPortfolioCapacity = portfolioCount < portfolioLimit
   const studioLocationLabel = useMemo(
     () => [
       currentStudio?.professionalLocation?.address,
@@ -73,6 +77,67 @@ function ArtistProfileSettings() {
     }
     reader.readAsDataURL(file)
     event.target.value = ''
+  }
+
+  const readPortfolioImageFile = (file, onLoad) => {
+    if (!file) return
+
+    const reader = new FileReader()
+    reader.onload = () => {
+      const source = String(reader.result || '')
+      const image = new Image()
+
+      image.onload = () => {
+        const maxSize = 1200
+        const scale = Math.min(1, maxSize / Math.max(image.width, image.height))
+        const width = Math.max(1, Math.round(image.width * scale))
+        const height = Math.max(1, Math.round(image.height * scale))
+        const canvas = document.createElement('canvas')
+        const context = canvas.getContext('2d')
+
+        if (!context) {
+          onLoad(source)
+          return
+        }
+
+        canvas.width = width
+        canvas.height = height
+        context.drawImage(image, 0, 0, width, height)
+        onLoad(canvas.toDataURL('image/jpeg', 0.78))
+      }
+
+      image.onerror = () => onLoad(source)
+      image.src = source
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const handlePortfolioChange = (event) => {
+    const files = Array.from(event.target.files || []).slice(0, portfolioLimit - (profileDraft.portfolio || []).length)
+
+    files.forEach((file) => {
+      readPortfolioImageFile(file, (url) => {
+        setProfileDraft((currentDraft) => ({
+          ...currentDraft,
+          portfolio: [
+            ...(currentDraft.portfolio || []),
+            {
+              id: `artist-portfolio-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+              label: file.name,
+              url,
+            },
+          ].slice(0, portfolioLimit),
+        }))
+      })
+    })
+    event.target.value = ''
+  }
+
+  const removePortfolioImage = (imageId) => {
+    setProfileDraft((currentDraft) => ({
+      ...currentDraft,
+      portfolio: (currentDraft.portfolio || []).filter((image) => image.id !== imageId),
+    }))
   }
 
   const saveProfile = () => {
@@ -175,6 +240,44 @@ function ArtistProfileSettings() {
               type="number"
               value={profileDraft.professionalProfile.experienceYears}
               onChange={(event) => updateDraftSection('professionalProfile', 'experienceYears', event.target.value)}
+            />
+          </section>
+
+          <section className="profile-foundation-card">
+            <div className="artist-portfolio-heading">
+              <div>
+                <span className="eyebrow">Portafolio</span>
+                <h3>📸 Mi Portafolio</h3>
+                <small>Estas imágenes serán visibles para las clientas en tu perfil público.</small>
+                <small>Comparte trabajos realizados que representen la calidad de tus servicios.</small>
+              </div>
+              <span className="artist-portfolio-counter">{portfolioCount}/{portfolioLimit} fotos</span>
+            </div>
+            <div className="artist-portfolio-grid">
+              {(profileDraft.portfolio || []).map((image) => (
+                <article className="artist-portfolio-item" key={image.id}>
+                  <img src={image.url} alt={image.label || 'Trabajo realizado por la artista'} />
+                  <button type="button" onClick={() => removePortfolioImage(image.id)}>Quitar</button>
+                </article>
+              ))}
+              <label className={`artist-portfolio-upload${hasPortfolioCapacity ? '' : ' is-disabled'}`} htmlFor={hasPortfolioCapacity ? 'artist-portfolio-input' : undefined}>
+                <span>{hasPortfolioCapacity ? 'Agregar foto' : 'Límite alcanzado'}</span>
+                <small>{portfolioCount}/{portfolioLimit} fotos</small>
+              </label>
+            </div>
+            {!hasPortfolioCapacity && (
+              <small className="artist-portfolio-limit-message">
+                Has alcanzado el límite máximo de 12 fotografías.
+              </small>
+            )}
+            <input
+              accept="image/*"
+              className="visually-hidden"
+              disabled={!hasPortfolioCapacity}
+              id="artist-portfolio-input"
+              multiple
+              type="file"
+              onChange={handlePortfolioChange}
             />
           </section>
 

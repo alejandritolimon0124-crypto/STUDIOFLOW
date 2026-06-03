@@ -58,6 +58,7 @@ function createArtistProfessionalProfile(overrides = {}) {
       facebook: '',
       ...(overrides.contactLinks || {}),
     },
+    portfolio: Array.isArray(overrides.portfolio) ? overrides.portfolio.slice(0, 12) : [],
     security: {
       email: overrides.security?.email || overrides.personalInfo?.email || 'valeria@studioflow.mx',
       password: overrides.security?.password || '',
@@ -262,6 +263,9 @@ function getStoredArtistState() {
               ...initialArtistState.profile.contactLinks,
               ...parsedArtistState.profile?.contactLinks,
             },
+            portfolio: Array.isArray(parsedArtistState.profile?.portfolio)
+              ? parsedArtistState.profile.portfolio.slice(0, 12)
+              : initialArtistState.profile.portfolio,
             security: {
               ...initialArtistState.profile.security,
               ...parsedArtistState.profile?.security,
