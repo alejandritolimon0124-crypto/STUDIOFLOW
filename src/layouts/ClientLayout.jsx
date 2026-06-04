@@ -22,7 +22,7 @@ function ClientLayout() {
           <NavLink to="/client/search">Buscar</NavLink>
           <NavLink to="/client/appointments">Citas</NavLink>
           <NavLink to="/client/favorites">Favoritos</NavLink>
-          <NavLink to="/client/profile">Perfil</NavLink>
+          <NavLink to="/client/profile">MI PERFIL</NavLink>
         </nav>
       </div>
     </DashboardLayout>

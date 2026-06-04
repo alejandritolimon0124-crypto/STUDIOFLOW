@@ -154,31 +154,49 @@ function ArtistProfileSettings() {
   }
 
   const saveProfile = () => {
+    const nextProfile = { ...profileDraft }
+
     if (!profileDraft.professionalLocation.useStudioLocation) {
       const nextErrors = validateProfessionalLocation(profileDraft.professionalLocation.customLocation)
 
       if (Object.keys(nextErrors).length > 0) {
         setLocationErrors(nextErrors)
-        return
+        nextProfile.professionalLocation = artistState.profile.professionalLocation
+      } else {
+        setLocationErrors({})
       }
+    } else {
+      setLocationErrors({})
     }
 
-    updateArtistProfile(profileDraft)
-    setLocationErrors({})
+    updateArtistProfile(nextProfile)
   }
 
   return (
     <main className="dashboard-grid artist-grid profile-foundation-grid">
       <Card className="wide-card mobile-screen primary-panel">
-        <PanelHeader title="Mi Perfil" eyebrow="Fuente profesional" />
+        <PanelHeader title="MI PERFIL" eyebrow="Fuente profesional" />
         <div className="profile-foundation-stack">
+          <section className="profile-foundation-card">
+            <div>
+              <span className="eyebrow">Registro inicial</span>
+              <h3>Estado de validacion</h3>
+              <small>Campo creado durante el registro inicial de artista.</small>
+            </div>
+            <Input
+              label="studioStatus"
+              value={profileDraft.registration?.studioStatus || ''}
+              onChange={(event) => updateDraftSection('registration', 'studioStatus', event.target.value)}
+            />
+          </section>
+
           <section className="profile-foundation-card">
             <div>
               <span className="eyebrow">Cuenta</span>
               <h3>Informacion personal</h3>
             </div>
             <Input
-              label="Nombre artistico"
+              label="Nombre artistico o estudio"
               value={profileDraft.personalInfo.artisticName || ''}
               onChange={(event) => updateDraftSection('personalInfo', 'artisticName', event.target.value)}
             />
@@ -189,7 +207,7 @@ function ArtistProfileSettings() {
             />
             <div className="location-form-grid">
               <Input
-                label="Telefono"
+                label="Numero celular"
                 value={profileDraft.personalInfo.phone}
                 onChange={(event) => updateDraftSection('personalInfo', 'phone', event.target.value)}
               />
@@ -356,60 +374,57 @@ function ArtistProfileSettings() {
                 <span>Usar ubicacion personalizada</span>
               </label>
             </div>
-            {profileDraft.professionalLocation.useStudioLocation ? (
+            {profileDraft.professionalLocation.useStudioLocation && (
               <div className="location-summary">
                 <strong>{currentStudio?.professionalLocation?.businessName || currentStudio?.name}</strong>
                 <small>{studioLocationLabel || 'Ubicacion del estudio pendiente.'}</small>
               </div>
-            ) : (
-              <>
-                <Input
-                  helper={locationErrors.address}
-                  label="Direccion"
-                  value={profileDraft.professionalLocation.customLocation.address}
-                  onChange={(event) => updateCustomLocation('address', event.target.value)}
-                />
-                <div className="location-form-grid">
-                  <Input
-                    helper={locationErrors.city}
-                    label="Ciudad"
-                    value={profileDraft.professionalLocation.customLocation.city}
-                    onChange={(event) => updateCustomLocation('city', event.target.value)}
-                  />
-                  <Input
-                    helper={locationErrors.state}
-                    label="Estado"
-                    value={profileDraft.professionalLocation.customLocation.state}
-                    onChange={(event) => updateCustomLocation('state', event.target.value)}
-                  />
-                </div>
-                <div className="location-form-grid">
-                  <Input
-                    label="Codigo Postal"
-                    value={profileDraft.professionalLocation.customLocation.postalCode}
-                    onChange={(event) => updateCustomLocation('postalCode', event.target.value)}
-                  />
-                  <Input
-                    label="Latitude"
-                    value={profileDraft.professionalLocation.customLocation.latitude}
-                    onChange={(event) => updateCustomLocation('latitude', event.target.value)}
-                  />
-                </div>
-                <Input
-                  label="Longitude"
-                  value={profileDraft.professionalLocation.customLocation.longitude}
-                  onChange={(event) => updateCustomLocation('longitude', event.target.value)}
-                />
-                <label className="input-field">
-                  <span>Referencias</span>
-                  <textarea
-                    value={profileDraft.professionalLocation.customLocation.references}
-                    onChange={(event) => updateCustomLocation('references', event.target.value)}
-                    rows="3"
-                  />
-                </label>
-              </>
             )}
+            <Input
+              helper={locationErrors.address}
+              label="Direccion del estudio"
+              value={profileDraft.professionalLocation.customLocation.address}
+              onChange={(event) => updateCustomLocation('address', event.target.value)}
+            />
+            <div className="location-form-grid">
+              <Input
+                helper={locationErrors.city}
+                label="Ciudad"
+                value={profileDraft.professionalLocation.customLocation.city}
+                onChange={(event) => updateCustomLocation('city', event.target.value)}
+              />
+              <Input
+                helper={locationErrors.state}
+                label="Estado"
+                value={profileDraft.professionalLocation.customLocation.state}
+                onChange={(event) => updateCustomLocation('state', event.target.value)}
+              />
+            </div>
+            <div className="location-form-grid">
+              <Input
+                label="Codigo Postal"
+                value={profileDraft.professionalLocation.customLocation.postalCode}
+                onChange={(event) => updateCustomLocation('postalCode', event.target.value)}
+              />
+              <Input
+                label="Latitud"
+                value={profileDraft.professionalLocation.customLocation.latitude}
+                onChange={(event) => updateCustomLocation('latitude', event.target.value)}
+              />
+            </div>
+            <Input
+              label="Longitud"
+              value={profileDraft.professionalLocation.customLocation.longitude}
+              onChange={(event) => updateCustomLocation('longitude', event.target.value)}
+            />
+            <label className="input-field">
+              <span>Referencias</span>
+              <textarea
+                value={profileDraft.professionalLocation.customLocation.references}
+                onChange={(event) => updateCustomLocation('references', event.target.value)}
+                rows="3"
+              />
+            </label>
             <small className="location-helper-text">
               Google Maps futuro: {mapsUrl || 'Completa una ubicacion profesional para generar la URL base.'}
             </small>
@@ -441,12 +456,12 @@ function ArtistProfileSettings() {
 
           <section className="profile-foundation-card">
             <div>
-              <span className="eyebrow">Mock</span>
+              <span className="eyebrow">Cuenta</span>
               <h3>Seguridad</h3>
-              <small>Preparado para autenticacion real; por ahora no cambia credenciales reales.</small>
+              <small>Actualizacion local preparada para autenticacion real futura.</small>
             </div>
             <Input
-              label="Correo"
+              label="Correo electronico"
               type="email"
               value={profileDraft.security.email}
               onChange={(event) => updateDraftSection('security', 'email', event.target.value)}
@@ -456,6 +471,12 @@ function ArtistProfileSettings() {
               type="password"
               value={profileDraft.security.password}
               onChange={(event) => updateDraftSection('security', 'password', event.target.value)}
+            />
+            <Input
+              label="Confirmar contrasena"
+              type="password"
+              value={profileDraft.security.confirmPassword || ''}
+              onChange={(event) => updateDraftSection('security', 'confirmPassword', event.target.value)}
             />
           </section>
 

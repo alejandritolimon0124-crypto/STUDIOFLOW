@@ -19,7 +19,7 @@ const roleNavigation = {
     { label: 'Agenda', path: paths.artistAgenda },
     { label: 'Citas', path: paths.artistAppointments },
     { label: 'Servicios', path: paths.artistServices },
-    { label: 'Mi Perfil', path: paths.artistSettings },
+    { label: 'MI PERFIL', path: paths.artistSettings },
     { label: 'Clientes', path: paths.artistClients },
     { label: 'Horarios', path: paths.artistSchedule },
     { label: 'Impulsa tu negocio', path: paths.artistMarketing },
@@ -38,14 +38,14 @@ const bottomNavigationByRole = {
     { label: 'Reservar', path: paths.clientSearch },
     { label: 'Mis citas', path: paths.clientAppointments },
     { label: 'Favoritos', path: paths.clientFavorites },
-    { label: 'Mi perfil', path: paths.clientProfile },
+    { label: 'MI PERFIL', path: paths.clientProfile },
   ],
   artist: [
     { label: 'Dashboard', path: paths.artist },
     { label: 'Servicios', path: paths.artistServices },
     { label: 'Agenda', path: paths.artistAgenda },
     { label: 'Clientes', path: paths.artistClients },
-    { label: 'Perfil', path: paths.artistSettings },
+    { label: 'MI PERFIL', path: paths.artistSettings },
   ],
   admin: [
     { label: 'Dashboard', path: paths.admin },
@@ -83,7 +83,7 @@ function DashboardLayout({ children, role, title, subtitle, showMobileAppbar = t
   const drawerActions = role === 'client'
     ? [
         { label: 'Inicio', path: drawerHomePath },
-        { label: 'Mi perfil', path: paths.clientProfile },
+        { label: 'MI PERFIL', path: paths.clientProfile },
       ]
     : [
         { label: 'Inicio', path: drawerHomePath },

@@ -37,6 +37,17 @@ function formatProfessionalLocation(location = {}, fallbackCity = '') {
   ].filter(Boolean).join(' / ')
 }
 
+function hasProfessionalLocationContent(location = {}) {
+  return Boolean([
+    location.address,
+    location.city,
+    location.state,
+    location.postalCode,
+    location.latitude,
+    location.longitude,
+  ].some((value) => String(value || '').trim()))
+}
+
 function getInitials(name = '') {
   return String(name || '')
     .split(' ')
@@ -77,17 +88,27 @@ function ArtistDashboard({ view = 'agenda' }) {
   const currentStudio = adminState.studios.find((studio) => studio.id === primaryArtist?.studioId) || adminState.studios[0]
   const studioProfile = currentStudio?.profile || {}
   const artistPersonalInfo = artistState.profile?.personalInfo || {}
-  const artistDisplayName = artistPersonalInfo.artisticName || artistPersonalInfo.fullName || primaryArtist?.owner || primaryArtist?.name || 'Artista profesional'
+  const profileName = artistPersonalInfo.artisticName || artistPersonalInfo.fullName || ''
+  const artistDisplayName = profileName || primaryArtist?.owner || primaryArtist?.name || 'Artista profesional'
+  const profilePhoto = artistState.profile?.photoUrl || ''
   const studioDisplayName = getConfiguredStudioName(
     studioProfile.commercialName,
     currentStudio?.businessName,
     currentStudio?.professionalLocation?.businessName,
   )
   const artistLocationSettings = artistState.profile?.professionalLocation || {}
-  const effectiveLocation = artistLocationSettings.useStudioLocation === false
-    ? artistLocationSettings.customLocation || {}
+  const customProfileLocation = artistLocationSettings.customLocation || {}
+  const profileLocation = artistLocationSettings.useStudioLocation === false || hasProfessionalLocationContent(customProfileLocation)
+    ? customProfileLocation
     : currentStudio?.professionalLocation || {}
+  const effectiveLocation = profileLocation
   const heroLocation = formatProfessionalLocation(effectiveLocation, currentStudio?.city)
+  console.log({
+    profileName,
+    profilePhoto,
+    profileLocation,
+  })
+  const studioNameLabel = studioDisplayName && studioDisplayName !== artistDisplayName ? studioDisplayName : ''
   const canUseEconomy = canUseOperationalFeature(currentStudio, 'economy')
   const canUsePublicAgenda = canUseOperationalFeature(currentStudio, 'publicAgenda')
 
@@ -234,13 +255,14 @@ function ArtistDashboard({ view = 'agenda' }) {
             <section className="hero-panel studio-hero artist-profile-hero mobile-screen">
               <div className="artist-hero-copy">
                 <span className="eyebrow">{heroLocation || 'Ubicacion profesional por confirmar'}</span>
-                <h2>{studioDisplayName}</h2>
+                <h2>{artistDisplayName}</h2>
+                {studioNameLabel && <small>{studioNameLabel}</small>}
               </div>
               <div className="artist-hero-photo">
-                {studioProfile.logoUrl ? (
-                  <img src={studioProfile.logoUrl} alt={`Logo de ${studioDisplayName}`} />
+                {profilePhoto ? (
+                  <img src={profilePhoto} alt={`Foto de ${artistDisplayName}`} />
                 ) : (
-                  <span>{getInitials(studioDisplayName)}</span>
+                  <span>{getInitials(artistDisplayName)}</span>
                 )}
               </div>
               <div className="hero-actions artist-hero-actions">

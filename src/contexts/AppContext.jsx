@@ -40,6 +40,9 @@ const initialBlockedDates = [
 
 function createArtistProfessionalProfile(overrides = {}) {
   return {
+    registration: {
+      studioStatus: overrides.registration?.studioStatus || overrides.studioStatus || getDefaultStudioStatus(),
+    },
     personalInfo: {
       artisticName: 'Valeria Moon Studio',
       fullName: 'Valeria Moon',
@@ -70,6 +73,7 @@ function createArtistProfessionalProfile(overrides = {}) {
     security: {
       email: overrides.security?.email || overrides.personalInfo?.email || 'valeria@studioflow.mx',
       password: overrides.security?.password || '',
+      confirmPassword: overrides.security?.confirmPassword || '',
     },
   }
 }
@@ -262,6 +266,10 @@ function getStoredArtistState() {
             personalInfo: {
               ...initialArtistState.profile.personalInfo,
               ...parsedArtistState.profile?.personalInfo,
+            },
+            registration: {
+              ...initialArtistState.profile.registration,
+              ...parsedArtistState.profile?.registration,
             },
             professionalProfile: {
               ...initialArtistState.profile.professionalProfile,
@@ -767,6 +775,36 @@ export function AppProvider({ children }) {
       profile: {
         ...currentState.profile,
         ...updates,
+        registration: {
+          ...currentState.profile.registration,
+          ...updates.registration,
+        },
+        personalInfo: {
+          ...currentState.profile.personalInfo,
+          ...updates.personalInfo,
+        },
+        professionalProfile: {
+          ...currentState.profile.professionalProfile,
+          ...updates.professionalProfile,
+          paymentMethods: {
+            ...currentState.profile.professionalProfile?.paymentMethods,
+            ...updates.professionalProfile?.paymentMethods,
+          },
+        },
+        contactLinks: {
+          ...currentState.profile.contactLinks,
+          ...updates.contactLinks,
+        },
+        security: {
+          ...currentState.profile.security,
+          ...updates.security,
+        },
+        portfolio: Array.isArray(updates.portfolio)
+          ? updates.portfolio.slice(0, 12)
+          : currentState.profile.portfolio,
+        professionalLocation: createArtistLocationSettings(
+          updates.professionalLocation || currentState.profile.professionalLocation,
+        ),
       },
     }))
   }, [])
