@@ -37,7 +37,25 @@ function AdminStudioProfile() {
     if (!file) return
 
     const reader = new FileReader()
-    reader.onload = () => onLoad(String(reader.result || ''))
+    reader.onload = () => {
+      const source = String(reader.result || '')
+      const image = new Image()
+
+      image.onload = () => {
+        const maxSize = 1200
+        const scale = Math.min(1, maxSize / Math.max(image.width, image.height))
+        const canvas = document.createElement('canvas')
+        canvas.width = Math.max(1, Math.round(image.width * scale))
+        canvas.height = Math.max(1, Math.round(image.height * scale))
+
+        const context = canvas.getContext('2d')
+        context.drawImage(image, 0, 0, canvas.width, canvas.height)
+        onLoad(canvas.toDataURL('image/jpeg', 0.78))
+      }
+
+      image.onerror = () => onLoad(source)
+      image.src = source
+    }
     reader.readAsDataURL(file)
   }
 
@@ -78,21 +96,26 @@ function AdminStudioProfile() {
 
   const saveStudioProfile = () => {
     const nextErrors = validateProfessionalLocation(locationDraft)
+    const hasLocationErrors = Object.keys(nextErrors).length > 0
 
-    if (Object.keys(nextErrors).length > 0) {
+    if (hasLocationErrors) {
       setLocationErrors(nextErrors)
-      return
+    } else {
+      setLocationErrors({})
     }
 
-    updateManagedStudioProfile(currentStudio.id, {
-      name: profileDraft.commercialName || currentStudio.name,
+    const nextStudioProfile = {
       profile: profileDraft,
-      professionalLocation: {
+    }
+
+    if (!hasLocationErrors) {
+      nextStudioProfile.professionalLocation = {
         ...locationDraft,
-        businessName: locationDraft.businessName || profileDraft.commercialName,
-      },
-    })
-    setLocationErrors({})
+        businessName: profileDraft.commercialName,
+      }
+    }
+
+    updateManagedStudioProfile(currentStudio.id, nextStudioProfile)
   }
 
   return (
@@ -152,7 +175,7 @@ function AdminStudioProfile() {
                 {profileDraft.logoUrl ? (
                   <img src={profileDraft.logoUrl} alt={`Logo de ${profileDraft.commercialName}`} />
                 ) : (
-                  <span>{(profileDraft.commercialName || currentStudio.name).slice(0, 2)}</span>
+                  <span>{(profileDraft.commercialName || 'SF').slice(0, 2)}</span>
                 )}
               </div>
               <div className="artist-photo-actions">
@@ -180,8 +203,8 @@ function AdminStudioProfile() {
             </div>
             <Input
               label="Nombre comercial"
-              value={locationDraft.businessName}
-              onChange={(event) => updateLocationField('businessName', event.target.value)}
+              value={profileDraft.commercialName}
+              onChange={(event) => updateProfileField('commercialName', event.target.value)}
             />
             <Input
               helper={locationErrors.address}

@@ -262,7 +262,15 @@ function getStudioPublicProfile(adminState, artist) {
 }
 
 function getStudioDisplayName(studio = {}) {
-  return studio.profile?.commercialName || studio.professionalLocation?.businessName || ''
+  return studio.profile?.commercialName || ''
+}
+
+function getStudioContactItems(studio = {}) {
+  return [
+    studio.profile?.phone && { label: 'Telefono', value: studio.profile.phone },
+    studio.profile?.email && { label: 'Correo', value: studio.profile.email },
+    studio.profile?.hours && { label: 'Horarios', value: studio.profile.hours },
+  ].filter(Boolean)
 }
 
 function hasUsableProfessionalLocation(location = {}) {
@@ -517,7 +525,8 @@ function ClientDashboard({ view = 'inicio' }) {
         })
         .filter((artist) => {
           if (searchMode === 'Nombre estudio') {
-            const searchable = `${artist.name} ${artist.owner} ${artist.city}`.toLowerCase()
+            const artistStudio = getStudioPublicProfile(adminState, artist)
+            const searchable = `${artist.name} ${artist.owner} ${artist.city} ${artistStudio.profile?.commercialName || ''}`.toLowerCase()
             return searchable.includes(studioQuery.toLowerCase())
           }
 
@@ -528,7 +537,7 @@ function ClientDashboard({ view = 'inicio' }) {
           || firstArtist.occupancy - secondArtist.occupancy
         ))
     },
-    [activeArtists, searchMode, secondaryService, studioQuery, visibleSlotCount],
+    [activeArtists, adminState, searchMode, secondaryService, studioQuery, visibleSlotCount],
   )
   const bookedAppointments = agendaSettings.bookedSlots.map((slot) => ({
     artist: slot.artist || 'Valeria Moon',
@@ -814,6 +823,7 @@ function ClientDashboard({ view = 'inicio' }) {
                 const directionsUrl = buildGoogleMapsUrl(effectiveLocation)
                 const professionalAddress = formatProfessionalAddress(effectiveLocation, artist.city)
                 const studioGallery = (studioProfile.profile?.gallery || []).slice(0, 5)
+                const studioContactItems = getStudioContactItems(studioProfile)
                 const artistPortfolio = publicArtistProfile.portfolio.slice(0, 12)
                 const contactLinks = publicArtistProfile.contactLinks || {}
                 const isProfileOpen = selectedArtistProfile?.id === artist.id
@@ -919,6 +929,17 @@ function ClientDashboard({ view = 'inicio' }) {
                             {studioProfile.profile?.description && <p>{studioProfile.profile.description}</p>}
                           </div>
                         </section>
+
+                        {studioContactItems.length > 0 && (
+                          <section className="public-profile-section">
+                            <h4>Datos del estudio</h4>
+                            <div className="public-service-badges">
+                              {studioContactItems.map((item) => (
+                                <span key={item.label}>{item.label}: {item.value}</span>
+                              ))}
+                            </div>
+                          </section>
+                        )}
 
                         {studioGallery.length > 0 && (
                           <section className="public-profile-section">
@@ -1072,6 +1093,7 @@ function ClientDashboard({ view = 'inicio' }) {
                   const directionsUrl = buildGoogleMapsUrl(effectiveLocation)
                   const professionalAddress = formatProfessionalAddress(effectiveLocation, artist.city)
                   const studioGallery = (studioProfile.profile?.gallery || []).slice(0, 5)
+                  const studioContactItems = getStudioContactItems(studioProfile)
                   const artistPortfolio = publicArtistProfile.portfolio.slice(0, 12)
                   const contactLinks = publicArtistProfile.contactLinks || {}
                   const isProfileOpen = selectedArtistProfile?.id === artist.id
@@ -1176,6 +1198,17 @@ function ClientDashboard({ view = 'inicio' }) {
                               {studioProfile.profile?.description && <p>{studioProfile.profile.description}</p>}
                             </div>
                           </section>
+
+                          {studioContactItems.length > 0 && (
+                            <section className="public-profile-section">
+                              <h4>Datos del estudio</h4>
+                              <div className="public-service-badges">
+                                {studioContactItems.map((item) => (
+                                  <span key={item.label}>{item.label}: {item.value}</span>
+                                ))}
+                              </div>
+                            </section>
+                          )}
 
                           {studioGallery.length > 0 && (
                             <section className="public-profile-section">

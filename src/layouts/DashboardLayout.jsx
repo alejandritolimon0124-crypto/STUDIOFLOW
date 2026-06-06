@@ -7,6 +7,17 @@ import { useApp } from '../contexts/appContextCore'
 import drawerLogo from '../assets/studioflowlogo2.png'
 import { ROLES, getRoleLabel, hasPermission, permissions } from '../modules/permissions/rolePermissions'
 
+function getInitials(value = '') {
+  return String(value)
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((word) => word[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase()
+}
+
 const roleNavigation = {
   admin: [
     { label: 'Dashboard', path: paths.admin },
@@ -59,7 +70,7 @@ const bottomNavigationByRole = {
 function DashboardLayout({ children, role, title, subtitle, showMobileAppbar = true }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const navigate = useNavigate()
-  const { artistState, clientState, logout, session } = useApp()
+  const { adminState, artistState, clientState, logout, session } = useApp()
   const location = useLocation()
   const currentPath = location.pathname
   const canUseAdminItem = (item) => {
@@ -92,7 +103,20 @@ function DashboardLayout({ children, role, title, subtitle, showMobileAppbar = t
   const clientPhotoUrl = role === 'client' ? clientState.profile?.photoUrl : ''
   const artistPhotoUrl = role === 'artist' ? artistState.profile?.photoUrl : ''
   const profilePhotoUrl = clientPhotoUrl || artistPhotoUrl
-  const fallbackAvatar = role === 'admin' ? 'HQ' : role === 'client' ? 'ML' : 'VM'
+  const artistStudio = role === 'artist'
+    ? adminState.studios.find((studio) => studio.id === session.user?.studioId)
+    : null
+  const artistStudioName = artistStudio?.profile?.commercialName?.trim() || ''
+  const artistIsIndependent = role === 'artist' && !artistStudio
+  const artistName = artistIsIndependent
+    ? artistState.profile?.personalInfo?.artisticName?.trim() || ''
+    : ''
+  const sidebarDisplayName = role === 'artist'
+    ? artistStudioName || artistName || 'Artista profesional'
+    : role === 'client'
+      ? clientState.profile?.name || session.user?.name || 'Clienta'
+      : session.user?.name || 'Studio Flow'
+  const fallbackAvatar = getInitials(sidebarDisplayName) || 'SF'
   const renderAvatarContent = () => (
     profilePhotoUrl ? <img src={profilePhotoUrl} alt="Foto de perfil" /> : fallbackAvatar
   )
@@ -126,7 +150,7 @@ function DashboardLayout({ children, role, title, subtitle, showMobileAppbar = t
         <div className="sidebar-profile">
           <div className="avatar">{renderAvatarContent()}</div>
           <div>
-            <strong>{session.user?.name || (role === 'admin' ? 'Studio Flow HQ' : role === 'client' ? 'Mariana Lopez' : 'Valeria Moon')}</strong>
+            <strong>{sidebarDisplayName}</strong>
             <small>{getRoleLabel(session.user?.role)}</small>
           </div>
         </div>

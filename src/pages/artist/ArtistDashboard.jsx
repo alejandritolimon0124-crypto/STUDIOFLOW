@@ -18,7 +18,6 @@ import { calculateAppointmentEconomy } from '../../modules/business/appointmentE
 import { canUseOperationalFeature } from '../../modules/governance/studioGovernance'
 
 const artistMetricsPrivacyKey = 'studio-flow-artist-hide-metrics'
-const mockStudioNames = ['Studio Glow Beauty', 'Valeria Moon', 'Valeria Moon Studio']
 
 function getStoredMetricsPrivacy() {
   try {
@@ -62,7 +61,7 @@ function getConfiguredStudioName(...names) {
   return names.find((name) => {
     const normalizedName = String(name || '').trim()
 
-    return normalizedName && !mockStudioNames.includes(normalizedName)
+    return normalizedName
   }) || ''
 }
 
@@ -91,11 +90,7 @@ function ArtistDashboard({ view = 'agenda' }) {
   const profileName = artistPersonalInfo.artisticName || artistPersonalInfo.fullName || ''
   const artistDisplayName = profileName || primaryArtist?.owner || primaryArtist?.name || 'Artista profesional'
   const profilePhoto = artistState.profile?.photoUrl || ''
-  const studioDisplayName = getConfiguredStudioName(
-    studioProfile.commercialName,
-    currentStudio?.businessName,
-    currentStudio?.professionalLocation?.businessName,
-  )
+  const studioDisplayName = getConfiguredStudioName(studioProfile.commercialName)
   const artistLocationSettings = artistState.profile?.professionalLocation || {}
   const customProfileLocation = artistLocationSettings.customLocation || {}
   const profileLocation = artistLocationSettings.useStudioLocation === false || hasProfessionalLocationContent(customProfileLocation)
@@ -103,11 +98,6 @@ function ArtistDashboard({ view = 'agenda' }) {
     : currentStudio?.professionalLocation || {}
   const effectiveLocation = profileLocation
   const heroLocation = formatProfessionalLocation(effectiveLocation, currentStudio?.city)
-  console.log({
-    profileName,
-    profilePhoto,
-    profileLocation,
-  })
   const studioNameLabel = studioDisplayName && studioDisplayName !== artistDisplayName ? studioDisplayName : ''
   const canUseEconomy = canUseOperationalFeature(currentStudio, 'economy')
   const canUsePublicAgenda = canUseOperationalFeature(currentStudio, 'publicAgenda')

@@ -135,6 +135,7 @@ const executiveAlertMessages = {
 }
 
 const formatCurrency = (value) => `$${Math.round(value).toLocaleString('es-MX')}`
+const getStudioCommercialName = (studio = {}) => studio.profile?.commercialName?.trim() || ''
 
 function AdminDashboard() {
   const navigate = useNavigate()
@@ -272,10 +273,10 @@ function AdminDashboard() {
     studios: reviewStudios.filter((studio) => studio.id === owner.studioId),
   }))
 
-  const updateReviewStatus = (studioName, studioStatus) => {
+  const updateReviewStatus = (studioId, studioStatus) => {
     setReviewStudios((currentStudios) =>
       currentStudios.map((studio) =>
-        studio.name === studioName
+        studio.id === studioId
           ? {
               ...studio,
               studioStatus,
@@ -312,7 +313,7 @@ function AdminDashboard() {
     canSeeGlobalRevenue && { label: 'Ingresos totales', value: formatCurrency(totalRevenue), trend: 'Gross mock conectado', tone: 'rose' },
     canSeeGlobalRevenue && { label: 'Comision Studio Flow', value: formatCurrency(platformRevenue), trend: '10% foundation', tone: 'sage' },
     canSeeEcosystemRisk && { label: 'Eventos con riesgo', value: flaggedAppointments.length, trend: riskAlerts.length ? 'Revision activa' : 'Sin alertas', tone: flaggedAppointments.length ? 'warm' : 'success' },
-    canSeeStudioRevenue && !canSeeGlobalRevenue && { label: 'Revenue estudio', value: formatCurrency(totalRevenue), trend: accessibleStudios[0]?.name || 'Studio asignado', tone: 'rose' },
+    canSeeStudioRevenue && !canSeeGlobalRevenue && { label: 'Revenue estudio', value: formatCurrency(totalRevenue), trend: getStudioCommercialName(accessibleStudios[0]) || 'Studio asignado', tone: 'rose' },
     canSeeStudioOccupancy && { label: isPlatformOwner ? 'Ocupacion global' : 'Ocupacion estudio', value: `${occupancyMetrics.occupancyRate}%`, trend: `${occupancyMetrics.bookedSlots}/${occupancyMetrics.totalSlots} slots`, tone: 'nude' },
     canSeeStudioClients && { label: isPlatformOwner ? 'Clientas activas' : 'Clientas estudio', value: accessibleClients.length, trend: `${accessibleClients.filter((client) => client.status === 'Activo').length} activas`, tone: 'rose' },
     (isPlatformOwner || isStudioOwner) && { label: 'Flow Points activos', value: totalActivePoints.toLocaleString('es-MX'), trend: `${clientsNearReward.length} cerca de recompensa`, tone: 'sage' },
@@ -383,18 +384,18 @@ function AdminDashboard() {
         <PanelHeader title="Estudios pendientes de validacion" eyebrow="Ecosystem governance" />
         <div className="studio-review-stack">
           {pendingReviewStudios.map((studio) => (
-            <div className="studio-review-row" key={studio.name}>
+            <div className="studio-review-row" key={studio.id}>
               <div>
-                <strong>{studio.name}</strong>
+                <strong>{getStudioCommercialName(studio) || 'Estudio profesional'}</strong>
                 <small>{studio.city} · {studio.specialty} · Registro {studio.createdAt}</small>
               </div>
               <StatusPill tone={getStudioStatusTone(studio.studioStatus)}>
                 {getStudioStatusLabel(studio.studioStatus)}
               </StatusPill>
               <div className="studio-review-actions">
-                <Button size="sm" onClick={() => updateReviewStatus(studio.name, STUDIO_STATUS.APPROVED)}>Aprobar</Button>
-                <Button size="sm" variant="ghost" onClick={() => updateReviewStatus(studio.name, STUDIO_STATUS.SUSPENDED)}>Suspender</Button>
-                <Button size="sm" variant="ghost" onClick={() => updateReviewStatus(studio.name, STUDIO_STATUS.PENDING)}>Solicitar cambios</Button>
+                <Button size="sm" onClick={() => updateReviewStatus(studio.id, STUDIO_STATUS.APPROVED)}>Aprobar</Button>
+                <Button size="sm" variant="ghost" onClick={() => updateReviewStatus(studio.id, STUDIO_STATUS.SUSPENDED)}>Suspender</Button>
+                <Button size="sm" variant="ghost" onClick={() => updateReviewStatus(studio.id, STUDIO_STATUS.PENDING)}>Solicitar cambios</Button>
               </div>
             </div>
           ))}
@@ -539,7 +540,7 @@ function AdminDashboard() {
             <div className="list-row elevated-row" key={row.owner}>
               <div>
                 <strong>{row.owner}</strong>
-                <small>{row.studios.map((studio) => studio.name).join(', ') || 'Sin estudio asignado'}</small>
+                <small>{row.studios.map((studio) => getStudioCommercialName(studio)).filter(Boolean).join(', ') || 'Sin estudio asignado'}</small>
               </div>
               <StatusPill tone="approved">{row.studios.length} studio</StatusPill>
             </div>
@@ -585,7 +586,7 @@ function AdminDashboard() {
           </div>
           {accessibleStudios.map((studio) => (
             <div className="table-row" key={studio.id}>
-              <strong>{studio.name}</strong>
+              <strong>{getStudioCommercialName(studio) || 'Estudio profesional'}</strong>
               <span>{studio.city}</span>
               <span>{studio.specialty}</span>
               {canSeeStudioRevenue && <span>{formatCurrency(studio.revenue)}</span>}

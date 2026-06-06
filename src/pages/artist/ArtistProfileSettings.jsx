@@ -376,7 +376,7 @@ function ArtistProfileSettings() {
             </div>
             {profileDraft.professionalLocation.useStudioLocation && (
               <div className="location-summary">
-                <strong>{currentStudio?.professionalLocation?.businessName || currentStudio?.name}</strong>
+                <strong>{currentStudio?.profile?.commercialName || 'Estudio profesional'}</strong>
                 <small>{studioLocationLabel || 'Ubicacion del estudio pendiente.'}</small>
               </div>
             )}

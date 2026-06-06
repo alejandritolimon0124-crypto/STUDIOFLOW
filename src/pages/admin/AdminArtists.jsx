@@ -54,9 +54,9 @@ function AdminArtists() {
 
     const artistStudio = adminState.studios.find((studio) => studio.id === editingArtist.studioId)
     setStudioLocationDraft(createProfessionalLocation({
-      businessName: artistStudio?.professionalLocation?.businessName || artistStudio?.name || editingArtist.name,
       city: artistStudio?.professionalLocation?.city || artistStudio?.city || editingArtist.city,
       ...(artistStudio?.professionalLocation || {}),
+      businessName: artistStudio?.profile?.commercialName || '',
     }))
     setArtistLocationDraft(createArtistLocationSettings(editingArtist.professionalLocation))
     setStudioLocationErrors({})
@@ -93,7 +93,10 @@ function AdminArtists() {
     })
     if (editingStudio) {
       updateManagedStudioProfile(editingStudio.id, {
-        professionalLocation: studioLocationDraft,
+        professionalLocation: {
+          ...studioLocationDraft,
+          businessName: editingStudio.profile?.commercialName || '',
+        },
       })
     }
     setEditingArtist(null)
@@ -229,8 +232,8 @@ function AdminArtists() {
                 </div>
                 <Input
                   label="Nombre comercial"
-                  value={studioLocationDraft.businessName}
-                  onChange={(event) => updateStudioLocationDraft('businessName', event.target.value)}
+                  readOnly
+                  value={editingStudio?.profile?.commercialName || ''}
                 />
                 <Input
                   helper={studioLocationErrors.address}
@@ -309,7 +312,7 @@ function AdminArtists() {
                 </div>
                 {artistLocationDraft.useStudioLocation ? (
                   <div className="location-summary">
-                    <strong>{studioLocationDraft.businessName || editingStudio?.name || editingArtist.name}</strong>
+                    <strong>{editingStudio?.profile?.commercialName || 'Estudio profesional'}</strong>
                     <small>
                       {[
                         studioLocationDraft.address,
