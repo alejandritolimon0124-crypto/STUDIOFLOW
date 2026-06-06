@@ -5,13 +5,43 @@ import Input from '../../components/Input'
 import PanelHeader from '../../components/PanelHeader'
 import { useApp } from '../../contexts/appContextCore'
 import { buildGoogleMapsUrl, createArtistLocationSettings, validateProfessionalLocation } from '../../utils/locationHelpers'
+import {
+  deriveMembershipsFromLegacyData,
+  getCurrentArtist,
+  getCurrentProfile,
+  getCurrentStudio,
+  getMembershipForArtist,
+} from '../../modules/entities/entitySelectors'
 
 const portfolioLimit = 12
 
 function ArtistProfileSettings() {
   const { adminState, artistState, session, updateArtistProfile } = useApp()
-  const primaryArtist = adminState.artists.find((artist) => artist.studioId === session.user?.studioId) || adminState.artists[0]
-  const currentStudio = adminState.studios.find((studio) => studio.id === primaryArtist?.studioId) || adminState.studios[0]
+  const localProfiles = session.user ? [{ ...session.user, id: session.user.id }] : []
+  const currentProfile = getCurrentProfile({ session, profiles: localProfiles })
+  const artistStudioMemberships = deriveMembershipsFromLegacyData({ artists: adminState.artists })
+  const selectorArtists = adminState.artists.map((artist) => (
+    getMembershipForArtist({
+      artistId: artist.id,
+      studioId: session.user?.studioId,
+      artistStudioMemberships,
+    })
+      ? { ...artist, profileId: currentProfile?.id }
+      : artist
+  ))
+  const primaryArtist = getCurrentArtist({ session, profiles: localProfiles, artists: selectorArtists }) || selectorArtists[0]
+  const primaryMembership = getMembershipForArtist({
+    artistId: primaryArtist?.id,
+    artistStudioMemberships,
+  })
+  const currentStudio = getCurrentStudio({
+    session,
+    profiles: localProfiles,
+    studios: adminState.studios,
+    artists: selectorArtists,
+    artistStudioMemberships,
+    activeStudioId: primaryMembership?.studioId,
+  }) || adminState.studios[0]
   const [profileDraft, setProfileDraft] = useState({
     ...artistState.profile,
     professionalLocation: createArtistLocationSettings(artistState.profile?.professionalLocation),

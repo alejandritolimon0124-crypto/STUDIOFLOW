@@ -5,12 +5,24 @@ import Input from '../../components/Input'
 import PanelHeader from '../../components/PanelHeader'
 import { useApp } from '../../contexts/appContextCore'
 import { buildGoogleMapsUrl, createProfessionalLocation, validateProfessionalLocation } from '../../utils/locationHelpers'
+import { getCurrentProfile, getCurrentStudio } from '../../modules/entities/entitySelectors'
 
 const galleryLimit = 5
 
 function AdminStudioProfile() {
   const { adminState, session, updateManagedStudioProfile } = useApp()
-  const currentStudio = adminState.studios.find((studio) => studio.id === session.user?.studioId) || adminState.studios[0]
+  const localProfiles = session.user ? [{ ...session.user, id: session.user.id }] : []
+  const currentProfile = getCurrentProfile({ session, profiles: localProfiles })
+  const currentStudio = getCurrentStudio({
+    session,
+    profiles: localProfiles,
+    studios: adminState.studios.map((studio) => (
+      studio.id === session.user?.studioId && currentProfile
+        ? { ...studio, ownerProfileId: currentProfile.id }
+        : studio
+    )),
+    activeStudioId: session.user?.studioId,
+  }) || adminState.studios[0]
   const [profileDraft, setProfileDraft] = useState(currentStudio.profile)
   const [locationDraft, setLocationDraft] = useState(createProfessionalLocation(currentStudio.professionalLocation))
   const [locationErrors, setLocationErrors] = useState({})

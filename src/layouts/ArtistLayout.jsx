@@ -4,6 +4,13 @@ import { paths } from '../routes/paths'
 import StatusPill from '../components/StatusPill'
 import { useApp } from '../contexts/appContextCore'
 import { getStudioAccess, getStudioStatusLabel, getStudioStatusTone } from '../modules/governance/studioGovernance'
+import {
+  deriveMembershipsFromLegacyData,
+  getCurrentArtist,
+  getCurrentProfile,
+  getCurrentStudio,
+  getMembershipForArtist,
+} from '../modules/entities/entitySelectors'
 
 const copyByPath = {
   [paths.artist]: ['', ''],
@@ -19,8 +26,31 @@ function ArtistLayout() {
   const { pathname } = useLocation()
   const { adminState, session } = useApp()
   const [title, subtitle] = copyByPath[pathname] || copyByPath[paths.artist]
-  const primaryArtist = adminState.artists.find((artist) => artist.studioId === session.user?.studioId) || adminState.artists[0]
-  const currentStudio = adminState.studios.find((studio) => studio.id === primaryArtist?.studioId) || adminState.studios[0]
+  const localProfiles = session.user ? [{ ...session.user, id: session.user.id }] : []
+  const currentProfile = getCurrentProfile({ session, profiles: localProfiles })
+  const artistStudioMemberships = deriveMembershipsFromLegacyData({ artists: adminState.artists })
+  const selectorArtists = adminState.artists.map((artist) => (
+    getMembershipForArtist({
+      artistId: artist.id,
+      studioId: session.user?.studioId,
+      artistStudioMemberships,
+    })
+      ? { ...artist, profileId: currentProfile?.id }
+      : artist
+  ))
+  const primaryArtist = getCurrentArtist({ session, profiles: localProfiles, artists: selectorArtists }) || selectorArtists[0]
+  const primaryMembership = getMembershipForArtist({
+    artistId: primaryArtist?.id,
+    artistStudioMemberships,
+  })
+  const currentStudio = getCurrentStudio({
+    session,
+    profiles: localProfiles,
+    studios: adminState.studios,
+    artists: selectorArtists,
+    artistStudioMemberships,
+    activeStudioId: primaryMembership?.studioId,
+  }) || adminState.studios[0]
   const studioAccess = getStudioAccess(currentStudio)
   const isPendingExperience = !studioAccess.publicAgenda
 

@@ -6,6 +6,13 @@ import BrandLogo from '../components/BrandLogo'
 import { useApp } from '../contexts/appContextCore'
 import drawerLogo from '../assets/studioflowlogo2.png'
 import { ROLES, getRoleLabel, hasPermission, permissions } from '../modules/permissions/rolePermissions'
+import {
+  deriveMembershipsFromLegacyData,
+  getCurrentArtist,
+  getCurrentProfile,
+  getCurrentStudio,
+  getMembershipForArtist,
+} from '../modules/entities/entitySelectors'
 
 function getInitials(value = '') {
   return String(value)
@@ -121,8 +128,34 @@ function DashboardLayout({ children, role, title, subtitle, showMobileAppbar = t
   const clientPhotoUrl = role === 'client' ? clientState.profile?.photoUrl : ''
   const artistPhotoUrl = role === 'artist' ? artistState.profile?.photoUrl : ''
   const profilePhotoUrl = clientPhotoUrl || artistPhotoUrl
+  const localProfiles = session.user ? [{ ...session.user, id: session.user.id }] : []
+  const currentProfile = getCurrentProfile({ session, profiles: localProfiles })
+  const artistStudioMemberships = deriveMembershipsFromLegacyData({ artists: adminState.artists })
+  const selectorArtists = role === 'artist'
+    ? adminState.artists.map((artist) => (
+      getMembershipForArtist({
+        artistId: artist.id,
+        studioId: session.user?.studioId,
+        artistStudioMemberships,
+      })
+        ? { ...artist, profileId: currentProfile?.id }
+        : artist
+    ))
+    : adminState.artists
+  const currentArtist = getCurrentArtist({ session, profiles: localProfiles, artists: selectorArtists })
+  const currentMembership = getMembershipForArtist({
+    artistId: currentArtist?.id,
+    artistStudioMemberships,
+  })
   const artistStudio = role === 'artist'
-    ? adminState.studios.find((studio) => studio.id === session.user?.studioId)
+    ? getCurrentStudio({
+      session,
+      profiles: localProfiles,
+      studios: adminState.studios,
+      artists: selectorArtists,
+      artistStudioMemberships,
+      activeStudioId: currentMembership?.studioId,
+    })
     : null
   const artistStudioName = getCleanArtistBusinessName(artistStudio?.profile?.commercialName)
   const artistName = role === 'artist'
