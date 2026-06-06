@@ -8,7 +8,8 @@ export default defineConfig({
     react(),
 
     VitePWA({
-      registerType: 'autoUpdate',
+      registerType: 'prompt',
+      injectRegister: null,
 
       strategies: 'generateSW',
 
@@ -50,6 +51,7 @@ export default defineConfig({
       },
 
       workbox: {
+        clientsClaim: true,
         navigateFallback: '/index.html',
       },
     }),

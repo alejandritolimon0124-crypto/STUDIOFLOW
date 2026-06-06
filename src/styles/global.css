@@ -322,6 +322,10 @@ p {
   justify-self: start;
 }
 
+.pwa-update-card {
+  bottom: 132px;
+}
+
 .pwa-install-close {
   align-items: center;
   background: rgba(255, 255, 255, 0.72);
