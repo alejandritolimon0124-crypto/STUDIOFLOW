@@ -125,8 +125,7 @@ function DashboardLayout({ children, role, title, subtitle, showMobileAppbar = t
     ? adminState.studios.find((studio) => studio.id === session.user?.studioId)
     : null
   const artistStudioName = getCleanArtistBusinessName(artistStudio?.profile?.commercialName)
-  const artistIsIndependent = role === 'artist' && !artistStudio
-  const artistName = artistIsIndependent
+  const artistName = role === 'artist'
     ? getCleanArtistBusinessName(artistState.profile?.personalInfo?.artisticName)
     : ''
   const sidebarDisplayName = role === 'artist'
