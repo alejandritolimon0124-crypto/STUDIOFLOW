@@ -18,6 +18,24 @@ function getInitials(value = '') {
     .toUpperCase()
 }
 
+const mockArtistBusinessNames = [
+  'valeria artist',
+  'valeria moon',
+  'valeria moon studio',
+  'studio glow',
+  'studio glow beauty',
+]
+
+function getCleanArtistBusinessName(value = '') {
+  const normalizedName = String(value || '').trim()
+
+  if (!normalizedName || mockArtistBusinessNames.includes(normalizedName.toLowerCase())) {
+    return ''
+  }
+
+  return normalizedName
+}
+
 const roleNavigation = {
   admin: [
     { label: 'Dashboard', path: paths.admin },
@@ -106,16 +124,17 @@ function DashboardLayout({ children, role, title, subtitle, showMobileAppbar = t
   const artistStudio = role === 'artist'
     ? adminState.studios.find((studio) => studio.id === session.user?.studioId)
     : null
-  const artistStudioName = artistStudio?.profile?.commercialName?.trim() || ''
+  const artistStudioName = getCleanArtistBusinessName(artistStudio?.profile?.commercialName)
   const artistIsIndependent = role === 'artist' && !artistStudio
   const artistName = artistIsIndependent
-    ? artistState.profile?.personalInfo?.artisticName?.trim() || ''
+    ? getCleanArtistBusinessName(artistState.profile?.personalInfo?.artisticName)
     : ''
   const sidebarDisplayName = role === 'artist'
-    ? artistStudioName || artistName || 'Artista profesional'
+    ? artistStudioName || artistName || 'Artista Profesional'
     : role === 'client'
       ? clientState.profile?.name || session.user?.name || 'Clienta'
       : session.user?.name || 'Studio Flow'
+  const sidebarSubtitle = role === 'artist' ? '' : getRoleLabel(session.user?.role)
   const fallbackAvatar = getInitials(sidebarDisplayName) || 'SF'
   const renderAvatarContent = () => (
     profilePhotoUrl ? <img src={profilePhotoUrl} alt="Foto de perfil" /> : fallbackAvatar
@@ -151,7 +170,7 @@ function DashboardLayout({ children, role, title, subtitle, showMobileAppbar = t
           <div className="avatar">{renderAvatarContent()}</div>
           <div>
             <strong>{sidebarDisplayName}</strong>
-            <small>{getRoleLabel(session.user?.role)}</small>
+            {sidebarSubtitle && <small>{sidebarSubtitle}</small>}
           </div>
         </div>
 
