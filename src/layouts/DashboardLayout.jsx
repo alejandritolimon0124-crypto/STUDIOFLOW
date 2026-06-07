@@ -95,7 +95,7 @@ const bottomNavigationByRole = {
 function DashboardLayout({ children, role, title, subtitle, showMobileAppbar = true }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const navigate = useNavigate()
-  const { adminState, artistState, clientState, logout, session } = useApp()
+  const { adminState, artistState, clientState, logout, selectedDate, session } = useApp()
   const location = useLocation()
   const currentPath = location.pathname
   const canUseAdminItem = (item) => {
@@ -167,6 +167,25 @@ function DashboardLayout({ children, role, title, subtitle, showMobileAppbar = t
       ? clientState.profile?.name || session.user?.name || 'Clienta'
       : session.user?.name || 'Studio Flow'
   const sidebarSubtitle = role === 'artist' ? '' : getRoleLabel(session.user?.role)
+  const appointmentsForSelectedDate = role === 'artist'
+    ? artistState.appointments.filter((appointment) => appointment.date === selectedDate && appointment.type === 'appointment')
+    : []
+  const appointmentCount = appointmentsForSelectedDate.length
+  const totalDuration = appointmentsForSelectedDate.reduce((sum, appointment) => {
+    const minutes = parseInt(appointment.duration, 10) || 60
+    return sum + minutes
+  }, 0)
+  const occupancy = Math.round((totalDuration / 480) * 100)
+  const sidebarAppointmentsLabel = role === 'admin'
+    ? '2,184 reservas'
+    : role === 'client'
+      ? '2 citas activas'
+      : `${appointmentCount} citas agendadas`
+  const sidebarOccupancyLabel = role === 'admin'
+    ? 'Sistema estable'
+    : role === 'client'
+      ? 'Tu agenda beauty'
+      : `Ocupación al ${occupancy}%`
   const fallbackAvatar = getInitials(sidebarDisplayName) || 'SF'
   const renderAvatarContent = () => (
     profilePhotoUrl ? <img src={profilePhotoUrl} alt="Foto de perfil" /> : fallbackAvatar
@@ -208,8 +227,8 @@ function DashboardLayout({ children, role, title, subtitle, showMobileAppbar = t
 
         <div className="sidebar-insight">
           <span>Hoy</span>
-          <strong>{role === 'admin' ? '2,184 reservas' : role === 'client' ? '2 citas activas' : '8 citas agendadas'}</strong>
-          <small>{role === 'admin' ? 'Sistema estable' : role === 'client' ? 'Tu agenda beauty' : 'Ocupacion al 82%'}</small>
+          <strong>{sidebarAppointmentsLabel}</strong>
+          <small>{sidebarOccupancyLabel}</small>
         </div>
 
         <nav className="sidebar-nav" aria-label="Navegacion principal">
