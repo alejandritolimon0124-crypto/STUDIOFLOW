@@ -5,7 +5,14 @@ import Input from '../../components/Input'
 import PanelHeader from '../../components/PanelHeader'
 import StatusPill from '../../components/StatusPill'
 import { useApp } from '../../contexts/appContextCore'
-import { filterByStudioAccess, hasPermission, permissions } from '../../modules/permissions/rolePermissions'
+import { filterByStudioAccess, hasPermission, permissions, ROLES } from '../../modules/permissions/rolePermissions'
+import {
+  deriveMembershipsFromLegacyData,
+  getArtistsForStudio,
+  getStudiosForArtist,
+} from '../../modules/entities/entitySelectors'
+
+const uniqueById = (items = []) => Array.from(new Map(items.filter(Boolean).map((item) => [item.id, item])).values())
 
 function AdminClients() {
   const {
@@ -17,14 +24,56 @@ function AdminClients() {
   const [query, setQuery] = useState('')
   const [profileClient, setProfileClient] = useState(null)
   const [historyClient, setHistoryClient] = useState(null)
+  const normalizedRole = session.user?.role === 'admin' ? ROLES.PLATFORM_OWNER : session.user?.role
+  const isPlatformOwner = normalizedRole === ROLES.PLATFORM_OWNER
+  const artistStudioMemberships = useMemo(
+    () => deriveMembershipsFromLegacyData({ artists: adminState.artists }),
+    [adminState.artists],
+  )
+  const artistsOwnedByUser = useMemo(
+    () => adminState.artists.filter((artist) => artist.owner === session.user?.name || artist.name === session.user?.name),
+    [adminState.artists, session.user?.name],
+  )
+  const accessibleStudios = useMemo(
+    () => (
+      isPlatformOwner
+        ? adminState.studios
+        : uniqueById(artistsOwnedByUser.flatMap((artist) => getStudiosForArtist({
+          artistId: artist.id,
+          studios: adminState.studios,
+          artistStudioMemberships,
+        })))
+    ),
+    [adminState.studios, artistStudioMemberships, artistsOwnedByUser, isPlatformOwner],
+  )
+  const accessibleStudioIds = accessibleStudios.map((studio) => studio.id)
+  const accessibleArtists = useMemo(
+    () => (
+      isPlatformOwner
+        ? adminState.artists
+        : uniqueById(accessibleStudioIds.flatMap((studioId) => getArtistsForStudio({
+          studioId,
+          artists: adminState.artists,
+          artistStudioMemberships,
+        })))
+    ),
+    [accessibleStudioIds, adminState.artists, artistStudioMemberships, isPlatformOwner],
+  )
+  const accessibleClientStudioIds = isPlatformOwner
+    ? accessibleStudioIds
+    : uniqueById(accessibleArtists.flatMap((artist) => getStudiosForArtist({
+      artistId: artist.id,
+      studios: adminState.studios,
+      artistStudioMemberships,
+    }))).map((studio) => studio.id)
 
   const filteredClients = useMemo(
     () =>
-      filterByStudioAccess(adminState.clients, session.user).filter((client) => {
+      filterByStudioAccess(adminState.clients, session.user, accessibleClientStudioIds).filter((client) => {
         const searchable = `${client.name} ${client.segment} ${client.status}`.toLowerCase()
         return searchable.includes(query.toLowerCase())
       }),
-    [adminState.clients, query, session.user],
+    [accessibleClientStudioIds, adminState.clients, query, session.user],
   )
   const canSeeStudioRevenue = hasPermission(session.user, permissions.STUDIO_REVENUE)
 

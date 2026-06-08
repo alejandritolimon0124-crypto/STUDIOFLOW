@@ -6,11 +6,17 @@ import PanelHeader from '../../components/PanelHeader'
 import StatusPill from '../../components/StatusPill'
 import { useApp } from '../../contexts/appContextCore'
 import { artistServices } from '../../services/mockData'
+import {
+  deriveMembershipsFromLegacyData,
+  getCurrentArtist,
+  getMembershipForArtist,
+  getStudioForArtist,
+} from '../../modules/entities/entitySelectors'
 
 const mockClients = ['Mariana L.', 'Camila R.', 'Ana G.', 'Renata M.']
 
 function ArtistAppointments() {
-  const { artistState, addArtistAppointment, bookSlot } = useApp()
+  const { adminState, artistState, session, addArtistAppointment, bookSlot } = useApp()
   const [draft, setDraft] = useState({
     client: mockClients[0],
     service: artistServices[0].name,
@@ -19,12 +25,37 @@ function ArtistAppointments() {
   })
   const upcomingAppointments = artistState.appointments.filter((appointment) => appointment.status !== 'Completada')
   const pastAppointments = artistState.appointments.filter((appointment) => appointment.status === 'Completada')
+  const localProfiles = session.user ? [{ ...session.user, id: session.user.id }] : []
+  const artistStudioMemberships = deriveMembershipsFromLegacyData({ artists: adminState.artists })
+  const selectorArtists = adminState.artists.map((artist) => (
+    getMembershipForArtist({
+      artistId: artist.id,
+      studioId: session.user?.studioId,
+      artistStudioMemberships,
+    })
+      ? { ...artist, profileId: session.user?.id }
+      : artist
+  ))
+  const currentArtist = getCurrentArtist({ session, profiles: localProfiles, artists: selectorArtists }) || selectorArtists[0]
+  const currentMembership = getMembershipForArtist({
+    artistId: currentArtist?.id,
+    artistStudioMemberships,
+  })
+  const currentStudio = getStudioForArtist({
+    artistId: currentArtist?.id,
+    studios: adminState.studios,
+    artistStudioMemberships,
+    preferredStudioId: currentMembership?.studioId,
+  })
 
   const saveAppointment = () => {
     const service = artistServices.find((item) => item.name === draft.service) || artistServices[0]
 
     addArtistAppointment({
       ...draft,
+      artistId: currentArtist?.id,
+      studioId: currentStudio?.id || null,
+      membershipId: currentMembership?.id || null,
       end: draft.time,
       duration: service.duration,
       room: 'Agenda',
@@ -32,10 +63,13 @@ function ArtistAppointments() {
       status: 'Confirmada',
     })
     bookSlot({
+      artistId: currentArtist?.id,
+      studioId: currentStudio?.id || null,
+      membershipId: currentMembership?.id || null,
       date: draft.date,
       time: draft.time,
       end: draft.time,
-      artist: 'Valeria Moon',
+      artist: currentArtist?.owner || currentArtist?.name || 'Artista profesional',
       service: draft.service,
       durationMinutes: Number.parseInt(service.duration, 10) || 60,
     })

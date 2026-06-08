@@ -40,6 +40,11 @@ import {
   permissions,
   ROLES,
 } from '../../modules/permissions/rolePermissions'
+import {
+  deriveMembershipsFromLegacyData,
+  getArtistsForStudio,
+  getStudiosForArtist,
+} from '../../modules/entities/entitySelectors'
 
 const executiveRiskEvents = [
   {
@@ -136,6 +141,7 @@ const executiveAlertMessages = {
 
 const formatCurrency = (value) => `$${Math.round(value).toLocaleString('es-MX')}`
 const getStudioCommercialName = (studio = {}) => studio.profile?.commercialName?.trim() || ''
+const uniqueById = (items = []) => Array.from(new Map(items.filter(Boolean).map((item) => [item.id, item])).values())
 
 function AdminDashboard() {
   const navigate = useNavigate()
@@ -143,14 +149,11 @@ function AdminDashboard() {
   const currentUser = session.user
   const [reviewStudios, setReviewStudios] = useState(studios)
 
+  const normalizedRole = currentUser?.role === 'admin' ? ROLES.PLATFORM_OWNER : currentUser?.role
+  const isPlatformOwner = normalizedRole === ROLES.PLATFORM_OWNER
+  const isStudioOwner = normalizedRole === ROLES.STUDIO_OWNER
+  const isStudioManager = normalizedRole === ROLES.STUDIO_MANAGER
   const ownerAppointments = [...artistAppointments, ...executiveRiskEvents]
-  const accessibleStudios = filterByStudioAccess(reviewStudios, currentUser)
-  const accessibleStudioIds = accessibleStudios.map((studio) => studio.id)
-  const accessibleArtists = filterByStudioAccess(managedArtists, currentUser)
-  const accessibleClients = filterByStudioAccess(executiveClients, currentUser)
-  const accessibleAppointments = ownerAppointments.filter((appointment) => (
-    !appointment.studioId || accessibleStudioIds.includes(appointment.studioId) || hasPermission(currentUser, permissions.GLOBAL_REVENUE)
-  ))
   const canSeeGovernance = hasPermission(currentUser, permissions.GOVERNANCE)
   const canSeeGlobalRevenue = hasPermission(currentUser, permissions.GLOBAL_REVENUE)
   const canSeeGlobalInsights = hasPermission(currentUser, permissions.GLOBAL_INSIGHTS)
@@ -160,10 +163,29 @@ function AdminDashboard() {
   const canSeeStudioOccupancy = hasPermission(currentUser, permissions.STUDIO_OCCUPANCY)
   const canSeeStudioArtists = hasPermission(currentUser, permissions.STUDIO_ARTISTS)
   const canSeeStudioClients = hasPermission(currentUser, permissions.STUDIO_CLIENTS) || hasPermission(currentUser, permissions.CLIENTS)
-  const normalizedRole = currentUser?.role === 'admin' ? ROLES.PLATFORM_OWNER : currentUser?.role
-  const isPlatformOwner = normalizedRole === ROLES.PLATFORM_OWNER
-  const isStudioOwner = normalizedRole === ROLES.STUDIO_OWNER
-  const isStudioManager = normalizedRole === ROLES.STUDIO_MANAGER
+  const artistStudioMemberships = deriveMembershipsFromLegacyData({ artists: managedArtists })
+  const artistsOwnedByUser = managedArtists.filter((artist) => artist.owner === currentUser?.name || artist.name === currentUser?.name)
+  const studiosFromOwnedArtists = uniqueById(artistsOwnedByUser.flatMap((artist) => getStudiosForArtist({
+    artistId: artist.id,
+    studios: reviewStudios,
+    artistStudioMemberships,
+  })))
+  const accessibleStudios = isPlatformOwner ? reviewStudios : studiosFromOwnedArtists
+  const accessibleStudioIds = accessibleStudios.map((studio) => studio.id)
+  const accessibleArtists = isPlatformOwner
+    ? managedArtists
+    : uniqueById(accessibleStudioIds.flatMap((studioId) => getArtistsForStudio({
+      studioId,
+      artists: managedArtists,
+      artistStudioMemberships,
+    })))
+  const accessibleClients = filterByStudioAccess(executiveClients, currentUser, accessibleStudioIds)
+  const accessibleArtistIds = accessibleArtists.map((artist) => artist.id)
+  const accessibleAppointments = ownerAppointments.filter((appointment) => (
+    !appointment.artistId
+    || accessibleArtistIds.includes(appointment.artistId)
+    || hasPermission(currentUser, permissions.GLOBAL_REVENUE)
+  ))
   const roleExperience = {
     [ROLES.PLATFORM_OWNER]: {
       eyebrow: 'Platform owner',
@@ -209,8 +231,8 @@ function AdminDashboard() {
     insightsEyebrow: 'Workspace',
     flowTitle: 'Flow Points',
   }
-  const portfolioSummary = generateStudioPortfolioSummary(accessibleStudios, accessibleArtists, accessibleClients, accessibleAppointments)
-  const studioInsights = generateStudioInsights(accessibleStudios, accessibleArtists, accessibleClients, accessibleAppointments)
+  const portfolioSummary = generateStudioPortfolioSummary(accessibleStudios, accessibleArtists, accessibleClients, accessibleAppointments, artistStudioMemberships)
+  const studioInsights = generateStudioInsights(accessibleStudios, accessibleArtists, accessibleClients, accessibleAppointments, artistStudioMemberships)
   const ownerSummary = generateOwnerDashboardSummary(accessibleAppointments, artistServices)
   const totalRevenue = calculateTotalRevenue(accessibleAppointments)
   const platformRevenue = calculatePlatformRevenue(accessibleAppointments)
@@ -266,11 +288,17 @@ function AdminDashboard() {
     ...distribution,
     [user.role]: (distribution[user.role] || 0) + 1,
   }), {})
-  const scopedUsers = isPlatformOwner ? users : users.filter((user) => user.studioId === currentUser?.studioId)
+  const scopedUsers = isPlatformOwner
+    ? users
+    : users.filter((user) => user.id === currentUser?.id || accessibleStudios.some((studio) => user.name === getStudioCommercialName(studio)))
   const managersActive = scopedUsers.filter((user) => user.role === 'studio_manager' && user.status === 'Activo').length
   const studiosByOwner = users.filter((user) => user.role === 'studio_owner').map((owner) => ({
     owner: owner.name,
-    studios: reviewStudios.filter((studio) => studio.id === owner.studioId),
+    studios: getStudiosForArtist({
+      artistId: managedArtists.find((artist) => artist.owner === owner.name || artist.name === owner.name)?.id,
+      studios: reviewStudios,
+      artistStudioMemberships,
+    }),
   }))
 
   const updateReviewStatus = (studioId, studioStatus) => {
@@ -286,22 +314,17 @@ function AdminDashboard() {
     )
   }
 
-  const topArtists = [
-    { artist: 'Valeria Moon Studio', artistId: 'valeria-moon', appointments: accessibleAppointments.filter((item) => item.artistId === 'valeria-moon' || !item.artistId) },
-    { artist: 'Nude Beauty Lab', artistId: 'nude-beauty-lab', appointments: accessibleAppointments.filter((item) => item.artistId === 'nude-beauty-lab') },
-    { artist: 'Aura Nails', artistId: 'aura-nails', appointments: accessibleAppointments.filter((item) => item.artistId === 'aura-nails') },
-  ].filter((artist) => (
-    isPlatformOwner || accessibleArtists.some((accessibleArtist) => (
-      accessibleArtist.name === artist.artist || accessibleArtist.owner === artist.artist || accessibleArtist.id === artist.artistId
-    ))
-  )).map((artist) => {
-    const revenue = calculateTotalRevenue(artist.appointments)
-    const commission = calculatePlatformRevenue(artist.appointments)
-    const occupancy = calculateOccupancyMetrics(artist.appointments, 10).occupancyRate
-    const risk = calculateFlaggedAppointments(artist.appointments).length
+  const topArtists = accessibleArtists.slice(0, 3).map((artist) => {
+    const artistAppointments = accessibleAppointments.filter((item) => item.artistId === artist.id)
+    const revenue = calculateTotalRevenue(artistAppointments)
+    const commission = calculatePlatformRevenue(artistAppointments)
+    const occupancy = calculateOccupancyMetrics(artistAppointments, 10).occupancyRate
+    const risk = calculateFlaggedAppointments(artistAppointments).length
 
     return {
-      ...artist,
+      artist: artist.name,
+      artistId: artist.id,
+      appointments: artistAppointments,
       revenue,
       commission,
       occupancy,
@@ -324,7 +347,7 @@ function AdminDashboard() {
     canSeeStudioRevenue && isPlatformOwner && { label: 'Studio revenue', value: formatCurrency(portfolioSummary.totalRevenue), trend: `${accessibleStudios.length} studios`, tone: 'rose' },
     canSeeStudioOccupancy && isPlatformOwner && { label: 'Studio occupancy', value: `${portfolioSummary.averageOccupancy}%`, trend: 'Promedio portfolio', tone: 'nude' },
     canSeeStudioArtists && { label: isPlatformOwner ? 'Active artists' : 'Artistas estudio', value: portfolioSummary.activeArtists, trend: isPlatformOwner ? 'Multi-studio' : 'Equipo local', tone: 'success' },
-    canSeeStudioClients && isPlatformOwner && { label: 'Active clients', value: portfolioSummary.activeClients, trend: 'Relacion studioId', tone: 'sage' },
+    canSeeStudioClients && isPlatformOwner && { label: 'Active clients', value: portfolioSummary.activeClients, trend: 'Relacion membership', tone: 'sage' },
     canSeeEcosystemRisk && { label: 'Studio risk', value: portfolioSummary.studioRisk, trend: 'Portfolio score', tone: portfolioSummary.studioRisk > 8 ? 'warm' : 'sage' },
   ].filter(Boolean)
 
@@ -359,7 +382,7 @@ function AdminDashboard() {
           <div>
             <span>Rol actual</span>
             <strong>{getRoleLabel(currentUser?.role)}</strong>
-            <small>{currentUser?.studioId || 'Acceso ecosistema completo'}</small>
+            <small>{accessibleStudioIds.join(' / ') || 'Acceso ecosistema completo'}</small>
           </div>
           <div>
             <span>Managers activos</span>
@@ -369,7 +392,7 @@ function AdminDashboard() {
           <div>
             <span>Artistas activas</span>
             <strong>{accessibleArtists.filter((artist) => artist.status === 'Activo').length}</strong>
-            <small>{isPlatformOwner ? 'Distribuidas por studioId.' : 'Equipo del estudio asignado.'}</small>
+            <small>{isPlatformOwner ? 'Distribuidas por memberships.' : 'Equipo del estudio asignado.'}</small>
           </div>
           <div>
             <span>{isPlatformOwner ? 'Distribucion roles' : 'Equipo visible'}</span>

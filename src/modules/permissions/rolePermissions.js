@@ -90,18 +90,18 @@ export function hasAnyPermission(user, permissionList = []) {
   return permissionList.some((permission) => hasPermission(user, permission))
 }
 
-export function canAccessStudio(user, studioId) {
+export function canAccessStudio(user, studioId, accessibleStudioIds = []) {
   if (!user) return false
   const role = normalizeRole(user.role)
   if (role === ROLES.PLATFORM_OWNER) return true
   if (role === ROLES.CLIENT) return true
-  return user.studioId === studioId
+  return accessibleStudioIds.includes(studioId)
 }
 
-export function filterByStudioAccess(items = [], user) {
+export function filterByStudioAccess(items = [], user, accessibleStudioIds = []) {
   const role = normalizeRole(user?.role)
   if (role === ROLES.PLATFORM_OWNER || role === ROLES.CLIENT) return items
-  return items.filter((item) => item.studioId === user?.studioId)
+  return items.filter((item) => accessibleStudioIds.includes(item.studioId))
 }
 
 export function getRoleLabel(role) {

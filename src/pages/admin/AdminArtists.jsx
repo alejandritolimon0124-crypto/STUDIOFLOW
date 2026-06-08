@@ -7,8 +7,16 @@ import PanelHeader from '../../components/PanelHeader'
 import StatusPill from '../../components/StatusPill'
 import { useApp } from '../../contexts/appContextCore'
 import { paths } from '../../routes/paths'
-import { filterByStudioAccess, hasPermission, permissions } from '../../modules/permissions/rolePermissions'
+import { hasPermission, permissions, ROLES } from '../../modules/permissions/rolePermissions'
+import {
+  deriveMembershipsFromLegacyData,
+  getArtistsForStudio,
+  getStudioForArtist,
+  getStudiosForArtist,
+} from '../../modules/entities/entitySelectors'
 import { buildGoogleMapsUrl, createArtistLocationSettings, createProfessionalLocation, validateProfessionalLocation } from '../../utils/locationHelpers'
+
+const uniqueById = (items = []) => Array.from(new Map(items.filter(Boolean).map((item) => [item.id, item])).values())
 
 function AdminArtists() {
   const navigate = useNavigate()
@@ -26,17 +34,56 @@ function AdminArtists() {
   const [studioLocationErrors, setStudioLocationErrors] = useState({})
   const [artistLocationDraft, setArtistLocationDraft] = useState(createArtistLocationSettings())
   const [artistLocationErrors, setArtistLocationErrors] = useState({})
+  const normalizedRole = session.user?.role === 'admin' ? ROLES.PLATFORM_OWNER : session.user?.role
+  const isPlatformOwner = normalizedRole === ROLES.PLATFORM_OWNER
+  const artistStudioMemberships = useMemo(
+    () => deriveMembershipsFromLegacyData({ artists: adminState.artists }),
+    [adminState.artists],
+  )
+  const artistsOwnedByUser = useMemo(
+    () => adminState.artists.filter((artist) => artist.owner === session.user?.name || artist.name === session.user?.name),
+    [adminState.artists, session.user?.name],
+  )
+  const accessibleStudios = useMemo(
+    () => (
+      isPlatformOwner
+        ? adminState.studios
+        : uniqueById(artistsOwnedByUser.flatMap((artist) => getStudiosForArtist({
+          artistId: artist.id,
+          studios: adminState.studios,
+          artistStudioMemberships,
+        })))
+    ),
+    [adminState.studios, artistStudioMemberships, artistsOwnedByUser, isPlatformOwner],
+  )
+  const accessibleStudioIds = accessibleStudios.map((studio) => studio.id)
+  const accessibleArtists = useMemo(
+    () => (
+      isPlatformOwner
+        ? adminState.artists
+        : uniqueById(accessibleStudioIds.flatMap((studioId) => getArtistsForStudio({
+          studioId,
+          artists: adminState.artists,
+          artistStudioMemberships,
+        })))
+    ),
+    [accessibleStudioIds, adminState.artists, artistStudioMemberships, isPlatformOwner],
+  )
 
   const filteredArtists = useMemo(
     () =>
-      filterByStudioAccess(adminState.artists, session.user).filter((artist) => {
+      accessibleArtists.filter((artist) => {
         const searchable = `${artist.name} ${artist.owner} ${artist.city} ${artist.plan}`.toLowerCase()
         return searchable.includes(query.toLowerCase())
       }),
-    [adminState.artists, query, session.user],
+    [accessibleArtists, query],
   )
   const canSeeStudioRevenue = hasPermission(session.user, permissions.STUDIO_REVENUE)
-  const editingStudio = adminState.studios.find((studio) => studio.id === editingArtist?.studioId)
+  const editingStudio = getStudioForArtist({
+    artistId: editingArtist?.id,
+    studios: adminState.studios,
+    artistStudioMemberships,
+  })
   const studioMapsUrl = buildGoogleMapsUrl(studioLocationDraft)
   const effectiveArtistLocation = artistLocationDraft.useStudioLocation
     ? studioLocationDraft
@@ -52,7 +99,11 @@ function AdminArtists() {
       return
     }
 
-    const artistStudio = adminState.studios.find((studio) => studio.id === editingArtist.studioId)
+    const artistStudio = getStudioForArtist({
+      artistId: editingArtist.id,
+      studios: adminState.studios,
+      artistStudioMemberships,
+    })
     setStudioLocationDraft(createProfessionalLocation({
       city: artistStudio?.professionalLocation?.city || artistStudio?.city || editingArtist.city,
       ...(artistStudio?.professionalLocation || {}),
@@ -61,7 +112,7 @@ function AdminArtists() {
     setArtistLocationDraft(createArtistLocationSettings(editingArtist.professionalLocation))
     setStudioLocationErrors({})
     setArtistLocationErrors({})
-  }, [adminState.studios, editingArtist?.id, editingArtist?.studioId])
+  }, [adminState.studios, artistStudioMemberships, editingArtist?.id])
 
   const openDashboard = (artist) => {
     setDashboardArtist(artist)

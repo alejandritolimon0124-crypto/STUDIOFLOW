@@ -12,6 +12,11 @@ import { getClientById } from '../../utils/clientHelpers'
 import { calculateFlowPoints, flowPointRewards, getActivePoints, getExpiringPoints, vipTierThresholds } from '../../modules/loyalty/flowPointsEngine'
 import { generateClientAutomations } from '../../modules/automation/smartAutomationEngine'
 import { canUseOperationalFeature } from '../../modules/governance/studioGovernance'
+import {
+  deriveMembershipsFromLegacyData,
+  getMembershipForArtist,
+  getStudioForArtist,
+} from '../../modules/entities/entitySelectors'
 import { buildGoogleMapsQuery, buildGoogleMapsUrl } from '../../utils/locationHelpers'
 
 const searchServices = {
@@ -218,13 +223,15 @@ function getMarketplaceBadge(availableCount, occupancy) {
   return { label: 'Pocos horarios', tone: 'rose', level: 'low' }
 }
 
-function hydrateMarketplaceArtist(artist, visibleSlotCount) {
+function hydrateMarketplaceArtist(artist, visibleSlotCount, studio = null, membership = null) {
   const profile = getArtistMarketplaceProfile(artist)
   const availabilityScore = Math.max(0, visibleSlotCount - Math.floor(profile.occupancy / 25))
   const badge = getMarketplaceBadge(availabilityScore, profile.occupancy)
 
   return {
     ...artist,
+    membership,
+    studio,
     marketplaceServices: profile.services,
     occupancy: profile.occupancy,
     availabilityScore,
@@ -257,8 +264,12 @@ function getArtistPublicProfile(artistState, artist) {
   }
 }
 
-function getStudioPublicProfile(adminState, artist) {
-  return adminState.studios.find((studio) => studio.id === artist?.studioId) || {}
+function getStudioPublicProfile({ artist, studios = [], artistStudioMemberships = [] }) {
+  return getStudioForArtist({
+    artistId: artist?.id,
+    studios,
+    artistStudioMemberships,
+  }) || {}
 }
 
 function getStudioDisplayName(studio = {}) {
@@ -419,24 +430,59 @@ function ClientDashboard({ view = 'inicio' }) {
   const [selectedArtistProfile, setSelectedArtistProfile] = useState(null)
   const [openDropdown, setOpenDropdown] = useState(null)
   const marketplaceService = allSearchServices.find((service) => service.name === secondaryService) || searchServices[primaryService][0]
+  const artistStudioMemberships = useMemo(
+    () => deriveMembershipsFromLegacyData({ artists: adminState.artists }),
+    [adminState.artists],
+  )
+  const getArtistMembership = (artist) => getMembershipForArtist({
+    artistId: artist?.id,
+    artistStudioMemberships,
+  })
+  const getArtistStudio = (artist) => getStudioForArtist({
+    artistId: artist?.id,
+    studios: adminState.studios,
+    artistStudioMemberships,
+  })
+  const selectedArtistMembership = selectedArtistProfile?.membership || getArtistMembership(selectedArtistProfile)
+  const selectedArtistStudio = selectedArtistProfile?.studio || getArtistStudio(selectedArtistProfile)
   const availableSlots = useMemo(
     () => getAvailableSlots({
+      artistId: selectedArtistProfile?.id,
+      studioId: selectedArtistStudio?.id || null,
+      membershipId: selectedArtistMembership?.id || null,
       date: bookingDate,
       durationMinutes: marketplaceService.durationMinutes || 60,
     }),
-    [bookingDate, getAvailableSlots, marketplaceService.durationMinutes],
+    [
+      bookingDate,
+      getAvailableSlots,
+      marketplaceService.durationMinutes,
+      selectedArtistMembership?.id,
+      selectedArtistProfile?.id,
+      selectedArtistStudio?.id,
+    ],
   )
-  const visibleSlotCount = availableSlots.filter((slot) => slot.available).length
+  const getVisibleSlotCountForArtist = (artist) => {
+    const membership = getArtistMembership(artist)
+    const studio = getArtistStudio(artist)
+    return getAvailableSlots({
+      artistId: artist?.id,
+      studioId: studio?.id || null,
+      membershipId: membership?.id || null,
+      date: bookingDate,
+      durationMinutes: marketplaceService.durationMinutes || 60,
+    }).filter((slot) => slot.available).length
+  }
   const activeArtists = adminState.artists.filter((artist) => {
-    const artistStudio = adminState.studios.find((studio) => studio.id === artist.studioId)
+    const artistStudio = getArtistStudio(artist)
     return artist.status === 'Activo' && canUseOperationalFeature(artistStudio || artist, 'publicAgenda')
   })
   const favoriteArtists = adminState.artists
     .filter((artist) => (
       clientState.favoriteArtistIds.includes(artist.id)
-      && canUseOperationalFeature(adminState.studios.find((studio) => studio.id === artist.studioId) || artist, 'publicAgenda')
+      && canUseOperationalFeature(getArtistStudio(artist) || artist, 'publicAgenda')
     ))
-    .map((artist) => hydrateMarketplaceArtist(artist, visibleSlotCount))
+    .map((artist) => hydrateMarketplaceArtist(artist, getVisibleSlotCountForArtist(artist), getArtistStudio(artist), getArtistMembership(artist)))
   const clientLookupId = clientState.profile?.id || 'client-mf'
   const artistClientProfile = getClientById(artistState.clients, clientLookupId)
   const currentClient = {
@@ -521,11 +567,15 @@ function ClientDashboard({ view = 'inicio' }) {
     () => {
       return activeArtists
         .map((artist) => {
-          return hydrateMarketplaceArtist(artist, visibleSlotCount)
+          return hydrateMarketplaceArtist(artist, getVisibleSlotCountForArtist(artist), getArtistStudio(artist), getArtistMembership(artist))
         })
         .filter((artist) => {
           if (searchMode === 'Nombre estudio') {
-            const artistStudio = getStudioPublicProfile(adminState, artist)
+            const artistStudio = getStudioPublicProfile({
+              artist,
+              studios: adminState.studios,
+              artistStudioMemberships,
+            })
             const searchable = `${artist.name} ${artist.owner} ${artist.city} ${artistStudio.profile?.commercialName || ''}`.toLowerCase()
             return searchable.includes(studioQuery.toLowerCase())
           }
@@ -537,7 +587,17 @@ function ClientDashboard({ view = 'inicio' }) {
           || firstArtist.occupancy - secondArtist.occupancy
         ))
     },
-    [activeArtists, adminState, searchMode, secondaryService, studioQuery, visibleSlotCount],
+    [
+      activeArtists,
+      adminState.studios,
+      artistStudioMemberships,
+      bookingDate,
+      getAvailableSlots,
+      marketplaceService.durationMinutes,
+      searchMode,
+      secondaryService,
+      studioQuery,
+    ],
   )
   const bookedAppointments = agendaSettings.bookedSlots.map((slot) => ({
     artist: slot.artist || 'Valeria Moon',
@@ -551,10 +611,13 @@ function ClientDashboard({ view = 'inicio' }) {
 
   const reserveSlot = (slot) => {
     if (!slot.available) return
+    if (!selectedArtistProfile?.id) return
 
     bookSlot({
       ...slot,
-      studioId: selectedArtistProfile?.studioId || 'studio-glow',
+      artistId: selectedArtistProfile.id,
+      studioId: selectedArtistStudio?.id || null,
+      membershipId: selectedArtistMembership?.id || null,
       artist: selectedArtistProfile?.owner || selectedArtistProfile?.name || 'Valeria Moon',
       service: marketplaceService.name,
       durationMinutes: marketplaceService.durationMinutes,
@@ -816,7 +879,11 @@ function ClientDashboard({ view = 'inicio' }) {
               {marketplaceArtists.map((artist) => {
                 const isFavorite = clientState.favoriteArtistIds.includes(artist.id)
                 const publicArtistProfile = getArtistPublicProfile(artistState, artist)
-                const studioProfile = getStudioPublicProfile(adminState, artist)
+                const studioProfile = getStudioPublicProfile({
+                  artist,
+                  studios: adminState.studios,
+                  artistStudioMemberships,
+                })
                 const studioDisplayName = getStudioDisplayName(studioProfile)
                 const effectiveLocationResult = getEffectiveProfessionalLocation(publicArtistProfile, studioProfile, artist)
                 const effectiveLocation = effectiveLocationResult.location
@@ -1086,7 +1153,11 @@ function ClientDashboard({ view = 'inicio' }) {
               <div className="favorite-grid">
                 {favoriteArtists.map((artist) => {
                   const publicArtistProfile = getArtistPublicProfile(artistState, artist)
-                  const studioProfile = getStudioPublicProfile(adminState, artist)
+                  const studioProfile = getStudioPublicProfile({
+                    artist,
+                    studios: adminState.studios,
+                    artistStudioMemberships,
+                  })
                   const studioDisplayName = getStudioDisplayName(studioProfile)
                   const effectiveLocationResult = getEffectiveProfessionalLocation(publicArtistProfile, studioProfile, artist)
                   const effectiveLocation = effectiveLocationResult.location

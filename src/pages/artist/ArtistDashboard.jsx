@@ -16,6 +16,12 @@ import { formatCurrency } from '../../utils/formatters'
 import { calculateFlowPoints, addPointsToClient, vipTierThresholds } from '../../modules/loyalty/flowPointsEngine'
 import { calculateAppointmentEconomy } from '../../modules/business/appointmentEconomyEngine'
 import { canUseOperationalFeature } from '../../modules/governance/studioGovernance'
+import {
+  deriveMembershipsFromLegacyData,
+  getCurrentArtist,
+  getMembershipForArtist,
+  getStudioForArtist,
+} from '../../modules/entities/entitySelectors'
 
 const artistMetricsPrivacyKey = 'studio-flow-artist-hide-metrics'
 
@@ -83,8 +89,28 @@ function ArtistDashboard({ view = 'agenda' }) {
   const [isCreatingNewClient, setIsCreatingNewClient] = useState(false)
   const [newClient, setNewClient] = useState({ name: '', phone: '', notes: '' })
   const [hideMetrics, setHideMetrics] = useState(getStoredMetricsPrivacy)
-  const primaryArtist = adminState.artists.find((artist) => artist.studioId === session.user?.studioId) || adminState.artists[0]
-  const currentStudio = adminState.studios.find((studio) => studio.id === primaryArtist?.studioId) || adminState.studios[0]
+  const localProfiles = session.user ? [{ ...session.user, id: session.user.id }] : []
+  const artistStudioMemberships = deriveMembershipsFromLegacyData({ artists: adminState.artists })
+  const selectorArtists = adminState.artists.map((artist) => (
+    getMembershipForArtist({
+      artistId: artist.id,
+      studioId: session.user?.studioId,
+      artistStudioMemberships,
+    })
+      ? { ...artist, profileId: session.user?.id }
+      : artist
+  ))
+  const primaryArtist = getCurrentArtist({ session, profiles: localProfiles, artists: selectorArtists }) || selectorArtists[0]
+  const primaryMembership = getMembershipForArtist({
+    artistId: primaryArtist?.id,
+    artistStudioMemberships,
+  })
+  const currentStudio = getStudioForArtist({
+    artistId: primaryArtist?.id,
+    studios: adminState.studios,
+    artistStudioMemberships,
+    preferredStudioId: primaryMembership?.studioId,
+  }) || adminState.studios[0]
   const studioProfile = currentStudio?.profile || {}
   const artistPersonalInfo = artistState.profile?.personalInfo || {}
   const profileName = artistPersonalInfo.artisticName || artistPersonalInfo.fullName || ''
@@ -146,7 +172,7 @@ function ArtistDashboard({ view = 'agenda' }) {
       nextClientId = `artist-client-${Date.now()}`
       createdClient = {
         ...newClient,
-        studioId: currentStudio?.id || 'studio-glow',
+        studioId: currentStudio?.id || null,
         id: nextClientId,
         vipTier: 'Glow',
         flowPoints: 0,
@@ -169,7 +195,9 @@ function ArtistDashboard({ view = 'agenda' }) {
 
     const appointmentPayload = {
       ...appointmentDraft,
-      studioId: currentStudio?.id || 'studio-glow',
+      artistId: primaryArtist?.id,
+      studioId: currentStudio?.id || null,
+      membershipId: primaryMembership?.id || null,
       clientId: nextClientId,
       client: clientName,
       end: appointmentDraft.time,
@@ -194,7 +222,9 @@ function ArtistDashboard({ view = 'agenda' }) {
 
     bookSlot({
       date: appointmentDraft.date,
-      studioId: currentStudio?.id || 'studio-glow',
+      artistId: primaryArtist?.id,
+      studioId: currentStudio?.id || null,
+      membershipId: primaryMembership?.id || null,
       time: appointmentDraft.time,
       end: appointmentDraft.time,
       artist: artistDisplayName,

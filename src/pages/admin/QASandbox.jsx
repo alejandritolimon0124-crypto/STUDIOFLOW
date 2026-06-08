@@ -7,6 +7,10 @@ import PanelHeader from '../../components/PanelHeader'
 import StatusPill from '../../components/StatusPill'
 import { useApp } from '../../contexts/appContextCore'
 import { paths } from '../../routes/paths'
+import {
+  deriveMembershipsFromLegacyData,
+  getStudioForArtist,
+} from '../../modules/entities/entitySelectors'
 
 function timeToMinutes(time) {
   if (!time || !time.includes(':')) return null
@@ -39,7 +43,7 @@ function overlapsBlock(start, end, blocks) {
   })
 }
 
-function buildDebugSlots(agendaSettings, date) {
+function buildDebugSlots(agendaSettings, date, artistId) {
   const day = agendaSettings.schedule[getScheduleIndex(date)]
 
   if (!day || !day.active) {
@@ -61,7 +65,11 @@ function buildDebugSlots(agendaSettings, date) {
   for (let current = start; current + duration <= end; current += interval) {
     const time = minutesToTime(current)
     const slotEnd = current + duration
-    const booked = agendaSettings.bookedSlots.some((slot) => slot.date === date && slot.time === time)
+    const booked = agendaSettings.bookedSlots.some((slot) => (
+      slot.artistId === artistId
+      && slot.date === date
+      && slot.time === time
+    ))
     const blocked = overlapsBlock(current, slotEnd, day.blocks)
 
     slots.push({
@@ -92,11 +100,25 @@ function QASandbox() {
   } = useApp()
   const [debugDate, setDebugDate] = useState('2026-05-18')
 
-  const primaryArtist = adminState.artists.find((artist) => artist.owner === 'Valeria Moon')
-  const availableSlots = getAvailableSlots({ date: debugDate, durationMinutes: 70 })
+  const artistStudioMemberships = useMemo(
+    () => deriveMembershipsFromLegacyData({ artists: adminState.artists }),
+    [adminState.artists],
+  )
+  const primaryArtist = adminState.artists.find((artist) => artist.status === 'Activo') || adminState.artists[0]
+  const primaryStudio = getStudioForArtist({
+    artistId: primaryArtist?.id,
+    studios: adminState.studios,
+    artistStudioMemberships,
+  })
+  const availableSlots = getAvailableSlots({
+    artistId: primaryArtist?.id,
+    studioId: primaryStudio?.id || null,
+    date: debugDate,
+    durationMinutes: 70,
+  })
   const debugSlots = useMemo(
-    () => buildDebugSlots(agendaSettings, debugDate),
-    [agendaSettings, debugDate],
+    () => buildDebugSlots(agendaSettings, debugDate, primaryArtist?.id),
+    [agendaSettings, debugDate, primaryArtist?.id],
   )
 
   const quickNavigate = (role, path) => {
@@ -134,8 +156,8 @@ function QASandbox() {
           <button type="button" onClick={resetBookedSlots}>Resetear reservas</button>
           <button type="button" onClick={releaseAgenda}>Liberar agenda</button>
           <button type="button" onClick={blockTuesdays}>Bloquear todos los martes</button>
-          <button type="button" onClick={() => setPrimaryArtistStatus('Inactivo')}>Simular artista inactivo</button>
-          <button type="button" onClick={() => setPrimaryArtistStatus('Activo')}>Activar artista</button>
+          <button type="button" onClick={() => setPrimaryArtistStatus('Inactivo', primaryArtist?.id)}>Simular artista inactivo</button>
+          <button type="button" onClick={() => setPrimaryArtistStatus('Activo', primaryArtist?.id)}>Activar artista</button>
           <button type="button" onClick={addMockBooking}>Agregar reserva mock</button>
           <button type="button" onClick={clearBlockedDates}>Limpiar fechas bloqueadas</button>
         </div>

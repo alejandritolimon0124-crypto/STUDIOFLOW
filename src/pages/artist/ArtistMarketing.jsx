@@ -13,6 +13,12 @@ import { calculateClientTier } from '../../modules/marketing/loyaltyEngine'
 import { generateInsights } from '../../modules/marketing/smartInsights'
 import { generateArtistAutomations } from '../../modules/automation/smartAutomationEngine'
 import { canUseOperationalFeature, getStudioStatusLabel, getStudioStatusTone } from '../../modules/governance/studioGovernance'
+import {
+  deriveMembershipsFromLegacyData,
+  getCurrentArtist,
+  getMembershipForArtist,
+  getStudioForArtist,
+} from '../../modules/entities/entitySelectors'
 
 const vipClients = [
   { name: 'Mariana Lopez', visits: 12, benefits: ['Prioridad agenda', 'Promociones privadas'] },
@@ -55,8 +61,28 @@ function ArtistMarketing() {
   const [toasts, setToasts] = useState([])
   const [isPremiumModalOpen, setIsPremiumModalOpen] = useState(false)
   const toastIdRef = useRef(0)
-  const primaryArtist = adminState.artists.find((artist) => artist.studioId === session.user?.studioId) || adminState.artists[0]
-  const currentStudio = adminState.studios.find((studio) => studio.id === primaryArtist?.studioId) || adminState.studios[0]
+  const localProfiles = session.user ? [{ ...session.user, id: session.user.id }] : []
+  const artistStudioMemberships = deriveMembershipsFromLegacyData({ artists: adminState.artists })
+  const selectorArtists = adminState.artists.map((artist) => (
+    getMembershipForArtist({
+      artistId: artist.id,
+      studioId: session.user?.studioId,
+      artistStudioMemberships,
+    })
+      ? { ...artist, profileId: session.user?.id }
+      : artist
+  ))
+  const primaryArtist = getCurrentArtist({ session, profiles: localProfiles, artists: selectorArtists }) || selectorArtists[0]
+  const primaryMembership = getMembershipForArtist({
+    artistId: primaryArtist?.id,
+    artistStudioMemberships,
+  })
+  const currentStudio = getStudioForArtist({
+    artistId: primaryArtist?.id,
+    studios: adminState.studios,
+    artistStudioMemberships,
+    preferredStudioId: primaryMembership?.studioId,
+  }) || adminState.studios[0]
   const canUseMarketing = canUseOperationalFeature(currentStudio, 'marketing')
 
   const premiumClients = [

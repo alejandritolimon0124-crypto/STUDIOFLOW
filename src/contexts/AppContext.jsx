@@ -3,6 +3,10 @@ import { AppContext } from './appContextCore'
 import { artistAppointments, artistClients, clientHistory, managedArtists, managedClients, studios, users, weeklySchedule } from '../services/mockData'
 import { canUseOperationalFeature, getDefaultStudioStatus } from '../modules/governance/studioGovernance'
 import { ROLES } from '../modules/permissions/rolePermissions'
+import {
+  deriveMembershipsFromLegacyData,
+  getStudioForArtist,
+} from '../modules/entities/entitySelectors'
 import { createArtistLocationSettings, createProfessionalLocation } from '../utils/locationHelpers'
 
 const initialSession = {
@@ -25,11 +29,11 @@ function getStoredSession() {
 }
 
 const mockUsers = {
-  client: users.find((user) => user.role === ROLES.CLIENT) || { id: 'client-demo', name: 'Mariana Lopez', role: ROLES.CLIENT, studioId: 'studio-glow' },
-  artist: users.find((user) => user.role === ROLES.ARTIST) || { id: 'artist-demo', name: 'Valeria Moon', role: ROLES.ARTIST, studioId: 'studio-glow' },
+  client: users.find((user) => user.role === ROLES.CLIENT) || { id: 'client-demo', name: 'Clienta Demo', role: ROLES.CLIENT, studioId: null },
+  artist: users.find((user) => user.role === ROLES.ARTIST) || { id: 'artist-demo', name: 'Artista Demo', role: ROLES.ARTIST, studioId: null },
   admin: users.find((user) => user.role === ROLES.PLATFORM_OWNER) || { id: 'admin-demo', name: 'Studio Flow HQ', role: ROLES.PLATFORM_OWNER, studioId: null },
-  studio_owner: users.find((user) => user.role === ROLES.STUDIO_OWNER) || { id: 'studio-owner-demo', name: 'Valeria Moon', role: ROLES.STUDIO_OWNER, studioId: 'studio-glow' },
-  studio_manager: users.find((user) => user.role === ROLES.STUDIO_MANAGER) || { id: 'studio-manager-demo', name: 'Lucia Manager', role: ROLES.STUDIO_MANAGER, studioId: 'studio-glow' },
+  studio_owner: users.find((user) => user.role === ROLES.STUDIO_OWNER) || { id: 'studio-owner-demo', name: 'Studio Owner Demo', role: ROLES.STUDIO_OWNER, studioId: null },
+  studio_manager: users.find((user) => user.role === ROLES.STUDIO_MANAGER) || { id: 'studio-manager-demo', name: 'Studio Manager Demo', role: ROLES.STUDIO_MANAGER, studioId: null },
 }
 
 const initialBlockedDates = [
@@ -44,8 +48,8 @@ function createArtistProfessionalProfile(overrides = {}) {
       studioStatus: overrides.registration?.studioStatus || overrides.studioStatus || getDefaultStudioStatus(),
     },
     personalInfo: {
-      artisticName: 'Valeria Moon Studio',
-      fullName: 'Valeria Moon',
+      artisticName: '',
+      fullName: '',
       phone: '55 0000 0000',
       email: 'valeria@studioflow.mx',
       ...(overrides.personalInfo || {}),
@@ -117,10 +121,10 @@ function createInitialAdminState() {
       }),
     })),
     users,
-    artists: managedArtists.map((artist, index) => ({
+    artists: managedArtists.map(({ studioId: legacyStudioId, ...artist }, index) => ({
       ...artist,
       id: `artist-${index + 1}`,
-      studioId: artist.studioId || studios[index]?.id || 'studio-glow',
+      studioId: legacyStudioId || null,
       studioStatus: artist.studioStatus || getDefaultStudioStatus(),
       description: artist.description || 'Perfil profesional beauty listo para recibir reservas.',
       services: artist.services || 'Lashes, brows, makeup',
@@ -129,7 +133,7 @@ function createInitialAdminState() {
     clients: managedClients.map((client, index) => ({
       ...client,
       id: `client-${index + 1}`,
-      studioId: client.studioId || studios[index % studios.length]?.id || 'studio-glow',
+      studioId: client.studioId || null,
       email: client.email || `${client.name.toLowerCase().replaceAll(' ', '.')}@studioflow.demo`,
       phone: client.phone || '55 0000 0000',
       notes: client.notes || 'Perfil mock administrable.',
@@ -239,7 +243,7 @@ function createInitialArtistState() {
     appointments: artistAppointments.map((appointment, index) => ({
       ...appointment,
       id: appointment.id || `artist-appointment-${index + 1}`,
-      studioId: appointment.studioId || 'studio-glow',
+      studioId: appointment.studioId || null,
       date: appointment.date || '2026-05-18',
       status: appointment.status || 'Confirmada',
     })),
@@ -569,13 +573,21 @@ export function AppProvider({ children }) {
   }, [])
 
   const getAvailableSlots = useCallback(
-    ({ date, durationMinutes = 60 }) => {
-      if (!date) return []
+    ({ artistId, studioId = null, membershipId = null, date, durationMinutes = 60 }) => {
+      if (!artistId || !date) return []
 
-      const primaryArtist = adminState.artists.find((artist) => artist.owner === 'Valeria Moon')
-      const primaryStudio = adminState.studios.find((studio) => studio.id === primaryArtist?.studioId)
-      if (primaryArtist && primaryArtist.status !== 'Activo') return []
-      if (primaryArtist && !canUseOperationalFeature(primaryStudio || primaryArtist, 'publicAgenda')) return []
+      const artistStudioMemberships = deriveMembershipsFromLegacyData({ artists: adminState.artists })
+      const bookingArtist = adminState.artists.find((artist) => artist.id === artistId)
+      const bookingStudio = studioId
+        ? adminState.studios.find((studio) => studio.id === studioId)
+        : getStudioForArtist({
+          artistId,
+          studios: adminState.studios,
+          artistStudioMemberships,
+        })
+
+      if (bookingArtist && bookingArtist.status !== 'Activo') return []
+      if (bookingArtist && !canUseOperationalFeature(bookingStudio || bookingArtist, 'publicAgenda')) return []
 
       const isBlockedDate = agendaSettings.blockedDates.some((blockedDate) => blockedDate.id === date)
       if (isBlockedDate) return []
@@ -598,13 +610,20 @@ export function AppProvider({ children }) {
       for (let current = start; current + duration <= end; current += interval) {
         const slotEnd = current + duration
         const time = minutesToTime(current)
-        const booked = agendaSettings.bookedSlots.some((slot) => slot.date === date && slot.time === time)
+        const booked = agendaSettings.bookedSlots.some((slot) => (
+          slot.artistId === artistId
+          && slot.date === date
+          && slot.time === time
+        ))
         const blockedByTime = overlapsBlockedTime(current, slotEnd, day.blocks)
         const blockedByAdvance = sameDate && current < minStartToday
 
         if (blockedByTime || blockedByAdvance) continue
 
         slots.push({
+          artistId,
+          studioId: bookingStudio?.id || studioId || null,
+          membershipId: membershipId || null,
           date,
           time,
           end: minutesToTime(slotEnd),
@@ -619,8 +638,15 @@ export function AppProvider({ children }) {
   )
 
   const bookSlot = useCallback((slot) => {
+    if (!slot.artistId) {
+      window.alert('Selecciona una artista para reservar.')
+      return
+    }
+
     const slotWithClient = {
       ...slot,
+      studioId: slot.studioId || null,
+      membershipId: slot.membershipId || null,
       clientId: slot.clientId || (session.role === ROLES.CLIENT ? clientState.profile?.id : ''),
     }
 
@@ -636,7 +662,11 @@ export function AppProvider({ children }) {
 
     setAgendaSettings((currentSettings) => {
       const alreadyBooked = currentSettings.bookedSlots.some(
-        (bookedSlot) => bookedSlot.date === slotWithClient.date && bookedSlot.time === slotWithClient.time,
+        (bookedSlot) => (
+          bookedSlot.artistId === slotWithClient.artistId
+          && bookedSlot.date === slotWithClient.date
+          && bookedSlot.time === slotWithClient.time
+        ),
       )
 
       if (alreadyBooked) return currentSettings
@@ -688,22 +718,25 @@ export function AppProvider({ children }) {
     }))
   }, [])
 
-  const setPrimaryArtistStatus = useCallback((status) => {
+  const setPrimaryArtistStatus = useCallback((status, artistId) => {
     setAdminState((currentState) => ({
       ...currentState,
-      artists: currentState.artists.map((artist) =>
-        artist.owner === 'Valeria Moon' ? { ...artist, status } : artist,
-      ),
+      artists: currentState.artists.map((artist, index) => {
+        const targetArtistId = artistId || currentState.artists[0]?.id
+        return artist.id === targetArtistId || (!targetArtistId && index === 0)
+          ? { ...artist, status }
+          : artist
+      }),
     }))
   }, [])
 
   const addMockBooking = useCallback(() => {
     const mockSlot = {
       date: '2026-05-18',
-      studioId: 'studio-glow',
+      studioId: null,
       time: '10:00',
       end: '11:10',
-      artist: 'Valeria Moon',
+      artist: 'Artista Demo',
       service: 'Lash lifting',
       durationMinutes: 70,
     }
@@ -753,7 +786,7 @@ export function AppProvider({ children }) {
         {
           ...client,
           id: client.id || `artist-client-${Date.now()}`,
-          studioId: client.studioId || 'studio-glow',
+          studioId: client.studioId || null,
           history: client.history || [],
         },
       ],
@@ -810,12 +843,16 @@ export function AppProvider({ children }) {
   }, [])
 
   const addArtistAppointment = useCallback((appointment) => {
+    if (!appointment.artistId) return
+
     setArtistState((currentState) => ({
       ...currentState,
       appointments: [
         {
           ...appointment,
-          studioId: appointment.studioId || 'studio-glow',
+          artistId: appointment.artistId,
+          studioId: appointment.studioId || null,
+          membershipId: appointment.membershipId || null,
           id: `artist-appointment-${Date.now()}`,
           type: 'appointment',
           status: appointment.status || 'Confirmada',

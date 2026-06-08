@@ -3,6 +3,7 @@ import {
   calculateOccupancyMetrics,
   calculateTotalRevenue,
 } from '../business/businessMetricsEngine'
+import { getArtistsForStudio } from '../entities/entitySelectors'
 
 function parseRevenueValue(value) {
   if (typeof value === 'number') return value
@@ -15,8 +16,12 @@ function parseRevenueValue(value) {
   return Number.isFinite(numeric) ? numeric * multiplier : 0
 }
 
-export function calculateStudioMetrics(studio, artists = [], clients = [], appointments = []) {
-  const studioArtists = artists.filter((artist) => artist.studioId === studio.id)
+export function calculateStudioMetrics(studio, artists = [], clients = [], appointments = [], artistStudioMemberships = []) {
+  const studioArtists = getArtistsForStudio({
+    studioId: studio.id,
+    artists,
+    artistStudioMemberships,
+  })
   const studioClients = clients.filter((client) => client.studioId === studio.id)
   const studioAppointments = appointments.filter((appointment) => appointment.studioId === studio.id)
   const revenueFromAppointments = calculateTotalRevenue(studioAppointments)
@@ -41,8 +46,8 @@ export function calculateStudioMetrics(studio, artists = [], clients = [], appoi
   }
 }
 
-export function generateStudioPortfolioSummary(studios = [], artists = [], clients = [], appointments = []) {
-  const studioMetrics = studios.map((studio) => calculateStudioMetrics(studio, artists, clients, appointments))
+export function generateStudioPortfolioSummary(studios = [], artists = [], clients = [], appointments = [], artistStudioMemberships = []) {
+  const studioMetrics = studios.map((studio) => calculateStudioMetrics(studio, artists, clients, appointments, artistStudioMemberships))
   const averageOccupancy = studioMetrics.length > 0
     ? Math.round(studioMetrics.reduce((total, studio) => total + studio.occupancy, 0) / studioMetrics.length)
     : 0
@@ -61,8 +66,8 @@ export function generateStudioPortfolioSummary(studios = [], artists = [], clien
   }
 }
 
-export function generateStudioInsights(studios = [], artists = [], clients = [], appointments = []) {
-  const summary = generateStudioPortfolioSummary(studios, artists, clients, appointments)
+export function generateStudioInsights(studios = [], artists = [], clients = [], appointments = [], artistStudioMemberships = []) {
+  const summary = generateStudioPortfolioSummary(studios, artists, clients, appointments, artistStudioMemberships)
   const insights = []
 
   summary.studioMetrics.forEach((studio) => {
