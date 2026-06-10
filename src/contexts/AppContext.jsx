@@ -149,8 +149,47 @@ async function repairIncompleteAuthContext(authSession, authContext = {}) {
   const displayName = metadata.display_name || authContext.profile?.display_name || authSession?.user?.email || ''
   const phone = metadata.phone || authContext.profile?.phone || ''
 
+  console.log('CLIENT REPAIR START', {
+    hasAuthUser: Boolean(authSession?.user),
+    hasProfile: Boolean(authContext.profile),
+    hasClient: Boolean(authContext.client),
+    role,
+  })
+  console.log('CLIENT REPAIR PROFILE', {
+    display_name: authContext.profile?.display_name,
+    phone: authContext.profile?.phone,
+    default_role: authContext.profile?.default_role,
+    metadata_default_role: metadata.default_role,
+  })
+
   if (role === ROLES.CLIENT && (!authContext.client || !hasRoleAssignment(authContext, ROLES.CLIENT))) {
-    return bootstrapClientProfile({ displayName, phone })
+    console.log('CLIENT REPAIR MISSING CLIENT', {
+      missingClient: !authContext.client,
+      missingClientRole: !hasRoleAssignment(authContext, ROLES.CLIENT),
+    })
+    console.log('CLIENT REPAIR BOOTSTRAP CALLED', {
+      display_name: displayName,
+      phone,
+      default_role: role,
+    })
+
+    try {
+      const repairedAuthContext = await bootstrapClientProfile({ displayName, phone })
+      console.log('CLIENT REPAIR SUCCESS', {
+        hasProfile: Boolean(repairedAuthContext.profile),
+        hasClient: Boolean(repairedAuthContext.client),
+        roles: repairedAuthContext.roles,
+      })
+      return repairedAuthContext
+    } catch (error) {
+      console.error('CLIENT REPAIR ERROR', {
+        message: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint,
+      })
+      throw error
+    }
   }
 
   if (role === ROLES.ARTIST && (!authContext.artist || !hasRoleAssignment(authContext, ROLES.ARTIST))) {
@@ -521,6 +560,12 @@ export function AppProvider({ children }) {
       setIsAuthLoading(false)
       return initialSession
     }
+
+    console.log('CLIENT REPAIR START', {
+      source: 'hydrateSupabaseSession',
+      authUserId: authSession.user.id,
+      email: authSession.user.email,
+    })
 
     const authContext = await repairIncompleteAuthContext(authSession, await fetchAuthContext())
     const nextSession = createSessionFromAuthContext(authSession, authContext)
