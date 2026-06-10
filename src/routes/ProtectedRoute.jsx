@@ -9,10 +9,18 @@ const allowedOrganizationalRolesByRoute = {
 }
 
 function ProtectedRoute({ allowedRole, children }) {
-  const { isAuthenticated, session } = useApp()
+  const { isAuthenticated, isAuthLoading, session } = useApp()
+
+  if (isAuthLoading) {
+    return null
+  }
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />
+  }
+
+  if (!allowedRole) {
+    return children
   }
 
   const allowedOrganizationalRoles = allowedOrganizationalRolesByRoute[allowedRole] || []

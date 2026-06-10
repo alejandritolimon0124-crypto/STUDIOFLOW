@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AppContext } from './appContextCore'
 import { artistAppointments, artistClients, clientHistory, managedArtists, managedClients, studios, users, weeklySchedule } from '../services/mockData'
 import { canUseOperationalFeature, getDefaultStudioStatus } from '../modules/governance/studioGovernance'
@@ -8,10 +8,30 @@ import {
   getStudioForArtist,
 } from '../modules/entities/entitySelectors'
 import { createArtistLocationSettings, createProfessionalLocation } from '../utils/locationHelpers'
+import {
+  getCurrentAuthSession,
+  hasSupabaseAuth,
+  onAuthStateChange,
+  sendPasswordReset,
+  signInWithPassword,
+  signOut,
+  signUpWithPassword,
+  updatePassword as updateSupabasePassword,
+} from '../services/authService'
+import {
+  bootstrapArtistProfile,
+  bootstrapClientProfile,
+  fetchAuthContext,
+} from '../services/profileBootstrapService'
 
 const initialSession = {
   user: null,
   role: null,
+  authUser: null,
+  profile: null,
+  roles: [],
+  activeSessionContext: null,
+  isMockSession: false,
 }
 
 const storageKey = 'studio-flow-session'
@@ -22,7 +42,17 @@ const artistStateStorageKey = 'studio-flow-artist-state'
 function getStoredSession() {
   try {
     const storedSession = localStorage.getItem(storageKey)
-    return storedSession ? JSON.parse(storedSession) : initialSession
+    if (!storedSession) return initialSession
+
+    const parsedSession = JSON.parse(storedSession)
+
+    return parsedSession.user
+      ? {
+          ...initialSession,
+          ...parsedSession,
+          isMockSession: parsedSession.isMockSession ?? true,
+        }
+      : initialSession
   } catch {
     return initialSession
   }
@@ -34,6 +64,105 @@ const mockUsers = {
   admin: users.find((user) => user.role === ROLES.PLATFORM_OWNER) || { id: 'admin-demo', name: 'Studio Flow HQ', role: ROLES.PLATFORM_OWNER, studioId: null },
   studio_owner: users.find((user) => user.role === ROLES.STUDIO_OWNER) || { id: 'studio-owner-demo', name: 'Studio Owner Demo', role: ROLES.STUDIO_OWNER, studioId: null },
   studio_manager: users.find((user) => user.role === ROLES.STUDIO_MANAGER) || { id: 'studio-manager-demo', name: 'Studio Manager Demo', role: ROLES.STUDIO_MANAGER, studioId: null },
+}
+
+function normalizeRoleCode(role) {
+  if (role === 'admin') return ROLES.PLATFORM_OWNER
+  return role || ROLES.CLIENT
+}
+
+function getRoleAssignments(authContext) {
+  return Array.isArray(authContext?.roles) ? authContext.roles : []
+}
+
+function getActiveRole(authContext) {
+  const profileRole = normalizeRoleCode(authContext?.profile?.default_role)
+  const roles = getRoleAssignments(authContext)
+  const hasProfileRole = roles.some((assignment) => assignment.role === profileRole)
+
+  return hasProfileRole ? profileRole : normalizeRoleCode(roles[0]?.role || profileRole)
+}
+
+function createSessionFromAuthContext(authSession, authContext = {}) {
+  const profile = authContext.profile
+
+  if (!authSession?.user || !profile) return initialSession
+
+  const role = getActiveRole(authContext)
+  const roles = getRoleAssignments(authContext)
+  const activeRoleAssignment = roles.find((assignment) => assignment.role === role) || roles[0]
+  const memberships = Array.isArray(authContext.memberships) ? authContext.memberships : []
+  const activeMembership = memberships[0]
+  const studioId = activeRoleAssignment?.studioId || activeRoleAssignment?.studio_id || activeMembership?.studioId || activeMembership?.studio_id || null
+  const artistId = authContext.artist?.id || null
+  const clientId = authContext.client?.id || null
+
+  return {
+    user: {
+      id: profile.id,
+      profileId: profile.id,
+      name: profile.display_name || authSession.user.email,
+      email: profile.email || authSession.user.email,
+      phone: profile.phone || '',
+      role,
+      studioId,
+      artistId,
+      clientId,
+      membershipId: activeMembership?.id || null,
+    },
+    role,
+    authUser: authSession.user,
+    profile,
+    roles,
+    artist: authContext.artist || null,
+    client: authContext.client || null,
+    memberships,
+    activeSessionContext: {
+      role,
+      studioId,
+      artistId,
+      clientId,
+      membershipId: activeMembership?.id || null,
+    },
+    isMockSession: false,
+  }
+}
+
+function getAuthMetadata(authSession) {
+  return authSession?.user?.user_metadata || {}
+}
+
+function getBootstrapRole(authSession, authContext = {}) {
+  const metadata = getAuthMetadata(authSession)
+
+  return normalizeRoleCode(authContext.profile?.default_role || metadata.default_role)
+}
+
+function hasRoleAssignment(authContext, role) {
+  return getRoleAssignments(authContext).some((assignment) => assignment.role === role)
+}
+
+async function repairIncompleteAuthContext(authSession, authContext = {}) {
+  const metadata = getAuthMetadata(authSession)
+  const role = getBootstrapRole(authSession, authContext)
+  const displayName = metadata.display_name || authContext.profile?.display_name || authSession?.user?.email || ''
+  const phone = metadata.phone || authContext.profile?.phone || ''
+
+  if (role === ROLES.CLIENT && (!authContext.client || !hasRoleAssignment(authContext, ROLES.CLIENT))) {
+    return bootstrapClientProfile({ displayName, phone })
+  }
+
+  if (role === ROLES.ARTIST && (!authContext.artist || !hasRoleAssignment(authContext, ROLES.ARTIST))) {
+    return bootstrapArtistProfile({
+      displayName,
+      phone,
+      artisticName: metadata.artistic_name || displayName,
+      city: metadata.city || '',
+      claimToken: metadata.claim_token || null,
+    })
+  }
+
+  return authContext
 }
 
 const initialBlockedDates = [
@@ -372,26 +501,231 @@ function hasDuplicateClientServiceBooking(bookedSlots, nextSlot) {
 
 export function AppProvider({ children }) {
   const [session, setSession] = useState(getStoredSession)
+  const [isAuthLoading, setIsAuthLoading] = useState(hasSupabaseAuth)
+  const [authError, setAuthError] = useState('')
+  const sessionRef = useRef(session)
+  const demoLoginInProgressRef = useRef(false)
   const [agendaSettings, setAgendaSettings] = useState(createInitialAgendaSettings)
   const [adminState, setAdminState] = useState(getStoredAdminState)
   const [clientState, setClientState] = useState(getStoredClientState)
   const [artistState, setArtistState] = useState(getStoredArtistState)
   const [selectedDate, setSelectedDate] = useState('2026-05-18')
 
-  const login = (role) => {
+  useEffect(() => {
+    sessionRef.current = session
+  }, [session])
+
+  const hydrateSupabaseSession = useCallback(async (authSession) => {
+    if (!authSession?.user) {
+      setIsAuthLoading(false)
+      return initialSession
+    }
+
+    const authContext = await repairIncompleteAuthContext(authSession, await fetchAuthContext())
+    const nextSession = createSessionFromAuthContext(authSession, authContext)
+
+    localStorage.removeItem(storageKey)
+    setSession(nextSession)
+    setIsAuthLoading(false)
+
+    return nextSession
+  }, [])
+
+  const loginDemo = useCallback(async (role) => {
+    demoLoginInProgressRef.current = true
+
+    if (hasSupabaseAuth()) {
+      try {
+        await signOut()
+      } catch {
+        // Demo mode must remain available even if the remote auth session is already gone.
+      }
+    }
+
     const nextSession = {
       user: mockUsers[role],
       role,
+      authUser: null,
+      profile: null,
+      roles: [],
+      activeSessionContext: {
+        role,
+        studioId: mockUsers[role]?.studioId || null,
+        artistId: role === ROLES.ARTIST ? mockUsers[role]?.id : null,
+        clientId: role === ROLES.CLIENT ? mockUsers[role]?.id : null,
+        membershipId: null,
+      },
+      isMockSession: true,
     }
 
     localStorage.setItem(storageKey, JSON.stringify(nextSession))
+    sessionRef.current = nextSession
     setSession(nextSession)
-  }
+    demoLoginInProgressRef.current = false
 
-  const logout = () => {
+    return nextSession
+  }, [])
+
+  const loginWithPassword = useCallback(async ({ email, password }) => {
+    setAuthError('')
+    setIsAuthLoading(true)
+
+    try {
+      const data = await signInWithPassword({ email, password })
+      return await hydrateSupabaseSession(data.session)
+    } catch (error) {
+      setAuthError(error.message || 'No se pudo iniciar sesion.')
+      setIsAuthLoading(false)
+      throw error
+    }
+  }, [hydrateSupabaseSession])
+
+  const registerClient = useCallback(async ({ displayName, email, phone, password }) => {
+    setAuthError('')
+    setIsAuthLoading(true)
+
+    try {
+      const data = await signUpWithPassword({
+        email,
+        password,
+        displayName,
+        phone,
+        defaultRole: ROLES.CLIENT,
+      })
+
+      if (!data.session) {
+        setIsAuthLoading(false)
+        return { needsEmailConfirmation: true }
+      }
+
+      const authContext = await bootstrapClientProfile({ displayName, phone })
+      const nextSession = createSessionFromAuthContext(data.session, authContext)
+      localStorage.removeItem(storageKey)
+      setSession(nextSession)
+      setIsAuthLoading(false)
+
+      return { session: nextSession, needsEmailConfirmation: false }
+    } catch (error) {
+      setAuthError(error.message || 'No se pudo crear la cuenta cliente.')
+      setIsAuthLoading(false)
+      throw error
+    }
+  }, [])
+
+  const registerArtist = useCallback(async ({ displayName, email, phone, password, artisticName, city, claimToken }) => {
+    setAuthError('')
+    setIsAuthLoading(true)
+
+    try {
+      const data = await signUpWithPassword({
+        email,
+        password,
+        displayName,
+        phone,
+        defaultRole: ROLES.ARTIST,
+        metadata: {
+          artistic_name: artisticName,
+          city,
+          claim_token: claimToken || null,
+        },
+      })
+
+      if (!data.session) {
+        setIsAuthLoading(false)
+        return { needsEmailConfirmation: true }
+      }
+
+      const authContext = await bootstrapArtistProfile({ displayName, phone, artisticName, city, claimToken })
+      const nextSession = createSessionFromAuthContext(data.session, authContext)
+      localStorage.removeItem(storageKey)
+      setSession(nextSession)
+      setIsAuthLoading(false)
+
+      return { session: nextSession, needsEmailConfirmation: false }
+    } catch (error) {
+      setAuthError(error.message || 'No se pudo crear la cuenta artista.')
+      setIsAuthLoading(false)
+      throw error
+    }
+  }, [])
+
+  const resetPassword = useCallback(async (email) => {
+    setAuthError('')
+
+    try {
+      await sendPasswordReset(email)
+    } catch (error) {
+      setAuthError(error.message || 'No se pudo enviar el correo de recuperacion.')
+      throw error
+    }
+  }, [])
+
+  const updatePassword = useCallback(async (password) => {
+    setAuthError('')
+
+    try {
+      await updateSupabasePassword(password)
+    } catch (error) {
+      setAuthError(error.message || 'No se pudo actualizar la contrasena.')
+      throw error
+    }
+  }, [])
+
+  const logout = useCallback(async () => {
+    if (!session.isMockSession) {
+      await signOut()
+    }
+
     localStorage.removeItem(storageKey)
+    sessionRef.current = initialSession
     setSession(initialSession)
-  }
+  }, [session.isMockSession])
+
+  useEffect(() => {
+    if (!hasSupabaseAuth()) {
+      return undefined
+    }
+
+    let isMounted = true
+
+    getCurrentAuthSession()
+      .then((authSession) => {
+        if (!isMounted) return
+
+        if (authSession) {
+          hydrateSupabaseSession(authSession).catch((error) => {
+            setAuthError(error.message || 'No se pudo cargar la sesion.')
+            setIsAuthLoading(false)
+          })
+        } else {
+          setIsAuthLoading(false)
+        }
+      })
+      .catch((error) => {
+        if (!isMounted) return
+        setAuthError(error.message || 'No se pudo cargar la sesion.')
+        setIsAuthLoading(false)
+      })
+
+    const subscription = onAuthStateChange((authSession) => {
+      if (!isMounted) return
+
+      if (authSession) {
+        hydrateSupabaseSession(authSession).catch((error) => {
+          setAuthError(error.message || 'No se pudo cargar la sesion.')
+          setIsAuthLoading(false)
+        })
+      } else if (!demoLoginInProgressRef.current && !sessionRef.current.isMockSession) {
+        setSession(initialSession)
+        setIsAuthLoading(false)
+      }
+    })
+
+    return () => {
+      isMounted = false
+      subscription.unsubscribe()
+    }
+  }, [hydrateSupabaseSession, session.isMockSession])
 
   useEffect(() => {
     try {
@@ -866,9 +1200,18 @@ export function AppProvider({ children }) {
     () => ({
       session,
       setSession,
-      login,
+      login: loginDemo,
+      loginDemo,
+      loginWithPassword,
+      registerClient,
+      registerArtist,
       logout,
+      resetPassword,
+      updatePassword,
       isAuthenticated: Boolean(session.user),
+      isAuthLoading,
+      authError,
+      isMockSession: Boolean(session.isMockSession),
       agendaSettings,
       adminState,
       clientState,
@@ -905,6 +1248,15 @@ export function AppProvider({ children }) {
     }),
     [
       session,
+      loginDemo,
+      loginWithPassword,
+      registerClient,
+      registerArtist,
+      logout,
+      resetPassword,
+      updatePassword,
+      isAuthLoading,
+      authError,
       agendaSettings,
       adminState,
       clientState,

@@ -121,8 +121,8 @@ function QASandbox() {
     [agendaSettings, debugDate, primaryArtist?.id],
   )
 
-  const quickNavigate = (role, path) => {
-    login(role)
+  const quickNavigate = async (role, path) => {
+    await login(role)
     navigate(path)
   }
 

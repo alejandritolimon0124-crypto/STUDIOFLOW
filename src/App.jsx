@@ -17,6 +17,9 @@ import ArtistMarketing from './pages/artist/ArtistMarketing'
 import ClientLayout from './layouts/ClientLayout'
 import Login from './pages/auth/Login'
 import Register from './pages/auth/Register'
+import ForgotPassword from './pages/auth/ForgotPassword'
+import ResetPassword from './pages/auth/ResetPassword'
+import Onboarding from './pages/auth/Onboarding'
 import ClientDashboard from './pages/client/ClientDashboard'
 import ProtectedRoute from './routes/ProtectedRoute'
 import PWAInstallPrompt from './components/PWAInstallPrompt'
@@ -31,6 +34,9 @@ function App() {
           <Route path="/" element={<Navigate to="/login" replace />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
 
           <Route path="/client" element={<ProtectedRoute allowedRole="client"><ClientLayout /></ProtectedRoute>}>
             <Route index element={<ClientDashboard view="inicio" />} />

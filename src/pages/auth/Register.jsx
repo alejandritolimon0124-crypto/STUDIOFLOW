@@ -4,13 +4,100 @@ import AuthLayout from '../../layouts/AuthLayout'
 import BrandLogo from '../../components/BrandLogo'
 import Button from '../../components/Button'
 import Input from '../../components/Input'
+import { useApp } from '../../contexts/appContextCore'
 import { paths } from '../../routes/paths'
 import { getDefaultStudioStatus, getStudioStatusLabel } from '../../modules/governance/studioGovernance'
 
+const initialClientForm = {
+  displayName: '',
+  email: '',
+  phone: '',
+  password: '',
+  confirmPassword: '',
+}
+
+const initialArtistForm = {
+  artisticName: '',
+  displayName: '',
+  email: '',
+  phone: '',
+  password: '',
+  confirmPassword: '',
+  address: '',
+  city: '',
+  claimToken: '',
+}
+
 function Register() {
   const navigate = useNavigate()
+  const { authError, isAuthLoading, registerArtist, registerClient } = useApp()
   const [accountType, setAccountType] = useState(null)
+  const [clientForm, setClientForm] = useState(initialClientForm)
+  const [artistForm, setArtistForm] = useState(initialArtistForm)
+  const [localError, setLocalError] = useState('')
+  const [confirmationMessage, setConfirmationMessage] = useState('')
   const defaultStudioStatus = getDefaultStudioStatus()
+
+  const updateClientForm = (field, value) => {
+    setClientForm((currentForm) => ({ ...currentForm, [field]: value }))
+  }
+
+  const updateArtistForm = (field, value) => {
+    setArtistForm((currentForm) => ({ ...currentForm, [field]: value }))
+  }
+
+  const validatePasswords = (form) => {
+    if (form.password !== form.confirmPassword) {
+      setLocalError('Las contrasenas no coinciden.')
+      return false
+    }
+
+    setLocalError('')
+    return true
+  }
+
+  const handleClientSubmit = async (event) => {
+    event.preventDefault()
+    setConfirmationMessage('')
+
+    if (!validatePasswords(clientForm)) return
+
+    try {
+      const result = await registerClient(clientForm)
+
+      if (result.needsEmailConfirmation) {
+        setConfirmationMessage('Revisa tu correo para confirmar la cuenta antes de entrar.')
+        return
+      }
+
+      navigate(paths.client)
+    } catch {
+      setLocalError('No se pudo crear la cuenta cliente.')
+    }
+  }
+
+  const handleArtistSubmit = async (event) => {
+    event.preventDefault()
+    setConfirmationMessage('')
+
+    if (!validatePasswords(artistForm)) return
+
+    try {
+      const result = await registerArtist({
+        ...artistForm,
+        displayName: artistForm.displayName || artistForm.artisticName,
+      })
+
+      if (result.needsEmailConfirmation) {
+        setConfirmationMessage('Revisa tu correo para confirmar la cuenta antes de entrar.')
+        return
+      }
+
+      navigate(paths.artistSettings)
+    } catch {
+      setLocalError('No se pudo crear la cuenta artista.')
+    }
+  }
 
   return (
     <AuthLayout>
@@ -60,84 +147,168 @@ function Register() {
             </button>
 
             <button className="text-link center-link" type="button" onClick={() => navigate(paths.login)}>
-              ¿Ya tienes cuenta? Inicia sesión
+              Ya tienes cuenta? Inicia sesion
             </button>
           </div>
         )}
 
         {accountType === 'client' && (
-          <form className="form-stack">
-            <Input label="Nombre completo" type="text" placeholder="Mariana Lopez" />
-            <Input label="Correo electrónico" type="email" placeholder="mariana@email.com" />
-            <Input label="Número celular" type="tel" placeholder="55 1234 5678" />
-            <Input label="Crear contraseña" type="password" placeholder="********" />
-            <Input label="Confirmar contraseña" type="password" placeholder="********" />
+          <form className="form-stack" onSubmit={handleClientSubmit}>
+            <Input
+              label="Nombre completo"
+              type="text"
+              placeholder="Mariana Lopez"
+              value={clientForm.displayName}
+              onChange={(event) => updateClientForm('displayName', event.target.value)}
+              required
+            />
+            <Input
+              label="Correo electronico"
+              type="email"
+              placeholder="mariana@email.com"
+              value={clientForm.email}
+              onChange={(event) => updateClientForm('email', event.target.value)}
+              required
+            />
+            <Input
+              label="Numero celular"
+              type="tel"
+              placeholder="55 1234 5678"
+              value={clientForm.phone}
+              onChange={(event) => updateClientForm('phone', event.target.value)}
+            />
+            <Input
+              label="Crear contrasena"
+              type="password"
+              placeholder="********"
+              value={clientForm.password}
+              onChange={(event) => updateClientForm('password', event.target.value)}
+              required
+              minLength={6}
+            />
+            <Input
+              label="Confirmar contrasena"
+              type="password"
+              placeholder="********"
+              value={clientForm.confirmPassword}
+              onChange={(event) => updateClientForm('confirmPassword', event.target.value)}
+              required
+              minLength={6}
+            />
 
-            <Button className="full-width" variant="ghost">Continuar con Google</Button>
-            <Button className="full-width" onClick={() => navigate(paths.client)}>Crear cuenta cliente</Button>
+            {(localError || authError) && (
+              <small style={{ color: 'var(--rose-dark)', fontWeight: 800 }}>{authError || localError}</small>
+            )}
+            {confirmationMessage && <small style={{ color: 'var(--muted)', fontWeight: 800 }}>{confirmationMessage}</small>}
+
+            <Button className="full-width" variant="ghost" disabled>Continuar con Google</Button>
+            <Button className="full-width" type="submit" disabled={isAuthLoading}>
+              {isAuthLoading ? 'Creando...' : 'Crear cuenta cliente'}
+            </Button>
             <button className="text-link center-link" type="button" onClick={() => navigate(paths.login)}>
-              ¿Ya tienes cuenta? Inicia sesión
+              Ya tienes cuenta? Inicia sesion
             </button>
           </form>
         )}
 
         {accountType === 'artist' && (
-          <form className="form-stack">
+          <form className="form-stack" onSubmit={handleArtistSubmit}>
             <div className="studio-validation-note">
               <span className="eyebrow">Acceso curado</span>
               <strong>{getStudioStatusLabel(defaultStudioStatus)}</strong>
               <p>Tu estudio entrara a validacion para mantener la calidad premium de Studio Flow.</p>
               <input type="hidden" name="studioStatus" value={defaultStudioStatus} />
             </div>
-            <Input label="Nombre artístico o estudio" type="text" placeholder="Valeria Moon Studio" />
-            <Input label="Nombre completo" type="text" placeholder="Valeria Hernandez" />
-            <Input label="Correo electrónico" type="email" placeholder="contacto@studio.com" />
-            <Input label="Número celular" type="tel" placeholder="55 1234 5678" />
-            <Input label="Crear contraseña" type="password" placeholder="********" />
-            <Input label="Confirmar contraseña" type="password" placeholder="********" />
+            <Input
+              label="Nombre artistico o estudio"
+              type="text"
+              placeholder="Valeria Moon Studio"
+              value={artistForm.artisticName}
+              onChange={(event) => updateArtistForm('artisticName', event.target.value)}
+              required
+            />
+            <Input
+              label="Nombre completo"
+              type="text"
+              placeholder="Valeria Hernandez"
+              value={artistForm.displayName}
+              onChange={(event) => updateArtistForm('displayName', event.target.value)}
+            />
+            <Input
+              label="Correo electronico"
+              type="email"
+              placeholder="contacto@studio.com"
+              value={artistForm.email}
+              onChange={(event) => updateArtistForm('email', event.target.value)}
+              required
+            />
+            <Input
+              label="Numero celular"
+              type="tel"
+              placeholder="55 1234 5678"
+              value={artistForm.phone}
+              onChange={(event) => updateArtistForm('phone', event.target.value)}
+            />
+            <Input
+              label="Crear contrasena"
+              type="password"
+              placeholder="********"
+              value={artistForm.password}
+              onChange={(event) => updateArtistForm('password', event.target.value)}
+              required
+              minLength={6}
+            />
+            <Input
+              label="Confirmar contrasena"
+              type="password"
+              placeholder="********"
+              value={artistForm.confirmPassword}
+              onChange={(event) => updateArtistForm('confirmPassword', event.target.value)}
+              required
+              minLength={6}
+            />
 
             <div style={{ borderTop: '1px solid var(--line)', display: 'grid', gap: '14px', paddingTop: '18px' }}>
               <div>
-                <span className="eyebrow">Información profesional</span>
+                <span className="eyebrow">Informacion profesional</span>
                 <p style={{ color: 'var(--muted)', fontSize: '14px', lineHeight: 1.45 }}>
-                  Datos visibles para preparar tu perfil público más adelante.
+                  Datos visibles para preparar tu perfil publico mas adelante.
                 </p>
               </div>
 
-              <Input label="Dirección del estudio" type="text" placeholder="Av. Horacio 123, Polanco" />
-              <Input label="Ciudad" type="text" placeholder="Ciudad de México" />
-
-              <div className="input-field">
-                <span>Métodos de pago</span>
-                <label style={{ alignItems: 'center', display: 'flex', gap: '10px', fontWeight: 700 }}>
-                  <input type="checkbox" /> Efectivo
-                </label>
-                <label style={{ alignItems: 'center', display: 'flex', gap: '10px', fontWeight: 700 }}>
-                  <input type="checkbox" /> Transferencia
-                </label>
-                <label style={{ alignItems: 'center', display: 'flex', gap: '10px', fontWeight: 700 }}>
-                  <input type="checkbox" /> Tarjeta
-                </label>
-              </div>
-
-              <label
-                className="input-field"
-                style={{
-                  border: '1px dashed var(--rose)',
-                  borderRadius: '16px',
-                  color: 'var(--muted)',
-                  padding: '18px',
-                  textAlign: 'center',
-                }}
-              >
-                <span>Foto del artista o estudio</span>
-                <input type="file" accept="image/*" />
-              </label>
+              <Input
+                label="Direccion del estudio"
+                type="text"
+                placeholder="Av. Horacio 123, Polanco"
+                value={artistForm.address}
+                onChange={(event) => updateArtistForm('address', event.target.value)}
+              />
+              <Input
+                label="Ciudad"
+                type="text"
+                placeholder="Ciudad de Mexico"
+                value={artistForm.city}
+                onChange={(event) => updateArtistForm('city', event.target.value)}
+              />
+              <Input
+                label="Token de invitacion"
+                type="text"
+                placeholder="Opcional para reclamar artista de estudio"
+                value={artistForm.claimToken}
+                onChange={(event) => updateArtistForm('claimToken', event.target.value)}
+              />
             </div>
 
-            <Button className="full-width" onClick={() => navigate(paths.artistAgenda)}>Crear cuenta artista</Button>
+            {(localError || authError) && (
+              <small style={{ color: 'var(--rose-dark)', fontWeight: 800 }}>{authError || localError}</small>
+            )}
+            {confirmationMessage && <small style={{ color: 'var(--muted)', fontWeight: 800 }}>{confirmationMessage}</small>}
+
+            <Button className="full-width" type="submit" disabled={isAuthLoading}>
+              {isAuthLoading ? 'Creando...' : 'Crear cuenta artista'}
+            </Button>
             <button className="text-link center-link" type="button" onClick={() => navigate(paths.login)}>
-              ¿Ya tienes cuenta? Inicia sesión
+              Ya tienes cuenta? Inicia sesion
             </button>
           </form>
         )}

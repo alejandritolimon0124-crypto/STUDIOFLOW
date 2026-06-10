@@ -196,8 +196,8 @@ function DashboardLayout({ children, role, title, subtitle, showMobileAppbar = t
     setIsMenuOpen(false)
   }
 
-  const handleLogout = () => {
-    logout()
+  const handleLogout = async () => {
+    await logout()
     navigate(paths.login)
     setIsMenuOpen(false)
   }
