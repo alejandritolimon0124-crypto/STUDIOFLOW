@@ -8,6 +8,7 @@ import {
   getStudioForArtist,
 } from '../modules/entities/entitySelectors'
 import { createArtistLocationSettings, createProfessionalLocation } from '../utils/locationHelpers'
+import { mapAuthContextToArtistProfile } from '../utils/artistProfileMapper'
 import {
   getCurrentAuthSession,
   hasSupabaseAuth,
@@ -524,6 +525,13 @@ export function AppProvider({ children }) {
     const authContext = await repairIncompleteAuthContext(authSession, await fetchAuthContext())
     const nextSession = createSessionFromAuthContext(authSession, authContext)
 
+    if (authContext.artist) {
+      setArtistState((currentState) => ({
+        ...currentState,
+        profile: mapAuthContextToArtistProfile(authContext, currentState.profile),
+      }))
+    }
+
     localStorage.removeItem(storageKey)
     setSession(nextSession)
     setIsAuthLoading(false)
@@ -637,6 +645,10 @@ export function AppProvider({ children }) {
 
       const authContext = await bootstrapArtistProfile({ displayName, phone, artisticName, city, claimToken })
       const nextSession = createSessionFromAuthContext(data.session, authContext)
+      setArtistState((currentState) => ({
+        ...currentState,
+        profile: mapAuthContextToArtistProfile(authContext, currentState.profile),
+      }))
       localStorage.removeItem(storageKey)
       setSession(nextSession)
       setIsAuthLoading(false)

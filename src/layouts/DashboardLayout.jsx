@@ -5,6 +5,7 @@ import { isActivePath } from '../routes/routerUtils'
 import BrandLogo from '../components/BrandLogo'
 import { useApp } from '../contexts/appContextCore'
 import drawerLogo from '../assets/studioflowlogo2.png'
+import { mapAuthContextToArtistProfile } from '../utils/artistProfileMapper'
 import { ROLES, getRoleLabel, hasPermission, permissions } from '../modules/permissions/rolePermissions'
 import {
   deriveMembershipsFromLegacyData,
@@ -157,12 +158,15 @@ function DashboardLayout({ children, role, title, subtitle, showMobileAppbar = t
       activeStudioId: currentMembership?.studioId,
     })
     : null
+  const sessionArtistProfile = role === 'artist' && session.artist
+    ? mapAuthContextToArtistProfile({ profile: session.profile, artist: session.artist }, artistState.profile)
+    : null
   const artistStudioName = getCleanArtistBusinessName(artistStudio?.profile?.commercialName)
   const artistName = role === 'artist'
-    ? getCleanArtistBusinessName(artistState.profile?.personalInfo?.artisticName)
+    ? getCleanArtistBusinessName(sessionArtistProfile?.personalInfo?.artisticName || artistState.profile?.personalInfo?.artisticName)
     : ''
   const sidebarDisplayName = role === 'artist'
-    ? artistStudioName || artistName || 'Artista Profesional'
+    ? artistName || artistStudioName || 'Artista Profesional'
     : role === 'client'
       ? clientState.profile?.name || session.user?.name || 'Clienta'
       : session.user?.name || 'Studio Flow'

@@ -42,7 +42,7 @@ export async function signInWithPassword({ email, password }) {
 
 export async function signUpWithPassword({ email, password, displayName, phone, defaultRole, metadata = {} }) {
   const client = requireSupabase()
-  const { data, error } = await client.auth.signUp({
+  const payload = {
     email: String(email || '').trim().toLowerCase(),
     password,
     options: {
@@ -53,7 +53,13 @@ export async function signUpWithPassword({ email, password, displayName, phone, 
         ...metadata,
       },
     },
-  })
+  }
+
+  console.log('SIGNUP PAYLOAD', payload)
+
+  const { data, error } = await client.auth.signUp(payload)
+
+  console.log('SIGNUP RESPONSE', { data, error })
 
   if (error) throw error
 

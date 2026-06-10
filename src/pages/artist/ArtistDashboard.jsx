@@ -13,6 +13,7 @@ import { paths } from '../../routes/paths'
 import { artistAppointments, artistServices, recurringClients } from '../../services/mockData'
 import { getClientById } from '../../utils/clientHelpers'
 import { formatCurrency } from '../../utils/formatters'
+import { mapAuthContextToArtistProfile } from '../../utils/artistProfileMapper'
 import { calculateFlowPoints, addPointsToClient, vipTierThresholds } from '../../modules/loyalty/flowPointsEngine'
 import { calculateAppointmentEconomy } from '../../modules/business/appointmentEconomyEngine'
 import { canUseOperationalFeature } from '../../modules/governance/studioGovernance'
@@ -100,7 +101,15 @@ function ArtistDashboard({ view = 'agenda' }) {
       ? { ...artist, profileId: session.user?.id }
       : artist
   ))
-  const primaryArtist = getCurrentArtist({ session, profiles: localProfiles, artists: selectorArtists }) || selectorArtists[0]
+  const sessionArtist = session.artist
+    ? {
+        ...session.artist,
+        name: session.artist.display_name || session.artist.displayName || session.profile?.display_name,
+        owner: session.artist.display_name || session.artist.displayName || session.profile?.display_name,
+        profileId: session.profile?.id || session.user?.profileId,
+      }
+    : null
+  const primaryArtist = sessionArtist || getCurrentArtist({ session, profiles: localProfiles, artists: selectorArtists }) || selectorArtists[0]
   const primaryMembership = getMembershipForArtist({
     artistId: primaryArtist?.id,
     artistStudioMemberships,
@@ -112,12 +121,15 @@ function ArtistDashboard({ view = 'agenda' }) {
     preferredStudioId: primaryMembership?.studioId,
   }) || adminState.studios[0]
   const studioProfile = currentStudio?.profile || {}
-  const artistPersonalInfo = artistState.profile?.personalInfo || {}
+  const sessionArtistProfile = session.artist
+    ? mapAuthContextToArtistProfile({ profile: session.profile, artist: session.artist }, artistState.profile)
+    : artistState.profile
+  const artistPersonalInfo = sessionArtistProfile?.personalInfo || {}
   const profileName = artistPersonalInfo.artisticName || artistPersonalInfo.fullName || ''
   const artistDisplayName = profileName || primaryArtist?.owner || primaryArtist?.name || 'Artista profesional'
-  const profilePhoto = artistState.profile?.photoUrl || ''
+  const profilePhoto = sessionArtistProfile?.photoUrl || ''
   const studioDisplayName = getConfiguredStudioName(studioProfile.commercialName)
-  const artistLocationSettings = artistState.profile?.professionalLocation || {}
+  const artistLocationSettings = sessionArtistProfile?.professionalLocation || {}
   const customProfileLocation = artistLocationSettings.customLocation || {}
   const profileLocation = artistLocationSettings.useStudioLocation === false || hasProfessionalLocationContent(customProfileLocation)
     ? customProfileLocation

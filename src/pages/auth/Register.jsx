@@ -157,7 +157,7 @@ function Register() {
             <Input
               label="Nombre completo"
               type="text"
-              placeholder="Mariana Lopez"
+              placeholder="ejemplo Mariana Lopez"
               value={clientForm.displayName}
               onChange={(event) => updateClientForm('displayName', event.target.value)}
               required
@@ -165,7 +165,7 @@ function Register() {
             <Input
               label="Correo electronico"
               type="email"
-              placeholder="mariana@email.com"
+              placeholder="ejemplo mariana@email.com"
               value={clientForm.email}
               onChange={(event) => updateClientForm('email', event.target.value)}
               required
@@ -173,7 +173,7 @@ function Register() {
             <Input
               label="Numero celular"
               type="tel"
-              placeholder="55 1234 5678"
+              placeholder="coloca aqui tu numero para recibir notificaciones y recordatorios de tus citas"
               value={clientForm.phone}
               onChange={(event) => updateClientForm('phone', event.target.value)}
             />
@@ -214,7 +214,7 @@ function Register() {
         {accountType === 'artist' && (
           <form className="form-stack" onSubmit={handleArtistSubmit}>
             <div className="studio-validation-note">
-              <span className="eyebrow">Acceso curado</span>
+              <span className="eyebrow">Acceso Seguro</span>
               <strong>{getStudioStatusLabel(defaultStudioStatus)}</strong>
               <p>Tu estudio entrara a validacion para mantener la calidad premium de Studio Flow.</p>
               <input type="hidden" name="studioStatus" value={defaultStudioStatus} />
@@ -222,7 +222,7 @@ function Register() {
             <Input
               label="Nombre artistico o estudio"
               type="text"
-              placeholder="Valeria Moon Studio"
+              placeholder="ejemplo: Valeria Moon Studio"
               value={artistForm.artisticName}
               onChange={(event) => updateArtistForm('artisticName', event.target.value)}
               required
@@ -230,14 +230,14 @@ function Register() {
             <Input
               label="Nombre completo"
               type="text"
-              placeholder="Valeria Hernandez"
+              placeholder="ejemplo: Valeria Hernandez"
               value={artistForm.displayName}
               onChange={(event) => updateArtistForm('displayName', event.target.value)}
             />
             <Input
               label="Correo electronico"
               type="email"
-              placeholder="contacto@studio.com"
+              placeholder="ejemplo: contacto@studio.com"
               value={artistForm.email}
               onChange={(event) => updateArtistForm('email', event.target.value)}
               required
@@ -245,7 +245,7 @@ function Register() {
             <Input
               label="Numero celular"
               type="tel"
-              placeholder="55 1234 5678"
+              placeholder="coloca aqui tu numero para recibir notificaciones y recordatorios de tus citas"
               value={artistForm.phone}
               onChange={(event) => updateArtistForm('phone', event.target.value)}
             />
@@ -279,14 +279,14 @@ function Register() {
               <Input
                 label="Direccion del estudio"
                 type="text"
-                placeholder="Av. Horacio 123, Polanco"
+                placeholder="direccion de tu estudio o salon de belleza para mostrar en tu perfil publico"
                 value={artistForm.address}
                 onChange={(event) => updateArtistForm('address', event.target.value)}
               />
               <Input
                 label="Ciudad"
                 type="text"
-                placeholder="Ciudad de Mexico"
+                placeholder="Ciudaad donde se encuentra tu estudio para mostrar en tu perfil publico"
                 value={artistForm.city}
                 onChange={(event) => updateArtistForm('city', event.target.value)}
               />

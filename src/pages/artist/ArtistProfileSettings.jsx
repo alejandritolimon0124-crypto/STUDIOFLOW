@@ -5,6 +5,7 @@ import Input from '../../components/Input'
 import PanelHeader from '../../components/PanelHeader'
 import { useApp } from '../../contexts/appContextCore'
 import { buildGoogleMapsUrl, createArtistLocationSettings, validateProfessionalLocation } from '../../utils/locationHelpers'
+import { mapAuthContextToArtistProfile } from '../../utils/artistProfileMapper'
 import {
   deriveMembershipsFromLegacyData,
   getCurrentArtist,
@@ -42,9 +43,12 @@ function ArtistProfileSettings() {
     artistStudioMemberships,
     activeStudioId: primaryMembership?.studioId,
   }) || adminState.studios[0]
+  const sessionArtistProfile = session.artist
+    ? mapAuthContextToArtistProfile({ profile: session.profile, artist: session.artist }, artistState.profile)
+    : artistState.profile
   const [profileDraft, setProfileDraft] = useState({
-    ...artistState.profile,
-    professionalLocation: createArtistLocationSettings(artistState.profile?.professionalLocation),
+    ...sessionArtistProfile,
+    professionalLocation: createArtistLocationSettings(sessionArtistProfile?.professionalLocation),
   })
   const [locationErrors, setLocationErrors] = useState({})
   const effectiveLocation = profileDraft.professionalLocation.useStudioLocation
