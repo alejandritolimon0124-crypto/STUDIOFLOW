@@ -116,14 +116,12 @@ export async function fetchArtistProfile({ artistId }) {
   if (!artistId) return null
 
   const client = requireSupabase()
-  const { data, error } = await client
-    .from('artist_profiles')
-    .select('*')
-    .eq('artist_id', artistId)
-    .maybeSingle()
+  const { data, error } = await client.rpc('studio_flow_artist_get_own_profile', {
+    p_artist_id: artistId,
+  })
 
   if (error) throw error
-  return data ? mapArtistProfileRow(data) : null
+  return data?.artist_profile ? mapArtistProfileRow(data.artist_profile) : null
 }
 
 export async function saveArtistProfile({ artistId, profileId, profile }) {
@@ -131,31 +129,22 @@ export async function saveArtistProfile({ artistId, profileId, profile }) {
 
   const client = requireSupabase()
   const payload = profileToPayload(profile, artistId)
+  const phone = String(profile.personalInfo?.phone || '').trim()
 
   if (!payload.artistic_name) {
     throw new Error('Nombre artistico requerido para guardar el perfil.')
   }
 
-  if (profileId) {
-    const phone = String(profile.personalInfo?.phone || '').trim()
-    const { error: profileError } = await client
-      .from('profiles')
-      .update({
-        phone: phone || null,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', profileId)
-
-    if (profileError) throw profileError
-  }
-
-  const { data, error } = await client
-    .from('artist_profiles')
-    .upsert(payload, { onConflict: 'artist_id' })
-    .select('*')
-    .single()
+  const { data, error } = await client.rpc('studio_flow_artist_save_own_profile', {
+    p_artist_id: artistId,
+    p_profile: {
+      ...payload,
+      phone: phone || null,
+    },
+    p_update_phone: Boolean(profileId),
+  })
 
   if (error) throw error
 
-  return mapArtistProfileRow(data)
+  return mapArtistProfileRow(data?.artist_profile)
 }
