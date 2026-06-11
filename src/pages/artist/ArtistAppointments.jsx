@@ -1,11 +1,10 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Button from '../../components/Button'
 import Card from '../../components/Card'
 import Input from '../../components/Input'
 import PanelHeader from '../../components/PanelHeader'
 import StatusPill from '../../components/StatusPill'
 import { useApp } from '../../contexts/appContextCore'
-import { artistServices } from '../../services/mockData'
 import {
   deriveMembershipsFromLegacyData,
   getCurrentArtist,
@@ -16,13 +15,20 @@ import {
 const mockClients = ['Mariana L.', 'Camila R.', 'Ana G.', 'Renata M.']
 
 function ArtistAppointments() {
-  const { adminState, artistState, session, addArtistAppointment, bookSlot } = useApp()
+  const { adminState, artistServices, artistState, session, addArtistAppointment, bookSlot } = useApp()
+  const activeArtistServices = artistServices.length ? artistServices : [{ name: '', price: 0, duration: '60 min', serviceTier: 'basic' }]
   const [draft, setDraft] = useState({
     client: mockClients[0],
-    service: artistServices[0].name,
+    service: activeArtistServices[0].name,
     date: '2026-05-18',
     time: '10:00',
   })
+
+  useEffect(() => {
+    if (!draft.service && artistServices[0]?.name) {
+      setDraft((currentDraft) => ({ ...currentDraft, service: artistServices[0].name }))
+    }
+  }, [artistServices, draft.service])
   const upcomingAppointments = artistState.appointments.filter((appointment) => appointment.status !== 'Completada')
   const pastAppointments = artistState.appointments.filter((appointment) => appointment.status === 'Completada')
   const localProfiles = session.user ? [{ ...session.user, id: session.user.id }] : []
@@ -49,7 +55,7 @@ function ArtistAppointments() {
   })
 
   const saveAppointment = () => {
-    const service = artistServices.find((item) => item.name === draft.service) || artistServices[0]
+    const service = activeArtistServices.find((item) => item.name === draft.service) || activeArtistServices[0]
 
     addArtistAppointment({
       ...draft,
@@ -89,7 +95,7 @@ function ArtistAppointments() {
           <label className="input-field">
             <span>Servicio</span>
             <select value={draft.service} onChange={(event) => setDraft({ ...draft, service: event.target.value })}>
-              {artistServices.map((service) => <option key={service.name}>{service.name}</option>)}
+              {activeArtistServices.map((service) => <option key={service.name}>{service.name}</option>)}
             </select>
           </label>
           <Input label="Fecha" type="date" value={draft.date} onChange={(event) => setDraft({ ...draft, date: event.target.value })} />

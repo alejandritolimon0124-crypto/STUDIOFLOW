@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AppContext } from './appContextCore'
-import { artistAppointments, artistClients, clientHistory, managedArtists, managedClients, studios, users, weeklySchedule } from '../services/mockData'
+import { artistAppointments, artistClients, artistServices as mockArtistServices, clientHistory, managedArtists, managedClients, studios, users, weeklySchedule } from '../services/mockData'
 import { canUseOperationalFeature, getDefaultStudioStatus } from '../modules/governance/studioGovernance'
 import { ROLES } from '../modules/permissions/rolePermissions'
 import {
@@ -25,6 +25,12 @@ import {
   bootstrapClientProfile,
   fetchAuthContext,
 } from '../services/profileBootstrapService'
+import {
+  archiveArtistServiceOffering,
+  fetchArtistServices,
+  saveArtistServiceOffering,
+  updateArtistServiceOfferingStatus,
+} from '../services/artistServiceService'
 
 const initialSession = {
   user: null,
@@ -421,6 +427,10 @@ function createInitialArtistState() {
       ...client,
       history: client.history || [],
     })),
+    services: mockArtistServices.map((service, index) => ({
+      ...service,
+      id: service.id || `artist-service-${index + 1}`,
+    })),
   }
 }
 
@@ -550,6 +560,8 @@ export function AppProvider({ children }) {
   const [adminState, setAdminState] = useState(getStoredAdminState)
   const [clientState, setClientState] = useState(getStoredClientState)
   const [artistState, setArtistState] = useState(getStoredArtistState)
+  const [isArtistServicesLoading, setIsArtistServicesLoading] = useState(false)
+  const [artistServicesError, setArtistServicesError] = useState('')
   const [selectedDate, setSelectedDate] = useState('2026-05-18')
 
   useEffect(() => {
@@ -839,6 +851,38 @@ export function AppProvider({ children }) {
       // Data URL photos can exceed localStorage in some browsers; keep runtime state even if persistence fails.
     }
   }, [artistState])
+
+  const loadArtistServices = useCallback(async (artistId = session.artist?.id || session.user?.artistId) => {
+    if (!artistId || session.isMockSession) return []
+
+    setIsArtistServicesLoading(true)
+    setArtistServicesError('')
+
+    try {
+      const services = await fetchArtistServices({ artistId })
+      setArtistState((currentState) => ({
+        ...currentState,
+        services,
+      }))
+      setIsArtistServicesLoading(false)
+      return services
+    } catch (error) {
+      setArtistServicesError(error.message || 'No se pudieron cargar los servicios.')
+      setIsArtistServicesLoading(false)
+      throw error
+    }
+  }, [session.artist?.id, session.isMockSession, session.user?.artistId])
+
+  useEffect(() => {
+    if (session.role !== ROLES.ARTIST || session.isMockSession) return
+
+    const artistId = session.artist?.id || session.user?.artistId
+    if (!artistId) return
+
+    loadArtistServices(artistId).catch(() => {
+      // artistServicesError already exposes the failure to the UI.
+    })
+  }, [loadArtistServices, session.artist?.id, session.isMockSession, session.role, session.user?.artistId])
 
   const toggleScheduleDay = useCallback((dayName) => {
     setAgendaSettings((currentSettings) => ({
@@ -1201,6 +1245,75 @@ export function AppProvider({ children }) {
     }))
   }, [])
 
+  const saveArtistService = useCallback(async (service) => {
+    const artistId = session.artist?.id || session.user?.artistId
+    if (!artistId || session.isMockSession) {
+      const localService = {
+        ...service,
+        id: service.id || `artist-service-${Date.now()}`,
+        status: service.status || 'Activo',
+      }
+
+      setArtistState((currentState) => ({
+        ...currentState,
+        services: service.id
+          ? currentState.services.map((item) => (item.id === service.id ? localService : item))
+          : [localService, ...currentState.services],
+      }))
+
+      return localService
+    }
+
+    setArtistServicesError('')
+    const savedService = await saveArtistServiceOffering({ artistId, service })
+    setArtistState((currentState) => ({
+      ...currentState,
+      services: service.id
+        ? currentState.services.map((item) => (item.id === service.id ? savedService : item))
+        : [savedService, ...currentState.services],
+    }))
+    return savedService
+  }, [session.artist?.id, session.isMockSession, session.user?.artistId])
+
+  const updateArtistServiceStatus = useCallback(async (serviceId, status) => {
+    if (session.isMockSession) {
+      setArtistState((currentState) => ({
+        ...currentState,
+        services: currentState.services.map((service) =>
+          service.id === serviceId ? { ...service, status } : service,
+        ),
+      }))
+      return null
+    }
+
+    setArtistServicesError('')
+    const updatedService = await updateArtistServiceOfferingStatus({ serviceId, status })
+    setArtistState((currentState) => ({
+      ...currentState,
+      services: currentState.services.map((service) =>
+        service.id === serviceId ? updatedService : service,
+      ),
+    }))
+    return updatedService
+  }, [session.isMockSession])
+
+  const archiveArtistService = useCallback(async (serviceId) => {
+    if (session.isMockSession) {
+      setArtistState((currentState) => ({
+        ...currentState,
+        services: currentState.services.filter((service) => service.id !== serviceId),
+      }))
+      return
+    }
+
+    setArtistServicesError('')
+    await archiveArtistServiceOffering({ serviceId })
+    setArtistState((currentState) => ({
+      ...currentState,
+      services: currentState.services.filter((service) => service.id !== serviceId),
+    }))
+  }, [session.isMockSession])
+
   const addArtistClient = useCallback((client) => {
     setArtistState((currentState) => ({
       ...currentState,
@@ -1305,6 +1418,9 @@ export function AppProvider({ children }) {
       adminState,
       clientState,
       artistState,
+      artistServices: artistState.services || [],
+      isArtistServicesLoading,
+      artistServicesError,
       toggleScheduleDay,
       cancelScheduleDay,
       updateScheduleDayTime,
@@ -1328,6 +1444,10 @@ export function AppProvider({ children }) {
       addMockBooking,
       toggleFavoriteArtist,
       updateClientProfile,
+      loadArtistServices,
+      saveArtistService,
+      updateArtistServiceStatus,
+      archiveArtistService,
       addArtistClient,
       updateArtistClient,
       updateArtistProfile,
@@ -1350,6 +1470,8 @@ export function AppProvider({ children }) {
       adminState,
       clientState,
       artistState,
+      isArtistServicesLoading,
+      artistServicesError,
       toggleScheduleDay,
       cancelScheduleDay,
       updateScheduleDayTime,
@@ -1373,6 +1495,10 @@ export function AppProvider({ children }) {
       addMockBooking,
       toggleFavoriteArtist,
       updateClientProfile,
+      loadArtistServices,
+      saveArtistService,
+      updateArtistServiceStatus,
+      archiveArtistService,
       addArtistClient,
       updateArtistClient,
       updateArtistProfile,

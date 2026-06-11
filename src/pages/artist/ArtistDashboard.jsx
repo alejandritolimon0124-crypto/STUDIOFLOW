@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import AgendaCard from '../../components/AgendaCard'
 import Button from '../../components/Button'
@@ -10,7 +10,7 @@ import PanelHeader from '../../components/PanelHeader'
 import StatsCard from '../../components/StatsCard'
 import { useApp } from '../../contexts/appContextCore'
 import { paths } from '../../routes/paths'
-import { artistAppointments, artistServices, recurringClients } from '../../services/mockData'
+import { artistAppointments, recurringClients } from '../../services/mockData'
 import { getClientById } from '../../utils/clientHelpers'
 import { formatCurrency } from '../../utils/formatters'
 import { mapAuthContextToArtistProfile } from '../../utils/artistProfileMapper'
@@ -74,7 +74,7 @@ function getConfiguredStudioName(...names) {
 
 function ArtistDashboard({ view = 'agenda' }) {
   const navigate = useNavigate()
-  const { adminState, artistState, session, addArtistAppointment, addArtistClient, updateArtistClient, bookSlot, selectedDate, setSelectedDate } = useApp()
+  const { adminState, artistServices, artistState, session, addArtistAppointment, addArtistClient, updateArtistClient, bookSlot, selectedDate, setSelectedDate } = useApp()
   const [showAppointmentForm, setShowAppointmentForm] = useState(false)
   const [pointsFeedback, setPointsFeedback] = useState(null)
   const [showDatePicker, setShowDatePicker] = useState(false)
@@ -90,6 +90,15 @@ function ArtistDashboard({ view = 'agenda' }) {
   const [isCreatingNewClient, setIsCreatingNewClient] = useState(false)
   const [newClient, setNewClient] = useState({ name: '', phone: '', notes: '' })
   const [hideMetrics, setHideMetrics] = useState(getStoredMetricsPrivacy)
+
+  useEffect(() => {
+    if (!appointmentDraft.service) {
+      const firstActiveService = artistServices.find((service) => service.status === 'Activo')
+      if (firstActiveService?.name) {
+        setAppointmentDraft((currentDraft) => ({ ...currentDraft, service: firstActiveService.name }))
+      }
+    }
+  }, [artistServices, appointmentDraft.service])
   const localProfiles = session.user ? [{ ...session.user, id: session.user.id }] : []
   const artistStudioMemberships = deriveMembershipsFromLegacyData({ artists: adminState.artists })
   const selectorArtists = adminState.artists.map((artist) => (

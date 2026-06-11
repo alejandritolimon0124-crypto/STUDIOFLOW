@@ -1,28 +1,36 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Button from '../../components/Button'
 import Card from '../../components/Card'
 import Input from '../../components/Input'
 import PanelHeader from '../../components/PanelHeader'
 import StatusPill from '../../components/StatusPill'
-import { artistServices, serviceCatalog } from '../../services/mockData'
+import { useApp } from '../../contexts/appContextCore'
+import { serviceCatalog } from '../../services/mockData'
 import { formatCurrency } from '../../utils/formatters'
 
 const durations = ['30 min', '45 min', '60 min', '75 min', '90 min', '120 min']
 
 function ArtistServices() {
+  const {
+    archiveArtistService,
+    artistServices,
+    artistServicesError,
+    isArtistServicesLoading,
+    saveArtistService,
+    updateArtistServiceStatus,
+  } = useApp()
   const primaryServices = Object.keys(serviceCatalog)
-  const [services, setServices] = useState(() =>
-    artistServices.map((service, index) => ({
-      ...service,
-      id: `artist-service-${index + 1}`,
-    })),
-  )
   const [primary, setPrimary] = useState(primaryServices[0])
   const [secondary, setSecondary] = useState(serviceCatalog[primaryServices[0]][0])
   const [duration, setDuration] = useState('60 min')
   const [price, setPrice] = useState('')
   const [editingId, setEditingId] = useState(null)
   const [feedback, setFeedback] = useState('')
+  const [isSaving, setIsSaving] = useState(false)
+
+  useEffect(() => {
+    if (artistServicesError) showFeedback(artistServicesError)
+  }, [artistServicesError])
 
   const handlePrimary = (service) => {
     setPrimary(service)
@@ -52,7 +60,7 @@ function ArtistServices() {
     setEditingId(service.id)
   }
 
-  const saveService = (event) => {
+  const saveService = async (event) => {
     event.preventDefault()
 
     if (!primary || !secondary || !duration || !price) {
@@ -60,39 +68,51 @@ function ArtistServices() {
       return
     }
 
+    const existingService = editingId ? artistServices.find((service) => service.id === editingId) : null
     const nextService = {
-      id: editingId || `artist-service-${Date.now()}`,
+      id: editingId,
       name: secondary,
       category: primary,
       price: Number(price),
       duration,
-      bookings: editingId ? services.find((service) => service.id === editingId)?.bookings || 0 : 0,
-      demand: editingId ? services.find((service) => service.id === editingId)?.demand || 'Nueva' : 'Nueva',
-      status: editingId ? services.find((service) => service.id === editingId)?.status || 'Activo' : 'Activo',
+      bookings: existingService?.bookings || 0,
+      demand: existingService?.demand || 'Nueva',
+      status: existingService?.status || 'Activo',
+      serviceTier: existingService?.serviceTier || 'basic',
     }
 
-    setServices((currentServices) =>
-      editingId
-        ? currentServices.map((service) => (service.id === editingId ? nextService : service))
-        : [nextService, ...currentServices],
-    )
-    resetForm()
-    showFeedback('Servicio guardado')
+    setIsSaving(true)
+
+    try {
+      await saveArtistService(nextService)
+      resetForm()
+      showFeedback('Servicio guardado')
+    } catch (error) {
+      showFeedback(error.message || 'No se pudo guardar el servicio')
+    } finally {
+      setIsSaving(false)
+    }
   }
 
-  const updateServiceStatus = (serviceId, status) => {
-    setServices((currentServices) =>
-      currentServices.map((service) =>
-        service.id === serviceId ? { ...service, status } : service,
-      ),
-    )
+  const updateServiceStatus = async (serviceId, status) => {
+    try {
+      await updateArtistServiceStatus(serviceId, status)
+      showFeedback(status === 'Activo' ? 'Servicio activado' : 'Servicio suspendido')
+    } catch (error) {
+      showFeedback(error.message || 'No se pudo actualizar el servicio')
+    }
   }
 
-  const deleteService = (serviceId) => {
+  const deleteService = async (serviceId) => {
     if (!window.confirm('Eliminar servicio?')) return
 
-    setServices((currentServices) => currentServices.filter((service) => service.id !== serviceId))
-    if (editingId === serviceId) resetForm()
+    try {
+      await archiveArtistService(serviceId)
+      if (editingId === serviceId) resetForm()
+      showFeedback('Servicio archivado')
+    } catch (error) {
+      showFeedback(error.message || 'No se pudo eliminar el servicio')
+    }
   }
 
   return (
@@ -130,15 +150,18 @@ function ArtistServices() {
 
             <Input label="Precio en pesos" type="number" placeholder="850" value={price} onChange={(event) => setPrice(event.target.value)} />
 
-            {feedback && <StatusPill tone={feedback === 'Servicio guardado' ? 'success' : 'warm'}>{feedback}</StatusPill>}
-            <Button className="full-width" type="submit">{editingId ? 'Actualizar servicio' : 'Guardar servicio'}</Button>
+            {feedback && <StatusPill tone={feedback.includes('No se pudo') || feedback.includes('Completa') ? 'warm' : 'success'}>{feedback}</StatusPill>}
+            {isArtistServicesLoading && <StatusPill tone="neutral">Cargando servicios</StatusPill>}
+            <Button className="full-width" type="submit" disabled={isSaving || isArtistServicesLoading}>
+              {isSaving ? 'Guardando...' : editingId ? 'Actualizar servicio' : 'Guardar servicio'}
+            </Button>
           </form>
         </Card>
 
         <Card className="mobile-screen">
           <PanelHeader title="Servicios activos" eyebrow="Disponibles" />
           <div className="service-list">
-            {services.filter((service) => service.status === 'Activo').map((service) => (
+            {artistServices.filter((service) => service.status === 'Activo').map((service) => (
               <div className="service-row management-row" key={service.id}>
                 <div>
                   <strong>{service.name}</strong>
@@ -158,7 +181,7 @@ function ArtistServices() {
         <Card className="mobile-screen">
           <PanelHeader title="Servicios suspendidos" eyebrow="Pausados" />
           <div className="service-list">
-            {services.filter((service) => service.status === 'Suspendido').map((service) => (
+            {artistServices.filter((service) => service.status === 'Suspendido').map((service) => (
               <div className="service-row management-row" key={service.id}>
                 <div>
                   <strong>{service.name}</strong>

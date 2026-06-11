@@ -9,7 +9,6 @@ import { paths } from '../../routes/paths'
 import {
   artistAppointments,
   artistClients,
-  artistServices,
   managedArtists,
   studios,
   systemStatus,
@@ -145,7 +144,7 @@ const uniqueById = (items = []) => Array.from(new Map(items.filter(Boolean).map(
 
 function AdminDashboard() {
   const navigate = useNavigate()
-  const { session } = useApp()
+  const { artistServices, session } = useApp()
   const currentUser = session.user
   const [reviewStudios, setReviewStudios] = useState(studios)
 

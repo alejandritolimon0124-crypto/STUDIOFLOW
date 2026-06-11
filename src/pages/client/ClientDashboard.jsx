@@ -7,7 +7,7 @@ import PanelHeader from '../../components/PanelHeader'
 import StatusPill from '../../components/StatusPill'
 import { useApp } from '../../contexts/appContextCore'
 import { paths } from '../../routes/paths'
-import { clientAppointments, clientHistory, artistServices } from '../../services/mockData'
+import { clientAppointments, clientHistory } from '../../services/mockData'
 import { getClientById } from '../../utils/clientHelpers'
 import { calculateFlowPoints, flowPointRewards, getActivePoints, getExpiringPoints, vipTierThresholds } from '../../modules/loyalty/flowPointsEngine'
 import { generateClientAutomations } from '../../modules/automation/smartAutomationEngine'
@@ -414,6 +414,7 @@ function ClientDashboard({ view = 'inicio' }) {
   const {
     adminState,
     agendaSettings,
+    artistServices,
     artistState,
     clientState,
     session,
