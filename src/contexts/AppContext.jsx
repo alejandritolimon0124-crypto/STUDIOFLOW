@@ -9,6 +9,7 @@ import {
 } from '../modules/entities/entitySelectors'
 import { createArtistLocationSettings, createProfessionalLocation } from '../utils/locationHelpers'
 import { mapAuthContextToArtistProfile } from '../utils/artistProfileMapper'
+import { mapAuthContextToClientProfile } from '../utils/clientProfileMapper'
 import {
   getCurrentAuthSession,
   hasSupabaseAuth,
@@ -577,6 +578,23 @@ export function AppProvider({ children }) {
       }))
     }
 
+    if (authContext.client) {
+      const mappedClientProfile = mapAuthContextToClientProfile(authContext)
+      console.log('CLIENT HYDRATION INPUT', {
+        source: 'hydrateSupabaseSession',
+        profile: authContext.profile,
+        client: authContext.client,
+      })
+      console.log('CLIENT HYDRATION MAPPED PROFILE', mappedClientProfile)
+      setClientState((currentState) => ({
+        ...currentState,
+        profile: {
+          ...currentState.profile,
+          ...mappedClientProfile,
+        },
+      }))
+    }
+
     localStorage.removeItem(storageKey)
     setSession(nextSession)
     setIsAuthLoading(false)
@@ -653,6 +671,20 @@ export function AppProvider({ children }) {
 
       const authContext = await bootstrapClientProfile({ displayName, phone })
       const nextSession = createSessionFromAuthContext(data.session, authContext)
+      const mappedClientProfile = mapAuthContextToClientProfile(authContext)
+      console.log('CLIENT HYDRATION INPUT', {
+        source: 'registerClient',
+        profile: authContext.profile,
+        client: authContext.client,
+      })
+      console.log('CLIENT HYDRATION MAPPED PROFILE', mappedClientProfile)
+      setClientState((currentState) => ({
+        ...currentState,
+        profile: {
+          ...currentState.profile,
+          ...mappedClientProfile,
+        },
+      }))
       localStorage.removeItem(storageKey)
       setSession(nextSession)
       setIsAuthLoading(false)

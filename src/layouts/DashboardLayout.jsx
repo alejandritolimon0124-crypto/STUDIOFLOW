@@ -165,10 +165,15 @@ function DashboardLayout({ children, role, title, subtitle, showMobileAppbar = t
   const artistName = role === 'artist'
     ? getCleanArtistBusinessName(sessionArtistProfile?.personalInfo?.artisticName || artistState.profile?.personalInfo?.artisticName)
     : ''
+  const clientDisplayName = session.client?.display_name
+    || session.client?.displayName
+    || session.profile?.display_name
+    || session.profile?.displayName
+    || session.user?.name
   const sidebarDisplayName = role === 'artist'
     ? artistName || artistStudioName || 'Artista Profesional'
     : role === 'client'
-      ? clientState.profile?.name || session.user?.name || 'Clienta'
+      ? clientDisplayName || clientState.profile?.name || 'Clienta'
       : session.user?.name || 'Studio Flow'
   const sidebarSubtitle = role === 'artist' ? '' : getRoleLabel(session.user?.role)
   const appointmentsForSelectedDate = role === 'artist'

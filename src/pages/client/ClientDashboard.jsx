@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Button from '../../components/Button'
 import Card from '../../components/Card'
@@ -416,6 +416,7 @@ function ClientDashboard({ view = 'inicio' }) {
     agendaSettings,
     artistState,
     clientState,
+    session,
     bookSlot,
     getAvailableSlots,
     toggleFavoriteArtist,
@@ -483,14 +484,27 @@ function ClientDashboard({ view = 'inicio' }) {
       && canUseOperationalFeature(getArtistStudio(artist) || artist, 'publicAgenda')
     ))
     .map((artist) => hydrateMarketplaceArtist(artist, getVisibleSlotCountForArtist(artist), getArtistStudio(artist), getArtistMembership(artist)))
-  const clientLookupId = clientState.profile?.id || 'client-mf'
+  const hasRealClientSession = Boolean(session.client || session.profile)
+  const clientLookupId = hasRealClientSession
+    ? session.client?.id || clientState.profile?.id || session.profile?.id || ''
+    : clientState.profile?.id || 'client-mf'
   const artistClientProfile = getClientById(artistState.clients, clientLookupId)
+  const sessionClientProfile = session.client || {}
+  const sessionProfile = session.profile || {}
+  const sessionClientName = sessionClientProfile.display_name
+    || sessionClientProfile.displayName
+    || sessionProfile.display_name
+    || sessionProfile.displayName
+  const sessionClientEmail = sessionClientProfile.email || sessionProfile.email
+  const sessionClientPhone = sessionClientProfile.phone || sessionProfile.phone
   const currentClient = {
     ...clientState.profile,
-    ...artistClientProfile,
-    name: clientState.profile?.name || artistClientProfile?.name,
-    email: clientState.profile?.email || artistClientProfile?.email,
-    phone: clientState.profile?.phone || artistClientProfile?.phone,
+    ...(hasRealClientSession ? {} : artistClientProfile),
+    id: clientLookupId || clientState.profile?.id || '',
+    profileId: sessionProfile.id || clientState.profile?.profileId || '',
+    name: sessionClientName || clientState.profile?.name || artistClientProfile?.name,
+    email: sessionClientEmail || clientState.profile?.email || artistClientProfile?.email,
+    phone: sessionClientPhone || clientState.profile?.phone || artistClientProfile?.phone,
     notes: clientState.profile?.notes || artistClientProfile?.notes,
     photoUrl: clientState.profile?.photoUrl || '',
     flowPoints: clientState.profile?.flowPoints || 0,
@@ -498,6 +512,33 @@ function ClientDashboard({ view = 'inicio' }) {
     streak: clientState.profile?.streak || 0,
     rewardsHistory: artistClientProfile?.rewardsHistory || [],
   }
+  console.log('CLIENT DASHBOARD SESSION CLIENT', {
+    hasRealClientSession,
+    sessionClient: session.client,
+    sessionProfile: session.profile,
+    clientStateProfile: clientState.profile,
+  })
+  console.log('CLIENT DASHBOARD CURRENT CLIENT', currentClient)
+
+  useEffect(() => {
+    if (!hasRealClientSession) return
+
+    setProfileDraft((currentDraft) => ({
+      ...currentDraft,
+      id: currentClient.id,
+      profileId: currentClient.profileId,
+      name: currentClient.name,
+      email: currentClient.email,
+      phone: currentClient.phone,
+    }))
+  }, [
+    hasRealClientSession,
+    currentClient.id,
+    currentClient.profileId,
+    currentClient.name,
+    currentClient.email,
+    currentClient.phone,
+  ])
   const currentClientActivePoints = getActivePoints(currentClient)
   const nextReward = flowPointRewards.discount10
   const nextRewardProgress = Math.min(100, Math.round((currentClientActivePoints / nextReward.pointsCost) * 100))
