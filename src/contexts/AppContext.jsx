@@ -35,6 +35,12 @@ import {
   fetchArtistProfile,
   saveArtistProfile as saveArtistProfileRecord,
 } from '../services/artistProfileService'
+import {
+  activateAdminArtist,
+  deactivateAdminArtist,
+  fetchAdminArtists,
+  updateAdminArtistProfile,
+} from '../services/adminArtistService'
 
 const initialSession = {
   user: null,
@@ -568,6 +574,8 @@ export function AppProvider({ children }) {
   const [artistServicesError, setArtistServicesError] = useState('')
   const [isArtistProfileSaving, setIsArtistProfileSaving] = useState(false)
   const [artistProfileError, setArtistProfileError] = useState('')
+  const [isAdminArtistsLoading, setIsAdminArtistsLoading] = useState(false)
+  const [adminArtistsError, setAdminArtistsError] = useState('')
   const [selectedDate, setSelectedDate] = useState('2026-05-18')
 
   useEffect(() => {
@@ -898,6 +906,38 @@ export function AppProvider({ children }) {
     })
   }, [loadArtistServices, session.artist?.id, session.isMockSession, session.role, session.user?.artistId])
 
+  const loadAdminArtists = useCallback(async () => {
+    if (session.isMockSession) return null
+    if (![ROLES.PLATFORM_OWNER, ROLES.STUDIO_OWNER, ROLES.STUDIO_MANAGER].includes(session.role)) return null
+
+    setIsAdminArtistsLoading(true)
+    setAdminArtistsError('')
+
+    try {
+      const payload = await fetchAdminArtists()
+      setAdminState((currentState) => ({
+        ...currentState,
+        artists: payload.artists,
+        studios: payload.studios.length > 0 ? payload.studios : currentState.studios,
+      }))
+      setIsAdminArtistsLoading(false)
+      return payload
+    } catch (error) {
+      setAdminArtistsError(error.message || 'No se pudieron cargar los artistas.')
+      setIsAdminArtistsLoading(false)
+      throw error
+    }
+  }, [session.isMockSession, session.role])
+
+  useEffect(() => {
+    if (session.isMockSession) return
+    if (![ROLES.PLATFORM_OWNER, ROLES.STUDIO_OWNER, ROLES.STUDIO_MANAGER].includes(session.role)) return
+
+    loadAdminArtists().catch(() => {
+      // adminArtistsError keeps the failure available to admin screens.
+    })
+  }, [loadAdminArtists, session.isMockSession, session.role])
+
   const toggleScheduleDay = useCallback((dayName) => {
     setAgendaSettings((currentSettings) => ({
       ...currentSettings,
@@ -1004,25 +1044,76 @@ export function AppProvider({ children }) {
     }))
   }, [])
 
-  const toggleManagedArtistStatus = useCallback((artistId) => {
-    setAdminState((currentState) => ({
-      ...currentState,
-      artists: currentState.artists.map((artist) =>
-        artist.id === artistId
-          ? { ...artist, status: artist.status === 'Activo' ? 'Inactivo' : 'Activo' }
-          : artist,
-      ),
-    }))
-  }, [])
+  const toggleManagedArtistStatus = useCallback(async (artistId) => {
+    if (session.isMockSession) {
+      setAdminState((currentState) => ({
+        ...currentState,
+        artists: currentState.artists.map((artist) =>
+          artist.id === artistId
+            ? { ...artist, status: artist.status === 'Activo' ? 'Inactivo' : 'Activo' }
+            : artist,
+        ),
+      }))
+      return null
+    }
 
-  const updateManagedArtistProfile = useCallback((artistId, updates) => {
-    setAdminState((currentState) => ({
-      ...currentState,
-      artists: currentState.artists.map((artist) =>
-        artist.id === artistId ? { ...artist, ...updates } : artist,
-      ),
-    }))
-  }, [])
+    const currentArtist = adminState.artists.find((artist) => artist.id === artistId)
+    if (!currentArtist) return null
+
+    setAdminArtistsError('')
+
+    try {
+      const savedArtist = currentArtist.status === 'Activo'
+        ? await deactivateAdminArtist(artistId)
+        : await activateAdminArtist(artistId)
+
+      if (!savedArtist) return null
+
+      setAdminState((currentState) => ({
+        ...currentState,
+        artists: currentState.artists.map((artist) =>
+          artist.id === artistId ? { ...artist, ...savedArtist } : artist,
+        ),
+      }))
+
+      return savedArtist
+    } catch (error) {
+      setAdminArtistsError(error.message || 'No se pudo actualizar el estado del artista.')
+      return null
+    }
+  }, [adminState.artists, session.isMockSession])
+
+  const updateManagedArtistProfile = useCallback(async (artistId, updates) => {
+    if (session.isMockSession) {
+      setAdminState((currentState) => ({
+        ...currentState,
+        artists: currentState.artists.map((artist) =>
+          artist.id === artistId ? { ...artist, ...updates } : artist,
+        ),
+      }))
+      return updates
+    }
+
+    setAdminArtistsError('')
+
+    try {
+      const savedArtist = await updateAdminArtistProfile(artistId, updates)
+
+      if (!savedArtist) return null
+
+      setAdminState((currentState) => ({
+        ...currentState,
+        artists: currentState.artists.map((artist) =>
+          artist.id === artistId ? { ...artist, ...savedArtist } : artist,
+        ),
+      }))
+
+      return savedArtist
+    } catch (error) {
+      setAdminArtistsError(error.message || 'No se pudo guardar el perfil del artista.')
+      return null
+    }
+  }, [session.isMockSession])
 
   const updateManagedStudioProfile = useCallback((studioId, updates) => {
     setAdminState((currentState) => ({
@@ -1506,6 +1597,8 @@ export function AppProvider({ children }) {
       artistServicesError,
       isArtistProfileSaving,
       artistProfileError,
+      isAdminArtistsLoading,
+      adminArtistsError,
       toggleScheduleDay,
       cancelScheduleDay,
       updateScheduleDayTime,
@@ -1529,6 +1622,7 @@ export function AppProvider({ children }) {
       addMockBooking,
       toggleFavoriteArtist,
       updateClientProfile,
+      loadAdminArtists,
       loadArtistServices,
       saveArtistService,
       updateArtistServiceStatus,
@@ -1560,6 +1654,8 @@ export function AppProvider({ children }) {
       artistServicesError,
       isArtistProfileSaving,
       artistProfileError,
+      isAdminArtistsLoading,
+      adminArtistsError,
       toggleScheduleDay,
       cancelScheduleDay,
       updateScheduleDayTime,
@@ -1583,6 +1679,7 @@ export function AppProvider({ children }) {
       addMockBooking,
       toggleFavoriteArtist,
       updateClientProfile,
+      loadAdminArtists,
       loadArtistServices,
       saveArtistService,
       updateArtistServiceStatus,
