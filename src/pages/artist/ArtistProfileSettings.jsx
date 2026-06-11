@@ -3,6 +3,7 @@ import Button from '../../components/Button'
 import Card from '../../components/Card'
 import Input from '../../components/Input'
 import PanelHeader from '../../components/PanelHeader'
+import StatusPill from '../../components/StatusPill'
 import { useApp } from '../../contexts/appContextCore'
 import { buildGoogleMapsUrl, createArtistLocationSettings, validateProfessionalLocation } from '../../utils/locationHelpers'
 import { mapAuthContextToArtistProfile } from '../../utils/artistProfileMapper'
@@ -17,7 +18,7 @@ import {
 const portfolioLimit = 12
 
 function ArtistProfileSettings() {
-  const { adminState, artistState, session, updateArtistProfile } = useApp()
+  const { adminState, artistProfileError, artistState, isArtistProfileSaving, saveArtistProfile, session } = useApp()
   const localProfiles = session.user ? [{ ...session.user, id: session.user.id }] : []
   const currentProfile = getCurrentProfile({ session, profiles: localProfiles })
   const artistStudioMemberships = deriveMembershipsFromLegacyData({ artists: adminState.artists })
@@ -51,6 +52,7 @@ function ArtistProfileSettings() {
     professionalLocation: createArtistLocationSettings(sessionArtistProfile?.professionalLocation),
   })
   const [locationErrors, setLocationErrors] = useState({})
+  const [saveFeedback, setSaveFeedback] = useState('')
   const effectiveLocation = profileDraft.professionalLocation.useStudioLocation
     ? currentStudio?.professionalLocation
     : profileDraft.professionalLocation.customLocation
@@ -187,7 +189,7 @@ function ArtistProfileSettings() {
     }))
   }
 
-  const saveProfile = () => {
+  const saveProfile = async () => {
     const nextProfile = { ...profileDraft }
 
     if (!profileDraft.professionalLocation.useStudioLocation) {
@@ -203,7 +205,12 @@ function ArtistProfileSettings() {
       setLocationErrors({})
     }
 
-    updateArtistProfile(nextProfile)
+    try {
+      await saveArtistProfile(nextProfile)
+      setSaveFeedback('Perfil guardado')
+    } catch (error) {
+      setSaveFeedback(error.message || 'No se pudo guardar el perfil')
+    }
   }
 
   return (
@@ -514,7 +521,14 @@ function ArtistProfileSettings() {
             />
           </section>
 
-          <Button className="full-width" onClick={saveProfile}>Guardar perfil profesional</Button>
+          {(saveFeedback || artistProfileError) && (
+            <StatusPill tone={(saveFeedback || artistProfileError).includes('No se pudo') ? 'warm' : 'success'}>
+              {artistProfileError || saveFeedback}
+            </StatusPill>
+          )}
+          <Button className="full-width" disabled={isArtistProfileSaving} onClick={saveProfile}>
+            {isArtistProfileSaving ? 'Guardando perfil...' : 'Guardar perfil profesional'}
+          </Button>
         </div>
       </Card>
     </main>

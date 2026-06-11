@@ -31,6 +31,10 @@ import {
   saveArtistServiceOffering,
   updateArtistServiceOfferingStatus,
 } from '../services/artistServiceService'
+import {
+  fetchArtistProfile,
+  saveArtistProfile as saveArtistProfileRecord,
+} from '../services/artistProfileService'
 
 const initialSession = {
   user: null,
@@ -562,6 +566,8 @@ export function AppProvider({ children }) {
   const [artistState, setArtistState] = useState(getStoredArtistState)
   const [isArtistServicesLoading, setIsArtistServicesLoading] = useState(false)
   const [artistServicesError, setArtistServicesError] = useState('')
+  const [isArtistProfileSaving, setIsArtistProfileSaving] = useState(false)
+  const [artistProfileError, setArtistProfileError] = useState('')
   const [selectedDate, setSelectedDate] = useState('2026-05-18')
 
   useEffect(() => {
@@ -584,9 +590,13 @@ export function AppProvider({ children }) {
     const nextSession = createSessionFromAuthContext(authSession, authContext)
 
     if (authContext.artist) {
+      const artistProfile = await fetchArtistProfile({ artistId: authContext.artist.id })
       setArtistState((currentState) => ({
         ...currentState,
-        profile: mapAuthContextToArtistProfile(authContext, currentState.profile),
+        profile: mapAuthContextToArtistProfile({
+          ...authContext,
+          artistProfile,
+        }, currentState.profile),
       }))
     }
 
@@ -734,9 +744,13 @@ export function AppProvider({ children }) {
 
       const authContext = await bootstrapArtistProfile({ displayName, phone, artisticName, city, claimToken })
       const nextSession = createSessionFromAuthContext(data.session, authContext)
+      const artistProfile = await fetchArtistProfile({ artistId: authContext.artist?.id })
       setArtistState((currentState) => ({
         ...currentState,
-        profile: mapAuthContextToArtistProfile(authContext, currentState.profile),
+        profile: mapAuthContextToArtistProfile({
+          ...authContext,
+          artistProfile,
+        }, currentState.profile),
       }))
       localStorage.removeItem(storageKey)
       setSession(nextSession)
@@ -1378,6 +1392,75 @@ export function AppProvider({ children }) {
     }))
   }, [])
 
+  const saveArtistProfile = useCallback(async (profile) => {
+    const artistId = session.artist?.id || session.user?.artistId
+    const profileId = session.profile?.id || session.user?.profileId
+
+    if (!artistId || session.isMockSession) {
+      updateArtistProfile(profile)
+      return profile
+    }
+
+    setIsArtistProfileSaving(true)
+    setArtistProfileError('')
+
+    try {
+      const savedArtistProfile = await saveArtistProfileRecord({
+        artistId,
+        profileId,
+        profile,
+      })
+      const nextProfileContext = {
+        ...session.profile,
+        phone: profile.personalInfo?.phone || session.profile?.phone || '',
+      }
+      const nextArtistContext = {
+        ...session.artist,
+        display_name: savedArtistProfile.artistic_name || session.artist?.display_name,
+      }
+      const mappedProfile = mapAuthContextToArtistProfile({
+        profile: nextProfileContext,
+        artist: nextArtistContext,
+        artistProfile: savedArtistProfile,
+      }, profile)
+
+      setArtistState((currentState) => ({
+        ...currentState,
+        profile: {
+          ...currentState.profile,
+          ...mappedProfile,
+        },
+      }))
+      setSession((currentSession) => ({
+        ...currentSession,
+        profile: currentSession.profile
+          ? {
+              ...currentSession.profile,
+              phone: nextProfileContext.phone,
+            }
+          : currentSession.profile,
+        artist: currentSession.artist
+          ? {
+              ...currentSession.artist,
+              display_name: nextArtistContext.display_name,
+            }
+          : currentSession.artist,
+        user: currentSession.user
+          ? {
+              ...currentSession.user,
+              phone: nextProfileContext.phone,
+            }
+          : currentSession.user,
+      }))
+      setIsArtistProfileSaving(false)
+      return mappedProfile
+    } catch (error) {
+      setArtistProfileError(error.message || 'No se pudo guardar el perfil artista.')
+      setIsArtistProfileSaving(false)
+      throw error
+    }
+  }, [session.artist, session.isMockSession, session.profile, session.user, updateArtistProfile])
+
   const addArtistAppointment = useCallback((appointment) => {
     if (!appointment.artistId) return
 
@@ -1421,6 +1504,8 @@ export function AppProvider({ children }) {
       artistServices: artistState.services || [],
       isArtistServicesLoading,
       artistServicesError,
+      isArtistProfileSaving,
+      artistProfileError,
       toggleScheduleDay,
       cancelScheduleDay,
       updateScheduleDayTime,
@@ -1451,6 +1536,7 @@ export function AppProvider({ children }) {
       addArtistClient,
       updateArtistClient,
       updateArtistProfile,
+      saveArtistProfile,
       addArtistAppointment,
       selectedDate,
       setSelectedDate,
@@ -1472,6 +1558,8 @@ export function AppProvider({ children }) {
       artistState,
       isArtistServicesLoading,
       artistServicesError,
+      isArtistProfileSaving,
+      artistProfileError,
       toggleScheduleDay,
       cancelScheduleDay,
       updateScheduleDayTime,
@@ -1502,6 +1590,7 @@ export function AppProvider({ children }) {
       addArtistClient,
       updateArtistClient,
       updateArtistProfile,
+      saveArtistProfile,
       addArtistAppointment,
       selectedDate,
       setSelectedDate,
