@@ -461,8 +461,8 @@ function ArtistProfileSettings() {
             <label className="input-field">
               <span>Referencias</span>
               <textarea
-                value={profileDraft.professionalLocation.customLocation.references}
-                onChange={(event) => updateCustomLocation('references', event.target.value)}
+                value={profileDraft.professionalLocation.customLocation.address_references}
+                onChange={(event) => updateCustomLocation('address_references', event.target.value)}
                 rows="3"
               />
             </label>

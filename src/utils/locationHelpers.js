@@ -4,7 +4,7 @@ export const emptyProfessionalLocation = {
   city: '',
   state: '',
   postalCode: '',
-  references: '',
+  address_references: '',
   latitude: '',
   longitude: '',
 }

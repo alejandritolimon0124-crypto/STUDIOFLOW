@@ -4,6 +4,10 @@ function firstText(...values) {
   return values.find((value) => String(value || '').trim()) || ''
 }
 
+function firstDefined(...values) {
+  return values.find((value) => value !== undefined && value !== null)
+}
+
 function formatSpecialties(value) {
   if (Array.isArray(value)) return value.filter(Boolean).join(', ')
   return String(value || '')
@@ -36,11 +40,21 @@ export function mapAuthContextToArtistProfile(authContext = {}, currentProfile =
   const email = firstText(profile.email, artist.email)
   const phone = firstText(profile.phone, artist.phone)
   const city = firstText(artistProfile.city, artist.city)
+  const useStudioLocation = firstDefined(
+    artistProfile.use_studio_location,
+    artistProfile.useStudioLocation,
+    currentProfile.professionalLocation?.useStudioLocation,
+  )
   const portfolioPaths = Array.isArray(artistProfile.portfolio_paths)
     ? artistProfile.portfolio_paths
     : Array.isArray(artistProfile.portfolioPaths)
       ? artistProfile.portfolioPaths
       : []
+  const paymentMethods = artistProfile.payment_methods && typeof artistProfile.payment_methods === 'object'
+    ? artistProfile.payment_methods
+    : artistProfile.paymentMethods && typeof artistProfile.paymentMethods === 'object'
+      ? artistProfile.paymentMethods
+      : {}
 
   return {
     ...currentProfile,
@@ -57,16 +71,31 @@ export function mapAuthContextToArtistProfile(authContext = {}, currentProfile =
     },
     professionalProfile: {
       ...(currentProfile.professionalProfile || {}),
-      primarySpecialty: specialties || currentProfile.professionalProfile?.primarySpecialty || '',
+      primarySpecialty: firstText(
+        artistProfile.primary_specialty,
+        artistProfile.primarySpecialty,
+        currentProfile.professionalProfile?.primarySpecialty,
+        specialties,
+      ),
       specialties: specialties || currentProfile.professionalProfile?.specialties || '',
       shortBio: firstText(artistProfile.bio, artistProfile.shortBio, currentProfile.professionalProfile?.shortBio),
-      experienceYears: currentProfile.professionalProfile?.experienceYears || '',
+      experienceYears: firstText(
+        artistProfile.years_experience,
+        artistProfile.yearsExperience,
+        currentProfile.professionalProfile?.experienceYears,
+      ),
       paymentMethods: {
         ...(currentProfile.professionalProfile?.paymentMethods || {}),
+        ...paymentMethods,
       },
     },
     contactLinks: {
       ...(currentProfile.contactLinks || {}),
+      whatsapp: firstText(artistProfile.whatsapp, currentProfile.contactLinks?.whatsapp),
+      instagram: firstText(artistProfile.instagram, currentProfile.contactLinks?.instagram),
+      facebook: firstText(artistProfile.facebook, currentProfile.contactLinks?.facebook),
+      tiktok: firstText(artistProfile.tiktok, currentProfile.contactLinks?.tiktok),
+      website: firstText(artistProfile.website, currentProfile.contactLinks?.website),
     },
     photoUrl: firstText(artistProfile.photo_url, artistProfile.photoUrl, artistProfile.photo_path, artistProfile.photoPath, currentProfile.photoUrl),
     portfolio: portfolioPaths.length > 0
@@ -84,9 +113,33 @@ export function mapAuthContextToArtistProfile(authContext = {}, currentProfile =
     },
     professionalLocation: createArtistLocationSettings({
       ...(currentProfile.professionalLocation || {}),
+      useStudioLocation,
       customLocation: {
         ...(currentProfile.professionalLocation?.customLocation || {}),
+        address: firstText(
+          artistProfile.address_line,
+          artistProfile.addressLine,
+          currentProfile.professionalLocation?.customLocation?.address,
+        ),
         city: city || currentProfile.professionalLocation?.customLocation?.city || '',
+        state: firstText(artistProfile.state, currentProfile.professionalLocation?.customLocation?.state),
+        postalCode: firstText(
+          artistProfile.postal_code,
+          artistProfile.postalCode,
+          currentProfile.professionalLocation?.customLocation?.postalCode,
+        ),
+        address_references: firstText(
+          artistProfile.address_references,
+          artistProfile.addressReferences,
+          currentProfile.professionalLocation?.customLocation?.address_references,
+        ),
+        latitude: firstText(artistProfile.latitude, currentProfile.professionalLocation?.customLocation?.latitude),
+        longitude: firstText(artistProfile.longitude, currentProfile.professionalLocation?.customLocation?.longitude),
+        googleMapsUrl: firstText(
+          artistProfile.google_maps_url,
+          artistProfile.googleMapsUrl,
+          currentProfile.professionalLocation?.customLocation?.googleMapsUrl,
+        ),
       },
     }),
   }

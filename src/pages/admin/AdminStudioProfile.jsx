@@ -258,8 +258,8 @@ function AdminStudioProfile() {
             <label className="input-field">
               <span>Referencias</span>
               <textarea
-                value={locationDraft.references}
-                onChange={(event) => updateLocationField('references', event.target.value)}
+                value={locationDraft.address_references}
+                onChange={(event) => updateLocationField('address_references', event.target.value)}
                 rows="3"
               />
             </label>

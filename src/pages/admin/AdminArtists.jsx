@@ -326,8 +326,8 @@ function AdminArtists() {
                 <label className="input-field">
                   <span>Referencias</span>
                   <textarea
-                    value={studioLocationDraft.references}
-                    onChange={(event) => updateStudioLocationDraft('references', event.target.value)}
+                    value={studioLocationDraft.address_references}
+                    onChange={(event) => updateStudioLocationDraft('address_references', event.target.value)}
                     rows="3"
                   />
                 </label>
@@ -414,8 +414,8 @@ function AdminArtists() {
                     <label className="input-field">
                       <span>Referencias</span>
                       <textarea
-                        value={artistLocationDraft.customLocation.references}
-                        onChange={(event) => updateArtistCustomLocation('references', event.target.value)}
+                        value={artistLocationDraft.customLocation.address_references}
+                        onChange={(event) => updateArtistCustomLocation('address_references', event.target.value)}
                         rows="3"
                       />
                     </label>
