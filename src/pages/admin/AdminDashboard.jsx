@@ -3,17 +3,9 @@ import MetricCard from '../../components/MetricCard'
 import PanelHeader from '../../components/PanelHeader'
 import StatusPill from '../../components/StatusPill'
 import Button from '../../components/Button'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { paths } from '../../routes/paths'
-import {
-  artistAppointments,
-  artistClients,
-  managedArtists,
-  studios,
-  systemStatus,
-  users,
-} from '../../services/mockData'
 import { useApp } from '../../contexts/appContextCore'
 import {
   calculateFlaggedAppointments,
@@ -45,93 +37,6 @@ import {
   getStudiosForArtist,
 } from '../../modules/entities/entitySelectors'
 
-const executiveRiskEvents = [
-  {
-    time: '10:20',
-    end: '14:00',
-    clientId: 'client-rg',
-    client: 'Regina Campos',
-    service: 'Servicio express registrado como extendido',
-    duration: '220 min',
-    status: 'Revision',
-    room: 'Studio Norte',
-    type: 'appointment',
-    studioId: 'studio-aura',
-    date: '2026-05-18',
-    grossAmount: 360,
-    serviceTier: 'basic',
-    rewardApplied: 'double_points',
-    pointsGranted: 110,
-    appointmentStatus: 'flagged',
-    artistId: 'aura-nails',
-  },
-  {
-    time: '13:40',
-    end: '14:10',
-    clientId: 'client-iv',
-    client: 'Ivanna Rey',
-    service: 'Tratamiento premium abreviado',
-    duration: '30 min',
-    status: 'Revision',
-    room: 'Suite Glow',
-    type: 'appointment',
-    studioId: 'studio-velvet',
-    date: '2026-05-18',
-    grossAmount: 980,
-    serviceTier: 'premium',
-    rewardApplied: null,
-    pointsGranted: 90,
-    appointmentStatus: 'scheduled',
-    artistId: 'nude-beauty-lab',
-  },
-  {
-    time: '18:00',
-    end: '22:00',
-    clientId: 'client-lu',
-    client: 'Lucia Navarro',
-    service: 'Servicio basico con recompensa alta',
-    duration: '240 min',
-    status: 'Revision urgente',
-    room: 'Suite Rose',
-    type: 'appointment',
-    studioId: 'studio-glow',
-    date: '2026-05-18',
-    grossAmount: 520,
-    serviceTier: 'basic',
-    rewardApplied: 'double_points',
-    pointsGranted: 200,
-    appointmentStatus: 'flagged',
-    artistId: 'valeria-moon',
-  },
-  {
-    time: '19:00',
-    end: '20:30',
-    clientId: 'client-pa',
-    client: 'Paola Sierra',
-    service: 'Campana doble puntos',
-    duration: '90 min',
-    status: 'Confirmada',
-    room: 'Makeup bar',
-    type: 'appointment',
-    studioId: 'studio-glow',
-    date: '2026-05-18',
-    grossAmount: 1180,
-    serviceTier: 'vip',
-    rewardApplied: 'double_points',
-    pointsGranted: 120,
-    appointmentStatus: 'scheduled',
-    artistId: 'valeria-moon',
-  },
-]
-
-const executiveClients = [
-  ...artistClients,
-  { id: 'client-muse', studioId: 'studio-velvet', name: 'Daniela Muse', flowPoints: 640, vipTier: 'Muse' },
-  { id: 'client-icon', studioId: 'studio-glow', name: 'Elena Icon', flowPoints: 1320, vipTier: 'Icon' },
-  { id: 'client-elite', studioId: 'studio-glow', name: 'Marina Elite', flowPoints: 2680, vipTier: 'Elite' },
-  { id: 'client-near', studioId: 'studio-aura', name: 'Claudia Near', flowPoints: 142, vipTier: 'Glow' },
-]
-
 const executiveAlertMessages = {
   medium: 'Evento con posible inconsistencia de duracion y servicio.',
   high: 'Evento con riesgo operativo que requiere validacion del equipo.',
@@ -141,18 +46,41 @@ const executiveAlertMessages = {
 const formatCurrency = (value) => `$${Math.round(value).toLocaleString('es-MX')}`
 const getStudioCommercialName = (studio = {}) => studio.profile?.commercialName?.trim() || ''
 const uniqueById = (items = []) => Array.from(new Map(items.filter(Boolean).map((item) => [item.id, item])).values())
+const emptyDashboardData = {
+  source: 'supabase',
+  studios: [],
+  artists: [],
+  clients: [],
+  appointments: [],
+  users: [],
+  systemStatus: [],
+}
 
 function AdminDashboard() {
   const navigate = useNavigate()
-  const { artistServices, session } = useApp()
+  const { adminState, artistServices, session } = useApp()
   const currentUser = session.user
-  const [reviewStudios, setReviewStudios] = useState(studios)
+  const dashboardSnapshot = adminState.dashboard || emptyDashboardData
+  const dashboardData = session.isMockSession || dashboardSnapshot.source === 'supabase'
+    ? dashboardSnapshot
+    : emptyDashboardData
+  const dashboardStudios = dashboardData.studios || []
+  const dashboardArtists = dashboardData.artists || []
+  const dashboardClients = dashboardData.clients || []
+  const dashboardAppointments = dashboardData.appointments || []
+  const dashboardUsers = dashboardData.users || []
+  const dashboardSystemStatus = dashboardData.systemStatus || []
+  const [reviewStudios, setReviewStudios] = useState(dashboardStudios)
+
+  useEffect(() => {
+    setReviewStudios(dashboardStudios)
+  }, [dashboardStudios])
 
   const normalizedRole = currentUser?.role === 'admin' ? ROLES.PLATFORM_OWNER : currentUser?.role
   const isPlatformOwner = normalizedRole === ROLES.PLATFORM_OWNER
   const isStudioOwner = normalizedRole === ROLES.STUDIO_OWNER
   const isStudioManager = normalizedRole === ROLES.STUDIO_MANAGER
-  const ownerAppointments = [...artistAppointments, ...executiveRiskEvents]
+  const ownerAppointments = dashboardAppointments
   const canSeeGovernance = hasPermission(currentUser, permissions.GOVERNANCE)
   const canSeeGlobalRevenue = hasPermission(currentUser, permissions.GLOBAL_REVENUE)
   const canSeeGlobalInsights = hasPermission(currentUser, permissions.GLOBAL_INSIGHTS)
@@ -162,8 +90,8 @@ function AdminDashboard() {
   const canSeeStudioOccupancy = hasPermission(currentUser, permissions.STUDIO_OCCUPANCY)
   const canSeeStudioArtists = hasPermission(currentUser, permissions.STUDIO_ARTISTS)
   const canSeeStudioClients = hasPermission(currentUser, permissions.STUDIO_CLIENTS) || hasPermission(currentUser, permissions.CLIENTS)
-  const artistStudioMemberships = deriveMembershipsFromLegacyData({ artists: managedArtists })
-  const artistsOwnedByUser = managedArtists.filter((artist) => artist.owner === currentUser?.name || artist.name === currentUser?.name)
+  const artistStudioMemberships = deriveMembershipsFromLegacyData({ artists: dashboardArtists })
+  const artistsOwnedByUser = dashboardArtists.filter((artist) => artist.owner === currentUser?.name || artist.name === currentUser?.name)
   const studiosFromOwnedArtists = uniqueById(artistsOwnedByUser.flatMap((artist) => getStudiosForArtist({
     artistId: artist.id,
     studios: reviewStudios,
@@ -172,13 +100,13 @@ function AdminDashboard() {
   const accessibleStudios = isPlatformOwner ? reviewStudios : studiosFromOwnedArtists
   const accessibleStudioIds = accessibleStudios.map((studio) => studio.id)
   const accessibleArtists = isPlatformOwner
-    ? managedArtists
+    ? dashboardArtists
     : uniqueById(accessibleStudioIds.flatMap((studioId) => getArtistsForStudio({
       studioId,
-      artists: managedArtists,
+      artists: dashboardArtists,
       artistStudioMemberships,
     })))
-  const accessibleClients = filterByStudioAccess(executiveClients, currentUser, accessibleStudioIds)
+  const accessibleClients = filterByStudioAccess(dashboardClients, currentUser, accessibleStudioIds)
   const accessibleArtistIds = accessibleArtists.map((artist) => artist.id)
   const accessibleAppointments = ownerAppointments.filter((appointment) => (
     !appointment.artistId
@@ -243,7 +171,7 @@ function AdminDashboard() {
       promotion: 'Las promociones con doble puntos generan mayor recurrencia y sostienen ingresos incrementales.',
       occupancy: 'La ocupacion global puede mejorar activando campanas en dias bajos.',
       risk: 'Hay eventos que requieren revision por riesgo operativo antes del cierre.',
-      revenue: `El negocio mantiene ${formatCurrency(totalRevenue)} en ingresos mock y ${formatCurrency(platformRevenue)} de comision Studio Flow.`,
+      revenue: `El negocio mantiene ${formatCurrency(totalRevenue)} en ingresos reales y ${formatCurrency(platformRevenue)} de comision Studio Flow.`,
     }
 
     return {
@@ -283,18 +211,18 @@ function AdminDashboard() {
   ).length
   const ecosystemMetrics = calculateEcosystemGovernanceMetrics(accessibleStudios)
   const pendingReviewStudios = accessibleStudios.filter((studio) => studio.studioStatus === STUDIO_STATUS.PENDING)
-  const roleDistribution = users.reduce((distribution, user) => ({
+  const roleDistribution = dashboardUsers.reduce((distribution, user) => ({
     ...distribution,
     [user.role]: (distribution[user.role] || 0) + 1,
   }), {})
   const scopedUsers = isPlatformOwner
-    ? users
-    : users.filter((user) => user.id === currentUser?.id || accessibleStudios.some((studio) => user.name === getStudioCommercialName(studio)))
+    ? dashboardUsers
+    : dashboardUsers.filter((user) => user.id === currentUser?.id || accessibleStudios.some((studio) => user.name === getStudioCommercialName(studio)))
   const managersActive = scopedUsers.filter((user) => user.role === 'studio_manager' && user.status === 'Activo').length
-  const studiosByOwner = users.filter((user) => user.role === 'studio_owner').map((owner) => ({
+  const studiosByOwner = dashboardUsers.filter((user) => user.role === 'studio_owner').map((owner) => ({
     owner: owner.name,
     studios: getStudiosForArtist({
-      artistId: managedArtists.find((artist) => artist.owner === owner.name || artist.name === owner.name)?.id,
+      artistId: dashboardArtists.find((artist) => artist.owner === owner.name || artist.name === owner.name)?.id,
       studios: reviewStudios,
       artistStudioMemberships,
     }),
@@ -332,7 +260,7 @@ function AdminDashboard() {
   })
 
   const ownerKpis = [
-    canSeeGlobalRevenue && { label: 'Ingresos totales', value: formatCurrency(totalRevenue), trend: 'Gross mock conectado', tone: 'rose' },
+    canSeeGlobalRevenue && { label: 'Ingresos totales', value: formatCurrency(totalRevenue), trend: 'Gross conectado', tone: 'rose' },
     canSeeGlobalRevenue && { label: 'Comision Studio Flow', value: formatCurrency(platformRevenue), trend: '10% foundation', tone: 'sage' },
     canSeeEcosystemRisk && { label: 'Eventos con riesgo', value: flaggedAppointments.length, trend: riskAlerts.length ? 'Revision activa' : 'Sin alertas', tone: flaggedAppointments.length ? 'warm' : 'success' },
     canSeeStudioRevenue && !canSeeGlobalRevenue && { label: 'Revenue estudio', value: formatCurrency(totalRevenue), trend: getStudioCommercialName(accessibleStudios[0]) || 'Studio asignado', tone: 'rose' },
@@ -425,7 +353,7 @@ function AdminDashboard() {
             <div className="studio-review-row">
               <div>
                 <strong>Pipeline curado al dia</strong>
-                <small>No hay estudios esperando validacion en este mock.</small>
+                <small>No hay estudios esperando validacion.</small>
               </div>
               <StatusPill tone="approved">Listo</StatusPill>
             </div>
@@ -573,7 +501,7 @@ function AdminDashboard() {
 
       {(isPlatformOwner || isStudioOwner) && (
       <Card className="wide-card executive-card">
-        <PanelHeader title={isPlatformOwner ? 'Top artistas' : 'Artistas del estudio'} eyebrow={isPlatformOwner ? 'Ranking mock ejecutivo' : 'Equipo y rendimiento'} />
+        <PanelHeader title={isPlatformOwner ? 'Top artistas' : 'Artistas del estudio'} eyebrow={isPlatformOwner ? 'Ranking ejecutivo' : 'Equipo y rendimiento'} />
         <div className="data-table executive-table">
           <div className="table-head">
             <span>Artista</span>
@@ -638,9 +566,9 @@ function AdminDashboard() {
 
       {isPlatformOwner && (
       <Card className="system-card">
-        <PanelHeader title="Estado del sistema" eyebrow="Infraestructura futura" />
+        <PanelHeader title="Estado del sistema" eyebrow="Infraestructura" />
         <div className="system-stack">
-          {systemStatus.map((item) => (
+          {dashboardSystemStatus.map((item) => (
             <div className="system-row" key={item.label}>
               <div>
                 <strong>{item.label}</strong>

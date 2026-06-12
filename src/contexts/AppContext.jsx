@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AppContext } from './appContextCore'
-import { artistAppointments, artistClients, artistServices as mockArtistServices, clientHistory, managedArtists, managedClients, studios, users, weeklySchedule } from '../services/mockData'
+import { artistAppointments, artistClients, artistServices as mockArtistServices, clientHistory, managedArtists, managedClients, studios, systemStatus, users, weeklySchedule } from '../services/mockData'
 import { canUseOperationalFeature, getDefaultStudioStatus } from '../modules/governance/studioGovernance'
 import { ROLES } from '../modules/permissions/rolePermissions'
 import {
@@ -41,6 +41,7 @@ import {
   fetchAdminArtists,
   updateAdminArtistProfile,
 } from '../services/adminArtistService'
+import { fetchAdminDashboardSummary } from '../services/adminDashboardService'
 
 const initialSession = {
   user: null,
@@ -296,41 +297,54 @@ function createInitialAgendaSettings() {
 }
 
 function createInitialAdminState() {
+  const initialStudios = studios.map((studio) => ({
+    ...studio,
+    profile: createStudioProfessionalProfile(studio, studio.profile),
+    professionalLocation: createProfessionalLocation({
+      businessName: studio.name,
+      city: studio.city,
+      ...(studio.professionalLocation || {}),
+    }),
+  }))
+  const initialArtists = managedArtists.map(({ studioId: legacyStudioId, ...artist }, index) => ({
+    ...artist,
+    id: `artist-${index + 1}`,
+    studioId: legacyStudioId || null,
+    studioStatus: artist.studioStatus || getDefaultStudioStatus(),
+    description: artist.description || 'Perfil profesional beauty listo para recibir reservas.',
+    services: artist.services || 'Lashes, brows, makeup',
+    professionalLocation: createArtistLocationSettings(artist.professionalLocation),
+  }))
+  const initialClients = managedClients.map((client, index) => ({
+    ...client,
+    id: `client-${index + 1}`,
+    studioId: client.studioId || null,
+    email: client.email || `${client.name.toLowerCase().replaceAll(' ', '.')}@studioflow.demo`,
+    phone: client.phone || '55 0000 0000',
+    notes: client.notes || 'Perfil mock administrable.',
+    history: clientHistory.map((item, historyIndex) => ({
+      id: `${client.name}-${historyIndex + 1}`,
+      artist: item.artist,
+      date: item.date,
+      service: item.service,
+      status: historyIndex === 0 ? 'Completada' : 'Finalizada',
+    })),
+  }))
+
   return {
-    studios: studios.map((studio) => ({
-      ...studio,
-      profile: createStudioProfessionalProfile(studio, studio.profile),
-      professionalLocation: createProfessionalLocation({
-        businessName: studio.name,
-        city: studio.city,
-        ...(studio.professionalLocation || {}),
-      }),
-    })),
+    dashboard: {
+      source: 'mock',
+      studios: initialStudios,
+      artists: initialArtists,
+      clients: artistClients,
+      appointments: artistAppointments,
+      users,
+      systemStatus,
+    },
+    studios: initialStudios,
     users,
-    artists: managedArtists.map(({ studioId: legacyStudioId, ...artist }, index) => ({
-      ...artist,
-      id: `artist-${index + 1}`,
-      studioId: legacyStudioId || null,
-      studioStatus: artist.studioStatus || getDefaultStudioStatus(),
-      description: artist.description || 'Perfil profesional beauty listo para recibir reservas.',
-      services: artist.services || 'Lashes, brows, makeup',
-      professionalLocation: createArtistLocationSettings(artist.professionalLocation),
-    })),
-    clients: managedClients.map((client, index) => ({
-      ...client,
-      id: `client-${index + 1}`,
-      studioId: client.studioId || null,
-      email: client.email || `${client.name.toLowerCase().replaceAll(' ', '.')}@studioflow.demo`,
-      phone: client.phone || '55 0000 0000',
-      notes: client.notes || 'Perfil mock administrable.',
-      history: clientHistory.map((item, historyIndex) => ({
-        id: `${client.name}-${historyIndex + 1}`,
-        artist: item.artist,
-        date: item.date,
-        service: item.service,
-        status: historyIndex === 0 ? 'Completada' : 'Finalizada',
-      })),
-    })),
+    artists: initialArtists,
+    clients: initialClients,
   }
 }
 
@@ -576,6 +590,8 @@ export function AppProvider({ children }) {
   const [artistProfileError, setArtistProfileError] = useState('')
   const [isAdminArtistsLoading, setIsAdminArtistsLoading] = useState(false)
   const [adminArtistsError, setAdminArtistsError] = useState('')
+  const [isAdminDashboardLoading, setIsAdminDashboardLoading] = useState(false)
+  const [adminDashboardError, setAdminDashboardError] = useState('')
   const [selectedDate, setSelectedDate] = useState('2026-05-18')
 
   useEffect(() => {
@@ -929,6 +945,40 @@ export function AppProvider({ children }) {
     }
   }, [session.isMockSession, session.role])
 
+  const loadAdminDashboard = useCallback(async () => {
+    if (session.isMockSession) return null
+    if (![ROLES.PLATFORM_OWNER, ROLES.STUDIO_OWNER, ROLES.STUDIO_MANAGER].includes(session.role)) return null
+
+    setIsAdminDashboardLoading(true)
+    setAdminDashboardError('')
+
+    try {
+      const payload = await fetchAdminDashboardSummary()
+      setAdminState((currentState) => ({
+        ...currentState,
+        dashboard: payload,
+      }))
+      return payload
+    } catch (error) {
+      setAdminDashboardError(error.message || 'No se pudo cargar el dashboard administrativo.')
+      setAdminState((currentState) => ({
+        ...currentState,
+        dashboard: {
+          source: 'supabase',
+          studios: [],
+          artists: [],
+          clients: [],
+          appointments: [],
+          users: [],
+          systemStatus: [],
+        },
+      }))
+      return null
+    } finally {
+      setIsAdminDashboardLoading(false)
+    }
+  }, [session.isMockSession, session.role])
+
   useEffect(() => {
     if (session.isMockSession) return
     if (![ROLES.PLATFORM_OWNER, ROLES.STUDIO_OWNER, ROLES.STUDIO_MANAGER].includes(session.role)) return
@@ -936,7 +986,10 @@ export function AppProvider({ children }) {
     loadAdminArtists().catch(() => {
       // adminArtistsError keeps the failure available to admin screens.
     })
-  }, [loadAdminArtists, session.isMockSession, session.role])
+    loadAdminDashboard().catch(() => {
+      // adminDashboardError keeps the failure available to admin screens.
+    })
+  }, [loadAdminArtists, loadAdminDashboard, session.isMockSession, session.role])
 
   const toggleScheduleDay = useCallback((dayName) => {
     setAgendaSettings((currentSettings) => ({
@@ -1599,6 +1652,8 @@ export function AppProvider({ children }) {
       artistProfileError,
       isAdminArtistsLoading,
       adminArtistsError,
+      isAdminDashboardLoading,
+      adminDashboardError,
       toggleScheduleDay,
       cancelScheduleDay,
       updateScheduleDayTime,
@@ -1622,6 +1677,7 @@ export function AppProvider({ children }) {
       addMockBooking,
       toggleFavoriteArtist,
       updateClientProfile,
+      loadAdminDashboard,
       loadAdminArtists,
       loadArtistServices,
       saveArtistService,
@@ -1656,6 +1712,8 @@ export function AppProvider({ children }) {
       artistProfileError,
       isAdminArtistsLoading,
       adminArtistsError,
+      isAdminDashboardLoading,
+      adminDashboardError,
       toggleScheduleDay,
       cancelScheduleDay,
       updateScheduleDayTime,
@@ -1679,6 +1737,7 @@ export function AppProvider({ children }) {
       addMockBooking,
       toggleFavoriteArtist,
       updateClientProfile,
+      loadAdminDashboard,
       loadAdminArtists,
       loadArtistServices,
       saveArtistService,
