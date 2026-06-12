@@ -77,10 +77,10 @@ function AdminClients() {
   )
   const canSeeStudioRevenue = hasPermission(session.user, permissions.STUDIO_REVENUE)
 
-  const saveClientProfile = () => {
+  const saveClientProfile = async () => {
     if (!profileClient) return
 
-    updateManagedClientProfile(profileClient.id, profileClient)
+    await updateManagedClientProfile(profileClient.id, profileClient)
     setProfileClient(null)
   }
 
@@ -119,7 +119,7 @@ function AdminClients() {
 
         {profileClient && (
           <Card className="mobile-screen">
-            <PanelHeader title="Perfil cliente" eyebrow="Edicion mock" />
+            <PanelHeader title="Perfil cliente" eyebrow="Edicion" />
             <div className="form-stack compact-form">
               <Input
                 label="Nombre"
@@ -161,7 +161,7 @@ function AdminClients() {
           <Card className="mobile-screen">
             <PanelHeader title="Historial cliente" eyebrow={historyClient.name} />
             <div className="compact-list">
-              {historyClient.history.map((item) => (
+              {(historyClient.history || []).map((item) => (
                 <div className="list-row elevated-row" key={item.id}>
                   <div>
                     <strong>{item.service}</strong>

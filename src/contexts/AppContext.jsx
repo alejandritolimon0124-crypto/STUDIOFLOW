@@ -42,6 +42,12 @@ import {
   updateAdminArtistProfile,
 } from '../services/adminArtistService'
 import { fetchAdminDashboardSummary } from '../services/adminDashboardService'
+import {
+  activateAdminClient,
+  deactivateAdminClient,
+  fetchAdminClients,
+  updateAdminClientProfile,
+} from '../services/adminClientService'
 
 const initialSession = {
   user: null,
@@ -592,6 +598,8 @@ export function AppProvider({ children }) {
   const [adminArtistsError, setAdminArtistsError] = useState('')
   const [isAdminDashboardLoading, setIsAdminDashboardLoading] = useState(false)
   const [adminDashboardError, setAdminDashboardError] = useState('')
+  const [isAdminClientsLoading, setIsAdminClientsLoading] = useState(false)
+  const [adminClientsError, setAdminClientsError] = useState('')
   const [selectedDate, setSelectedDate] = useState('2026-05-18')
 
   useEffect(() => {
@@ -979,6 +987,32 @@ export function AppProvider({ children }) {
     }
   }, [session.isMockSession, session.role])
 
+  const loadAdminClients = useCallback(async () => {
+    if (session.isMockSession) return null
+    if (![ROLES.PLATFORM_OWNER, ROLES.STUDIO_OWNER, ROLES.STUDIO_MANAGER].includes(session.role)) return null
+
+    setIsAdminClientsLoading(true)
+    setAdminClientsError('')
+
+    try {
+      const clients = await fetchAdminClients()
+      setAdminState((currentState) => ({
+        ...currentState,
+        clients,
+      }))
+      return clients
+    } catch (error) {
+      setAdminClientsError(error.message || 'No se pudieron cargar los clientes.')
+      setAdminState((currentState) => ({
+        ...currentState,
+        clients: [],
+      }))
+      return null
+    } finally {
+      setIsAdminClientsLoading(false)
+    }
+  }, [session.isMockSession, session.role])
+
   useEffect(() => {
     if (session.isMockSession) return
     if (![ROLES.PLATFORM_OWNER, ROLES.STUDIO_OWNER, ROLES.STUDIO_MANAGER].includes(session.role)) return
@@ -989,7 +1023,10 @@ export function AppProvider({ children }) {
     loadAdminDashboard().catch(() => {
       // adminDashboardError keeps the failure available to admin screens.
     })
-  }, [loadAdminArtists, loadAdminDashboard, session.isMockSession, session.role])
+    loadAdminClients().catch(() => {
+      // adminClientsError keeps the failure available to admin screens.
+    })
+  }, [loadAdminArtists, loadAdminClients, loadAdminDashboard, session.isMockSession, session.role])
 
   const toggleScheduleDay = useCallback((dayName) => {
     setAgendaSettings((currentSettings) => ({
@@ -1177,25 +1214,75 @@ export function AppProvider({ children }) {
     }))
   }, [])
 
-  const toggleManagedClientStatus = useCallback((clientId) => {
-    setAdminState((currentState) => ({
-      ...currentState,
-      clients: currentState.clients.map((client) =>
-        client.id === clientId
-          ? { ...client, status: client.status === 'Activo' ? 'Inactivo' : 'Activo' }
-          : client,
-      ),
-    }))
-  }, [])
+  const toggleManagedClientStatus = useCallback(async (clientId) => {
+    if (session.isMockSession) {
+      setAdminState((currentState) => ({
+        ...currentState,
+        clients: currentState.clients.map((client) =>
+          client.id === clientId
+            ? { ...client, status: client.status === 'Activo' ? 'Inactivo' : 'Activo' }
+            : client,
+        ),
+      }))
+      return null
+    }
 
-  const updateManagedClientProfile = useCallback((clientId, updates) => {
-    setAdminState((currentState) => ({
-      ...currentState,
-      clients: currentState.clients.map((client) =>
-        client.id === clientId ? { ...client, ...updates } : client,
-      ),
-    }))
-  }, [])
+    const currentClient = adminState.clients.find((client) => client.id === clientId)
+    if (!currentClient) return null
+
+    setAdminClientsError('')
+
+    try {
+      const savedClient = currentClient.status === 'Activo'
+        ? await deactivateAdminClient(clientId)
+        : await activateAdminClient(clientId)
+
+      if (!savedClient) return null
+
+      setAdminState((currentState) => ({
+        ...currentState,
+        clients: currentState.clients.map((client) =>
+          client.id === clientId ? savedClient : client,
+        ),
+      }))
+
+      return savedClient
+    } catch (error) {
+      setAdminClientsError(error.message || 'No se pudo actualizar el estado del cliente.')
+      return null
+    }
+  }, [adminState.clients, session.isMockSession])
+
+  const updateManagedClientProfile = useCallback(async (clientId, updates) => {
+    if (session.isMockSession) {
+      setAdminState((currentState) => ({
+        ...currentState,
+        clients: currentState.clients.map((client) =>
+          client.id === clientId ? { ...client, ...updates } : client,
+        ),
+      }))
+      return null
+    }
+
+    setAdminClientsError('')
+
+    try {
+      const savedClient = await updateAdminClientProfile(clientId, updates)
+      if (!savedClient) return null
+
+      setAdminState((currentState) => ({
+        ...currentState,
+        clients: currentState.clients.map((client) =>
+          client.id === clientId ? savedClient : client,
+        ),
+      }))
+
+      return savedClient
+    } catch (error) {
+      setAdminClientsError(error.message || 'No se pudo actualizar el perfil del cliente.')
+      return null
+    }
+  }, [session.isMockSession])
 
   const getAvailableSlots = useCallback(
     ({ artistId, studioId = null, membershipId = null, date, durationMinutes = 60 }) => {
@@ -1654,6 +1741,8 @@ export function AppProvider({ children }) {
       adminArtistsError,
       isAdminDashboardLoading,
       adminDashboardError,
+      isAdminClientsLoading,
+      adminClientsError,
       toggleScheduleDay,
       cancelScheduleDay,
       updateScheduleDayTime,
@@ -1679,6 +1768,7 @@ export function AppProvider({ children }) {
       updateClientProfile,
       loadAdminDashboard,
       loadAdminArtists,
+      loadAdminClients,
       loadArtistServices,
       saveArtistService,
       updateArtistServiceStatus,
@@ -1714,6 +1804,8 @@ export function AppProvider({ children }) {
       adminArtistsError,
       isAdminDashboardLoading,
       adminDashboardError,
+      isAdminClientsLoading,
+      adminClientsError,
       toggleScheduleDay,
       cancelScheduleDay,
       updateScheduleDayTime,
@@ -1739,6 +1831,7 @@ export function AppProvider({ children }) {
       updateClientProfile,
       loadAdminDashboard,
       loadAdminArtists,
+      loadAdminClients,
       loadArtistServices,
       saveArtistService,
       updateArtistServiceStatus,
