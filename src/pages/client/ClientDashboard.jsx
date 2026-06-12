@@ -122,8 +122,57 @@ const artistMarketplaceProfile = {
 
 const allSearchServices = Object.values(searchServices).flat()
 
+function buildServiceGroupsFromListings(listings = []) {
+  return listings.reduce((groups, listing) => {
+    const services = Array.isArray(listing.marketplaceServiceOptions) ? listing.marketplaceServiceOptions : []
+
+    services.forEach((service) => {
+      const category = service.category || 'Servicios'
+      const currentGroup = groups[category] || []
+      const exists = currentGroup.some((item) => item.name === service.name)
+
+      if (!exists) {
+        groups[category] = [
+          ...currentGroup,
+          {
+            name: service.name,
+            durationMinutes: service.durationMinutes || 60,
+          },
+        ]
+      }
+    })
+
+    return groups
+  }, {})
+}
+
+function getServiceOptionsForArtist(artist = {}) {
+  if (Array.isArray(artist.marketplaceServiceOptions) && artist.marketplaceServiceOptions.length > 0) {
+    return artist.marketplaceServiceOptions.map((service) => ({
+      value: service.name,
+      label: service.name,
+      meta: `${service.durationMinutes || 60} min`,
+    }))
+  }
+
+  return (artist.marketplaceServices || []).map((serviceName) => {
+    const service =
+      allSearchServices.find((item) => item.name === serviceName)
+      || { name: serviceName, durationMinutes: 60 }
+
+    return {
+      value: service.name,
+      label: service.name,
+      meta: `${service.durationMinutes} min`,
+    }
+  })
+}
+
 function PremiumDropdown({ label, value, options, open, onToggle, onChange }) {
-  const selectedOption = options.find((option) => option.value === value) || options[0]
+  const safeOptions = options.length > 0
+    ? options
+    : [{ value: '', label: 'Sin opciones', meta: 'No disponible', disabled: true }]
+  const selectedOption = safeOptions.find((option) => option.value === value) || safeOptions[0]
 
   return (
     <div className="input-field" style={{ position: 'relative' }}>
@@ -177,11 +226,13 @@ function PremiumDropdown({ label, value, options, open, onToggle, onChange }) {
             zIndex: 40,
           }}
         >
-          {options.map((option) => (
+          {safeOptions.map((option) => (
             <button
               key={option.value}
               type="button"
+              disabled={option.disabled}
               onClick={() => {
+                if (option.disabled) return
                 onChange(option.value)
                 onToggle()
               }}
@@ -256,24 +307,24 @@ function getArtistPublicProfile(artistState, artist) {
     photoUrl: profile.photoUrl || artist?.photoUrl || '',
     fullName: profile.personalInfo?.artisticName || profile.personalInfo?.fullName || artist?.owner || artist?.name || '',
     primarySpecialty: profile.professionalProfile?.primarySpecialty || profile.professionalProfile?.specialties || artist?.specialties?.[0] || artist?.services || '',
-    biography: profile.professionalProfile?.biography || profile.professionalProfile?.shortBio || '',
-    contactLinks: profile.contactLinks || {},
-    professionalLocation: profile.professionalLocation,
-    portfolio: Array.isArray(profile.portfolio) ? profile.portfolio : [],
-    specialties: profile.professionalProfile?.specialties || '',
+    biography: profile.professionalProfile?.biography || profile.professionalProfile?.shortBio || artist?.summary || '',
+    contactLinks: profile.contactLinks || artist?.contactLinks || {},
+    professionalLocation: profile.professionalLocation || artist?.professionalLocation,
+    portfolio: Array.isArray(profile.portfolio) ? profile.portfolio : artist?.portfolio || [],
+    specialties: profile.professionalProfile?.specialties || artist?.specialties || '',
   }
 }
 
 function getStudioPublicProfile({ artist, studios = [], artistStudioMemberships = [] }) {
-  return getStudioForArtist({
-    artistId: artist?.id,
+  return artist?.studio || getStudioForArtist({
+    artistId: artist?.artistId || artist?.id,
     studios,
     artistStudioMemberships,
   }) || {}
 }
 
 function getStudioDisplayName(studio = {}) {
-  return studio.profile?.commercialName || ''
+  return studio.profile?.commercialName || studio.name || ''
 }
 
 function getStudioContactItems(studio = {}) {
@@ -418,6 +469,9 @@ function ClientDashboard({ view = 'inicio' }) {
     artistState,
     clientAppointments: realClientAppointments,
     appointmentState,
+    marketplaceListings,
+    isMarketplaceLoading,
+    marketplaceError,
     clientState,
     session,
     bookSlot,
@@ -433,33 +487,70 @@ function ClientDashboard({ view = 'inicio' }) {
   const [studioQuery, setStudioQuery] = useState('')
   const [selectedArtistProfile, setSelectedArtistProfile] = useState(null)
   const [openDropdown, setOpenDropdown] = useState(null)
-  const marketplaceService = allSearchServices.find((service) => service.name === secondaryService) || searchServices[primaryService][0]
+  const isRealMarketplace = !session.isMockSession
+  const marketplaceSearchServices = useMemo(() => {
+    if (!isRealMarketplace) return searchServices
+
+    return buildServiceGroupsFromListings(marketplaceListings)
+  }, [isRealMarketplace, marketplaceListings])
+  const primaryServiceOptions = Object.keys(marketplaceSearchServices)
+  const currentServiceGroup = marketplaceSearchServices[primaryService]
+    || marketplaceSearchServices[primaryServiceOptions[0]]
+    || []
+  const marketplaceService =
+    currentServiceGroup.find((service) => service.name === secondaryService)
+    || currentServiceGroup[0]
+    || { name: secondaryService || 'Servicio', durationMinutes: 60 }
   const artistStudioMemberships = useMemo(
     () => deriveMembershipsFromLegacyData({ artists: adminState.artists }),
     [adminState.artists],
   )
-  const getArtistMembership = (artist) => getMembershipForArtist({
-    artistId: artist?.id,
+  const getArtistMembership = (artist) => artist?.membership || getMembershipForArtist({
+    artistId: artist?.artistId || artist?.id,
     artistStudioMemberships,
   })
-  const getArtistStudio = (artist) => getStudioForArtist({
-    artistId: artist?.id,
+  const getArtistStudio = (artist) => artist?.studio || getStudioForArtist({
+    artistId: artist?.artistId || artist?.id,
     studios: adminState.studios,
     artistStudioMemberships,
   })
   const selectedArtistMembership = selectedArtistProfile?.membership || getArtistMembership(selectedArtistProfile)
   const selectedArtistStudio = selectedArtistProfile?.studio || getArtistStudio(selectedArtistProfile)
+
+  useEffect(() => {
+    if (searchMode !== 'Servicio') return
+    if (primaryServiceOptions.length === 0) return
+
+    const hasPrimaryService = Boolean(marketplaceSearchServices[primaryService])
+    const nextPrimaryService = hasPrimaryService ? primaryService : primaryServiceOptions[0]
+    const nextServiceGroup = marketplaceSearchServices[nextPrimaryService] || []
+    const hasSecondaryService = nextServiceGroup.some((service) => service.name === secondaryService)
+
+    if (!hasPrimaryService) {
+      setPrimaryService(nextPrimaryService)
+    }
+
+    if (!hasSecondaryService && nextServiceGroup[0]?.name) {
+      setSecondaryService(nextServiceGroup[0].name)
+    }
+  }, [marketplaceSearchServices, primaryService, primaryServiceOptions, searchMode, secondaryService])
+
   const availableSlots = useMemo(
-    () => getAvailableSlots({
-      artistId: selectedArtistProfile?.id,
-      studioId: selectedArtistStudio?.id || null,
-      membershipId: selectedArtistMembership?.id || null,
-      date: bookingDate,
-      durationMinutes: marketplaceService.durationMinutes || 60,
-    }),
+    () => {
+      if (isRealMarketplace) return []
+
+      return getAvailableSlots({
+        artistId: selectedArtistProfile?.id,
+        studioId: selectedArtistStudio?.id || null,
+        membershipId: selectedArtistMembership?.id || null,
+        date: bookingDate,
+        durationMinutes: marketplaceService.durationMinutes || 60,
+      })
+    },
     [
       bookingDate,
       getAvailableSlots,
+      isRealMarketplace,
       marketplaceService.durationMinutes,
       selectedArtistMembership?.id,
       selectedArtistProfile?.id,
@@ -467,6 +558,8 @@ function ClientDashboard({ view = 'inicio' }) {
     ],
   )
   const getVisibleSlotCountForArtist = (artist) => {
+    if (isRealMarketplace) return artist?.availability?.availableCount || 0
+
     const membership = getArtistMembership(artist)
     const studio = getArtistStudio(artist)
     return getAvailableSlots({
@@ -477,16 +570,22 @@ function ClientDashboard({ view = 'inicio' }) {
       durationMinutes: marketplaceService.durationMinutes || 60,
     }).filter((slot) => slot.available).length
   }
-  const activeArtists = adminState.artists.filter((artist) => {
-    const artistStudio = getArtistStudio(artist)
-    return artist.status === 'Activo' && canUseOperationalFeature(artistStudio || artist, 'publicAgenda')
-  })
-  const favoriteArtists = adminState.artists
+  const activeArtists = isRealMarketplace
+    ? marketplaceListings
+    : adminState.artists.filter((artist) => {
+      const artistStudio = getArtistStudio(artist)
+      return artist.status === 'Activo' && canUseOperationalFeature(artistStudio || artist, 'publicAgenda')
+    })
+  const favoriteArtists = activeArtists
     .filter((artist) => (
-      clientState.favoriteArtistIds.includes(artist.id)
-      && canUseOperationalFeature(getArtistStudio(artist) || artist, 'publicAgenda')
+      clientState.favoriteArtistIds.includes(artist.artistId || artist.id)
+      && (isRealMarketplace || canUseOperationalFeature(getArtistStudio(artist) || artist, 'publicAgenda'))
     ))
-    .map((artist) => hydrateMarketplaceArtist(artist, getVisibleSlotCountForArtist(artist), getArtistStudio(artist), getArtistMembership(artist)))
+    .map((artist) => (
+      isRealMarketplace
+        ? artist
+        : hydrateMarketplaceArtist(artist, getVisibleSlotCountForArtist(artist), getArtistStudio(artist), getArtistMembership(artist))
+    ))
   const hasRealClientSession = Boolean(session.client || session.profile)
   const clientLookupId = hasRealClientSession
     ? session.client?.id || clientState.profile?.id || session.profile?.id || ''
@@ -615,6 +714,8 @@ function ClientDashboard({ view = 'inicio' }) {
     () => {
       return activeArtists
         .map((artist) => {
+          if (isRealMarketplace) return artist
+
           return hydrateMarketplaceArtist(artist, getVisibleSlotCountForArtist(artist), getArtistStudio(artist), getArtistMembership(artist))
         })
         .filter((artist) => {
@@ -628,7 +729,7 @@ function ClientDashboard({ view = 'inicio' }) {
             return searchable.includes(studioQuery.toLowerCase())
           }
 
-          return artist.marketplaceServices.includes(secondaryService)
+          return !secondaryService || artist.marketplaceServices.includes(secondaryService)
         })
         .sort((firstArtist, secondArtist) => (
           secondArtist.availabilityScore - firstArtist.availabilityScore
@@ -641,6 +742,7 @@ function ClientDashboard({ view = 'inicio' }) {
       artistStudioMemberships,
       bookingDate,
       getAvailableSlots,
+      isRealMarketplace,
       marketplaceService.durationMinutes,
       searchMode,
       secondaryService,
@@ -890,13 +992,13 @@ function ClientDashboard({ view = 'inicio' }) {
                     onToggle={() => setOpenDropdown(openDropdown === 'primaryService' ? null : 'primaryService')}
                     onChange={(nextPrimary) => {
                       setPrimaryService(nextPrimary)
-                      setSecondaryService(searchServices[nextPrimary][0].name)
+                      setSecondaryService(marketplaceSearchServices[nextPrimary]?.[0]?.name || '')
                       setSelectedArtistProfile(null)
                     }}
-                    options={Object.keys(searchServices).map((service) => ({
+                    options={primaryServiceOptions.map((service) => ({
                       value: service,
                       label: service,
-                      meta: `${searchServices[service].length} opciones`,
+                      meta: `${marketplaceSearchServices[service].length} opciones`,
                     }))}
                   />
                   <PremiumDropdown
@@ -908,7 +1010,7 @@ function ClientDashboard({ view = 'inicio' }) {
                       setSecondaryService(nextService)
                       setSelectedArtistProfile(null)
                     }}
-                    options={searchServices[primaryService].map((service) => ({
+                    options={currentServiceGroup.map((service) => ({
                       value: service.name,
                       label: service.name,
                       meta: `${service.durationMinutes} min`,
@@ -1104,17 +1206,7 @@ function ClientDashboard({ view = 'inicio' }) {
                             open={openDropdown === 'profileService'}
                             onToggle={() => setOpenDropdown(openDropdown === 'profileService' ? null : 'profileService')}
                             onChange={(nextService) => setSecondaryService(nextService)}
-                            options={artist.marketplaceServices.map((serviceName) => {
-                              const service =
-                                allSearchServices.find((item) => item.name === serviceName)
-                                || { name: serviceName, durationMinutes: 60 }
-
-                              return {
-                                value: service.name,
-                                label: service.name,
-                                meta: `${service.durationMinutes} min`,
-                              }
-                            })}
+                            options={getServiceOptionsForArtist(artist)}
                           />
                           <label className="input-field">
                             <span>Fecha</span>
@@ -1186,10 +1278,17 @@ function ClientDashboard({ view = 'inicio' }) {
               {marketplaceArtists.length === 0 && (
                 <div className="artist-result">
                   <div>
-                    <strong>Sin resultados disponibles</strong>
-                    <small>Prueba otro servicio o nombre de estudio.</small>
+                    <strong>{isRealMarketplace ? 'No hay perfiles publicados' : 'Sin resultados disponibles'}</strong>
+                    <small>
+                      {isRealMarketplace
+                        ? 'Cuando existan listings visibles apareceran aqui.'
+                        : 'Prueba otro servicio o nombre de estudio.'}
+                    </small>
+                    {isRealMarketplace && marketplaceError && (
+                      <small>{marketplaceError}</small>
+                    )}
                   </div>
-                  <StatusPill tone="neutral">Marketplace</StatusPill>
+                  <StatusPill tone="neutral">{isMarketplaceLoading ? 'Cargando' : 'Marketplace'}</StatusPill>
                 </div>
               )}
             </div>
@@ -1377,17 +1476,7 @@ function ClientDashboard({ view = 'inicio' }) {
                               open={openDropdown === 'favoriteProfileService'}
                               onToggle={() => setOpenDropdown(openDropdown === 'favoriteProfileService' ? null : 'favoriteProfileService')}
                               onChange={(nextService) => setSecondaryService(nextService)}
-                              options={artist.marketplaceServices.map((serviceName) => {
-                                const service =
-                                  allSearchServices.find((item) => item.name === serviceName)
-                                  || { name: serviceName, durationMinutes: 60 }
-
-                                return {
-                                  value: service.name,
-                                  label: service.name,
-                                  meta: `${service.durationMinutes} min`,
-                                }
-                              })}
+                              options={getServiceOptionsForArtist(artist)}
                             />
                             <label className="input-field">
                               <span>Fecha</span>

@@ -35,6 +35,7 @@ import {
   fetchArtistAppointments,
   fetchClientAppointments,
 } from '../services/appointmentService'
+import { fetchMarketplaceListings } from '../services/marketplaceService'
 import {
   fetchArtistProfile,
   saveArtistProfile as saveArtistProfileRecord,
@@ -665,10 +666,16 @@ export function AppProvider({ children }) {
     clientLoaded: false,
     artistLoaded: false,
   })
+  const [marketplaceState, setMarketplaceState] = useState({
+    listings: [],
+    loaded: false,
+  })
   const [isClientAppointmentsLoading, setIsClientAppointmentsLoading] = useState(false)
   const [clientAppointmentsError, setClientAppointmentsError] = useState('')
   const [isArtistAppointmentsLoading, setIsArtistAppointmentsLoading] = useState(false)
   const [artistAppointmentsError, setArtistAppointmentsError] = useState('')
+  const [isMarketplaceLoading, setIsMarketplaceLoading] = useState(false)
+  const [marketplaceError, setMarketplaceError] = useState('')
   const [selectedDate, setSelectedDate] = useState('2026-05-18')
 
   useEffect(() => {
@@ -684,6 +691,11 @@ export function AppProvider({ children }) {
     })
     setClientAppointmentsError('')
     setArtistAppointmentsError('')
+    setMarketplaceState({
+      listings: [],
+      loaded: false,
+    })
+    setMarketplaceError('')
   }, [
     session.artist?.id,
     session.client?.id,
@@ -1041,6 +1053,31 @@ export function AppProvider({ children }) {
     }
   }, [session.isMockSession, session.role])
 
+  const loadMarketplaceListings = useCallback(async () => {
+    if (session.isMockSession || session.role !== ROLES.CLIENT) return []
+
+    setIsMarketplaceLoading(true)
+    setMarketplaceError('')
+
+    try {
+      const listings = await fetchMarketplaceListings()
+      setMarketplaceState({
+        listings,
+        loaded: true,
+      })
+      return listings
+    } catch (error) {
+      setMarketplaceError(error.message || 'No se pudieron cargar los perfiles publicados.')
+      setMarketplaceState({
+        listings: [],
+        loaded: true,
+      })
+      return []
+    } finally {
+      setIsMarketplaceLoading(false)
+    }
+  }, [session.isMockSession, session.role])
+
   const loadArtistAppointments = useCallback(async (artistId = session.artist?.id || session.user?.artistId) => {
     if (!artistId || session.isMockSession || session.role !== ROLES.ARTIST) return []
 
@@ -1088,7 +1125,10 @@ export function AppProvider({ children }) {
     loadClientAppointments().catch(() => {
       // clientAppointmentsError already exposes the failure to the UI.
     })
-  }, [loadClientAppointments, session.isMockSession, session.role])
+    loadMarketplaceListings().catch(() => {
+      // marketplaceError already exposes the failure to the UI.
+    })
+  }, [loadClientAppointments, loadMarketplaceListings, session.isMockSession, session.role])
 
   const loadAdminArtists = useCallback(async () => {
     if (session.isMockSession) return null
@@ -1900,10 +1940,14 @@ export function AppProvider({ children }) {
       appointmentState,
       clientAppointments: appointmentState.clientAppointments,
       artistAppointments: appointmentState.artistAppointments,
+      marketplaceState,
+      marketplaceListings: marketplaceState.listings,
       isClientAppointmentsLoading,
       clientAppointmentsError,
       isArtistAppointmentsLoading,
       artistAppointmentsError,
+      isMarketplaceLoading,
+      marketplaceError,
       artistServices: artistState.services || [],
       isArtistServicesLoading,
       artistServicesError,
@@ -1944,6 +1988,7 @@ export function AppProvider({ children }) {
       loadArtistServices,
       loadClientAppointments,
       loadArtistAppointments,
+      loadMarketplaceListings,
       saveArtistService,
       updateArtistServiceStatus,
       archiveArtistService,
@@ -1971,10 +2016,13 @@ export function AppProvider({ children }) {
       clientState,
       artistState,
       appointmentState,
+      marketplaceState,
       isClientAppointmentsLoading,
       clientAppointmentsError,
       isArtistAppointmentsLoading,
       artistAppointmentsError,
+      isMarketplaceLoading,
+      marketplaceError,
       isArtistServicesLoading,
       artistServicesError,
       isArtistProfileSaving,
@@ -2014,6 +2062,7 @@ export function AppProvider({ children }) {
       loadArtistServices,
       loadClientAppointments,
       loadArtistAppointments,
+      loadMarketplaceListings,
       saveArtistService,
       updateArtistServiceStatus,
       archiveArtistService,
