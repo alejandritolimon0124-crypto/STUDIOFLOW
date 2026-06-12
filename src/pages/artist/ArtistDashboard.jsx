@@ -10,7 +10,7 @@ import PanelHeader from '../../components/PanelHeader'
 import StatsCard from '../../components/StatsCard'
 import { useApp } from '../../contexts/appContextCore'
 import { paths } from '../../routes/paths'
-import { artistAppointments, recurringClients } from '../../services/mockData'
+import { artistAppointments as mockArtistAppointments, recurringClients } from '../../services/mockData'
 import { getClientById } from '../../utils/clientHelpers'
 import { formatCurrency } from '../../utils/formatters'
 import { mapAuthContextToArtistProfile } from '../../utils/artistProfileMapper'
@@ -74,7 +74,21 @@ function getConfiguredStudioName(...names) {
 
 function ArtistDashboard({ view = 'agenda' }) {
   const navigate = useNavigate()
-  const { adminState, artistServices, artistState, session, addArtistAppointment, addArtistClient, updateArtistClient, bookSlot, selectedDate, setSelectedDate } = useApp()
+  const {
+    adminState,
+    artistServices,
+    artistState,
+    artistAppointments: realArtistAppointments,
+    appointmentState,
+    artistAppointmentsError,
+    session,
+    addArtistAppointment,
+    addArtistClient,
+    updateArtistClient,
+    bookSlot,
+    selectedDate,
+    setSelectedDate,
+  } = useApp()
   const [showAppointmentForm, setShowAppointmentForm] = useState(false)
   const [pointsFeedback, setPointsFeedback] = useState(null)
   const [showDatePicker, setShowDatePicker] = useState(false)
@@ -150,7 +164,26 @@ function ArtistDashboard({ view = 'agenda' }) {
   const canUsePublicAgenda = canUseOperationalFeature(currentStudio, 'publicAgenda')
 
   // Lógica de agenda dinámica
-  const appointmentsForSelectedDate = artistState.appointments.filter(apt => apt.date === selectedDate && apt.type === 'appointment')
+  const realArtistAppointmentSourceReady = !session.isMockSession && appointmentState.artistLoaded
+  const artistAppointmentSource = realArtistAppointmentSourceReady
+    ? realArtistAppointments
+    : artistState.appointments
+  const runtimeAppointmentSource = realArtistAppointmentSourceReady
+    ? 'appointmentState.artistAppointments'
+    : view === 'citas'
+      ? 'mockArtistAppointments'
+      : 'artistState.appointments'
+  const runtimeArtistId = session.artist?.id || session.user?.artistId || ''
+  const runtimeLoaderStatus = session.isMockSession
+    ? 'blocked: mock session'
+    : session.role !== 'artist'
+      ? `blocked: role=${session.role || 'unknown'}`
+      : !runtimeArtistId
+        ? 'blocked: missing artist id'
+        : appointmentState.artistLoaded
+          ? 'loaded'
+          : 'eligible: waiting for load'
+  const appointmentsForSelectedDate = artistAppointmentSource.filter(apt => apt.date === selectedDate && apt.type === 'appointment')
   const hasAppointments = appointmentsForSelectedDate.length > 0
   
   const appointmentCount = appointmentsForSelectedDate.length
@@ -291,6 +324,80 @@ function ArtistDashboard({ view = 'agenda' }) {
 
   return (
     <main className={`dashboard-grid artist-grid view-${view}`}>
+        {session.role === 'platform_owner' && (
+          <section
+            className="card runtime-appointments-debug"
+            style={{
+              gridColumn: '1 / -1',
+              border: '1px dashed #e11d48',
+              background: '#fff1f2',
+              color: '#3f0f1b',
+            }}
+          >
+            <PanelHeader title="DEBUG runtime appointments" eyebrow="Temporal platform_owner" />
+            <div
+              style={{
+                display: 'grid',
+                gap: '0.75rem',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                fontSize: '0.85rem',
+              }}
+            >
+              <div>
+                <strong>session.role</strong>
+                <p>{String(session.role || '')}</p>
+              </div>
+              <div>
+                <strong>session.isMockSession</strong>
+                <p>{String(session.isMockSession)}</p>
+              </div>
+              <div>
+                <strong>session.artist?.id</strong>
+                <p>{session.artist?.id || 'null'}</p>
+              </div>
+              <div>
+                <strong>session.user?.artistId</strong>
+                <p>{session.user?.artistId || 'null'}</p>
+              </div>
+              <div>
+                <strong>appointmentState.artistLoaded</strong>
+                <p>{String(appointmentState.artistLoaded)}</p>
+              </div>
+              <div>
+                <strong>appointmentState.artistAppointments.length</strong>
+                <p>{appointmentState.artistAppointments.length}</p>
+              </div>
+              <div>
+                <strong>artistAppointmentsError</strong>
+                <p>{artistAppointmentsError || 'null'}</p>
+              </div>
+              <div>
+                <strong>realArtistAppointmentSourceReady</strong>
+                <p>{String(realArtistAppointmentSourceReady)}</p>
+              </div>
+              <div>
+                <strong>current source</strong>
+                <p>{runtimeAppointmentSource}</p>
+              </div>
+              <div>
+                <strong>loadArtistAppointments</strong>
+                <p>{runtimeLoaderStatus}</p>
+              </div>
+              <div>
+                <strong>appointmentState.artistAppointments</strong>
+                <p>{realArtistAppointments.length} registros</p>
+              </div>
+              <div>
+                <strong>artistState.appointments</strong>
+                <p>{artistState.appointments.length} registros</p>
+              </div>
+              <div>
+                <strong>mockArtistAppointments</strong>
+                <p>{mockArtistAppointments.length} registros</p>
+              </div>
+            </div>
+          </section>
+        )}
         {view === 'agenda' && (
           <>
             <section className="hero-panel studio-hero artist-profile-hero mobile-screen">
@@ -582,7 +689,7 @@ function ArtistDashboard({ view = 'agenda' }) {
             <Card className="mobile-screen primary-panel">
               <PanelHeader title="Proximas citas" eyebrow="Hoy" action={<Button size="sm">Nueva</Button>} />
               <div className="compact-list">
-                {artistAppointments.map((item) => (
+                {(realArtistAppointmentSourceReady ? realArtistAppointments : mockArtistAppointments).map((item) => (
                   <div className="list-row elevated-row" key={item.client}>
                     <div>
                       <strong>{item.client}</strong>

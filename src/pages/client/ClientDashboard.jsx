@@ -7,7 +7,7 @@ import PanelHeader from '../../components/PanelHeader'
 import StatusPill from '../../components/StatusPill'
 import { useApp } from '../../contexts/appContextCore'
 import { paths } from '../../routes/paths'
-import { clientAppointments, clientHistory } from '../../services/mockData'
+import { clientAppointments as mockClientAppointments, clientHistory } from '../../services/mockData'
 import { getClientById } from '../../utils/clientHelpers'
 import { calculateFlowPoints, flowPointRewards, getActivePoints, getExpiringPoints, vipTierThresholds } from '../../modules/loyalty/flowPointsEngine'
 import { generateClientAutomations } from '../../modules/automation/smartAutomationEngine'
@@ -416,6 +416,8 @@ function ClientDashboard({ view = 'inicio' }) {
     agendaSettings,
     artistServices,
     artistState,
+    clientAppointments: realClientAppointments,
+    appointmentState,
     clientState,
     session,
     bookSlot,
@@ -582,14 +584,18 @@ function ClientDashboard({ view = 'inicio' }) {
 
   const nearestExpiration = expiringEntries[0]
 
-  const clientHistoryConnected = artistState.appointments
+  const realAppointmentSourceReady = !session.isMockSession && appointmentState.clientLoaded
+  const clientAppointmentSource = realAppointmentSourceReady
+    ? realClientAppointments
+    : artistState.appointments
+  const clientHistoryConnected = clientAppointmentSource
     .filter((item) => item.clientId === clientLookupId && item.type === 'appointment')
     .map((item) => {
       const service = artistServices.find((serviceItem) => serviceItem.name === item.service)
       return {
         ...item,
         points: calculateFlowPoints(service?.serviceTier || 'basic'),
-        artist: 'Valeria Moon',
+        artist: item.artist || 'Valeria Moon',
       }
     })
 
@@ -641,7 +647,7 @@ function ClientDashboard({ view = 'inicio' }) {
       studioQuery,
     ],
   )
-  const bookedAppointments = agendaSettings.bookedSlots.map((slot) => ({
+  const bookedAppointments = realAppointmentSourceReady ? [] : agendaSettings.bookedSlots.map((slot) => ({
     artist: slot.artist || 'Valeria Moon',
     service: slot.service || 'Servicio reservado',
     date: slot.date,
@@ -649,7 +655,9 @@ function ClientDashboard({ view = 'inicio' }) {
     address: 'Agenda Studio Flow',
     status: 'Reservada',
   }))
-  const upcomingAppointments = [...bookedAppointments, ...clientAppointments]
+  const upcomingAppointments = realAppointmentSourceReady
+    ? realClientAppointments.filter((appointment) => !['Completada', 'Cancelada'].includes(appointment.status))
+    : [...bookedAppointments, ...mockClientAppointments]
 
   const reserveSlot = (slot) => {
     if (!slot.available) return
@@ -1541,7 +1549,7 @@ function ClientDashboard({ view = 'inicio' }) {
                 <div className="list-row elevated-row">
                   <div>
                     <strong>{upcomingAppointments.length}</strong>
-                    <small>Citas proximas y reservas mock.</small>
+                    <small>Citas proximas registradas.</small>
                   </div>
                   <StatusPill tone="success">Activas</StatusPill>
                 </div>

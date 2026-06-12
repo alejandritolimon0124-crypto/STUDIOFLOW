@@ -15,7 +15,16 @@ import {
 const mockClients = ['Mariana L.', 'Camila R.', 'Ana G.', 'Renata M.']
 
 function ArtistAppointments() {
-  const { adminState, artistServices, artistState, session, addArtistAppointment, bookSlot } = useApp()
+  const {
+    adminState,
+    artistServices,
+    artistState,
+    artistAppointments: realArtistAppointments,
+    appointmentState,
+    session,
+    addArtistAppointment,
+    bookSlot,
+  } = useApp()
   const activeArtistServices = artistServices.length ? artistServices : [{ name: '', price: 0, duration: '60 min', serviceTier: 'basic' }]
   const [draft, setDraft] = useState({
     client: mockClients[0],
@@ -29,8 +38,12 @@ function ArtistAppointments() {
       setDraft((currentDraft) => ({ ...currentDraft, service: artistServices[0].name }))
     }
   }, [artistServices, draft.service])
-  const upcomingAppointments = artistState.appointments.filter((appointment) => appointment.status !== 'Completada')
-  const pastAppointments = artistState.appointments.filter((appointment) => appointment.status === 'Completada')
+  const realArtistAppointmentSourceReady = !session.isMockSession && appointmentState.artistLoaded
+  const artistAppointmentSource = realArtistAppointmentSourceReady
+    ? realArtistAppointments
+    : artistState.appointments
+  const upcomingAppointments = artistAppointmentSource.filter((appointment) => appointment.status !== 'Completada')
+  const pastAppointments = artistAppointmentSource.filter((appointment) => appointment.status === 'Completada')
   const localProfiles = session.user ? [{ ...session.user, id: session.user.id }] : []
   const artistStudioMemberships = deriveMembershipsFromLegacyData({ artists: adminState.artists })
   const selectorArtists = adminState.artists.map((artist) => (

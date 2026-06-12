@@ -32,6 +32,10 @@ import {
   updateArtistServiceOfferingStatus,
 } from '../services/artistServiceService'
 import {
+  fetchArtistAppointments,
+  fetchClientAppointments,
+} from '../services/appointmentService'
+import {
   fetchArtistProfile,
   saveArtistProfile as saveArtistProfileRecord,
 } from '../services/artistProfileService'
@@ -60,7 +64,8 @@ const initialSession = {
 }
 
 const storageKey = 'studio-flow-session'
-const adminStateStorageKey = 'studio-flow-admin-state'
+const adminMockStateStorageKey = 'studio-flow-admin-state-mock'
+const adminRealStateStoragePrefix = 'studio-flow-admin-state-real'
 const clientStateStorageKey = 'studio-flow-client-state'
 const artistStateStorageKey = 'studio-flow-artist-state'
 
@@ -302,7 +307,27 @@ function createInitialAgendaSettings() {
   }
 }
 
-function createInitialAdminState() {
+function createEmptyAdminState() {
+  return {
+    dashboard: {
+      source: 'supabase',
+      studios: [],
+      artists: [],
+      clients: [],
+      appointments: [],
+      users: [],
+      systemStatus: [],
+    },
+    studios: [],
+    users: [],
+    artists: [],
+    clients: [],
+  }
+}
+
+function createInitialAdminState({ isMockSession = true } = {}) {
+  if (!isMockSession) return createEmptyAdminState()
+
   const initialStudios = studios.map((studio) => ({
     ...studio,
     profile: createStudioProfessionalProfile(studio, studio.profile),
@@ -392,14 +417,46 @@ function getStoredClientState() {
   }
 }
 
-function getStoredAdminState() {
-  const initialAdminState = createInitialAdminState()
+function getAdminStateStorageKey(session) {
+  if (session?.isMockSession) return adminMockStateStorageKey
+
+  const profileId = session?.profile?.id || session?.user?.id || session?.authUser?.id
+  return profileId ? `${adminRealStateStoragePrefix}-${profileId}` : null
+}
+
+function getStoredAdminState(session = initialSession) {
+  const initialAdminState = createInitialAdminState({ isMockSession: Boolean(session?.isMockSession) })
+  const storageKeyForSession = getAdminStateStorageKey(session)
+
+  if (!storageKeyForSession) return initialAdminState
 
   try {
-    const storedAdminState = localStorage.getItem(adminStateStorageKey)
+    const storedAdminState = localStorage.getItem(storageKeyForSession)
     const parsedAdminState = storedAdminState ? JSON.parse(storedAdminState) : null
 
     if (!parsedAdminState) return initialAdminState
+
+    if (!session?.isMockSession) {
+      return {
+        ...initialAdminState,
+        ...parsedAdminState,
+        dashboard: parsedAdminState.dashboard?.source === 'supabase'
+          ? {
+              ...initialAdminState.dashboard,
+              ...parsedAdminState.dashboard,
+              studios: parsedAdminState.dashboard.studios || [],
+              artists: parsedAdminState.dashboard.artists || [],
+              clients: parsedAdminState.dashboard.clients || [],
+              appointments: parsedAdminState.dashboard.appointments || [],
+              users: parsedAdminState.dashboard.users || [],
+              systemStatus: parsedAdminState.dashboard.systemStatus || [],
+            }
+          : initialAdminState.dashboard,
+        studios: parsedAdminState.studios || [],
+        artists: parsedAdminState.artists || [],
+        clients: parsedAdminState.clients || [],
+      }
+    }
 
     return {
       ...initialAdminState,
@@ -582,12 +639,14 @@ function hasDuplicateClientServiceBooking(bookedSlots, nextSlot) {
 
 export function AppProvider({ children }) {
   const [session, setSession] = useState(getStoredSession)
+  const adminStorageKey = getAdminStateStorageKey(session)
   const [isAuthLoading, setIsAuthLoading] = useState(hasSupabaseAuth)
   const [authError, setAuthError] = useState('')
   const sessionRef = useRef(session)
+  const adminStorageKeyRef = useRef(adminStorageKey)
   const demoLoginInProgressRef = useRef(false)
   const [agendaSettings, setAgendaSettings] = useState(createInitialAgendaSettings)
-  const [adminState, setAdminState] = useState(getStoredAdminState)
+  const [adminState, setAdminState] = useState(() => getStoredAdminState(session))
   const [clientState, setClientState] = useState(getStoredClientState)
   const [artistState, setArtistState] = useState(getStoredArtistState)
   const [isArtistServicesLoading, setIsArtistServicesLoading] = useState(false)
@@ -600,11 +659,45 @@ export function AppProvider({ children }) {
   const [adminDashboardError, setAdminDashboardError] = useState('')
   const [isAdminClientsLoading, setIsAdminClientsLoading] = useState(false)
   const [adminClientsError, setAdminClientsError] = useState('')
+  const [appointmentState, setAppointmentState] = useState({
+    clientAppointments: [],
+    artistAppointments: [],
+    clientLoaded: false,
+    artistLoaded: false,
+  })
+  const [isClientAppointmentsLoading, setIsClientAppointmentsLoading] = useState(false)
+  const [clientAppointmentsError, setClientAppointmentsError] = useState('')
+  const [isArtistAppointmentsLoading, setIsArtistAppointmentsLoading] = useState(false)
+  const [artistAppointmentsError, setArtistAppointmentsError] = useState('')
   const [selectedDate, setSelectedDate] = useState('2026-05-18')
 
   useEffect(() => {
     sessionRef.current = session
   }, [session])
+
+  useEffect(() => {
+    setAppointmentState({
+      clientAppointments: [],
+      artistAppointments: [],
+      clientLoaded: false,
+      artistLoaded: false,
+    })
+    setClientAppointmentsError('')
+    setArtistAppointmentsError('')
+  }, [
+    session.artist?.id,
+    session.client?.id,
+    session.isMockSession,
+    session.profile?.id,
+    session.role,
+  ])
+
+  useEffect(() => {
+    if (adminStorageKeyRef.current === adminStorageKey) return
+
+    adminStorageKeyRef.current = adminStorageKey
+    setAdminState(getStoredAdminState(session))
+  }, [adminStorageKey, session])
 
   const hydrateSupabaseSession = useCallback(async (authSession) => {
     if (!authSession?.user) {
@@ -875,12 +968,14 @@ export function AppProvider({ children }) {
   }, [hydrateSupabaseSession, session.isMockSession])
 
   useEffect(() => {
+    if (!adminStorageKey) return
+
     try {
-      localStorage.setItem(adminStateStorageKey, JSON.stringify(adminState))
+      localStorage.setItem(adminStorageKey, JSON.stringify(adminState))
     } catch {
       // Keep runtime profile state if gallery/logo data URLs exceed localStorage.
     }
-  }, [adminState])
+  }, [adminState, adminStorageKey])
 
   useEffect(() => {
     try {
@@ -919,6 +1014,60 @@ export function AppProvider({ children }) {
     }
   }, [session.artist?.id, session.isMockSession, session.user?.artistId])
 
+  const loadClientAppointments = useCallback(async () => {
+    if (session.isMockSession || session.role !== ROLES.CLIENT) return []
+
+    setIsClientAppointmentsLoading(true)
+    setClientAppointmentsError('')
+
+    try {
+      const appointments = await fetchClientAppointments()
+      setAppointmentState((currentState) => ({
+        ...currentState,
+        clientAppointments: appointments,
+        clientLoaded: true,
+      }))
+      return appointments
+    } catch (error) {
+      setClientAppointmentsError(error.message || 'No se pudieron cargar tus citas.')
+      setAppointmentState((currentState) => ({
+        ...currentState,
+        clientAppointments: [],
+        clientLoaded: true,
+      }))
+      return []
+    } finally {
+      setIsClientAppointmentsLoading(false)
+    }
+  }, [session.isMockSession, session.role])
+
+  const loadArtistAppointments = useCallback(async (artistId = session.artist?.id || session.user?.artistId) => {
+    if (!artistId || session.isMockSession || session.role !== ROLES.ARTIST) return []
+
+    setIsArtistAppointmentsLoading(true)
+    setArtistAppointmentsError('')
+
+    try {
+      const appointments = await fetchArtistAppointments({ artistId })
+      setAppointmentState((currentState) => ({
+        ...currentState,
+        artistAppointments: appointments,
+        artistLoaded: true,
+      }))
+      return appointments
+    } catch (error) {
+      setArtistAppointmentsError(error.message || 'No se pudieron cargar las citas.')
+      setAppointmentState((currentState) => ({
+        ...currentState,
+        artistAppointments: [],
+        artistLoaded: true,
+      }))
+      return []
+    } finally {
+      setIsArtistAppointmentsLoading(false)
+    }
+  }, [session.artist?.id, session.isMockSession, session.role, session.user?.artistId])
+
   useEffect(() => {
     if (session.role !== ROLES.ARTIST || session.isMockSession) return
 
@@ -928,7 +1077,18 @@ export function AppProvider({ children }) {
     loadArtistServices(artistId).catch(() => {
       // artistServicesError already exposes the failure to the UI.
     })
-  }, [loadArtistServices, session.artist?.id, session.isMockSession, session.role, session.user?.artistId])
+    loadArtistAppointments(artistId).catch(() => {
+      // artistAppointmentsError already exposes the failure to the UI.
+    })
+  }, [loadArtistAppointments, loadArtistServices, session.artist?.id, session.isMockSession, session.role, session.user?.artistId])
+
+  useEffect(() => {
+    if (session.role !== ROLES.CLIENT || session.isMockSession) return
+
+    loadClientAppointments().catch(() => {
+      // clientAppointmentsError already exposes the failure to the UI.
+    })
+  }, [loadClientAppointments, session.isMockSession, session.role])
 
   const loadAdminArtists = useCallback(async () => {
     if (session.isMockSession) return null
@@ -942,12 +1102,17 @@ export function AppProvider({ children }) {
       setAdminState((currentState) => ({
         ...currentState,
         artists: payload.artists,
-        studios: payload.studios.length > 0 ? payload.studios : currentState.studios,
+        studios: payload.studios,
       }))
       setIsAdminArtistsLoading(false)
       return payload
     } catch (error) {
       setAdminArtistsError(error.message || 'No se pudieron cargar los artistas.')
+      setAdminState((currentState) => ({
+        ...currentState,
+        artists: [],
+        studios: [],
+      }))
       setIsAdminArtistsLoading(false)
       throw error
     }
@@ -1732,6 +1897,13 @@ export function AppProvider({ children }) {
       adminState,
       clientState,
       artistState,
+      appointmentState,
+      clientAppointments: appointmentState.clientAppointments,
+      artistAppointments: appointmentState.artistAppointments,
+      isClientAppointmentsLoading,
+      clientAppointmentsError,
+      isArtistAppointmentsLoading,
+      artistAppointmentsError,
       artistServices: artistState.services || [],
       isArtistServicesLoading,
       artistServicesError,
@@ -1770,6 +1942,8 @@ export function AppProvider({ children }) {
       loadAdminArtists,
       loadAdminClients,
       loadArtistServices,
+      loadClientAppointments,
+      loadArtistAppointments,
       saveArtistService,
       updateArtistServiceStatus,
       archiveArtistService,
@@ -1796,6 +1970,11 @@ export function AppProvider({ children }) {
       adminState,
       clientState,
       artistState,
+      appointmentState,
+      isClientAppointmentsLoading,
+      clientAppointmentsError,
+      isArtistAppointmentsLoading,
+      artistAppointmentsError,
       isArtistServicesLoading,
       artistServicesError,
       isArtistProfileSaving,
@@ -1833,6 +2012,8 @@ export function AppProvider({ children }) {
       loadAdminArtists,
       loadAdminClients,
       loadArtistServices,
+      loadClientAppointments,
+      loadArtistAppointments,
       saveArtistService,
       updateArtistServiceStatus,
       archiveArtistService,

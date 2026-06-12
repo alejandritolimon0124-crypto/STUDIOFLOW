@@ -98,7 +98,14 @@ function AdminClients() {
             />
           </div>
           <div className="master-list">
-            {filteredClients.map((client) => (
+            {filteredClients.length === 0 ? (
+              <article className="master-row">
+                <div>
+                  <strong>No hay clientas en este scope.</strong>
+                  <small>Cuando Supabase devuelva clientas reales, apareceran aqui.</small>
+                </div>
+              </article>
+            ) : filteredClients.map((client) => (
               <article className="master-row" key={client.name}>
                 <div>
                   <strong>{client.name}</strong>

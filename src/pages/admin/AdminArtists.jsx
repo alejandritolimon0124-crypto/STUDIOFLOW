@@ -200,7 +200,14 @@ function AdminArtists() {
             />
           </div>
           <div className="master-list">
-            {filteredArtists.map((artist) => (
+            {filteredArtists.length === 0 ? (
+              <article className="master-row">
+                <div>
+                  <strong>No hay artistas en este scope.</strong>
+                  <small>Cuando Supabase devuelva artistas reales, apareceran aqui.</small>
+                </div>
+              </article>
+            ) : filteredArtists.map((artist) => (
               <article className="master-row" key={artist.name}>
                 <div>
                   <strong>{artist.name}</strong>
