@@ -8,6 +8,11 @@ function firstDefined(...values) {
   return values.find((value) => value !== undefined && value !== null)
 }
 
+function sourceText(source = {}, key, fallback = '') {
+  if (Object.prototype.hasOwnProperty.call(source, key)) return String(source[key] || '')
+  return fallback
+}
+
 function formatSpecialties(value) {
   if (Array.isArray(value)) return value.filter(Boolean).join(', ')
   return String(value || '')
@@ -91,11 +96,11 @@ export function mapAuthContextToArtistProfile(authContext = {}, currentProfile =
     },
     contactLinks: {
       ...(currentProfile.contactLinks || {}),
-      whatsapp: firstText(artistProfile.whatsapp, currentProfile.contactLinks?.whatsapp),
-      instagram: firstText(artistProfile.instagram, currentProfile.contactLinks?.instagram),
-      facebook: firstText(artistProfile.facebook, currentProfile.contactLinks?.facebook),
-      tiktok: firstText(artistProfile.tiktok, currentProfile.contactLinks?.tiktok),
-      website: firstText(artistProfile.website, currentProfile.contactLinks?.website),
+      whatsapp: sourceText(artistProfile, 'whatsapp', currentProfile.contactLinks?.whatsapp || ''),
+      instagram: sourceText(artistProfile, 'instagram', currentProfile.contactLinks?.instagram || ''),
+      facebook: sourceText(artistProfile, 'facebook', currentProfile.contactLinks?.facebook || ''),
+      tiktok: sourceText(artistProfile, 'tiktok', currentProfile.contactLinks?.tiktok || ''),
+      website: sourceText(artistProfile, 'website', currentProfile.contactLinks?.website || ''),
     },
     photoUrl: firstText(artistProfile.photo_url, artistProfile.photoUrl, artistProfile.photo_path, artistProfile.photoPath, currentProfile.photoUrl),
     portfolio: portfolioPaths.length > 0

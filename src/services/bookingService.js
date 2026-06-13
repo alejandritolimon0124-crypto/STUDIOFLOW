@@ -48,6 +48,12 @@ export async function bookMarketplaceAppointment({
   if (slotIds.length === 0) throw new Error('Selecciona un horario disponible.')
   if (!serviceOfferingId) throw new Error('Selecciona un servicio.')
 
+  console.log('[BOOKING] RPC request', {
+    availabilitySlotIds: slotIds,
+    serviceOfferingId,
+    notes,
+  })
+
   const client = requireSupabase()
   const { data, error } = await client.rpc('studio_flow_marketplace_book_appointment', {
     p_availability_slot_ids: slotIds,
@@ -55,7 +61,12 @@ export async function bookMarketplaceAppointment({
     p_notes: notes || null,
   })
 
-  if (error) throw error
+  if (error) {
+    console.error('[BOOKING] RPC error', error)
+    throw error
+  }
+
+  console.log('[BOOKING] RPC response', data)
 
   return normalizeBookingPayload(data)
 }

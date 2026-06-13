@@ -23,6 +23,7 @@ import Onboarding from './pages/auth/Onboarding'
 import ClientDashboard from './pages/client/ClientDashboard'
 import ProtectedRoute from './routes/ProtectedRoute'
 import PWAInstallPrompt from './components/PWAInstallPrompt'
+import PWAResumeGuard from './components/PWAResumeGuard'
 import PWAUpdatePrompt from './components/PWAUpdatePrompt'
 import './styles/global.css'
 
@@ -64,6 +65,7 @@ function App() {
             <Route path="system" element={<QASandbox />} />
           </Route>
         </Routes>
+        <PWAResumeGuard />
         <PWAInstallPrompt />
         <PWAUpdatePrompt />
       </BrowserRouter>

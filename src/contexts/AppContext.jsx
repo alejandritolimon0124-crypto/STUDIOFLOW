@@ -338,6 +338,24 @@ function createEmptyAdminState() {
   }
 }
 
+function createEmptyAgendaSettings() {
+  return {
+    schedule: weeklySchedule.map((day) => ({
+      ...day,
+      active: false,
+      start: 'Libre',
+      end: 'Libre',
+      breakStart: '-',
+      breakEnd: '-',
+      blocks: [],
+    })),
+    blockedDates: [],
+    intervalMinutes: 15,
+    minAdvanceHours: 2,
+    bookedSlots: [],
+  }
+}
+
 function createInitialAdminState({ isMockSession = true } = {}) {
   if (!isMockSession) return createEmptyAdminState()
 
@@ -694,6 +712,8 @@ export function AppProvider({ children }) {
   })
   const [bookingState, setBookingState] = useState({
     lastBooking: null,
+    lastAttempt: null,
+    successMessage: '',
   })
   const [isClientAppointmentsLoading, setIsClientAppointmentsLoading] = useState(false)
   const [clientAppointmentsError, setClientAppointmentsError] = useState('')
@@ -736,6 +756,7 @@ export function AppProvider({ children }) {
     setArtistAppointmentsError('')
     setArtistScheduleError('')
     setArtistScheduleStatus('')
+    setAgendaSettings(session.isMockSession ? createInitialAgendaSettings() : createEmptyAgendaSettings())
     setMarketplaceState({
       listings: [],
       loaded: false,
@@ -751,6 +772,8 @@ export function AppProvider({ children }) {
     setAvailabilityError('')
     setBookingState({
       lastBooking: null,
+      lastAttempt: null,
+      successMessage: '',
     })
     setBookingError('')
     setGovernanceState({
@@ -1262,23 +1285,54 @@ export function AppProvider({ children }) {
   } = {}) => {
     if (session.isMockSession || session.role !== ROLES.CLIENT) return null
 
+    const attempt = {
+      availabilitySlotIds,
+      serviceOfferingId,
+      notes,
+      requestedAt: new Date().toISOString(),
+    }
+
     setIsBookingLoading(true)
     setBookingError('')
+    setBookingState((currentState) => ({
+      ...currentState,
+      lastAttempt: attempt,
+      successMessage: '',
+    }))
 
     try {
-      const booking = await bookMarketplaceAppointmentRecord({
+      const payload = {
         availabilitySlotIds,
         serviceOfferingId,
         notes,
-      })
+      }
+
+      console.log('[BOOKING] AppContext payload', payload)
+
+      const booking = await bookMarketplaceAppointmentRecord(payload)
+
+      console.log('[BOOKING] AppContext response', booking)
 
       setBookingState({
         lastBooking: booking,
+        lastAttempt: attempt,
+        successMessage: 'Cita agendada correctamente',
       })
 
       return booking
     } catch (error) {
-      setBookingError(error.message || 'No se pudo reservar la cita.')
+      const message = error.message || 'No se pudo reservar la cita.'
+      console.error('[BOOKING] AppContext error', error)
+      console.error('[Studio Flow] Booking marketplace failed', {
+        attempt,
+        error,
+      })
+      setBookingError(message)
+      setBookingState((currentState) => ({
+        ...currentState,
+        lastAttempt: attempt,
+        successMessage: '',
+      }))
       return null
     } finally {
       setIsBookingLoading(false)

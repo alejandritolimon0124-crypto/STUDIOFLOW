@@ -441,8 +441,16 @@ function openWhatsAppContact(whatsapp, serviceName = '') {
   if (!cleanNumber) return
 
   const message = encodeURIComponent(buildWhatsAppMessage(serviceName))
+  const whatsappUrl = `https://wa.me/${cleanNumber}?text=${message}`
+  const isStandaloneIos = /iphone|ipad|ipod/i.test(window.navigator.userAgent)
+    && (window.navigator.standalone || window.matchMedia?.('(display-mode: standalone)').matches)
 
-  window.open(`https://wa.me/${cleanNumber}?text=${message}`, '_blank', 'noopener,noreferrer')
+  if (isStandaloneIos) {
+    window.location.href = whatsappUrl
+    return
+  }
+
+  window.open(whatsappUrl, '_blank', 'noopener,noreferrer')
 }
 
 function openDirections(location, source = 'effectiveLocation') {
@@ -478,11 +486,13 @@ function ClientDashboard({ view = 'inicio' }) {
     marketplaceListings,
     availabilityState,
     marketplaceAvailabilitySlots,
+    bookingState,
     isAvailabilityLoading,
     availabilityError,
     isClientAppointmentsLoading,
     isBookingLoading,
     bookingError,
+    loadMarketplaceListings,
     loadMarketplaceAvailability,
     loadClientAppointments,
     isMarketplaceLoading,
@@ -542,6 +552,10 @@ function ClientDashboard({ view = 'inicio' }) {
     return services.find((service) => service.name === secondaryService) || services[0] || null
   }, [isRealMarketplace, secondaryService, selectedArtistProfile])
   const effectiveMarketplaceService = selectedMarketplaceService || marketplaceService
+  const selectedServiceOfferingId = selectedMarketplaceService?.id || effectiveMarketplaceService.id || null
+  const currentAvailabilityRequestKey = selectedArtistProfile?.listingId && bookingDate
+    ? [selectedArtistProfile.listingId, selectedServiceOfferingId || '', bookingDate].join('|')
+    : ''
 
   useEffect(() => {
     if (!isRealMarketplace) return
@@ -549,7 +563,7 @@ function ClientDashboard({ view = 'inicio' }) {
 
     loadMarketplaceAvailability({
       listingId: selectedArtistProfile.listingId,
-      serviceOfferingId: selectedMarketplaceService?.id || null,
+      serviceOfferingId: selectedServiceOfferingId,
       date: bookingDate,
     })
   }, [
@@ -557,7 +571,39 @@ function ClientDashboard({ view = 'inicio' }) {
     isRealMarketplace,
     loadMarketplaceAvailability,
     selectedArtistProfile?.listingId,
-    selectedMarketplaceService?.id,
+    selectedServiceOfferingId,
+  ])
+
+  useEffect(() => {
+    if (!isRealMarketplace) return undefined
+
+    const refreshMarketplaceAfterExternalReturn = () => {
+      if (document.visibilityState && document.visibilityState !== 'visible') return
+
+      loadMarketplaceListings()
+      if (selectedArtistProfile?.listingId && bookingDate) {
+        loadMarketplaceAvailability({
+          listingId: selectedArtistProfile.listingId,
+          serviceOfferingId: selectedServiceOfferingId,
+          date: bookingDate,
+        })
+      }
+    }
+
+    window.addEventListener('pageshow', refreshMarketplaceAfterExternalReturn)
+    window.addEventListener('focus', refreshMarketplaceAfterExternalReturn)
+
+    return () => {
+      window.removeEventListener('pageshow', refreshMarketplaceAfterExternalReturn)
+      window.removeEventListener('focus', refreshMarketplaceAfterExternalReturn)
+    }
+  }, [
+    bookingDate,
+    isRealMarketplace,
+    loadMarketplaceAvailability,
+    loadMarketplaceListings,
+    selectedArtistProfile?.listingId,
+    selectedServiceOfferingId,
   ])
 
   useEffect(() => {
@@ -588,7 +634,10 @@ function ClientDashboard({ view = 'inicio' }) {
 
   const availableSlots = useMemo(
     () => {
-      if (isRealMarketplace) return marketplaceAvailabilitySlots
+      if (isRealMarketplace) {
+        if (!currentAvailabilityRequestKey || availabilityState.requestKey !== currentAvailabilityRequestKey) return []
+        return marketplaceAvailabilitySlots
+      }
 
       return getAvailableSlots({
         artistId: selectedArtistProfile?.id,
@@ -604,6 +653,8 @@ function ClientDashboard({ view = 'inicio' }) {
       getAvailableSlots,
       isRealMarketplace,
       marketplaceAvailabilitySlots,
+      availabilityState.requestKey,
+      currentAvailabilityRequestKey,
       selectedArtistMembership?.id,
       selectedArtistProfile?.id,
       selectedArtistStudio?.id,
@@ -829,9 +880,13 @@ function ClientDashboard({ view = 'inicio' }) {
     if (!slot.available) return
 
     if (isRealMarketplace) {
-      const serviceOfferingId = selectedMarketplaceService?.id
-        || effectiveMarketplaceService.id
-        || slot.serviceOfferingId
+      console.log('[BOOKING] click reserve', {
+        slot,
+        selectedMarketplaceService,
+        selectedArtistProfile,
+      })
+
+      const serviceOfferingId = selectedServiceOfferingId || slot.serviceOfferingId
       const availabilitySlotIds = slot.availabilitySlotIds?.length
         ? slot.availabilitySlotIds
         : [slot.availabilitySlotId || slot.id]
@@ -848,6 +903,7 @@ function ClientDashboard({ view = 'inicio' }) {
           date: bookingDate,
         })
         await loadClientAppointments()
+        navigate(paths.clientAppointments)
       }
 
       return
@@ -866,15 +922,29 @@ function ClientDashboard({ view = 'inicio' }) {
     })
   }
 
+  const getNextServiceForArtist = (artist) => {
+    const services = artist?.marketplaceServices || []
+    if (services.includes(secondaryService)) return secondaryService
+
+    return services[0] || secondaryService
+  }
+
+  const getSlotServiceName = (slot) => {
+    const services = selectedArtistProfile?.marketplaceServiceOptions || []
+    const service = services.find((item) => item.id === (slot.serviceOfferingId || slot.service_offering_id))
+
+    return service?.name || effectiveMarketplaceService.name
+  }
+
   const openArtistProfile = (artist, { scrollToBooking = false } = {}) => {
     setSelectedArtistProfile(artist)
-    setSecondaryService(artist.marketplaceServices?.[0] || secondaryService)
+    setSecondaryService(getNextServiceForArtist(artist))
     setOpenDropdown(null)
 
     if (scrollToBooking) {
       setTimeout(() => {
         document.getElementById(`marketplace-slots-${artist.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-      }, 0)
+      }, 120)
     }
   }
 
@@ -1022,6 +1092,15 @@ function ClientDashboard({ view = 'inicio' }) {
           <>
             <Card className="wide-card mobile-screen primary-panel">
               <PanelHeader title="Proximas citas" eyebrow="Confirmadas" />
+              {bookingState.successMessage && (
+                <div className="list-row elevated-row">
+                  <div>
+                    <strong>{bookingState.successMessage}</strong>
+                    <small>Tu cita ya aparece en este listado.</small>
+                  </div>
+                  <StatusPill tone="success">Lista</StatusPill>
+                </div>
+              )}
               <div className="appointment-stack">
                 {upcomingAppointments.length > 0 ? upcomingAppointments.map((appointment) => (
                   <article className="client-appointment" key={`${appointment.artist}-${appointment.time}-${appointment.date}`}>
@@ -1197,6 +1276,13 @@ function ClientDashboard({ view = 'inicio' }) {
                           {isProfileOpen ? 'Ocultar perfil' : 'Ver perfil'}
                         </button>
                         <button
+                          className="marketplace-profile-button"
+                          type="button"
+                          onClick={() => openArtistProfile(artist, { scrollToBooking: true })}
+                        >
+                          Agendar ahora
+                        </button>
+                        <button
                           className={`marketplace-favorite-button${isFavorite ? ' is-saved' : ''}`}
                           type="button"
                           aria-pressed={isFavorite}
@@ -1330,7 +1416,7 @@ function ClientDashboard({ view = 'inicio' }) {
                               <div className="list-row elevated-row" key={`${artist.id}-${slot.date}-${slot.time}`}>
                                 <div>
                                   <strong>{slot.time} - {slot.end}</strong>
-                                  <small>{effectiveMarketplaceService.name}</small>
+                                  <small>{getSlotServiceName(slot)}</small>
                                 </div>
                                 <Button
                                   size="sm"
@@ -1609,7 +1695,7 @@ function ClientDashboard({ view = 'inicio' }) {
                                 <div className="list-row elevated-row" key={`${artist.id}-${slot.date}-${slot.time}`}>
                                   <div>
                                     <strong>{slot.time} - {slot.end}</strong>
-                                    <small>{effectiveMarketplaceService.name}</small>
+                                    <small>{getSlotServiceName(slot)}</small>
                                   </div>
                                   <Button
                                     size="sm"
