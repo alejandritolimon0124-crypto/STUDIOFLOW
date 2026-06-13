@@ -254,6 +254,12 @@ const initialBlockedDates = [
   { id: '2026-06-02', label: '02 junio / Evento privado' },
 ]
 
+function getTodayDateValue() {
+  const today = new Date()
+  today.setMinutes(today.getMinutes() - today.getTimezoneOffset())
+  return today.toISOString().slice(0, 10)
+}
+
 function createArtistProfessionalProfile(overrides = {}) {
   return {
     registration: {
@@ -743,7 +749,7 @@ export function AppProvider({ children }) {
   })
   const [isPublicationLoading, setIsPublicationLoading] = useState(false)
   const [publicationError, setPublicationError] = useState('')
-  const [selectedDate, setSelectedDate] = useState('2026-05-18')
+  const [selectedDate, setSelectedDate] = useState(getTodayDateValue)
 
   useEffect(() => {
     sessionRef.current = session

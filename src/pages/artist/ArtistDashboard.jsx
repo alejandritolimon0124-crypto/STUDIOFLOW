@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import AgendaCard from '../../components/AgendaCard'
 import Button from '../../components/Button'
@@ -25,6 +25,29 @@ import {
 } from '../../modules/entities/entitySelectors'
 
 const artistMetricsPrivacyKey = 'studio-flow-artist-hide-metrics'
+
+function parseDateValue(dateValue) {
+  const [year, month, day] = String(dateValue || '').split('-').map(Number)
+  if (!year || !month || !day) return new Date()
+
+  return new Date(year, month - 1, day)
+}
+
+function formatDateValue(date) {
+  const normalizedDate = new Date(date)
+  normalizedDate.setMinutes(normalizedDate.getMinutes() - normalizedDate.getTimezoneOffset())
+  return normalizedDate.toISOString().slice(0, 10)
+}
+
+function buildVisibleDays(selectedDate) {
+  const startDate = parseDateValue(selectedDate)
+
+  return Array.from({ length: 5 }, (_, index) => {
+    const date = new Date(startDate)
+    date.setDate(startDate.getDate() + index)
+    return formatDateValue(date)
+  })
+}
 
 function getStoredMetricsPrivacy() {
   try {
@@ -201,6 +224,7 @@ function ArtistDashboard({ view = 'agenda' }) {
   const [year, month, day] = selectedDate.split('-').map(Number)
   const dateObj = new Date(year, month - 1, day)
   const dayOfWeek = dateObj.toLocaleDateString('es-MX', { weekday: 'short', month: 'short', day: 'numeric' })
+  const visibleDays = useMemo(() => buildVisibleDays(selectedDate), [selectedDate])
 
   // Recomendaciones para días vacíos
   const emptyDayRecommendations = [
@@ -590,8 +614,8 @@ function ArtistDashboard({ view = 'agenda' }) {
                 <span>Descanso 14:00 - 15:00</span>
               </div>
               <div className="day-strip">
-                {['2026-05-13', '2026-05-14', '2026-05-15', '2026-05-16', '2026-05-17'].map((dateValue) => {
-                  const d = new Date(dateValue.split('-')[0], parseInt(dateValue.split('-')[1]) - 1, parseInt(dateValue.split('-')[2]))
+                {visibleDays.map((dateValue) => {
+                  const d = parseDateValue(dateValue)
                   const dayLabel = d.toLocaleDateString('es-MX', { weekday: 'short' }).substring(0, 3)
                   const dayNum = d.getDate()
                   return (

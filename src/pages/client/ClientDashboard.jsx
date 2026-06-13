@@ -692,6 +692,40 @@ function ClientDashboard({ view = 'inicio' }) {
       const artistStudio = getArtistStudio(artist)
       return artist.status === 'Activo' && canUseOperationalFeature(artistStudio || artist, 'publicAgenda')
     })
+
+  useEffect(() => {
+    if (!isRealMarketplace || !selectedArtistProfile) return
+
+    const refreshedArtistProfile = marketplaceListings.find((listing) => (
+      listing.id === selectedArtistProfile.id
+      || listing.artistId === selectedArtistProfile.artistId
+      || listing.listingId === selectedArtistProfile.listingId
+    ))
+
+    if (!refreshedArtistProfile) return
+
+    const refreshedServices = Array.isArray(refreshedArtistProfile.marketplaceServiceOptions)
+      ? refreshedArtistProfile.marketplaceServiceOptions
+      : []
+    const selectedServiceStillExists = !selectedMarketplaceServiceId
+      || refreshedServices.some((service) => service.id === selectedMarketplaceServiceId)
+
+    if (selectedArtistProfile !== refreshedArtistProfile) {
+      setSelectedArtistProfile(refreshedArtistProfile)
+    }
+
+    if (!selectedServiceStillExists) {
+      const fallbackService = refreshedServices[0]
+      setSelectedMarketplaceServiceId(fallbackService?.id || '')
+      if (fallbackService?.name) setSecondaryService(fallbackService.name)
+    }
+  }, [
+    isRealMarketplace,
+    marketplaceListings,
+    selectedArtistProfile,
+    selectedMarketplaceServiceId,
+  ])
+
   const favoriteArtists = activeArtists
     .filter((artist) => (
       clientState.favoriteArtistIds.includes(artist.artistId || artist.id)
@@ -730,7 +764,6 @@ function ClientDashboard({ view = 'inicio' }) {
     streak: hasRealClientSession ? null : clientState.profile?.streak || 0,
     rewardsHistory: hasRealClientSession ? [] : artistClientProfile?.rewardsHistory || [],
   }
-  const hasRealClientLoyalty = !hasRealClientSession && currentClient.flowPoints !== null
   console.log('CLIENT DASHBOARD SESSION CLIENT', {
     hasRealClientSession,
     sessionClient: session.client,
@@ -779,7 +812,7 @@ function ClientDashboard({ view = 'inicio' }) {
     updateClientProfile({ photoUrl: '' })
   }
 
-  const nearestExpiration = expiringEntries[0]
+  const nearestExpiration = null
 
   const realAppointmentSourceReady = !session.isMockSession && appointmentState.clientLoaded
   const clientAppointmentSource = realAppointmentSourceReady
@@ -789,26 +822,14 @@ function ClientDashboard({ view = 'inicio' }) {
       : []
   const clientHistoryConnected = clientAppointmentSource
     .filter((item) => item.clientId === clientLookupId && item.type === 'appointment')
-    .map((item) => {
-      const service = artistServices.find((serviceItem) => serviceItem.name === item.service)
-      return {
-        ...item,
-        points: calculateFlowPoints(service?.serviceTier || 'basic'),
-        artist: item.artist || 'Valeria Moon',
-      }
-    })
-
-  const vipBenefits = {
-    Glow: ['Promociones privadas', 'Bonus cumpleaños', 'Prioridad agenda'],
-    Muse: ['Reservas ultra-rápidas', 'Acceso a productos exclusivos', 'Invitaciones VIP'],
-    Icon: ['Estilo personalizado', 'Servicio exprés', 'Beneficios especiales de otoño'],
-    Elite: ['Atención prioritaria', 'Experiencias a la medida', 'Eventos de lanzamiento'],
-  }
-
-  const clientBenefits = vipBenefits[currentClient.vipTier] || vipBenefits.Glow
+    .map((item) => ({
+      ...item,
+      points: null,
+      artist: item.artist || 'Valeria Moon',
+    }))
 
   // Generar automatizaciones inteligentes
-  const clientAutomations = generateClientAutomations(currentClient, artistServices)
+  const clientAutomations = hasRealClientSession ? [] : generateClientAutomations(currentClient, artistServices)
 
   const marketplaceArtists = useMemo(
     () => {
@@ -1012,75 +1033,74 @@ function ClientDashboard({ view = 'inicio' }) {
                 <span className="client-hero-greeting">Hola</span>
                 <strong className="client-hero-name">{currentClient.name}</strong>
                 <h2>Tu universo beauty premium</h2>
-                <p>Estás acumulando Flow Points con cada experiencia. Mantén tu ritmo en Studio Flow y desbloquea beneficios exclusivos.</p>
+                <p>Agenda servicios reales y revisa tus citas confirmadas en Studio Flow.</p>
                 <div className="hero-actions">
                   <Button onClick={() => navigate(paths.clientExplore)}>Agendar ahora</Button>
                   <Button variant="ghost" onClick={() => navigate(paths.clientAppointments)}>Ver mis citas</Button>
                 </div>
               </div>
               <div className="hero-summary client-hero-summary">
-                <span>{currentClient.vipTier || 'Glow'} VIP</span>
-                <strong>{currentClient.flowPoints || 0} Flow Points</strong>
-                <small>{pointsToNextTier > 0 ? `A solo ${pointsToNextTier} puntos de tu siguiente tier` : 'Estás en el máximo tier'}</small>
+                <span>Cuenta cliente</span>
+                <strong>{upcomingAppointments.length} citas próximas</strong>
+                <small>{realAppointmentSourceReady ? 'Datos conectados a Supabase' : 'Cargando datos reales'}</small>
               </div>
             </section>
 
             <aside className="client-metrics-grid mobile-screen">
               <Card className="loyalty-card">
-                <PanelHeader title="Flow Points" eyebrow="Balance actual" />
+                <PanelHeader title="Flow Points" eyebrow="Próximamente" />
                 <div className="loyalty-status">
                   <div>
-                    <strong>{currentClient.flowPoints || 0}</strong>
-                    <span>puntos disponibles</span>
+                    <strong>--</strong>
+                    <span>sin balance activo</span>
                   </div>
                   <div>
-                    <strong>{currentClient.vipTier || 'Glow'}</strong>
-                    <span>tier VIP</span>
+                    <strong>--</strong>
+                    <span>sin tier activo</span>
                   </div>
                 </div>
                 <div className="progress-row">
-                  <span>Próxima recompensa</span>
-                  <strong>{nextReward.name}</strong>
+                  <span>Módulo pendiente</span>
+                  <strong>Sin recompensas reales</strong>
                 </div>
                 <div className="progress-bar">
                   <div className="progress-fill" style={{ width: `${nextRewardProgress}%` }} />
                 </div>
-                <small>{pointsToNextReward > 0 ? `A solo ${pointsToNextReward} puntos de ${nextReward.name}` : 'Listo para redimir tu próxima recompensa'}</small>
+                <small>No se muestran puntos hasta conectar el balance real de loyalty.</small>
               </Card>
 
               <Card className="loyalty-card streak-card">
-                <PanelHeader title="Streak" eyebrow="Ritmo de visitas" />
+                <PanelHeader title="Streak" eyebrow="Próximamente" />
                 <div className="streak-block">
-                  <strong>🔥 {currentClient.streak || 0} visitas consecutivas</strong>
-                  <p>Mantén tu streak y gana bonus rewards.</p>
+                  <strong>Sin conteo activo</strong>
+                  <p>El ritmo de visitas se mostrará cuando exista cálculo real.</p>
                 </div>
                 <div className="reward-callout">
-                  <span>Próxima recompensa</span>
-                  <strong>10% OFF</strong>
+                  <span>Recompensas</span>
+                  <strong>Próximamente</strong>
                 </div>
               </Card>
             </aside>
 
             <section className="client-summary-grid mobile-screen">
               <Card className="points-expire-card">
-                <PanelHeader title="Puntos por vencer" eyebrow="Atención" />
+                <PanelHeader title="Puntos por vencer" eyebrow="Próximamente" />
                 {nearestExpiration ? (
                   <>
-                    <strong>⚠️ {expiringSoon} puntos expiran en {nearestExpiration.daysUntil} días</strong>
+                    <strong>Puntos por vencer</strong>
                     <p>Activa tu próxima cita para conservar tu saldo premium.</p>
                     <Button onClick={() => navigate(paths.clientExplore)}>Agendar ahora</Button>
                   </>
                 ) : (
-                  <p>No hay puntos en riesgo en los próximos 30 días.</p>
+                  <p>No hay vencimientos reales disponibles todavía.</p>
                 )}
               </Card>
 
               <Card className="vip-benefits-card">
-                <PanelHeader title="Beneficios" eyebrow={`${currentClient.vipTier || 'Glow'} VIP`} />
+                <PanelHeader title="Beneficios" eyebrow="Próximamente" />
                 <ul className="benefits-list">
-                  {clientBenefits.map((benefit) => (
-                    <li key={benefit}>{benefit}</li>
-                  ))}
+                  <li>Sin beneficios activos conectados a backend.</li>
+                  <li>Bonus de cumpleaños pendiente de diseño.</li>
                 </ul>
               </Card>
             </section>
@@ -1117,14 +1137,14 @@ function ClientDashboard({ view = 'inicio' }) {
                   <span>Fecha</span>
                   <span>Servicio</span>
                   <span>Artista</span>
-                  <span>Puntos</span>
+                  <span>Estado</span>
                 </div>
                 {clientHistoryConnected.length > 0 ? clientHistoryConnected.map((item) => (
                   <div className="history-row" key={`${item.service}-${item.date}-${item.time}`}>
                     <span>{item.date}</span>
                     <span>{item.service}</span>
                     <span>{item.artist}</span>
-                    <strong>+{item.points}</strong>
+                    <strong>{item.status || 'Real'}</strong>
                   </div>
                 )) : (
                   <div className="history-row empty-row">
@@ -1214,7 +1234,6 @@ function ClientDashboard({ view = 'inicio' }) {
                 onChange={(nextMode) => {
                   setSearchMode(nextMode)
                   closeArtistProfile()
-                  setSelectedMarketplaceServiceId('')
                 }}
                 options={[
                   { value: 'Servicio', label: 'Servicio', meta: 'Encuentra disponibilidad por tratamiento' },
@@ -1232,7 +1251,6 @@ function ClientDashboard({ view = 'inicio' }) {
                       setPrimaryService(nextPrimary)
                       setSecondaryService(marketplaceSearchServices[nextPrimary]?.[0]?.name || '')
                       closeArtistProfile()
-                      setSelectedMarketplaceServiceId('')
                     }}
                     options={primaryServiceOptions.map((service) => ({
                       value: service,
@@ -1248,7 +1266,6 @@ function ClientDashboard({ view = 'inicio' }) {
                     onChange={(nextService) => {
                       setSecondaryService(nextService)
                       closeArtistProfile()
-                      setSelectedMarketplaceServiceId('')
                     }}
                     options={currentServiceGroup.map((service) => ({
                       value: service.name,
