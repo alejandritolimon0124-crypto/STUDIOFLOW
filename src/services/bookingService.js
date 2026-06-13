@@ -43,12 +43,39 @@ export async function bookMarketplaceAppointment({
   serviceOfferingId,
   notes = null,
 } = {}) {
+  console.error('[BOOKING TRACE]', 'bookingService entry', {
+    availabilitySlotIds,
+    serviceOfferingId,
+    notes,
+  })
+
   const slotIds = asArray(availabilitySlotIds).filter(Boolean)
 
-  if (slotIds.length === 0) throw new Error('Selecciona un horario disponible.')
-  if (!serviceOfferingId) throw new Error('Selecciona un servicio.')
+  if (slotIds.length === 0) {
+    console.error('[BOOKING TRACE]', 'bookingService validation failed: empty availabilitySlotIds', {
+      availabilitySlotIds,
+      slotIds,
+      serviceOfferingId,
+    })
+    throw new Error('Selecciona un horario disponible.')
+  }
+
+  if (!serviceOfferingId) {
+    console.error('[BOOKING TRACE]', 'bookingService validation failed: missing serviceOfferingId', {
+      availabilitySlotIds,
+      slotIds,
+      serviceOfferingId,
+    })
+    throw new Error('Selecciona un servicio.')
+  }
 
   console.log('[BOOKING] RPC request', {
+    availabilitySlotIds: slotIds,
+    serviceOfferingId,
+    notes,
+  })
+  console.error('[BOOKING TRACE]', 'bookingService calling supabase.rpc', {
+    rpc: 'studio_flow_marketplace_book_appointment',
     availabilitySlotIds: slotIds,
     serviceOfferingId,
     notes,
@@ -63,10 +90,12 @@ export async function bookMarketplaceAppointment({
 
   if (error) {
     console.error('[BOOKING] RPC error', error)
+    console.error('[BOOKING TRACE]', 'bookingService supabase.rpc returned error', error)
     throw error
   }
 
   console.log('[BOOKING] RPC response', data)
+  console.error('[BOOKING TRACE]', 'bookingService supabase.rpc returned data', data)
 
   return normalizeBookingPayload(data)
 }

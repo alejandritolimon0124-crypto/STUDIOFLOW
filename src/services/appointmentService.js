@@ -69,3 +69,28 @@ export async function fetchArtistAppointments({ artistId } = {}) {
 
   return mapAppointmentsPayload(data)
 }
+
+export async function createManualArtistAppointment({
+  firstName,
+  lastName,
+  phone,
+  serviceOfferingId,
+  date,
+  time,
+  notes = '',
+} = {}) {
+  const client = requireSupabase()
+  const { data, error } = await client.rpc('studio_flow_artist_create_manual_appointment', {
+    p_client_first_name: firstName,
+    p_client_last_name: lastName,
+    p_client_phone: phone,
+    p_service_offering_id: serviceOfferingId,
+    p_date: date,
+    p_time: time,
+    p_notes: notes || null,
+  })
+
+  if (error) throw error
+
+  return normalizeAppointment(data?.appointment)
+}

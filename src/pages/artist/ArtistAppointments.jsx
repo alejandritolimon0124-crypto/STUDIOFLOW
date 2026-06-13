@@ -5,122 +5,168 @@ import Input from '../../components/Input'
 import PanelHeader from '../../components/PanelHeader'
 import StatusPill from '../../components/StatusPill'
 import { useApp } from '../../contexts/appContextCore'
-import {
-  deriveMembershipsFromLegacyData,
-  getCurrentArtist,
-  getMembershipForArtist,
-  getStudioForArtist,
-} from '../../modules/entities/entitySelectors'
 
-const mockClients = ['Mariana L.', 'Camila R.', 'Ana G.', 'Renata M.']
+function getTodayDateValue() {
+  const today = new Date()
+  today.setMinutes(today.getMinutes() - today.getTimezoneOffset())
+  return today.toISOString().slice(0, 10)
+}
+
+const emptyDraft = {
+  firstName: '',
+  lastName: '',
+  phone: '',
+  serviceOfferingId: '',
+  date: getTodayDateValue(),
+  time: '',
+  notes: '',
+}
 
 function ArtistAppointments() {
   const {
-    adminState,
     artistServices,
-    artistState,
-    artistAppointments: realArtistAppointments,
+    artistAppointments,
     appointmentState,
-    session,
-    addArtistAppointment,
-    bookSlot,
+    isArtistAppointmentsLoading,
+    artistAppointmentsError,
+    isManualArtistAppointmentSaving,
+    manualArtistAppointmentError,
+    manualArtistAppointmentStatus,
+    createManualArtistAppointment,
+    loadArtistAppointments,
   } = useApp()
-  const activeArtistServices = artistServices.length ? artistServices : [{ name: '', price: 0, duration: '60 min', serviceTier: 'basic' }]
-  const [draft, setDraft] = useState({
-    client: mockClients[0],
-    service: activeArtistServices[0].name,
-    date: '2026-05-18',
-    time: '10:00',
-  })
+  const [draft, setDraft] = useState(emptyDraft)
+  const [formErrors, setFormErrors] = useState({})
 
   useEffect(() => {
-    if (!draft.service && artistServices[0]?.name) {
-      setDraft((currentDraft) => ({ ...currentDraft, service: artistServices[0].name }))
+    if (!draft.serviceOfferingId && artistServices[0]?.id) {
+      setDraft((currentDraft) => ({ ...currentDraft, serviceOfferingId: artistServices[0].id }))
     }
-  }, [artistServices, draft.service])
-  const realArtistAppointmentSourceReady = !session.isMockSession && appointmentState.artistLoaded
-  const artistAppointmentSource = realArtistAppointmentSourceReady
-    ? realArtistAppointments
-    : artistState.appointments
-  const upcomingAppointments = artistAppointmentSource.filter((appointment) => appointment.status !== 'Completada')
-  const pastAppointments = artistAppointmentSource.filter((appointment) => appointment.status === 'Completada')
-  const localProfiles = session.user ? [{ ...session.user, id: session.user.id }] : []
-  const artistStudioMemberships = deriveMembershipsFromLegacyData({ artists: adminState.artists })
-  const selectorArtists = adminState.artists.map((artist) => (
-    getMembershipForArtist({
-      artistId: artist.id,
-      studioId: session.user?.studioId,
-      artistStudioMemberships,
-    })
-      ? { ...artist, profileId: session.user?.id }
-      : artist
-  ))
-  const currentArtist = getCurrentArtist({ session, profiles: localProfiles, artists: selectorArtists }) || selectorArtists[0]
-  const currentMembership = getMembershipForArtist({
-    artistId: currentArtist?.id,
-    artistStudioMemberships,
-  })
-  const currentStudio = getStudioForArtist({
-    artistId: currentArtist?.id,
-    studios: adminState.studios,
-    artistStudioMemberships,
-    preferredStudioId: currentMembership?.studioId,
-  })
+  }, [artistServices, draft.serviceOfferingId])
 
-  const saveAppointment = () => {
-    const service = activeArtistServices.find((item) => item.name === draft.service) || activeArtistServices[0]
+  const upcomingAppointments = artistAppointments.filter((appointment) => !['Completada', 'Cancelada'].includes(appointment.status))
+  const pastAppointments = artistAppointments.filter((appointment) => ['Completada', 'Cancelada'].includes(appointment.status))
 
-    addArtistAppointment({
-      ...draft,
-      artistId: currentArtist?.id,
-      studioId: currentStudio?.id || null,
-      membershipId: currentMembership?.id || null,
-      end: draft.time,
-      duration: service.duration,
-      room: 'Agenda',
-      type: 'appointment',
-      status: 'Confirmada',
-    })
-    bookSlot({
-      artistId: currentArtist?.id,
-      studioId: currentStudio?.id || null,
-      membershipId: currentMembership?.id || null,
-      date: draft.date,
-      time: draft.time,
-      end: draft.time,
-      artist: currentArtist?.owner || currentArtist?.name || 'Artista profesional',
-      service: draft.service,
-      durationMinutes: Number.parseInt(service.duration, 10) || 60,
-    })
+  const validateDraft = () => {
+    const nextErrors = {}
+
+    if (!draft.firstName.trim()) nextErrors.firstName = 'Nombre obligatorio.'
+    if (!draft.lastName.trim()) nextErrors.lastName = 'Apellido obligatorio.'
+    if (!draft.phone.trim()) nextErrors.phone = 'Celular obligatorio.'
+    if (!draft.serviceOfferingId) nextErrors.serviceOfferingId = 'Servicio obligatorio.'
+    if (!draft.date) nextErrors.date = 'Fecha obligatoria.'
+    if (!draft.time) nextErrors.time = 'Hora obligatoria.'
+
+    setFormErrors(nextErrors)
+    return Object.keys(nextErrors).length === 0
+  }
+
+  const updateDraft = (field, value) => {
+    setDraft((currentDraft) => ({ ...currentDraft, [field]: value }))
+    setFormErrors((currentErrors) => ({ ...currentErrors, [field]: '' }))
+  }
+
+  const saveAppointment = async () => {
+    if (!validateDraft()) return
+
+    const appointment = await createManualArtistAppointment(draft)
+
+    if (appointment) {
+      setDraft({
+        ...emptyDraft,
+        serviceOfferingId: draft.serviceOfferingId,
+        date: draft.date,
+      })
+      await loadArtistAppointments()
+    }
   }
 
   return (
     <main className="dashboard-grid artist-grid">
       <Card className="mobile-screen primary-panel">
-        <PanelHeader title="Nueva cita" eyebrow="Mock" />
+        <PanelHeader title="Nueva cita" eyebrow="Agenda real" />
         <div className="form-stack compact-form">
-          <label className="input-field">
-            <span>Cliente</span>
-            <select value={draft.client} onChange={(event) => setDraft({ ...draft, client: event.target.value })}>
-              {mockClients.map((client) => <option key={client}>{client}</option>)}
-            </select>
-          </label>
+          <Input
+            label="Nombre"
+            value={draft.firstName}
+            onChange={(event) => updateDraft('firstName', event.target.value)}
+          />
+          {formErrors.firstName && <small style={{ color: 'var(--rose-dark)', fontWeight: 800 }}>{formErrors.firstName}</small>}
+
+          <Input
+            label="Apellido"
+            value={draft.lastName}
+            onChange={(event) => updateDraft('lastName', event.target.value)}
+          />
+          {formErrors.lastName && <small style={{ color: 'var(--rose-dark)', fontWeight: 800 }}>{formErrors.lastName}</small>}
+
+          <Input
+            label="Celular"
+            type="tel"
+            value={draft.phone}
+            onChange={(event) => updateDraft('phone', event.target.value)}
+          />
+          {formErrors.phone && <small style={{ color: 'var(--rose-dark)', fontWeight: 800 }}>{formErrors.phone}</small>}
+
           <label className="input-field">
             <span>Servicio</span>
-            <select value={draft.service} onChange={(event) => setDraft({ ...draft, service: event.target.value })}>
-              {activeArtistServices.map((service) => <option key={service.name}>{service.name}</option>)}
+            <select
+              value={draft.serviceOfferingId}
+              onChange={(event) => updateDraft('serviceOfferingId', event.target.value)}
+            >
+              {artistServices.length === 0 && <option value="">Sin servicios activos</option>}
+              {artistServices.map((service) => (
+                <option key={service.id} value={service.id}>
+                  {service.name}
+                </option>
+              ))}
             </select>
           </label>
-          <Input label="Fecha" type="date" value={draft.date} onChange={(event) => setDraft({ ...draft, date: event.target.value })} />
-          <Input label="Hora" type="time" value={draft.time} onChange={(event) => setDraft({ ...draft, time: event.target.value })} />
-          <Button className="full-width" onClick={saveAppointment}>Guardar cita</Button>
+          {formErrors.serviceOfferingId && <small style={{ color: 'var(--rose-dark)', fontWeight: 800 }}>{formErrors.serviceOfferingId}</small>}
+
+          <Input
+            label="Fecha"
+            type="date"
+            value={draft.date}
+            onChange={(event) => updateDraft('date', event.target.value)}
+          />
+          {formErrors.date && <small style={{ color: 'var(--rose-dark)', fontWeight: 800 }}>{formErrors.date}</small>}
+
+          <Input
+            label="Hora"
+            type="time"
+            value={draft.time}
+            onChange={(event) => updateDraft('time', event.target.value)}
+          />
+          {formErrors.time && <small style={{ color: 'var(--rose-dark)', fontWeight: 800 }}>{formErrors.time}</small>}
+
+          <label className="input-field">
+            <span>Notas</span>
+            <textarea
+              rows="3"
+              value={draft.notes}
+              onChange={(event) => updateDraft('notes', event.target.value)}
+            />
+          </label>
+
+          {manualArtistAppointmentError && (
+            <small style={{ color: 'var(--rose-dark)', fontWeight: 800 }}>{manualArtistAppointmentError}</small>
+          )}
+          {manualArtistAppointmentStatus && (
+            <small style={{ color: 'var(--success)', fontWeight: 800 }}>{manualArtistAppointmentStatus}</small>
+          )}
+
+          <Button className="full-width" disabled={isManualArtistAppointmentSaving} onClick={saveAppointment}>
+            {isManualArtistAppointmentSaving ? 'Guardando cita...' : 'Guardar cita'}
+          </Button>
         </div>
       </Card>
 
       <Card className="wide-card mobile-screen primary-panel">
         <PanelHeader title="Proximas citas" eyebrow="Agenda" />
+        {artistAppointmentsError && <small style={{ color: 'var(--rose-dark)', fontWeight: 800 }}>{artistAppointmentsError}</small>}
         <div className="compact-list">
-          {upcomingAppointments.map((appointment) => (
+          {upcomingAppointments.length > 0 ? upcomingAppointments.map((appointment) => (
             <div className="list-row elevated-row" key={appointment.id}>
               <div>
                 <strong>{appointment.client}</strong>
@@ -128,14 +174,22 @@ function ArtistAppointments() {
               </div>
               <StatusPill tone="success">{appointment.status}</StatusPill>
             </div>
-          ))}
+          )) : (
+            <div className="list-row elevated-row">
+              <div>
+                <strong>{isArtistAppointmentsLoading ? 'Cargando citas...' : 'Sin citas proximas'}</strong>
+                <small>{isArtistAppointmentsLoading ? 'Consultando agenda real.' : 'Las nuevas citas apareceran aqui.'}</small>
+              </div>
+              <StatusPill tone="neutral">Agenda</StatusPill>
+            </div>
+          )}
         </div>
       </Card>
 
       <Card className="mobile-screen">
         <PanelHeader title="Citas pasadas" eyebrow="Historial" />
         <div className="compact-list">
-          {pastAppointments.map((appointment) => (
+          {pastAppointments.length > 0 ? pastAppointments.map((appointment) => (
             <div className="list-row elevated-row" key={appointment.id}>
               <div>
                 <strong>{appointment.client}</strong>
@@ -143,7 +197,15 @@ function ArtistAppointments() {
               </div>
               <StatusPill tone="neutral">{appointment.status}</StatusPill>
             </div>
-          ))}
+          )) : (
+            <div className="list-row elevated-row">
+              <div>
+                <strong>Sin historial real</strong>
+                <small>Aun no hay citas anteriores registradas.</small>
+              </div>
+              <StatusPill tone="neutral">Historial</StatusPill>
+            </div>
+          )}
         </div>
       </Card>
     </main>

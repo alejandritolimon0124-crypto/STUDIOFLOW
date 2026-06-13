@@ -9,7 +9,6 @@ import { useApp } from '../../contexts/appContextCore'
 import { paths } from '../../routes/paths'
 import { clientAppointments as mockClientAppointments } from '../../services/mockData'
 import { getClientById } from '../../utils/clientHelpers'
-import { calculateFlowPoints, flowPointRewards, getActivePoints, getExpiringPoints, vipTierThresholds } from '../../modules/loyalty/flowPointsEngine'
 import { generateClientAutomations } from '../../modules/automation/smartAutomationEngine'
 import { canUseOperationalFeature } from '../../modules/governance/studioGovernance'
 import {
@@ -512,6 +511,7 @@ function ClientDashboard({ view = 'inicio' }) {
   const [secondaryService, setSecondaryService] = useState(searchServices.Pestanas[0].name)
   const [studioQuery, setStudioQuery] = useState('')
   const [selectedArtistProfile, setSelectedArtistProfile] = useState(null)
+  const [selectedMarketplaceServiceId, setSelectedMarketplaceServiceId] = useState('')
   const [openDropdown, setOpenDropdown] = useState(null)
   const isRealMarketplace = !session.isMockSession
   const marketplaceSearchServices = useMemo(() => {
@@ -549,9 +549,13 @@ function ClientDashboard({ view = 'inicio' }) {
       ? selectedArtistProfile.marketplaceServiceOptions
       : []
 
-    return services.find((service) => service.name === secondaryService) || services[0] || null
-  }, [isRealMarketplace, secondaryService, selectedArtistProfile])
+    return services.find((service) => service.id === selectedMarketplaceServiceId)
+      || services.find((service) => service.name === secondaryService)
+      || services[0]
+      || null
+  }, [isRealMarketplace, secondaryService, selectedArtistProfile, selectedMarketplaceServiceId])
   const effectiveMarketplaceService = selectedMarketplaceService || marketplaceService
+  const selectedMarketplaceServiceName = selectedMarketplaceService?.name || effectiveMarketplaceService.name || secondaryService
   const selectedServiceOfferingId = selectedMarketplaceService?.id || effectiveMarketplaceService.id || null
   const currentAvailabilityRequestKey = selectedArtistProfile?.listingId && bookingDate
     ? [selectedArtistProfile.listingId, selectedServiceOfferingId || '', bookingDate].join('|')
@@ -617,6 +621,7 @@ function ClientDashboard({ view = 'inicio' }) {
   useEffect(() => {
     if (searchMode !== 'Servicio') return
     if (primaryServiceOptions.length === 0) return
+    if (selectedArtistProfile && selectedMarketplaceServiceId) return
 
     const hasPrimaryService = Boolean(marketplaceSearchServices[primaryService])
     const nextPrimaryService = hasPrimaryService ? primaryService : primaryServiceOptions[0]
@@ -630,7 +635,15 @@ function ClientDashboard({ view = 'inicio' }) {
     if (!hasSecondaryService && nextServiceGroup[0]?.name) {
       setSecondaryService(nextServiceGroup[0].name)
     }
-  }, [marketplaceSearchServices, primaryService, primaryServiceOptions, searchMode, secondaryService])
+  }, [
+    marketplaceSearchServices,
+    primaryService,
+    primaryServiceOptions,
+    searchMode,
+    secondaryService,
+    selectedArtistProfile,
+    selectedMarketplaceServiceId,
+  ])
 
   const availableSlots = useMemo(
     () => {
@@ -712,11 +725,12 @@ function ClientDashboard({ view = 'inicio' }) {
     phone: sessionClientPhone || clientState.profile?.phone || artistClientProfile?.phone,
     notes: clientState.profile?.notes || artistClientProfile?.notes,
     photoUrl: clientState.profile?.photoUrl || '',
-    flowPoints: clientState.profile?.flowPoints || 0,
-    vipTier: clientState.profile?.vipTier || 'Glow',
-    streak: clientState.profile?.streak || 0,
-    rewardsHistory: artistClientProfile?.rewardsHistory || [],
+    flowPoints: hasRealClientSession ? null : clientState.profile?.flowPoints || 0,
+    vipTier: hasRealClientSession ? null : clientState.profile?.vipTier || 'Glow',
+    streak: hasRealClientSession ? null : clientState.profile?.streak || 0,
+    rewardsHistory: hasRealClientSession ? [] : artistClientProfile?.rewardsHistory || [],
   }
+  const hasRealClientLoyalty = !hasRealClientSession && currentClient.flowPoints !== null
   console.log('CLIENT DASHBOARD SESSION CLIENT', {
     hasRealClientSession,
     sessionClient: session.client,
@@ -744,26 +758,7 @@ function ClientDashboard({ view = 'inicio' }) {
     currentClient.email,
     currentClient.phone,
   ])
-  const currentClientActivePoints = getActivePoints(currentClient)
-  const nextReward = flowPointRewards.discount10
-  const nextRewardProgress = Math.min(100, Math.round((currentClientActivePoints / nextReward.pointsCost) * 100))
-  const pointsToNextReward = Math.max(0, nextReward.pointsCost - currentClientActivePoints)
-  const tierProgressTarget = vipTierThresholds.find((tier) => tier.minPoints > (currentClient.flowPoints || 0))
-  const pointsToNextTier = tierProgressTarget ? tierProgressTarget.minPoints - (currentClient.flowPoints || 0) : 0
-  const expiringSoon = getExpiringPoints(currentClient, 30)
-
-  const expiringEntries = (currentClient.rewardsHistory || [])
-    .filter((entry) => entry.points && entry.points > 0 && entry.expirationDate)
-    .map((entry) => {
-      const expiration = new Date(entry.expirationDate)
-      const now = new Date()
-      return {
-        ...entry,
-        daysUntil: Math.max(0, Math.ceil((expiration - now) / (1000 * 60 * 60 * 24))),
-      }
-    })
-    .filter((entry) => entry.daysUntil >= 0)
-    .sort((a, b) => a.daysUntil - b.daysUntil)
+  const nextRewardProgress = 0
 
   const handleClientPhotoChange = (event) => {
     const file = event.target.files?.[0]
@@ -877,9 +872,24 @@ function ClientDashboard({ view = 'inicio' }) {
       : []
 
   const reserveSlot = async (slot) => {
+    console.error('[BOOKING TRACE]', 'ClientDashboard reserveSlot entry', {
+      slot,
+      isRealMarketplace,
+      selectedServiceOfferingId,
+      selectedMarketplaceService,
+      selectedArtistProfile,
+    })
+
     if (!slot.available) return
 
     if (isRealMarketplace) {
+      console.error('[BOOKING TRACE]', 'ClientDashboard real marketplace branch', {
+        slot,
+        selectedServiceOfferingId,
+        selectedMarketplaceService,
+        selectedArtistProfile,
+      })
+
       console.log('[BOOKING] click reserve', {
         slot,
         selectedMarketplaceService,
@@ -891,9 +901,18 @@ function ClientDashboard({ view = 'inicio' }) {
         ? slot.availabilitySlotIds
         : [slot.availabilitySlotId || slot.id]
 
+      console.error('[BOOKING TRACE]', 'ClientDashboard calling bookMarketplaceAppointment', {
+        availabilitySlotIds,
+        serviceOfferingId,
+      })
+
       const booking = await bookMarketplaceAppointment({
         availabilitySlotIds,
         serviceOfferingId,
+      })
+
+      console.error('[BOOKING TRACE]', 'ClientDashboard bookMarketplaceAppointment returned', {
+        booking,
       })
 
       if (booking) {
@@ -929,16 +948,29 @@ function ClientDashboard({ view = 'inicio' }) {
     return services[0] || secondaryService
   }
 
+  const getInitialServiceForArtistProfile = (artist) => {
+    const services = Array.isArray(artist?.marketplaceServiceOptions)
+      ? artist.marketplaceServiceOptions
+      : []
+
+    return services.find((service) => service.name === secondaryService)
+      || services[0]
+      || { id: '', name: getNextServiceForArtist(artist) }
+  }
+
   const getSlotServiceName = (slot) => {
     const services = selectedArtistProfile?.marketplaceServiceOptions || []
     const service = services.find((item) => item.id === (slot.serviceOfferingId || slot.service_offering_id))
 
-    return service?.name || effectiveMarketplaceService.name
+    return service?.name || selectedMarketplaceServiceName || effectiveMarketplaceService.name
   }
 
   const openArtistProfile = (artist, { scrollToBooking = false } = {}) => {
+    const nextService = getInitialServiceForArtistProfile(artist)
+
     setSelectedArtistProfile(artist)
-    setSecondaryService(getNextServiceForArtist(artist))
+    setSelectedMarketplaceServiceId(nextService.id || '')
+    setSecondaryService(nextService.name || getNextServiceForArtist(artist))
     setOpenDropdown(null)
 
     if (scrollToBooking) {
@@ -946,6 +978,22 @@ function ClientDashboard({ view = 'inicio' }) {
         document.getElementById(`marketplace-slots-${artist.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
       }, 120)
     }
+  }
+
+  const closeArtistProfile = () => {
+    setSelectedArtistProfile(null)
+    setSelectedMarketplaceServiceId('')
+    setOpenDropdown(null)
+  }
+
+  const changeSelectedMarketplaceService = (nextServiceName) => {
+    const services = Array.isArray(selectedArtistProfile?.marketplaceServiceOptions)
+      ? selectedArtistProfile.marketplaceServiceOptions
+      : []
+    const nextService = services.find((service) => service.name === nextServiceName)
+
+    setSelectedMarketplaceServiceId(nextService?.id || '')
+    setSecondaryService(nextService?.name || nextServiceName)
   }
 
   return (
@@ -1165,7 +1213,8 @@ function ClientDashboard({ view = 'inicio' }) {
                 onToggle={() => setOpenDropdown(openDropdown === 'searchMode' ? null : 'searchMode')}
                 onChange={(nextMode) => {
                   setSearchMode(nextMode)
-                  setSelectedArtistProfile(null)
+                  closeArtistProfile()
+                  setSelectedMarketplaceServiceId('')
                 }}
                 options={[
                   { value: 'Servicio', label: 'Servicio', meta: 'Encuentra disponibilidad por tratamiento' },
@@ -1182,7 +1231,8 @@ function ClientDashboard({ view = 'inicio' }) {
                     onChange={(nextPrimary) => {
                       setPrimaryService(nextPrimary)
                       setSecondaryService(marketplaceSearchServices[nextPrimary]?.[0]?.name || '')
-                      setSelectedArtistProfile(null)
+                      closeArtistProfile()
+                      setSelectedMarketplaceServiceId('')
                     }}
                     options={primaryServiceOptions.map((service) => ({
                       value: service,
@@ -1197,7 +1247,8 @@ function ClientDashboard({ view = 'inicio' }) {
                     onToggle={() => setOpenDropdown(openDropdown === 'secondaryService' ? null : 'secondaryService')}
                     onChange={(nextService) => {
                       setSecondaryService(nextService)
-                      setSelectedArtistProfile(null)
+                      closeArtistProfile()
+                      setSelectedMarketplaceServiceId('')
                     }}
                     options={currentServiceGroup.map((service) => ({
                       value: service.name,
@@ -1265,8 +1316,7 @@ function ClientDashboard({ view = 'inicio' }) {
                           aria-expanded={isProfileOpen}
                           onClick={() => {
                             if (isProfileOpen) {
-                              setSelectedArtistProfile(null)
-                              setOpenDropdown(null)
+                              closeArtistProfile()
                               return
                             }
 
@@ -1379,7 +1429,7 @@ function ClientDashboard({ view = 'inicio' }) {
                             <h4>Redes y contacto</h4>
                             <div className="public-contact-actions">
                               {contactLinks.whatsapp && (
-                                <button type="button" onClick={() => openWhatsAppContact(contactLinks.whatsapp, secondaryService)}>WhatsApp</button>
+                                <button type="button" onClick={() => openWhatsAppContact(contactLinks.whatsapp, selectedMarketplaceServiceName)}>WhatsApp</button>
                               )}
                               {contactLinks.instagram && (
                                 <a href={getSocialUrl(contactLinks.instagram, 'https://instagram.com/')} target="_blank" rel="noreferrer">
@@ -1398,10 +1448,10 @@ function ClientDashboard({ view = 'inicio' }) {
                         <div className="form-stack compact-form public-booking-flow">
                           <PremiumDropdown
                             label="Servicio"
-                            value={secondaryService}
+                            value={selectedMarketplaceServiceName}
                             open={openDropdown === 'profileService'}
                             onToggle={() => setOpenDropdown(openDropdown === 'profileService' ? null : 'profileService')}
-                            onChange={(nextService) => setSecondaryService(nextService)}
+                            onChange={changeSelectedMarketplaceService}
                             options={getServiceOptionsForArtist(artist)}
                           />
                           <label className="input-field">
@@ -1422,7 +1472,14 @@ function ClientDashboard({ view = 'inicio' }) {
                                   size="sm"
                                   variant={slot.available ? 'primary' : 'ghost'}
                                   disabled={!slot.available || isBookingLoading}
-                                  onClick={() => reserveSlot(slot)}
+                                  onClick={() => {
+                                    console.error('[BOOKING TRACE]', 'ClientDashboard reserve button onClick', {
+                                      slot,
+                                      selectedMarketplaceService,
+                                      selectedArtistProfile,
+                                    })
+                                    reserveSlot(slot)
+                                  }}
                                 >
                                   {isBookingLoading ? 'Reservando...' : slot.available ? 'Reservar' : 'Ocupado'}
                                 </Button>
@@ -1458,7 +1515,7 @@ function ClientDashboard({ view = 'inicio' }) {
                           <Button
                             variant="ghost"
                             disabled={!contactLinks.whatsapp}
-                            onClick={() => openWhatsAppContact(contactLinks.whatsapp, secondaryService)}
+                            onClick={() => openWhatsAppContact(contactLinks.whatsapp, selectedMarketplaceServiceName)}
                           >
                             💬 Contactar artista
                           </Button>
@@ -1472,7 +1529,7 @@ function ClientDashboard({ view = 'inicio' }) {
                           )}
                         </div>
 
-                        <button className="public-profile-hide" type="button" onClick={() => setSelectedArtistProfile(null)}>
+                        <button className="public-profile-hide" type="button" onClick={closeArtistProfile}>
                           Ocultar perfil
                         </button>
                       </div>
@@ -1552,8 +1609,7 @@ function ClientDashboard({ view = 'inicio' }) {
                             aria-expanded={isProfileOpen}
                             onClick={() => {
                               if (isProfileOpen) {
-                                setSelectedArtistProfile(null)
-                                setOpenDropdown(null)
+                                closeArtistProfile()
                                 return
                               }
 
@@ -1658,7 +1714,7 @@ function ClientDashboard({ view = 'inicio' }) {
                               <h4>Redes y contacto</h4>
                               <div className="public-contact-actions">
                                 {contactLinks.whatsapp && (
-                                  <button type="button" onClick={() => openWhatsAppContact(contactLinks.whatsapp, secondaryService)}>WhatsApp</button>
+                                  <button type="button" onClick={() => openWhatsAppContact(contactLinks.whatsapp, selectedMarketplaceServiceName)}>WhatsApp</button>
                                 )}
                                 {contactLinks.instagram && (
                                   <a href={getSocialUrl(contactLinks.instagram, 'https://instagram.com/')} target="_blank" rel="noreferrer">
@@ -1677,10 +1733,10 @@ function ClientDashboard({ view = 'inicio' }) {
                           <div className="form-stack compact-form public-booking-flow">
                             <PremiumDropdown
                               label="Servicio"
-                              value={secondaryService}
+                              value={selectedMarketplaceServiceName}
                               open={openDropdown === 'favoriteProfileService'}
                               onToggle={() => setOpenDropdown(openDropdown === 'favoriteProfileService' ? null : 'favoriteProfileService')}
-                              onChange={(nextService) => setSecondaryService(nextService)}
+                              onChange={changeSelectedMarketplaceService}
                               options={getServiceOptionsForArtist(artist)}
                             />
                             <label className="input-field">
@@ -1701,7 +1757,14 @@ function ClientDashboard({ view = 'inicio' }) {
                                     size="sm"
                                     variant={slot.available ? 'primary' : 'ghost'}
                                     disabled={!slot.available || isBookingLoading}
-                                    onClick={() => reserveSlot(slot)}
+                                    onClick={() => {
+                                      console.error('[BOOKING TRACE]', 'ClientDashboard reserve button onClick', {
+                                        slot,
+                                        selectedMarketplaceService,
+                                        selectedArtistProfile,
+                                      })
+                                      reserveSlot(slot)
+                                    }}
                                   >
                                     {isBookingLoading ? 'Reservando...' : slot.available ? 'Reservar' : 'Ocupado'}
                                   </Button>
@@ -1737,7 +1800,7 @@ function ClientDashboard({ view = 'inicio' }) {
                             <Button
                               variant="ghost"
                               disabled={!contactLinks.whatsapp}
-                              onClick={() => openWhatsAppContact(contactLinks.whatsapp, secondaryService)}
+                              onClick={() => openWhatsAppContact(contactLinks.whatsapp, selectedMarketplaceServiceName)}
                             >
                               💬 Contactar artista
                             </Button>
@@ -1751,7 +1814,7 @@ function ClientDashboard({ view = 'inicio' }) {
                             )}
                           </div>
 
-                          <button className="public-profile-hide" type="button" onClick={() => setSelectedArtistProfile(null)}>
+                          <button className="public-profile-hide" type="button" onClick={closeArtistProfile}>
                             Ocultar perfil
                           </button>
                         </div>

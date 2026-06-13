@@ -88,14 +88,36 @@ begin
     where id = any(v_slot_ids)
     order by starts_at
     for update
+  ),
+  available_locked_slots as (
+    select *
+    from locked_slots
+    where status = 'available'
+      and starts_at >= now()
+  ),
+  slot_summary as (
+    select
+      count(*)::integer as slot_count,
+      min(starts_at) as starts_at,
+      max(ends_at) as ends_at
+    from available_locked_slots
+  ),
+  target_slot as (
+    select
+      artist_id,
+      studio_id,
+      membership_id
+    from available_locked_slots
+    order by starts_at, id
+    limit 1
   )
   select
-    count(*)::integer,
-    min(starts_at),
-    max(ends_at),
-    min(artist_id),
-    min(studio_id),
-    min(membership_id)
+    slot_summary.slot_count,
+    slot_summary.starts_at,
+    slot_summary.ends_at,
+    target_slot.artist_id,
+    target_slot.studio_id,
+    target_slot.membership_id
   into
     v_slot_count,
     v_starts_at,
@@ -103,9 +125,8 @@ begin
     v_artist_id,
     v_studio_id,
     v_membership_id
-  from locked_slots
-  where status = 'available'
-    and starts_at >= now();
+  from slot_summary
+  left join target_slot on true;
 
   if v_slot_count <> v_expected_slot_count then
     raise exception 'One or more slots are no longer available';

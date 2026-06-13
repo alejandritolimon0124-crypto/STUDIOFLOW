@@ -36,6 +36,7 @@ import {
   saveArtistScheduleSettings as saveArtistScheduleSettingsRecord,
 } from '../services/scheduleService'
 import {
+  createManualArtistAppointment as createManualArtistAppointmentRecord,
   fetchArtistAppointments,
   fetchClientAppointments,
 } from '../services/appointmentService'
@@ -719,6 +720,9 @@ export function AppProvider({ children }) {
   const [clientAppointmentsError, setClientAppointmentsError] = useState('')
   const [isArtistAppointmentsLoading, setIsArtistAppointmentsLoading] = useState(false)
   const [artistAppointmentsError, setArtistAppointmentsError] = useState('')
+  const [isManualArtistAppointmentSaving, setIsManualArtistAppointmentSaving] = useState(false)
+  const [manualArtistAppointmentError, setManualArtistAppointmentError] = useState('')
+  const [manualArtistAppointmentStatus, setManualArtistAppointmentStatus] = useState('')
   const [isMarketplaceLoading, setIsMarketplaceLoading] = useState(false)
   const [marketplaceError, setMarketplaceError] = useState('')
   const [isAvailabilityLoading, setIsAvailabilityLoading] = useState(false)
@@ -754,6 +758,8 @@ export function AppProvider({ children }) {
     })
     setClientAppointmentsError('')
     setArtistAppointmentsError('')
+    setManualArtistAppointmentError('')
+    setManualArtistAppointmentStatus('')
     setArtistScheduleError('')
     setArtistScheduleStatus('')
     setAgendaSettings(session.isMockSession ? createInitialAgendaSettings() : createEmptyAgendaSettings())
@@ -1283,7 +1289,21 @@ export function AppProvider({ children }) {
     serviceOfferingId,
     notes = null,
   } = {}) => {
-    if (session.isMockSession || session.role !== ROLES.CLIENT) return null
+    console.error('[BOOKING TRACE]', 'AppContext bookMarketplaceAppointment entry', {
+      availabilitySlotIds,
+      serviceOfferingId,
+      notes,
+      sessionRole: session.role,
+      isMockSession: session.isMockSession,
+    })
+
+    if (session.isMockSession || session.role !== ROLES.CLIENT) {
+      console.error('[BOOKING TRACE]', 'AppContext guard returned null', {
+        sessionRole: session.role,
+        isMockSession: session.isMockSession,
+      })
+      return null
+    }
 
     const attempt = {
       availabilitySlotIds,
@@ -1308,10 +1328,12 @@ export function AppProvider({ children }) {
       }
 
       console.log('[BOOKING] AppContext payload', payload)
+      console.error('[BOOKING TRACE]', 'AppContext calling bookingService', payload)
 
       const booking = await bookMarketplaceAppointmentRecord(payload)
 
       console.log('[BOOKING] AppContext response', booking)
+      console.error('[BOOKING TRACE]', 'AppContext bookingService returned', booking)
 
       setBookingState({
         lastBooking: booking,
@@ -1323,6 +1345,7 @@ export function AppProvider({ children }) {
     } catch (error) {
       const message = error.message || 'No se pudo reservar la cita.'
       console.error('[BOOKING] AppContext error', error)
+      console.error('[BOOKING TRACE]', 'AppContext caught error', error)
       console.error('[Studio Flow] Booking marketplace failed', {
         attempt,
         error,
@@ -1365,6 +1388,33 @@ export function AppProvider({ children }) {
       setIsArtistAppointmentsLoading(false)
     }
   }, [session.artist?.id, session.isMockSession, session.role, session.user?.artistId])
+
+  const createManualArtistAppointment = useCallback(async (payload = {}) => {
+    if (session.isMockSession || session.role !== ROLES.ARTIST) return null
+
+    setIsManualArtistAppointmentSaving(true)
+    setManualArtistAppointmentError('')
+    setManualArtistAppointmentStatus('')
+
+    try {
+      const appointment = await createManualArtistAppointmentRecord(payload)
+      setAppointmentState((currentState) => ({
+        ...currentState,
+        artistAppointments: [
+          appointment,
+          ...currentState.artistAppointments.filter((item) => item.id !== appointment.id),
+        ],
+        artistLoaded: true,
+      }))
+      setManualArtistAppointmentStatus('Cita creada correctamente.')
+      return appointment
+    } catch (error) {
+      setManualArtistAppointmentError(error.message || 'No se pudo crear la cita.')
+      return null
+    } finally {
+      setIsManualArtistAppointmentSaving(false)
+    }
+  }, [session.isMockSession, session.role])
 
   const loadIndependentArtistPublicationReadiness = useCallback(async (
     artistId = session.artist?.id || session.user?.artistId,
@@ -1975,7 +2025,7 @@ export function AppProvider({ children }) {
 
   const bookSlot = useCallback((slot) => {
     if (!slot.artistId) {
-      window.alert('Selecciona una artista para reservar.')
+      window.alert('Selecciona un horario disponible.')
       return
     }
 
@@ -2370,6 +2420,9 @@ export function AppProvider({ children }) {
       clientAppointmentsError,
       isArtistAppointmentsLoading,
       artistAppointmentsError,
+      isManualArtistAppointmentSaving,
+      manualArtistAppointmentError,
+      manualArtistAppointmentStatus,
       isMarketplaceLoading,
       marketplaceError,
       isAvailabilityLoading,
@@ -2425,6 +2478,7 @@ export function AppProvider({ children }) {
       saveArtistScheduleSettings,
       loadClientAppointments,
       loadArtistAppointments,
+      createManualArtistAppointment,
       loadMarketplaceListings,
       loadMarketplaceAvailability,
       bookMarketplaceAppointment,
@@ -2468,6 +2522,9 @@ export function AppProvider({ children }) {
       clientAppointmentsError,
       isArtistAppointmentsLoading,
       artistAppointmentsError,
+      isManualArtistAppointmentSaving,
+      manualArtistAppointmentError,
+      manualArtistAppointmentStatus,
       isMarketplaceLoading,
       marketplaceError,
       isAvailabilityLoading,
@@ -2522,6 +2579,7 @@ export function AppProvider({ children }) {
       saveArtistScheduleSettings,
       loadClientAppointments,
       loadArtistAppointments,
+      createManualArtistAppointment,
       loadMarketplaceListings,
       loadMarketplaceAvailability,
       bookMarketplaceAppointment,
