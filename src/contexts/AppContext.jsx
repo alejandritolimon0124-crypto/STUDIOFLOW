@@ -53,6 +53,12 @@ import {
   fetchAdminClients,
   updateAdminClientProfile,
 } from '../services/adminClientService'
+import {
+  fetchIndependentArtistPublicationReadiness,
+  fetchGovernanceQueue,
+  publishIndependentArtist,
+  reviewStudio,
+} from '../services/governanceService'
 
 const initialSession = {
   user: null,
@@ -676,6 +682,20 @@ export function AppProvider({ children }) {
   const [artistAppointmentsError, setArtistAppointmentsError] = useState('')
   const [isMarketplaceLoading, setIsMarketplaceLoading] = useState(false)
   const [marketplaceError, setMarketplaceError] = useState('')
+  const [governanceState, setGovernanceState] = useState({
+    queue: [],
+    loaded: false,
+    lastDecision: null,
+  })
+  const [isGovernanceLoading, setIsGovernanceLoading] = useState(false)
+  const [governanceError, setGovernanceError] = useState('')
+  const [publicationState, setPublicationState] = useState({
+    readinessByArtistId: {},
+    loaded: false,
+    lastPublication: null,
+  })
+  const [isPublicationLoading, setIsPublicationLoading] = useState(false)
+  const [publicationError, setPublicationError] = useState('')
   const [selectedDate, setSelectedDate] = useState('2026-05-18')
 
   useEffect(() => {
@@ -696,6 +716,18 @@ export function AppProvider({ children }) {
       loaded: false,
     })
     setMarketplaceError('')
+    setGovernanceState({
+      queue: [],
+      loaded: false,
+      lastDecision: null,
+    })
+    setGovernanceError('')
+    setPublicationState({
+      readinessByArtistId: {},
+      loaded: false,
+      lastPublication: null,
+    })
+    setPublicationError('')
   }, [
     session.artist?.id,
     session.client?.id,
@@ -1105,6 +1137,41 @@ export function AppProvider({ children }) {
     }
   }, [session.artist?.id, session.isMockSession, session.role, session.user?.artistId])
 
+  const loadIndependentArtistPublicationReadiness = useCallback(async (
+    artistId = session.artist?.id || session.user?.artistId,
+  ) => {
+    if (session.isMockSession) return null
+    if (![ROLES.ARTIST, ROLES.PLATFORM_OWNER].includes(session.role)) return null
+
+    setIsPublicationLoading(true)
+    setPublicationError('')
+
+    try {
+      const readiness = await fetchIndependentArtistPublicationReadiness(artistId || null)
+      const readinessArtistId = readiness.artist?.id || artistId || 'self'
+
+      setPublicationState((currentState) => ({
+        ...currentState,
+        readinessByArtistId: {
+          ...currentState.readinessByArtistId,
+          [readinessArtistId]: readiness,
+        },
+        loaded: true,
+      }))
+
+      return readiness
+    } catch (error) {
+      setPublicationError(error.message || 'No se pudo cargar la publicacion del artista.')
+      setPublicationState((currentState) => ({
+        ...currentState,
+        loaded: true,
+      }))
+      return null
+    } finally {
+      setIsPublicationLoading(false)
+    }
+  }, [session.artist?.id, session.isMockSession, session.role, session.user?.artistId])
+
   useEffect(() => {
     if (session.role !== ROLES.ARTIST || session.isMockSession) return
 
@@ -1117,7 +1184,10 @@ export function AppProvider({ children }) {
     loadArtistAppointments(artistId).catch(() => {
       // artistAppointmentsError already exposes the failure to the UI.
     })
-  }, [loadArtistAppointments, loadArtistServices, session.artist?.id, session.isMockSession, session.role, session.user?.artistId])
+    loadIndependentArtistPublicationReadiness(artistId).catch(() => {
+      // publicationError already exposes the failure to the UI.
+    })
+  }, [loadArtistAppointments, loadArtistServices, loadIndependentArtistPublicationReadiness, session.artist?.id, session.isMockSession, session.role, session.user?.artistId])
 
   useEffect(() => {
     if (session.role !== ROLES.CLIENT || session.isMockSession) return
@@ -1218,6 +1288,118 @@ export function AppProvider({ children }) {
     }
   }, [session.isMockSession, session.role])
 
+  const loadGovernanceQueue = useCallback(async () => {
+    if (session.isMockSession || session.role !== ROLES.PLATFORM_OWNER) return []
+
+    setIsGovernanceLoading(true)
+    setGovernanceError('')
+
+    try {
+      const queue = await fetchGovernanceQueue()
+      setGovernanceState((currentState) => ({
+        ...currentState,
+        queue,
+        loaded: true,
+      }))
+      return queue
+    } catch (error) {
+      setGovernanceError(error.message || 'No se pudo cargar governance.')
+      setGovernanceState((currentState) => ({
+        ...currentState,
+        queue: [],
+        loaded: true,
+      }))
+      return []
+    } finally {
+      setIsGovernanceLoading(false)
+    }
+  }, [session.isMockSession, session.role])
+
+  const reviewStudioGovernance = useCallback(async ({
+    studioId,
+    decision,
+    reason = null,
+    decisionNotes = null,
+  } = {}) => {
+    if (session.isMockSession || session.role !== ROLES.PLATFORM_OWNER) return null
+
+    setIsGovernanceLoading(true)
+    setGovernanceError('')
+
+    try {
+      const result = await reviewStudio({
+        studioId,
+        decision,
+        reason,
+        decisionNotes,
+      })
+
+      setGovernanceState((currentState) => ({
+        ...currentState,
+        queue: result.queue?.length ? result.queue : currentState.queue,
+        loaded: true,
+        lastDecision: result,
+      }))
+
+      await Promise.all([
+        loadAdminDashboard().catch(() => null),
+        loadAdminArtists().catch(() => null),
+        loadGovernanceQueue().catch(() => []),
+      ])
+
+      return result
+    } catch (error) {
+      setGovernanceError(error.message || 'No se pudo actualizar governance.')
+      return null
+    } finally {
+      setIsGovernanceLoading(false)
+    }
+  }, [loadAdminArtists, loadAdminDashboard, loadGovernanceQueue, session.isMockSession, session.role])
+
+  const publishIndependentArtistProfile = useCallback(async ({
+    artistId,
+    title = null,
+    summary = null,
+    city = null,
+  } = {}) => {
+    if (session.isMockSession || session.role !== ROLES.PLATFORM_OWNER) return null
+
+    setIsPublicationLoading(true)
+    setPublicationError('')
+
+    try {
+      const readiness = await publishIndependentArtist({
+        artistId,
+        title,
+        summary,
+        city,
+      })
+      const readinessArtistId = readiness.artist?.id || artistId
+
+      setPublicationState((currentState) => ({
+        ...currentState,
+        readinessByArtistId: {
+          ...currentState.readinessByArtistId,
+          [readinessArtistId]: readiness,
+        },
+        loaded: true,
+        lastPublication: readiness,
+      }))
+
+      await Promise.all([
+        loadAdminArtists().catch(() => null),
+        loadGovernanceQueue().catch(() => []),
+      ])
+
+      return readiness
+    } catch (error) {
+      setPublicationError(error.message || 'No se pudo publicar el artista.')
+      return null
+    } finally {
+      setIsPublicationLoading(false)
+    }
+  }, [loadAdminArtists, loadGovernanceQueue, session.isMockSession, session.role])
+
   useEffect(() => {
     if (session.isMockSession) return
     if (![ROLES.PLATFORM_OWNER, ROLES.STUDIO_OWNER, ROLES.STUDIO_MANAGER].includes(session.role)) return
@@ -1231,7 +1413,12 @@ export function AppProvider({ children }) {
     loadAdminClients().catch(() => {
       // adminClientsError keeps the failure available to admin screens.
     })
-  }, [loadAdminArtists, loadAdminClients, loadAdminDashboard, session.isMockSession, session.role])
+    if (session.role === ROLES.PLATFORM_OWNER) {
+      loadGovernanceQueue().catch(() => {
+        // governanceError keeps the failure available to admin screens.
+      })
+    }
+  }, [loadAdminArtists, loadAdminClients, loadAdminDashboard, loadGovernanceQueue, session.isMockSession, session.role])
 
   const toggleScheduleDay = useCallback((dayName) => {
     setAgendaSettings((currentSettings) => ({
@@ -1942,12 +2129,18 @@ export function AppProvider({ children }) {
       artistAppointments: appointmentState.artistAppointments,
       marketplaceState,
       marketplaceListings: marketplaceState.listings,
+      governanceState,
+      publicationState,
       isClientAppointmentsLoading,
       clientAppointmentsError,
       isArtistAppointmentsLoading,
       artistAppointmentsError,
       isMarketplaceLoading,
       marketplaceError,
+      isGovernanceLoading,
+      governanceError,
+      isPublicationLoading,
+      publicationError,
       artistServices: artistState.services || [],
       isArtistServicesLoading,
       artistServicesError,
@@ -1989,6 +2182,10 @@ export function AppProvider({ children }) {
       loadClientAppointments,
       loadArtistAppointments,
       loadMarketplaceListings,
+      loadGovernanceQueue,
+      reviewStudioGovernance,
+      loadIndependentArtistPublicationReadiness,
+      publishIndependentArtistProfile,
       saveArtistService,
       updateArtistServiceStatus,
       archiveArtistService,
@@ -2017,12 +2214,18 @@ export function AppProvider({ children }) {
       artistState,
       appointmentState,
       marketplaceState,
+      governanceState,
+      publicationState,
       isClientAppointmentsLoading,
       clientAppointmentsError,
       isArtistAppointmentsLoading,
       artistAppointmentsError,
       isMarketplaceLoading,
       marketplaceError,
+      isGovernanceLoading,
+      governanceError,
+      isPublicationLoading,
+      publicationError,
       isArtistServicesLoading,
       artistServicesError,
       isArtistProfileSaving,
@@ -2063,6 +2266,10 @@ export function AppProvider({ children }) {
       loadClientAppointments,
       loadArtistAppointments,
       loadMarketplaceListings,
+      loadGovernanceQueue,
+      reviewStudioGovernance,
+      loadIndependentArtistPublicationReadiness,
+      publishIndependentArtistProfile,
       saveArtistService,
       updateArtistServiceStatus,
       archiveArtistService,

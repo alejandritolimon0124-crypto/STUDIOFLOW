@@ -58,7 +58,14 @@ const emptyDashboardData = {
 
 function AdminDashboard() {
   const navigate = useNavigate()
-  const { adminState, artistServices, session } = useApp()
+  const {
+    adminState,
+    artistServices,
+    session,
+    reviewStudioGovernance,
+    isGovernanceLoading,
+    governanceError,
+  } = useApp()
   const currentUser = session.user
   const dashboardSnapshot = adminState.dashboard || emptyDashboardData
   const dashboardData = session.isMockSession || dashboardSnapshot.source === 'supabase'
@@ -228,13 +235,24 @@ function AdminDashboard() {
     }),
   }))
 
-  const updateReviewStatus = (studioId, studioStatus) => {
+  const updateReviewStatus = async (studioId, decision) => {
+    const result = await reviewStudioGovernance({
+      studioId,
+      decision,
+      reason: decision,
+      decisionNotes: `Decision ${decision} ejecutada desde Platform Owner dashboard.`,
+    })
+
+    if (!result?.studio?.id) return
+
     setReviewStudios((currentStudios) =>
       currentStudios.map((studio) =>
         studio.id === studioId
           ? {
               ...studio,
-              studioStatus,
+              studioStatus: result.studio.studioStatus,
+              approvedAt: result.studio.approvedAt,
+              suspendedAt: result.studio.suspendedAt,
             }
           : studio,
       ),
@@ -332,6 +350,15 @@ function AdminDashboard() {
       {canSeeGovernance && (
       <Card className="wide-card executive-card">
         <PanelHeader title="Estudios pendientes de validacion" eyebrow="Ecosystem governance" />
+        {governanceError && (
+          <div className="studio-review-row">
+            <div>
+              <strong>No se pudo actualizar governance.</strong>
+              <small>{governanceError}</small>
+            </div>
+            <StatusPill tone="warm">Error</StatusPill>
+          </div>
+        )}
         <div className="studio-review-stack">
           {pendingReviewStudios.map((studio) => (
             <div className="studio-review-row" key={studio.id}>
@@ -343,9 +370,10 @@ function AdminDashboard() {
                 {getStudioStatusLabel(studio.studioStatus)}
               </StatusPill>
               <div className="studio-review-actions">
-                <Button size="sm" onClick={() => updateReviewStatus(studio.id, STUDIO_STATUS.APPROVED)}>Aprobar</Button>
-                <Button size="sm" variant="ghost" onClick={() => updateReviewStatus(studio.id, STUDIO_STATUS.SUSPENDED)}>Suspender</Button>
-                <Button size="sm" variant="ghost" onClick={() => updateReviewStatus(studio.id, STUDIO_STATUS.PENDING)}>Solicitar cambios</Button>
+                <Button size="sm" disabled={isGovernanceLoading} onClick={() => updateReviewStatus(studio.id, 'approve')}>Aprobar</Button>
+                <Button size="sm" variant="ghost" disabled={isGovernanceLoading} onClick={() => updateReviewStatus(studio.id, 'request_changes')}>Solicitar cambios</Button>
+                <Button size="sm" variant="ghost" disabled={isGovernanceLoading} onClick={() => updateReviewStatus(studio.id, 'reject')}>Rechazar</Button>
+                <Button size="sm" variant="ghost" disabled={isGovernanceLoading} onClick={() => updateReviewStatus(studio.id, 'suspend')}>Suspender</Button>
               </div>
             </div>
           ))}

@@ -26,6 +26,9 @@ function AdminArtists() {
     toggleManagedArtistStatus,
     updateManagedArtistProfile,
     updateManagedStudioProfile,
+    publishIndependentArtistProfile,
+    isPublicationLoading,
+    publicationError,
   } = useApp()
   const [query, setQuery] = useState('')
   const [editingArtist, setEditingArtist] = useState(null)
@@ -119,6 +122,15 @@ function AdminArtists() {
     navigate(paths.adminArtists, { state: { dashboardArtistId: artist.id } })
   }
 
+  const publishArtist = (artist) => {
+    publishIndependentArtistProfile({
+      artistId: artist.id,
+      title: artist.name,
+      summary: artist.description,
+      city: artist.city,
+    })
+  }
+
   const saveArtistProfile = () => {
     if (!editingArtist) return
 
@@ -198,6 +210,7 @@ function AdminArtists() {
               value={query}
               onChange={(event) => setQuery(event.target.value)}
             />
+            {publicationError && <small className="form-error">{publicationError}</small>}
           </div>
           <div className="master-list">
             {filteredArtists.length === 0 ? (
@@ -218,6 +231,15 @@ function AdminArtists() {
                   <button type="button" onClick={() => toggleManagedArtistStatus(artist.id)}>
                     {artist.status === 'Activo' ? 'Inactivar' : 'Activar'}
                   </button>
+                  {isPlatformOwner && !artist.studioId && !artist.membershipId && (
+                    <button
+                      type="button"
+                      disabled={isPublicationLoading || artist.status !== 'Activo'}
+                      onClick={() => publishArtist(artist)}
+                    >
+                      Publicar artista
+                    </button>
+                  )}
                   <button type="button" onClick={() => openDashboard(artist)}>Ver dashboard</button>
                   <button type="button" onClick={() => setEditingArtist(artist)}>Editar perfil</button>
                 </div>
