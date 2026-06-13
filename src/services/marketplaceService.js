@@ -29,8 +29,48 @@ function normalizeService(service = {}) {
   }
 }
 
+function normalizeAvailabilitySummary(listing = {}) {
+  const rawAvailability = listing.availability || {}
+  const availableCount = normalizeNumber(
+    rawAvailability.availableCount
+      ?? rawAvailability.available_count
+      ?? listing.availableCount
+      ?? listing.available_count,
+  )
+
+  return {
+    ...rawAvailability,
+    availableCount,
+    available_count: availableCount,
+    hasFutureSlots: Boolean(
+      rawAvailability.hasFutureSlots
+        ?? rawAvailability.has_future_slots
+        ?? listing.hasFutureSlots
+        ?? listing.has_future_slots
+        ?? availableCount > 0,
+    ),
+  }
+}
+
+function getAvailabilityBadge(availability) {
+  if (availability.availableCount > 0 || availability.hasFutureSlots) {
+    return {
+      label: 'Horarios disponibles',
+      tone: 'success',
+      level: 'high',
+    }
+  }
+
+  return {
+    label: 'Sin horarios publicados',
+    tone: 'neutral',
+    level: 'low',
+  }
+}
+
 function normalizeListing(listing = {}) {
   const services = asArray(listing.services).map(normalizeService)
+  const availability = normalizeAvailabilitySummary(listing)
   const artistId = listing.artistId || listing.artist_id || null
   const studioId = listing.studioId || listing.studio_id || null
   const membershipId = listing.membershipId || listing.membership_id || null
@@ -90,12 +130,9 @@ function normalizeListing(listing = {}) {
       studioId,
     } : null,
     occupancy: 0,
-    availabilityScore: 0,
-    badge: {
-      label: 'Sin horarios publicados',
-      tone: 'neutral',
-      level: 'low',
-    },
+    availability,
+    availabilityScore: availability.availableCount,
+    badge: getAvailabilityBadge(availability),
     visibilityStatus: listing.visibilityStatus || listing.visibility_status || 'visible',
   }
 }

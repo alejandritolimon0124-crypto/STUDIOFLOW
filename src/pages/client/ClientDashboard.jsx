@@ -7,7 +7,7 @@ import PanelHeader from '../../components/PanelHeader'
 import StatusPill from '../../components/StatusPill'
 import { useApp } from '../../contexts/appContextCore'
 import { paths } from '../../routes/paths'
-import { clientAppointments as mockClientAppointments, clientHistory } from '../../services/mockData'
+import { clientAppointments as mockClientAppointments } from '../../services/mockData'
 import { getClientById } from '../../utils/clientHelpers'
 import { calculateFlowPoints, flowPointRewards, getActivePoints, getExpiringPoints, vipTierThresholds } from '../../modules/loyalty/flowPointsEngine'
 import { generateClientAutomations } from '../../modules/automation/smartAutomationEngine'
@@ -480,6 +480,7 @@ function ClientDashboard({ view = 'inicio' }) {
     marketplaceAvailabilitySlots,
     isAvailabilityLoading,
     availabilityError,
+    isClientAppointmentsLoading,
     loadMarketplaceAvailability,
     isMarketplaceLoading,
     marketplaceError,
@@ -733,7 +734,9 @@ function ClientDashboard({ view = 'inicio' }) {
   const realAppointmentSourceReady = !session.isMockSession && appointmentState.clientLoaded
   const clientAppointmentSource = realAppointmentSourceReady
     ? realClientAppointments
-    : artistState.appointments
+    : session.isMockSession
+      ? artistState.appointments
+      : []
   const clientHistoryConnected = clientAppointmentSource
     .filter((item) => item.clientId === clientLookupId && item.type === 'appointment')
     .map((item) => {
@@ -806,7 +809,17 @@ function ClientDashboard({ view = 'inicio' }) {
   }))
   const upcomingAppointments = realAppointmentSourceReady
     ? realClientAppointments.filter((appointment) => !['Completada', 'Cancelada'].includes(appointment.status))
-    : [...bookedAppointments, ...mockClientAppointments]
+    : session.isMockSession
+      ? [...bookedAppointments, ...mockClientAppointments]
+      : []
+  const historicalAppointments = realAppointmentSourceReady
+    ? realClientAppointments.filter((appointment) => (
+      ['Completada', 'Cancelada', 'No show'].includes(appointment.status)
+      || ['completed', 'cancelled', 'no_show'].includes(appointment.appointmentStatus)
+    ))
+    : session.isMockSession
+      ? clientHistoryConnected
+      : []
 
   const reserveSlot = (slot) => {
     if (!slot.available) return
@@ -981,7 +994,7 @@ function ClientDashboard({ view = 'inicio' }) {
             <Card className="wide-card mobile-screen primary-panel">
               <PanelHeader title="Proximas citas" eyebrow="Confirmadas" />
               <div className="appointment-stack">
-                {upcomingAppointments.map((appointment) => (
+                {upcomingAppointments.length > 0 ? upcomingAppointments.map((appointment) => (
                   <article className="client-appointment" key={`${appointment.artist}-${appointment.time}-${appointment.date}`}>
                     <div className="date-block">
                       <strong>{appointment.date}</strong>
@@ -993,21 +1006,41 @@ function ClientDashboard({ view = 'inicio' }) {
                     </div>
                     <StatusPill tone="success">{appointment.status || 'Lista'}</StatusPill>
                   </article>
-                ))}
+                )) : (
+                  <article className="client-appointment">
+                    <div className="date-block">
+                      <strong>Sin citas</strong>
+                      <span>--:--</span>
+                    </div>
+                    <div>
+                      <h3>{isClientAppointmentsLoading ? 'Cargando citas...' : 'No tienes citas proximas'}</h3>
+                      <p>{isClientAppointmentsLoading ? 'Estamos consultando tus reservas reales.' : 'Cuando reserves un servicio aparecera aqui.'}</p>
+                    </div>
+                    <StatusPill tone="neutral">Vacio</StatusPill>
+                  </article>
+                )}
               </div>
             </Card>
             <Card className="mobile-screen">
               <PanelHeader title="Historial" eyebrow="Reservas anteriores" />
               <div className="compact-list">
-                {clientHistory.map((item) => (
-                  <div className="list-row elevated-row" key={`${item.service}-${item.date}`}>
+                {historicalAppointments.length > 0 ? historicalAppointments.map((item) => (
+                  <div className="list-row elevated-row" key={`${item.id || item.service}-${item.date}-${item.time || ''}`}>
                     <div>
                       <strong>{item.service}</strong>
                       <small>{item.artist} / {item.date}</small>
                     </div>
-                    <StatusPill tone="neutral">Finalizada</StatusPill>
+                    <StatusPill tone="neutral">{item.status || 'Finalizada'}</StatusPill>
                   </div>
-                ))}
+                )) : (
+                  <div className="list-row elevated-row">
+                    <div>
+                      <strong>{isClientAppointmentsLoading ? 'Cargando historial...' : 'Sin historial real'}</strong>
+                      <small>{isClientAppointmentsLoading ? 'Estamos consultando tus citas reales.' : 'Aun no tienes reservas anteriores registradas.'}</small>
+                    </div>
+                    <StatusPill tone="neutral">Vacio</StatusPill>
+                  </div>
+                )}
               </div>
             </Card>
           </>
@@ -1607,15 +1640,23 @@ function ClientDashboard({ view = 'inicio' }) {
             <Card className="mobile-screen">
               <PanelHeader title="Historial" eyebrow="Reciente" />
               <div className="compact-list">
-                {clientHistory.map((item) => (
-                  <div className="list-row elevated-row" key={`${item.service}-${item.date}`}>
+                {historicalAppointments.length > 0 ? historicalAppointments.map((item) => (
+                  <div className="list-row elevated-row" key={`${item.id || item.service}-${item.date}-${item.time || ''}`}>
                     <div>
                       <strong>{item.service}</strong>
                       <small>{item.artist} / {item.date}</small>
                     </div>
-                    <span>{item.amount}</span>
+                    <StatusPill tone="neutral">{item.status || 'Finalizada'}</StatusPill>
                   </div>
-                ))}
+                )) : (
+                  <div className="list-row elevated-row">
+                    <div>
+                      <strong>Sin historial real</strong>
+                      <small>Aun no tienes reservas anteriores registradas.</small>
+                    </div>
+                    <StatusPill tone="neutral">Vacio</StatusPill>
+                  </div>
+                )}
               </div>
             </Card>
           </>
