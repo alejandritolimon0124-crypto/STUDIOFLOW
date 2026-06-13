@@ -32,6 +32,10 @@ import {
   updateArtistServiceOfferingStatus,
 } from '../services/artistServiceService'
 import {
+  fetchArtistScheduleSettings,
+  saveArtistScheduleSettings as saveArtistScheduleSettingsRecord,
+} from '../services/scheduleService'
+import {
   fetchArtistAppointments,
   fetchClientAppointments,
 } from '../services/appointmentService'
@@ -659,6 +663,9 @@ export function AppProvider({ children }) {
   const [artistState, setArtistState] = useState(getStoredArtistState)
   const [isArtistServicesLoading, setIsArtistServicesLoading] = useState(false)
   const [artistServicesError, setArtistServicesError] = useState('')
+  const [isArtistScheduleLoading, setIsArtistScheduleLoading] = useState(false)
+  const [artistScheduleError, setArtistScheduleError] = useState('')
+  const [artistScheduleStatus, setArtistScheduleStatus] = useState('')
   const [isArtistProfileSaving, setIsArtistProfileSaving] = useState(false)
   const [artistProfileError, setArtistProfileError] = useState('')
   const [isAdminArtistsLoading, setIsAdminArtistsLoading] = useState(false)
@@ -719,6 +726,8 @@ export function AppProvider({ children }) {
     })
     setClientAppointmentsError('')
     setArtistAppointmentsError('')
+    setArtistScheduleError('')
+    setArtistScheduleStatus('')
     setMarketplaceState({
       listings: [],
       loaded: false,
@@ -1072,6 +1081,61 @@ export function AppProvider({ children }) {
     }
   }, [session.artist?.id, session.isMockSession, session.user?.artistId])
 
+  const loadArtistScheduleSettings = useCallback(async () => {
+    if (session.isMockSession || session.role !== ROLES.ARTIST) return null
+
+    setIsArtistScheduleLoading(true)
+    setArtistScheduleError('')
+
+    try {
+      const scheduleSettings = await fetchArtistScheduleSettings()
+
+      if (scheduleSettings.source !== 'empty') {
+        setAgendaSettings((currentSettings) => ({
+          ...currentSettings,
+          ...scheduleSettings,
+          bookedSlots: currentSettings.bookedSlots,
+        }))
+      }
+
+      return scheduleSettings
+    } catch (error) {
+      setArtistScheduleError(error.message || 'No se pudo cargar la agenda real.')
+      return null
+    } finally {
+      setIsArtistScheduleLoading(false)
+    }
+  }, [session.isMockSession, session.role])
+
+  const saveArtistScheduleSettings = useCallback(async () => {
+    if (session.isMockSession || session.role !== ROLES.ARTIST) {
+      setArtistScheduleStatus('Agenda demo actualizada.')
+      return null
+    }
+
+    setIsArtistScheduleLoading(true)
+    setArtistScheduleError('')
+    setArtistScheduleStatus('')
+
+    try {
+      const savedSettings = await saveArtistScheduleSettingsRecord(agendaSettings)
+
+      setAgendaSettings((currentSettings) => ({
+        ...currentSettings,
+        ...savedSettings,
+        bookedSlots: currentSettings.bookedSlots,
+      }))
+      setArtistScheduleStatus(`Horarios guardados. ${savedSettings.availabilitySlotsGenerated || 0} slots generados.`)
+
+      return savedSettings
+    } catch (error) {
+      setArtistScheduleError(error.message || 'No se pudieron guardar los horarios.')
+      return null
+    } finally {
+      setIsArtistScheduleLoading(false)
+    }
+  }, [agendaSettings, session.isMockSession, session.role])
+
   const loadClientAppointments = useCallback(async () => {
     if (session.isMockSession || session.role !== ROLES.CLIENT) return []
 
@@ -1242,13 +1306,16 @@ export function AppProvider({ children }) {
     loadArtistServices(artistId).catch(() => {
       // artistServicesError already exposes the failure to the UI.
     })
+    loadArtistScheduleSettings().catch(() => {
+      // artistScheduleError already exposes the failure to the UI.
+    })
     loadArtistAppointments(artistId).catch(() => {
       // artistAppointmentsError already exposes the failure to the UI.
     })
     loadIndependentArtistPublicationReadiness(artistId).catch(() => {
       // publicationError already exposes the failure to the UI.
     })
-  }, [loadArtistAppointments, loadArtistServices, loadIndependentArtistPublicationReadiness, session.artist?.id, session.isMockSession, session.role, session.user?.artistId])
+  }, [loadArtistAppointments, loadArtistScheduleSettings, loadArtistServices, loadIndependentArtistPublicationReadiness, session.artist?.id, session.isMockSession, session.role, session.user?.artistId])
 
   useEffect(() => {
     if (session.role !== ROLES.CLIENT || session.isMockSession) return
@@ -2209,6 +2276,9 @@ export function AppProvider({ children }) {
       artistServices: artistState.services || [],
       isArtistServicesLoading,
       artistServicesError,
+      isArtistScheduleLoading,
+      artistScheduleError,
+      artistScheduleStatus,
       isArtistProfileSaving,
       artistProfileError,
       isAdminArtistsLoading,
@@ -2244,6 +2314,8 @@ export function AppProvider({ children }) {
       loadAdminArtists,
       loadAdminClients,
       loadArtistServices,
+      loadArtistScheduleSettings,
+      saveArtistScheduleSettings,
       loadClientAppointments,
       loadArtistAppointments,
       loadMarketplaceListings,
@@ -2297,6 +2369,9 @@ export function AppProvider({ children }) {
       publicationError,
       isArtistServicesLoading,
       artistServicesError,
+      isArtistScheduleLoading,
+      artistScheduleError,
+      artistScheduleStatus,
       isArtistProfileSaving,
       artistProfileError,
       isAdminArtistsLoading,
@@ -2332,6 +2407,8 @@ export function AppProvider({ children }) {
       loadAdminArtists,
       loadAdminClients,
       loadArtistServices,
+      loadArtistScheduleSettings,
+      saveArtistScheduleSettings,
       loadClientAppointments,
       loadArtistAppointments,
       loadMarketplaceListings,

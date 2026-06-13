@@ -17,6 +17,10 @@ function ArtistScheduleSettings() {
     addBlockedDate,
     removeBlockedDate,
     updateAgendaRule,
+    saveArtistScheduleSettings,
+    isArtistScheduleLoading,
+    artistScheduleError,
+    artistScheduleStatus,
   } = useApp()
   const [showDatePicker, setShowDatePicker] = useState(false)
   const [selectedDate, setSelectedDate] = useState('')
@@ -32,7 +36,26 @@ function ArtistScheduleSettings() {
   return (
     <main className="dashboard-grid artist-grid schedule-master">
         <Card className="wide-card mobile-screen primary-panel">
-          <PanelHeader title="Dias laborales" eyebrow="Semana base" action={<Button size="sm">Guardar horarios</Button>} />
+          <PanelHeader
+            title="Dias laborales"
+            eyebrow="Semana base"
+            action={(
+              <Button size="sm" disabled={isArtistScheduleLoading} onClick={saveArtistScheduleSettings}>
+                {isArtistScheduleLoading ? 'Guardando...' : 'Guardar horarios'}
+              </Button>
+            )}
+          />
+          {(artistScheduleError || artistScheduleStatus) && (
+            <div className="list-row elevated-row" style={{ marginBottom: '14px' }}>
+              <div>
+                <strong>{artistScheduleError ? 'No se pudieron guardar horarios' : 'Agenda sincronizada'}</strong>
+                <small>{artistScheduleError || artistScheduleStatus}</small>
+              </div>
+              <StatusPill tone={artistScheduleError ? 'warning' : 'success'}>
+                {artistScheduleError ? 'Error' : 'Supabase'}
+              </StatusPill>
+            </div>
+          )}
           <div className="schedule-list">
             {agendaSettings.schedule.map((day) => (
               <article
