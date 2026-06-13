@@ -35,6 +35,7 @@ import {
   fetchArtistAppointments,
   fetchClientAppointments,
 } from '../services/appointmentService'
+import { fetchMarketplaceAvailability } from '../services/availabilityService'
 import { fetchMarketplaceListings } from '../services/marketplaceService'
 import {
   fetchArtistProfile,
@@ -676,12 +677,19 @@ export function AppProvider({ children }) {
     listings: [],
     loaded: false,
   })
+  const [availabilityState, setAvailabilityState] = useState({
+    slots: [],
+    requestKey: '',
+    loaded: false,
+  })
   const [isClientAppointmentsLoading, setIsClientAppointmentsLoading] = useState(false)
   const [clientAppointmentsError, setClientAppointmentsError] = useState('')
   const [isArtistAppointmentsLoading, setIsArtistAppointmentsLoading] = useState(false)
   const [artistAppointmentsError, setArtistAppointmentsError] = useState('')
   const [isMarketplaceLoading, setIsMarketplaceLoading] = useState(false)
   const [marketplaceError, setMarketplaceError] = useState('')
+  const [isAvailabilityLoading, setIsAvailabilityLoading] = useState(false)
+  const [availabilityError, setAvailabilityError] = useState('')
   const [governanceState, setGovernanceState] = useState({
     queue: [],
     loaded: false,
@@ -716,6 +724,12 @@ export function AppProvider({ children }) {
       loaded: false,
     })
     setMarketplaceError('')
+    setAvailabilityState({
+      slots: [],
+      requestKey: '',
+      loaded: false,
+    })
+    setAvailabilityError('')
     setGovernanceState({
       queue: [],
       loaded: false,
@@ -1107,6 +1121,53 @@ export function AppProvider({ children }) {
       return []
     } finally {
       setIsMarketplaceLoading(false)
+    }
+  }, [session.isMockSession, session.role])
+
+  const loadMarketplaceAvailability = useCallback(async ({
+    listingId,
+    serviceOfferingId = null,
+    date,
+  } = {}) => {
+    if (session.isMockSession || session.role !== ROLES.CLIENT) return []
+    if (!listingId || !date) {
+      setAvailabilityState({
+        slots: [],
+        requestKey: '',
+        loaded: true,
+      })
+      return []
+    }
+
+    const requestKey = [listingId, serviceOfferingId || '', date].join('|')
+
+    setIsAvailabilityLoading(true)
+    setAvailabilityError('')
+
+    try {
+      const payload = await fetchMarketplaceAvailability({
+        listingId,
+        serviceOfferingId,
+        date,
+      })
+
+      setAvailabilityState({
+        slots: payload.slots,
+        requestKey,
+        loaded: true,
+      })
+
+      return payload.slots
+    } catch (error) {
+      setAvailabilityError(error.message || 'No se pudieron cargar horarios disponibles.')
+      setAvailabilityState({
+        slots: [],
+        requestKey,
+        loaded: true,
+      })
+      return []
+    } finally {
+      setIsAvailabilityLoading(false)
     }
   }, [session.isMockSession, session.role])
 
@@ -2129,6 +2190,8 @@ export function AppProvider({ children }) {
       artistAppointments: appointmentState.artistAppointments,
       marketplaceState,
       marketplaceListings: marketplaceState.listings,
+      availabilityState,
+      marketplaceAvailabilitySlots: availabilityState.slots,
       governanceState,
       publicationState,
       isClientAppointmentsLoading,
@@ -2137,6 +2200,8 @@ export function AppProvider({ children }) {
       artistAppointmentsError,
       isMarketplaceLoading,
       marketplaceError,
+      isAvailabilityLoading,
+      availabilityError,
       isGovernanceLoading,
       governanceError,
       isPublicationLoading,
@@ -2182,6 +2247,7 @@ export function AppProvider({ children }) {
       loadClientAppointments,
       loadArtistAppointments,
       loadMarketplaceListings,
+      loadMarketplaceAvailability,
       loadGovernanceQueue,
       reviewStudioGovernance,
       loadIndependentArtistPublicationReadiness,
@@ -2214,6 +2280,7 @@ export function AppProvider({ children }) {
       artistState,
       appointmentState,
       marketplaceState,
+      availabilityState,
       governanceState,
       publicationState,
       isClientAppointmentsLoading,
@@ -2222,6 +2289,8 @@ export function AppProvider({ children }) {
       artistAppointmentsError,
       isMarketplaceLoading,
       marketplaceError,
+      isAvailabilityLoading,
+      availabilityError,
       isGovernanceLoading,
       governanceError,
       isPublicationLoading,
@@ -2266,6 +2335,7 @@ export function AppProvider({ children }) {
       loadClientAppointments,
       loadArtistAppointments,
       loadMarketplaceListings,
+      loadMarketplaceAvailability,
       loadGovernanceQueue,
       reviewStudioGovernance,
       loadIndependentArtistPublicationReadiness,
