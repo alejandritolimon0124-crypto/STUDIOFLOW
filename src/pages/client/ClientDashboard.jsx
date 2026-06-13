@@ -481,12 +481,16 @@ function ClientDashboard({ view = 'inicio' }) {
     isAvailabilityLoading,
     availabilityError,
     isClientAppointmentsLoading,
+    isBookingLoading,
+    bookingError,
     loadMarketplaceAvailability,
+    loadClientAppointments,
     isMarketplaceLoading,
     marketplaceError,
     clientState,
     session,
     bookSlot,
+    bookMarketplaceAppointment,
     getAvailableSlots,
     toggleFavoriteArtist,
     updateClientProfile,
@@ -821,9 +825,34 @@ function ClientDashboard({ view = 'inicio' }) {
       ? clientHistoryConnected
       : []
 
-  const reserveSlot = (slot) => {
+  const reserveSlot = async (slot) => {
     if (!slot.available) return
-    if (isRealMarketplace) return
+
+    if (isRealMarketplace) {
+      const serviceOfferingId = selectedMarketplaceService?.id
+        || effectiveMarketplaceService.id
+        || slot.serviceOfferingId
+      const availabilitySlotIds = slot.availabilitySlotIds?.length
+        ? slot.availabilitySlotIds
+        : [slot.availabilitySlotId || slot.id]
+
+      const booking = await bookMarketplaceAppointment({
+        availabilitySlotIds,
+        serviceOfferingId,
+      })
+
+      if (booking) {
+        await loadMarketplaceAvailability({
+          listingId: selectedArtistProfile?.listingId,
+          serviceOfferingId,
+          date: bookingDate,
+        })
+        await loadClientAppointments()
+      }
+
+      return
+    }
+
     if (!selectedArtistProfile?.id) return
 
     bookSlot({
@@ -1305,11 +1334,11 @@ function ClientDashboard({ view = 'inicio' }) {
                                 </div>
                                 <Button
                                   size="sm"
-                                  variant={slot.available && !isRealMarketplace ? 'primary' : 'ghost'}
-                                  disabled={isRealMarketplace || !slot.available}
+                                  variant={slot.available ? 'primary' : 'ghost'}
+                                  disabled={!slot.available || isBookingLoading}
                                   onClick={() => reserveSlot(slot)}
                                 >
-                                  {isRealMarketplace ? 'Disponible' : slot.available ? 'Reservar' : 'Ocupado'}
+                                  {isBookingLoading ? 'Reservando...' : slot.available ? 'Reservar' : 'Ocupado'}
                                 </Button>
                               </div>
                             ))
@@ -1323,11 +1352,20 @@ function ClientDashboard({ view = 'inicio' }) {
                             </div>
                           )}
                         </div>
+                        {bookingError && (
+                          <div className="list-row elevated-row">
+                            <div>
+                              <strong>No se pudo reservar</strong>
+                              <small>{bookingError}</small>
+                            </div>
+                            <StatusPill tone="neutral">Reserva</StatusPill>
+                          </div>
+                        )}
 
                         <div className="public-profile-final-actions">
                           <Button
                             onClick={() => document.getElementById(`marketplace-slots-${artist.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
-                            disabled={isRealMarketplace || !availableSlots.some((slot) => slot.available)}
+                            disabled={!availableSlots.some((slot) => slot.available)}
                           >
                             📅 Reservar cita
                           </Button>
@@ -1575,11 +1613,11 @@ function ClientDashboard({ view = 'inicio' }) {
                                   </div>
                                   <Button
                                     size="sm"
-                                    variant={slot.available && !isRealMarketplace ? 'primary' : 'ghost'}
-                                    disabled={isRealMarketplace || !slot.available}
+                                    variant={slot.available ? 'primary' : 'ghost'}
+                                    disabled={!slot.available || isBookingLoading}
                                     onClick={() => reserveSlot(slot)}
                                   >
-                                    {isRealMarketplace ? 'Disponible' : slot.available ? 'Reservar' : 'Ocupado'}
+                                    {isBookingLoading ? 'Reservando...' : slot.available ? 'Reservar' : 'Ocupado'}
                                   </Button>
                                 </div>
                               ))
@@ -1593,11 +1631,20 @@ function ClientDashboard({ view = 'inicio' }) {
                               </div>
                             )}
                           </div>
+                          {bookingError && (
+                            <div className="list-row elevated-row">
+                              <div>
+                                <strong>No se pudo reservar</strong>
+                                <small>{bookingError}</small>
+                              </div>
+                              <StatusPill tone="neutral">Reserva</StatusPill>
+                            </div>
+                          )}
 
                           <div className="public-profile-final-actions">
                             <Button
                               onClick={() => document.getElementById(`marketplace-slots-${artist.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
-                              disabled={isRealMarketplace || !availableSlots.some((slot) => slot.available)}
+                              disabled={!availableSlots.some((slot) => slot.available)}
                             >
                               📅 Reservar cita
                             </Button>

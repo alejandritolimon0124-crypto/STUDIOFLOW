@@ -40,6 +40,7 @@ import {
   fetchClientAppointments,
 } from '../services/appointmentService'
 import { fetchMarketplaceAvailability } from '../services/availabilityService'
+import { bookMarketplaceAppointment as bookMarketplaceAppointmentRecord } from '../services/bookingService'
 import { fetchMarketplaceListings } from '../services/marketplaceService'
 import {
   fetchArtistProfile,
@@ -691,6 +692,9 @@ export function AppProvider({ children }) {
     durationMinutes: 0,
     loaded: false,
   })
+  const [bookingState, setBookingState] = useState({
+    lastBooking: null,
+  })
   const [isClientAppointmentsLoading, setIsClientAppointmentsLoading] = useState(false)
   const [clientAppointmentsError, setClientAppointmentsError] = useState('')
   const [isArtistAppointmentsLoading, setIsArtistAppointmentsLoading] = useState(false)
@@ -699,6 +703,8 @@ export function AppProvider({ children }) {
   const [marketplaceError, setMarketplaceError] = useState('')
   const [isAvailabilityLoading, setIsAvailabilityLoading] = useState(false)
   const [availabilityError, setAvailabilityError] = useState('')
+  const [isBookingLoading, setIsBookingLoading] = useState(false)
+  const [bookingError, setBookingError] = useState('')
   const [governanceState, setGovernanceState] = useState({
     queue: [],
     loaded: false,
@@ -743,6 +749,10 @@ export function AppProvider({ children }) {
       loaded: false,
     })
     setAvailabilityError('')
+    setBookingState({
+      lastBooking: null,
+    })
+    setBookingError('')
     setGovernanceState({
       queue: [],
       loaded: false,
@@ -1242,6 +1252,36 @@ export function AppProvider({ children }) {
       return []
     } finally {
       setIsAvailabilityLoading(false)
+    }
+  }, [session.isMockSession, session.role])
+
+  const bookMarketplaceAppointment = useCallback(async ({
+    availabilitySlotIds,
+    serviceOfferingId,
+    notes = null,
+  } = {}) => {
+    if (session.isMockSession || session.role !== ROLES.CLIENT) return null
+
+    setIsBookingLoading(true)
+    setBookingError('')
+
+    try {
+      const booking = await bookMarketplaceAppointmentRecord({
+        availabilitySlotIds,
+        serviceOfferingId,
+        notes,
+      })
+
+      setBookingState({
+        lastBooking: booking,
+      })
+
+      return booking
+    } catch (error) {
+      setBookingError(error.message || 'No se pudo reservar la cita.')
+      return null
+    } finally {
+      setIsBookingLoading(false)
     }
   }, [session.isMockSession, session.role])
 
@@ -2269,6 +2309,7 @@ export function AppProvider({ children }) {
       marketplaceListings: marketplaceState.listings,
       availabilityState,
       marketplaceAvailabilitySlots: availabilityState.slots,
+      bookingState,
       governanceState,
       publicationState,
       isClientAppointmentsLoading,
@@ -2279,6 +2320,8 @@ export function AppProvider({ children }) {
       marketplaceError,
       isAvailabilityLoading,
       availabilityError,
+      isBookingLoading,
+      bookingError,
       isGovernanceLoading,
       governanceError,
       isPublicationLoading,
@@ -2330,6 +2373,7 @@ export function AppProvider({ children }) {
       loadArtistAppointments,
       loadMarketplaceListings,
       loadMarketplaceAvailability,
+      bookMarketplaceAppointment,
       loadGovernanceQueue,
       reviewStudioGovernance,
       loadIndependentArtistPublicationReadiness,
@@ -2363,6 +2407,7 @@ export function AppProvider({ children }) {
       appointmentState,
       marketplaceState,
       availabilityState,
+      bookingState,
       governanceState,
       publicationState,
       isClientAppointmentsLoading,
@@ -2373,6 +2418,8 @@ export function AppProvider({ children }) {
       marketplaceError,
       isAvailabilityLoading,
       availabilityError,
+      isBookingLoading,
+      bookingError,
       isGovernanceLoading,
       governanceError,
       isPublicationLoading,
@@ -2423,6 +2470,7 @@ export function AppProvider({ children }) {
       loadArtistAppointments,
       loadMarketplaceListings,
       loadMarketplaceAvailability,
+      bookMarketplaceAppointment,
       loadGovernanceQueue,
       reviewStudioGovernance,
       loadIndependentArtistPublicationReadiness,
