@@ -9,13 +9,19 @@ function normalizeSlot(slot = {}) {
     ...slot,
     id: slot.id || slot.availabilitySlotId || slot.availability_slot_id,
     availabilitySlotId: slot.availabilitySlotId || slot.availability_slot_id || slot.id,
+    availabilitySlotIds: Array.isArray(slot.availabilitySlotIds)
+      ? slot.availabilitySlotIds
+      : Array.isArray(slot.availability_slot_ids)
+        ? slot.availability_slot_ids
+        : [],
     listingId: slot.listingId || slot.listing_id || null,
     artistId: slot.artistId || slot.artist_id || null,
     studioId: slot.studioId || slot.studio_id || null,
     membershipId: slot.membershipId || slot.membership_id || null,
     serviceOfferingId: slot.serviceOfferingId || slot.service_offering_id || null,
-    startsAt: slot.startsAt || slot.starts_at || null,
-    endsAt: slot.endsAt || slot.ends_at || null,
+    start: slot.start || slot.startsAt || slot.starts_at || null,
+    startsAt: slot.startsAt || slot.starts_at || slot.start || null,
+    endsAt: slot.endsAt || slot.ends_at || slot.endAt || null,
     date: slot.date || '',
     time: slot.time || '',
     end: slot.end || '',
@@ -33,6 +39,8 @@ function normalizeAvailabilityPayload(data = {}) {
     membershipId: data.membershipId || data.membership_id || null,
     serviceOfferingId: data.serviceOfferingId || data.service_offering_id || null,
     date: data.date || '',
+    requestedDate: data.requestedDate || data.requested_date || '',
+    durationMinutes: Number(data.durationMinutes || data.duration_minutes || 0),
     slots: asArray(data.slots).map(normalizeSlot),
   }
 }

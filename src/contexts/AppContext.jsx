@@ -687,6 +687,8 @@ export function AppProvider({ children }) {
   const [availabilityState, setAvailabilityState] = useState({
     slots: [],
     requestKey: '',
+    date: '',
+    durationMinutes: 0,
     loaded: false,
   })
   const [isClientAppointmentsLoading, setIsClientAppointmentsLoading] = useState(false)
@@ -736,6 +738,8 @@ export function AppProvider({ children }) {
     setAvailabilityState({
       slots: [],
       requestKey: '',
+      date: '',
+      durationMinutes: 0,
       loaded: false,
     })
     setAvailabilityError('')
@@ -1198,6 +1202,8 @@ export function AppProvider({ children }) {
       setAvailabilityState({
         slots: [],
         requestKey: '',
+        date: date || '',
+        durationMinutes: 0,
         loaded: true,
       })
       return []
@@ -1218,6 +1224,8 @@ export function AppProvider({ children }) {
       setAvailabilityState({
         slots: payload.slots,
         requestKey,
+        date: payload.date,
+        durationMinutes: payload.durationMinutes,
         loaded: true,
       })
 
@@ -1227,6 +1235,8 @@ export function AppProvider({ children }) {
       setAvailabilityState({
         slots: [],
         requestKey,
+        date,
+        durationMinutes: 0,
         loaded: true,
       })
       return []

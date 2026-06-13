@@ -122,6 +122,12 @@ const artistMarketplaceProfile = {
 
 const allSearchServices = Object.values(searchServices).flat()
 
+function getTodayDateValue() {
+  const today = new Date()
+  today.setMinutes(today.getMinutes() - today.getTimezoneOffset())
+  return today.toISOString().slice(0, 10)
+}
+
 function buildServiceGroupsFromListings(listings = []) {
   return listings.reduce((groups, listing) => {
     const services = Array.isArray(listing.marketplaceServiceOptions) ? listing.marketplaceServiceOptions : []
@@ -470,6 +476,7 @@ function ClientDashboard({ view = 'inicio' }) {
     clientAppointments: realClientAppointments,
     appointmentState,
     marketplaceListings,
+    availabilityState,
     marketplaceAvailabilitySlots,
     isAvailabilityLoading,
     availabilityError,
@@ -483,7 +490,7 @@ function ClientDashboard({ view = 'inicio' }) {
     toggleFavoriteArtist,
     updateClientProfile,
   } = useApp()
-  const [bookingDate, setBookingDate] = useState('2026-05-18')
+  const [bookingDate, setBookingDate] = useState(getTodayDateValue)
   const [profileDraft, setProfileDraft] = useState(clientState.profile)
   const [searchMode, setSearchMode] = useState('Servicio')
   const [primaryService, setPrimaryService] = useState('Pestanas')
@@ -547,6 +554,14 @@ function ClientDashboard({ view = 'inicio' }) {
     selectedArtistProfile?.listingId,
     selectedMarketplaceService?.id,
   ])
+
+  useEffect(() => {
+    if (!isRealMarketplace) return
+    if (!availabilityState.date || availabilityState.slots.length === 0) return
+    if (availabilityState.date === bookingDate) return
+
+    setBookingDate(availabilityState.date)
+  }, [availabilityState.date, availabilityState.slots.length, bookingDate, isRealMarketplace])
 
   useEffect(() => {
     if (searchMode !== 'Servicio') return
@@ -1243,7 +1258,7 @@ function ClientDashboard({ view = 'inicio' }) {
                           />
                           <label className="input-field">
                             <span>Fecha</span>
-                            <input type="date" value={bookingDate} onChange={(event) => setBookingDate(event.target.value)} />
+                            <input type="date" min={getTodayDateValue()} value={bookingDate} onChange={(event) => setBookingDate(event.target.value)} />
                           </label>
                         </div>
 
@@ -1513,7 +1528,7 @@ function ClientDashboard({ view = 'inicio' }) {
                             />
                             <label className="input-field">
                               <span>Fecha</span>
-                              <input type="date" value={bookingDate} onChange={(event) => setBookingDate(event.target.value)} />
+                              <input type="date" min={getTodayDateValue()} value={bookingDate} onChange={(event) => setBookingDate(event.target.value)} />
                             </label>
                           </div>
 

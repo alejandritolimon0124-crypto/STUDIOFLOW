@@ -16,6 +16,11 @@ declare
   v_studio_id uuid;
   v_membership_id uuid;
   v_service service_offerings%rowtype;
+  v_service_duration integer := 60;
+  v_requested_date date;
+  v_search_start_date date;
+  v_search_end_date date;
+  v_result_date date;
   v_slots jsonb;
 begin
   if auth.uid() is null then
@@ -101,54 +106,153 @@ begin
     ) then
       raise exception 'Service offering does not belong to this listing';
     end if;
+
+    v_service_duration := v_service.duration_minutes;
   end if;
+
+  v_requested_date := greatest(
+    coalesce(p_date, (now() at time zone 'America/Mexico_City')::date),
+    (now() at time zone 'America/Mexico_City')::date
+  );
+  v_search_start_date := v_requested_date;
+  v_search_end_date := v_search_start_date + 14;
+
+  with candidate_pool as (
+    select
+      slot.id,
+      slot.artist_id,
+      slot.studio_id,
+      slot.membership_id,
+      slot.starts_at,
+      slot.starts_at + make_interval(mins => v_service_duration) as candidate_end,
+      (slot.starts_at at time zone 'America/Mexico_City')::date as candidate_date
+    from availability_slots slot
+    where slot.status = 'available'
+      and slot.starts_at >= now()
+      and (slot.starts_at at time zone 'America/Mexico_City')::date between v_search_start_date and v_search_end_date
+      and (
+        slot.artist_id = v_artist_id
+        or (v_membership_id is not null and slot.membership_id = v_membership_id)
+      )
+      and (v_studio_id is null or slot.studio_id is null or slot.studio_id = v_studio_id)
+  ),
+  evaluated_candidates as (
+    select
+      candidate.*,
+      coverage.coverage_end,
+      coverage.has_gap
+    from candidate_pool candidate
+    cross join lateral (
+      select
+        max(ordered.ends_at) as coverage_end,
+        coalesce(bool_or(ordered.next_start is not null and ordered.next_start > ordered.ends_at), false) as has_gap
+      from (
+        select
+          covered.starts_at,
+          covered.ends_at,
+          lead(covered.starts_at) over (order by covered.starts_at) as next_start
+        from availability_slots covered
+        where covered.status = 'available'
+          and covered.starts_at >= candidate.starts_at
+          and covered.starts_at < candidate.candidate_end
+          and (
+            covered.artist_id = v_artist_id
+            or (v_membership_id is not null and covered.membership_id = v_membership_id)
+          )
+          and (v_studio_id is null or covered.studio_id is null or covered.studio_id = v_studio_id)
+        order by covered.starts_at
+      ) ordered
+    ) coverage
+    where coverage.coverage_end >= candidate.candidate_end
+      and not coverage.has_gap
+  )
+  select coalesce(
+    min(candidate_date) filter (where candidate_date = v_requested_date),
+    min(candidate_date)
+  )
+  into v_result_date
+  from evaluated_candidates;
 
   select coalesce(
     jsonb_agg(
       jsonb_build_object(
-        'id', slot.id,
-        'availabilitySlotId', slot.id,
-        'availability_slot_id', slot.id,
+        'id', candidate.id,
+        'availabilitySlotId', candidate.id,
+        'availability_slot_id', candidate.id,
+        'availabilitySlotIds', coverage.availability_slot_ids,
+        'availability_slot_ids', coverage.availability_slot_ids,
         'listingId', v_listing.id,
         'listing_id', v_listing.id,
-        'artistId', slot.artist_id,
-        'artist_id', slot.artist_id,
-        'studioId', slot.studio_id,
-        'studio_id', slot.studio_id,
-        'membershipId', slot.membership_id,
-        'membership_id', slot.membership_id,
+        'artistId', candidate.artist_id,
+        'artist_id', candidate.artist_id,
+        'studioId', candidate.studio_id,
+        'studio_id', candidate.studio_id,
+        'membershipId', candidate.membership_id,
+        'membership_id', candidate.membership_id,
         'serviceOfferingId', p_service_offering_id,
         'service_offering_id', p_service_offering_id,
-        'startsAt', slot.starts_at,
-        'starts_at', slot.starts_at,
-        'endsAt', slot.ends_at,
-        'ends_at', slot.ends_at,
-        'date', to_char(slot.starts_at at time zone 'America/Mexico_City', 'YYYY-MM-DD'),
-        'time', to_char(slot.starts_at at time zone 'America/Mexico_City', 'HH24:MI'),
-        'end', to_char(slot.ends_at at time zone 'America/Mexico_City', 'HH24:MI'),
-        'durationMinutes', greatest(1, floor(extract(epoch from (slot.ends_at - slot.starts_at)) / 60)::integer),
-        'duration_minutes', greatest(1, floor(extract(epoch from (slot.ends_at - slot.starts_at)) / 60)::integer),
+        'start', candidate.starts_at,
+        'startsAt', candidate.starts_at,
+        'starts_at', candidate.starts_at,
+        'endAt', candidate.candidate_end,
+        'endsAt', candidate.candidate_end,
+        'ends_at', candidate.candidate_end,
+        'date', to_char(candidate.starts_at at time zone 'America/Mexico_City', 'YYYY-MM-DD'),
+        'time', to_char(candidate.starts_at at time zone 'America/Mexico_City', 'HH24:MI'),
+        'end', to_char(candidate.candidate_end at time zone 'America/Mexico_City', 'HH24:MI'),
+        'durationMinutes', v_service_duration,
+        'duration_minutes', v_service_duration,
         'available', true,
-        'status', slot.status
+        'status', 'available'
       )
-      order by slot.starts_at
+      order by candidate.starts_at
     ),
     '[]'::jsonb
   )
   into v_slots
-  from availability_slots slot
-  where slot.status = 'available'
-    and slot.starts_at >= now()
-    and (slot.starts_at at time zone 'America/Mexico_City')::date = p_date
-    and (
-      slot.artist_id = v_artist_id
-      or (v_membership_id is not null and slot.membership_id = v_membership_id)
-    )
-    and (v_studio_id is null or slot.studio_id is null or slot.studio_id = v_studio_id)
-    and (
-      v_service.id is null
-      or floor(extract(epoch from (slot.ends_at - slot.starts_at)) / 60)::integer >= v_service.duration_minutes
-    );
+  from (
+    select
+      slot.id,
+      slot.artist_id,
+      slot.studio_id,
+      slot.membership_id,
+      slot.starts_at,
+      slot.starts_at + make_interval(mins => v_service_duration) as candidate_end
+    from availability_slots slot
+    where slot.status = 'available'
+      and slot.starts_at >= now()
+      and (slot.starts_at at time zone 'America/Mexico_City')::date = v_result_date
+      and (
+        slot.artist_id = v_artist_id
+        or (v_membership_id is not null and slot.membership_id = v_membership_id)
+      )
+      and (v_studio_id is null or slot.studio_id is null or slot.studio_id = v_studio_id)
+  ) candidate
+  cross join lateral (
+    select
+      coalesce(jsonb_agg(ordered.id order by ordered.starts_at), '[]'::jsonb) as availability_slot_ids,
+      max(ordered.ends_at) as coverage_end,
+      coalesce(bool_or(ordered.next_start is not null and ordered.next_start > ordered.ends_at), false) as has_gap
+    from (
+      select
+        covered.id,
+        covered.starts_at,
+        covered.ends_at,
+        lead(covered.starts_at) over (order by covered.starts_at) as next_start
+      from availability_slots covered
+      where covered.status = 'available'
+        and covered.starts_at >= candidate.starts_at
+        and covered.starts_at < candidate.candidate_end
+        and (
+          covered.artist_id = v_artist_id
+          or (v_membership_id is not null and covered.membership_id = v_membership_id)
+        )
+        and (v_studio_id is null or covered.studio_id is null or covered.studio_id = v_studio_id)
+      order by covered.starts_at
+    ) ordered
+  ) coverage
+  where coverage.coverage_end >= candidate.candidate_end
+    and not coverage.has_gap;
 
   return jsonb_build_object(
     'listingId', v_listing.id,
@@ -161,7 +265,11 @@ begin
     'membership_id', v_membership_id,
     'serviceOfferingId', p_service_offering_id,
     'service_offering_id', p_service_offering_id,
-    'date', p_date,
+    'date', coalesce(v_result_date, v_requested_date),
+    'requestedDate', p_date,
+    'requested_date', p_date,
+    'durationMinutes', v_service_duration,
+    'duration_minutes', v_service_duration,
     'slots', v_slots
   );
 end;
