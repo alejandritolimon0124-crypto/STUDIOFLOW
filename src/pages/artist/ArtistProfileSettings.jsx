@@ -323,7 +323,7 @@ function ArtistProfileSettings() {
               value={profileDraft.professionalProfile.experienceYears}
               onChange={(event) => updateDraftSection('professionalProfile', 'experienceYears', event.target.value)}
             />
-            <div className="input-field">
+            <div className="input-field payment-methods-field">
               <span>Metodos de pago</span>
               <label className="location-toggle-row">
                 <input

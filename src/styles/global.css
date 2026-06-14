@@ -3213,6 +3213,36 @@ select:focus,
     width: 100%;
   }
 
+  .payment-methods-field {
+    max-width: 100%;
+    overflow: hidden;
+  }
+
+  .payment-methods-field .location-toggle-row {
+    align-items: center;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: row;
+    max-width: 100%;
+    min-width: 0;
+    overflow: hidden;
+    width: 100%;
+  }
+
+  .payment-methods-field .location-toggle-row input[type="checkbox"] {
+    flex: 0 0 16px;
+    height: 16px;
+    min-height: 16px;
+    padding: 0;
+    width: 16px;
+  }
+
+  .payment-methods-field .location-toggle-row span {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
   .form-row-2,
   .location-form-grid,
   .schedule-controls,

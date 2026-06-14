@@ -52,6 +52,20 @@ function normalizeAvailabilitySummary(listing = {}) {
   }
 }
 
+function normalizePortfolioImage(image, index) {
+  const url = typeof image === 'string'
+    ? image
+    : image?.url || image?.path || image?.photoUrl || image?.photo_path || ''
+
+  return {
+    ...(typeof image === 'object' && image !== null ? image : {}),
+    id: typeof image === 'object' && image?.id ? image.id : `marketplace-portfolio-${index + 1}`,
+    label: typeof image === 'object' && image?.label ? image.label : `Portfolio ${index + 1}`,
+    url,
+    path: typeof image === 'object' && image?.path ? image.path : url,
+  }
+}
+
 function getAvailabilityBadge(availability) {
   if (availability.availableCount > 0 || availability.hasFutureSlots) {
     return {
@@ -82,6 +96,10 @@ function normalizeListing(listing = {}) {
   const profile = listing.profile || {}
   const studio = listing.studio || null
   const marketplaceServices = services.map((service) => service.name)
+  const portfolio = asArray(profile.portfolioPaths || profile.portfolio_paths || listing.portfolio)
+    .map(normalizePortfolioImage)
+    .filter((image) => image.url)
+    .slice(0, 12)
 
   return {
     ...listing,
@@ -102,7 +120,7 @@ function normalizeListing(listing = {}) {
     marketplaceServiceOptions: services,
     specialties: asArray(profile.specialties || listing.specialties),
     photoUrl: profile.photoUrl || profile.photo_path || listing.photoUrl || listing.photo_path || '',
-    portfolio: asArray(profile.portfolioPaths || profile.portfolio_paths || listing.portfolio),
+    portfolio,
     contactLinks: profile.contactLinks || profile.contact_links || {},
     professionalLocation: profile.professionalLocation || profile.professional_location || null,
     studio: studio ? {
