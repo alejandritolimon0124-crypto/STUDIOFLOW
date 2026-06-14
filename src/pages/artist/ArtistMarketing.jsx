@@ -87,8 +87,8 @@ function ArtistMarketing() {
 
   const premiumClients = [
     { name: 'Ana López', tier: 'VIP', visits: 15 },
-    { name: 'María Fernanda', tier: 'Gold', visits: 9 },
-    { name: 'Camila Torres', tier: 'Frequent', visits: 5 },
+    { name: 'Clienta frecuente', tier: 'Gold', visits: 9 },
+    { name: 'Clienta recurrente', tier: 'Frequent', visits: 5 },
   ]
 
   const { weeklyOccupancy, lowSlots, busyDays } = calculateWeeklyOccupancy()

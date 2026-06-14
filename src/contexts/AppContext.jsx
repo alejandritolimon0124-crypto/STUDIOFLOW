@@ -61,6 +61,10 @@ import {
   updateAdminClientProfile,
 } from '../services/adminClientService'
 import {
+  fetchOwnClientProfile,
+  updateOwnClientProfile,
+} from '../services/clientProfileService'
+import {
   fetchIndependentArtistPublicationReadiness,
   fetchGovernanceQueue,
   publishIndependentArtist,
@@ -421,7 +425,7 @@ function createInitialClientState() {
   return {
     profile: {
       id: 'client-mf',
-      name: 'María Fernanda',
+      name: 'Clienta Demo',
       email: 'mariana.lopez@studioflow.demo',
       phone: '55 0000 0000',
       notes: 'Clienta premium Studio Flow.',
@@ -843,6 +847,7 @@ export function AppProvider({ children }) {
 
     if (authContext.client) {
       const mappedClientProfile = mapAuthContextToClientProfile(authContext)
+      const remoteClientProfile = await fetchOwnClientProfile().catch(() => ({}))
       console.log('CLIENT HYDRATION INPUT', {
         source: 'hydrateSupabaseSession',
         profile: authContext.profile,
@@ -854,6 +859,7 @@ export function AppProvider({ children }) {
         profile: {
           ...currentState.profile,
           ...mappedClientProfile,
+          ...remoteClientProfile,
         },
       }))
     }
@@ -935,6 +941,7 @@ export function AppProvider({ children }) {
       const authContext = await bootstrapClientProfile({ displayName, phone })
       const nextSession = createSessionFromAuthContext(data.session, authContext)
       const mappedClientProfile = mapAuthContextToClientProfile(authContext)
+      const remoteClientProfile = await fetchOwnClientProfile().catch(() => ({}))
       console.log('CLIENT HYDRATION INPUT', {
         source: 'registerClient',
         profile: authContext.profile,
@@ -946,6 +953,7 @@ export function AppProvider({ children }) {
         profile: {
           ...currentState.profile,
           ...mappedClientProfile,
+          ...remoteClientProfile,
         },
       }))
       localStorage.removeItem(storageKey)
@@ -2160,7 +2168,7 @@ export function AppProvider({ children }) {
     })
   }, [])
 
-  const updateClientProfile = useCallback((updates) => {
+  const updateClientProfile = useCallback(async (updates) => {
     setClientState((currentState) => ({
       ...currentState,
       profile: {
@@ -2168,7 +2176,24 @@ export function AppProvider({ children }) {
         ...updates,
       },
     }))
-  }, [])
+
+    if (session.isMockSession || session.role !== ROLES.CLIENT) return updates
+
+    try {
+      const savedProfile = await updateOwnClientProfile(updates)
+      setClientState((currentState) => ({
+        ...currentState,
+        profile: {
+          ...currentState.profile,
+          ...savedProfile,
+        },
+      }))
+      return savedProfile
+    } catch (error) {
+      console.error('[Studio Flow] Client profile sync failed', error)
+      return updates
+    }
+  }, [session.isMockSession, session.role])
 
   const saveArtistService = useCallback(async (service) => {
     const artistId = session.artist?.id || session.user?.artistId
