@@ -216,21 +216,8 @@ function ArtistProfileSettings() {
   return (
     <main className="dashboard-grid artist-grid profile-foundation-grid">
       <Card className="wide-card mobile-screen primary-panel">
-        <PanelHeader title="MI PERFIL" eyebrow="Fuente profesional" />
+        <PanelHeader title="Perfil artista" eyebrow="Configuracion" />
         <div className="profile-foundation-stack">
-          <section className="profile-foundation-card">
-            <div>
-              <span className="eyebrow">Registro inicial</span>
-              <h3>Estado de validacion</h3>
-              <small>Campo creado durante el registro inicial de artista.</small>
-            </div>
-            <Input
-              label="studioStatus"
-              value={profileDraft.registration?.studioStatus || ''}
-              onChange={(event) => updateDraftSection('registration', 'studioStatus', event.target.value)}
-            />
-          </section>
-
           <section className="profile-foundation-card">
             <div>
               <span className="eyebrow">Cuenta</span>
