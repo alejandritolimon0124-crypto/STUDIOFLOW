@@ -52,6 +52,7 @@ import {
   deactivateAdminArtist,
   fetchAdminArtists,
   updateAdminArtistProfile,
+  updateAdminStudioProfile,
 } from '../services/adminArtistService'
 import { fetchAdminDashboardSummary } from '../services/adminDashboardService'
 import {
@@ -1913,14 +1914,54 @@ export function AppProvider({ children }) {
     }
   }, [session.isMockSession])
 
-  const updateManagedStudioProfile = useCallback((studioId, updates) => {
-    setAdminState((currentState) => ({
-      ...currentState,
-      studios: currentState.studios.map((studio) =>
-        studio.id === studioId ? { ...studio, ...updates } : studio,
-      ),
-    }))
-  }, [])
+  const updateManagedStudioProfile = useCallback(async (studioId, updates) => {
+    const currentStudio = adminState.studios.find((studio) => studio.id === studioId)
+    const nextStudio = currentStudio ? { ...currentStudio, ...updates } : updates
+
+    if (session.isMockSession) {
+      setAdminState((currentState) => ({
+        ...currentState,
+        studios: currentState.studios.map((studio) =>
+          studio.id === studioId ? { ...studio, ...updates } : studio,
+        ),
+      }))
+      return updates
+    }
+
+    setAdminArtistsError('')
+
+    try {
+      const savedStudio = await updateAdminStudioProfile(studioId, nextStudio)
+
+      setAdminState((currentState) => ({
+        ...currentState,
+        studios: currentState.studios.map((studio) =>
+          studio.id === studioId
+            ? {
+              ...studio,
+              ...updates,
+              ...savedStudio,
+              profile: {
+                ...(studio.profile || {}),
+                ...(updates.profile || {}),
+                ...(savedStudio.profile || {}),
+              },
+              professionalLocation: {
+                ...(studio.professionalLocation || {}),
+                ...(updates.professionalLocation || {}),
+                ...(savedStudio.professionalLocation || {}),
+              },
+            }
+            : studio,
+        ),
+      }))
+
+      return savedStudio
+    } catch (error) {
+      setAdminArtistsError(error.message || 'No se pudo guardar el perfil del estudio.')
+      return null
+    }
+  }, [adminState.studios, session.isMockSession])
 
   const toggleManagedClientStatus = useCallback(async (clientId) => {
     if (session.isMockSession) {

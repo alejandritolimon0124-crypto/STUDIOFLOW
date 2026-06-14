@@ -7,6 +7,7 @@ import PanelHeader from '../../components/PanelHeader'
 import StatusPill from '../../components/StatusPill'
 import { useApp } from '../../contexts/appContextCore'
 import { paths } from '../../routes/paths'
+import { getCurrentBrowserCoordinates } from '../../utils/browserGeolocation'
 import { hasPermission, permissions, ROLES } from '../../modules/permissions/rolePermissions'
 import {
   deriveMembershipsFromLegacyData,
@@ -35,8 +36,10 @@ function AdminArtists() {
   const [dashboardArtist, setDashboardArtist] = useState(null)
   const [studioLocationDraft, setStudioLocationDraft] = useState(createProfessionalLocation())
   const [studioLocationErrors, setStudioLocationErrors] = useState({})
+  const [studioLocationDetection, setStudioLocationDetection] = useState({ status: 'idle', message: '' })
   const [artistLocationDraft, setArtistLocationDraft] = useState(createArtistLocationSettings())
   const [artistLocationErrors, setArtistLocationErrors] = useState({})
+  const [artistLocationDetection, setArtistLocationDetection] = useState({ status: 'idle', message: '' })
   const normalizedRole = session.user?.role === 'admin' ? ROLES.PLATFORM_OWNER : session.user?.role
   const isPlatformOwner = normalizedRole === ROLES.PLATFORM_OWNER
   const artistStudioMemberships = useMemo(
@@ -97,8 +100,10 @@ function AdminArtists() {
     if (!editingArtist) {
       setStudioLocationDraft(createProfessionalLocation())
       setStudioLocationErrors({})
+      setStudioLocationDetection({ status: 'idle', message: '' })
       setArtistLocationDraft(createArtistLocationSettings())
       setArtistLocationErrors({})
+      setArtistLocationDetection({ status: 'idle', message: '' })
       return
     }
 
@@ -115,6 +120,8 @@ function AdminArtists() {
     setArtistLocationDraft(createArtistLocationSettings(editingArtist.professionalLocation))
     setStudioLocationErrors({})
     setArtistLocationErrors({})
+    setStudioLocationDetection({ status: 'idle', message: '' })
+    setArtistLocationDetection({ status: 'idle', message: '' })
   }, [adminState.studios, artistStudioMemberships, editingArtist?.id])
 
   const openDashboard = (artist) => {
@@ -196,6 +203,65 @@ function AdminArtists() {
       ...currentErrors,
       [field]: '',
     }))
+  }
+
+  const useCurrentStudioLocation = async () => {
+    setStudioLocationDetection({ status: 'loading', message: 'Detectando ubicacion actual...' })
+
+    try {
+      const coordinates = await getCurrentBrowserCoordinates()
+
+      setStudioLocationDraft((currentDraft) => ({
+        ...currentDraft,
+        latitude: coordinates.latitude,
+        longitude: coordinates.longitude,
+      }))
+      setStudioLocationErrors((currentErrors) => ({
+        ...currentErrors,
+        latitude: '',
+        longitude: '',
+      }))
+      setStudioLocationDetection({
+        status: 'success',
+        message: `Ubicacion detectada: ${coordinates.latitude}, ${coordinates.longitude}`,
+      })
+    } catch (error) {
+      setStudioLocationDetection({
+        status: 'error',
+        message: error.message || 'No se pudo usar la ubicacion actual.',
+      })
+    }
+  }
+
+  const useCurrentArtistLocation = async () => {
+    setArtistLocationDetection({ status: 'loading', message: 'Detectando ubicacion actual...' })
+
+    try {
+      const coordinates = await getCurrentBrowserCoordinates()
+
+      setArtistLocationDraft((currentDraft) => ({
+        ...currentDraft,
+        customLocation: {
+          ...currentDraft.customLocation,
+          latitude: coordinates.latitude,
+          longitude: coordinates.longitude,
+        },
+      }))
+      setArtistLocationErrors((currentErrors) => ({
+        ...currentErrors,
+        latitude: '',
+        longitude: '',
+      }))
+      setArtistLocationDetection({
+        status: 'success',
+        message: `Ubicacion detectada: ${coordinates.latitude}, ${coordinates.longitude}`,
+      })
+    } catch (error) {
+      setArtistLocationDetection({
+        status: 'error',
+        message: error.message || 'No se pudo usar la ubicacion actual.',
+      })
+    }
   }
 
   return (
@@ -352,6 +418,21 @@ function AdminArtists() {
                   value={studioLocationDraft.longitude}
                   onChange={(event) => updateStudioLocationDraft('longitude', event.target.value)}
                 />
+                <div className="location-detection-row">
+                  <Button
+                    disabled={studioLocationDetection.status === 'loading'}
+                    size="sm"
+                    variant="ghost"
+                    onClick={useCurrentStudioLocation}
+                  >
+                    {studioLocationDetection.status === 'loading' ? 'Detectando...' : '📍 Usar mi ubicacion actual'}
+                  </Button>
+                  {studioLocationDetection.message && (
+                    <small className={`location-detection-message location-detection-${studioLocationDetection.status}`}>
+                      {studioLocationDetection.message}
+                    </small>
+                  )}
+                </div>
                 <label className="input-field">
                   <span>Referencias</span>
                   <textarea
@@ -440,6 +521,21 @@ function AdminArtists() {
                       value={artistLocationDraft.customLocation.longitude}
                       onChange={(event) => updateArtistCustomLocation('longitude', event.target.value)}
                     />
+                    <div className="location-detection-row">
+                      <Button
+                        disabled={artistLocationDetection.status === 'loading'}
+                        size="sm"
+                        variant="ghost"
+                        onClick={useCurrentArtistLocation}
+                      >
+                        {artistLocationDetection.status === 'loading' ? 'Detectando...' : '📍 Usar mi ubicacion actual'}
+                      </Button>
+                      {artistLocationDetection.message && (
+                        <small className={`location-detection-message location-detection-${artistLocationDetection.status}`}>
+                          {artistLocationDetection.message}
+                        </small>
+                      )}
+                    </div>
                     <label className="input-field">
                       <span>Referencias</span>
                       <textarea

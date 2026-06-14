@@ -67,6 +67,48 @@ function mapStudio(row = {}) {
   }
 }
 
+function nullableText(value) {
+  const text = String(value ?? '').trim()
+  return text || null
+}
+
+function nullableNumber(value) {
+  const number = Number(value)
+  return Number.isFinite(number) ? number : null
+}
+
+function normalizeGalleryPaths(value) {
+  if (!Array.isArray(value)) return []
+
+  return value
+    .map((item) => {
+      if (typeof item === 'string') return item
+      return item?.url || item?.path || ''
+    })
+    .filter(Boolean)
+}
+
+function mapSavedStudioProfile(row = {}) {
+  return {
+    profile: {
+      commercialName: row.commercial_name || '',
+      description: row.description || '',
+      phone: row.phone || '',
+      email: row.email || '',
+      hours: '',
+      logoUrl: row.logo_path || '',
+      gallery: Array.isArray(row.gallery_paths) ? row.gallery_paths : [],
+    },
+    professionalLocation: {
+      businessName: row.commercial_name || '',
+      address: row.address_line || '',
+      city: row.city || '',
+      latitude: row.geo_lat ?? '',
+      longitude: row.geo_lng ?? '',
+    },
+  }
+}
+
 function mapArtist({ artist, artistProfilesByArtistId, profilesById, memberships, studiosById }) {
   const artistProfile = artistProfilesByArtistId[artist.id] || {}
   const profile = artist.profile_id ? profilesById[artist.profile_id] : null
@@ -174,4 +216,38 @@ export async function updateAdminArtistProfile(artistId, patch) {
   if (error) throw error
 
   return firstMappedArtistFromPayload(data)
+}
+
+export async function updateAdminStudioProfile(studioId, patch = {}) {
+  if (!studioId) throw new Error('Studio requerido para guardar perfil.')
+
+  const client = requireSupabase()
+  const profile = patch.profile || {}
+  const location = patch.professionalLocation || {}
+  const commercialName = nullableText(profile.commercialName || location.businessName || patch.name) || 'Studio Flow'
+
+  const payload = {
+    studio_id: studioId,
+    commercial_name: commercialName,
+    description: nullableText(profile.description),
+    email: nullableText(profile.email),
+    phone: nullableText(profile.phone),
+    address_line: nullableText(location.address || profile.addressLine),
+    city: nullableText(location.city || patch.city),
+    geo_lat: nullableNumber(location.latitude),
+    geo_lng: nullableNumber(location.longitude),
+    logo_path: nullableText(profile.logoUrl || profile.logoPath),
+    gallery_paths: normalizeGalleryPaths(profile.gallery),
+    updated_at: new Date().toISOString(),
+  }
+
+  const { data, error } = await client
+    .from('studio_profiles')
+    .upsert(payload, { onConflict: 'studio_id' })
+    .select('*')
+    .single()
+
+  if (error) throw error
+
+  return mapSavedStudioProfile(data)
 }

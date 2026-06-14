@@ -5,6 +5,7 @@ import Input from '../../components/Input'
 import PanelHeader from '../../components/PanelHeader'
 import StatusPill from '../../components/StatusPill'
 import { useApp } from '../../contexts/appContextCore'
+import { getCurrentBrowserCoordinates } from '../../utils/browserGeolocation'
 import { buildGoogleMapsUrl, createArtistLocationSettings, validateProfessionalLocation } from '../../utils/locationHelpers'
 import { mapAuthContextToArtistProfile } from '../../utils/artistProfileMapper'
 import { getMaxBirthDateForAdult, validateBirthDate } from '../../utils/birthdayValidation'
@@ -53,6 +54,7 @@ function ArtistProfileSettings() {
     professionalLocation: createArtistLocationSettings(sessionArtistProfile?.professionalLocation),
   })
   const [locationErrors, setLocationErrors] = useState({})
+  const [locationDetection, setLocationDetection] = useState({ status: 'idle', message: '' })
   const [saveFeedback, setSaveFeedback] = useState('')
   const effectiveLocation = profileDraft.professionalLocation.useStudioLocation
     ? currentStudio?.professionalLocation
@@ -115,6 +117,40 @@ function ArtistProfileSettings() {
       },
     }))
     setLocationErrors((currentErrors) => ({ ...currentErrors, [field]: '' }))
+  }
+
+  const useCurrentLocation = async () => {
+    setLocationDetection({ status: 'loading', message: 'Detectando ubicacion actual...' })
+
+    try {
+      const coordinates = await getCurrentBrowserCoordinates()
+
+      setProfileDraft((currentDraft) => ({
+        ...currentDraft,
+        professionalLocation: {
+          ...currentDraft.professionalLocation,
+          customLocation: {
+            ...currentDraft.professionalLocation.customLocation,
+            latitude: coordinates.latitude,
+            longitude: coordinates.longitude,
+          },
+        },
+      }))
+      setLocationErrors((currentErrors) => ({
+        ...currentErrors,
+        latitude: '',
+        longitude: '',
+      }))
+      setLocationDetection({
+        status: 'success',
+        message: `Ubicacion detectada: ${coordinates.latitude}, ${coordinates.longitude}`,
+      })
+    } catch (error) {
+      setLocationDetection({
+        status: 'error',
+        message: error.message || 'No se pudo usar la ubicacion actual.',
+      })
+    }
   }
 
   const handlePhotoChange = (event) => {
@@ -460,6 +496,21 @@ function ArtistProfileSettings() {
               value={profileDraft.professionalLocation.customLocation.longitude}
               onChange={(event) => updateCustomLocation('longitude', event.target.value)}
             />
+            <div className="location-detection-row">
+              <Button
+                disabled={locationDetection.status === 'loading'}
+                size="sm"
+                variant="ghost"
+                onClick={useCurrentLocation}
+              >
+                {locationDetection.status === 'loading' ? 'Detectando...' : '📍 Usar mi ubicacion actual'}
+              </Button>
+              {locationDetection.message && (
+                <small className={`location-detection-message location-detection-${locationDetection.status}`}>
+                  {locationDetection.message}
+                </small>
+              )}
+            </div>
             <label className="input-field">
               <span>Referencias</span>
               <textarea

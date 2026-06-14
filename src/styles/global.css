@@ -466,6 +466,28 @@ select:focus,
   line-height: 1.45;
 }
 
+.location-detection-row {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.location-detection-message {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 850;
+  line-height: 1.35;
+}
+
+.location-detection-success {
+  color: #55745c;
+}
+
+.location-detection-error {
+  color: var(--rose-dark);
+}
+
 .location-form-grid {
   display: grid;
   gap: 12px;
