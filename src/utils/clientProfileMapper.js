@@ -16,5 +16,6 @@ export function mapAuthContextToClientProfile(authContext = {}, currentProfile =
       : firstText(currentProfile.name, client.display_name, client.displayName, profile.display_name, profile.displayName),
     email: hasSupabaseIdentity ? firstText(client.email, profile.email) : firstText(currentProfile.email, client.email, profile.email),
     phone: hasSupabaseIdentity ? firstText(client.phone, profile.phone) : firstText(currentProfile.phone, client.phone, profile.phone),
+    birthday: firstText(currentProfile.birthday, authContext.clientProfile?.birthday, authContext.client_profile?.birthday),
   }
 }

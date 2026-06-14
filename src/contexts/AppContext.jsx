@@ -195,6 +195,7 @@ async function repairIncompleteAuthContext(authSession, authContext = {}) {
   const role = getBootstrapRole(authSession, authContext)
   const displayName = metadata.display_name || authContext.profile?.display_name || authSession?.user?.email || ''
   const phone = metadata.phone || authContext.profile?.phone || ''
+  const birthday = metadata.birthday || ''
 
   console.log('CLIENT REPAIR START', {
     hasAuthUser: Boolean(authSession?.user),
@@ -210,6 +211,15 @@ async function repairIncompleteAuthContext(authSession, authContext = {}) {
   })
 
   if (role === ROLES.CLIENT && (!authContext.client || !hasRoleAssignment(authContext, ROLES.CLIENT))) {
+    if (!birthday) {
+      console.log('CLIENT REPAIR SKIPPED', {
+        reason: 'missing_birthday',
+        hasClient: Boolean(authContext.client),
+        hasClientRole: hasRoleAssignment(authContext, ROLES.CLIENT),
+      })
+      return authContext
+    }
+
     console.log('CLIENT REPAIR MISSING CLIENT', {
       missingClient: !authContext.client,
       missingClientRole: !hasRoleAssignment(authContext, ROLES.CLIENT),
@@ -221,7 +231,7 @@ async function repairIncompleteAuthContext(authSession, authContext = {}) {
     })
 
     try {
-      const repairedAuthContext = await bootstrapClientProfile({ displayName, phone })
+      const repairedAuthContext = await bootstrapClientProfile({ displayName, phone, birthday })
       console.log('CLIENT REPAIR SUCCESS', {
         hasProfile: Boolean(repairedAuthContext.profile),
         hasClient: Boolean(repairedAuthContext.client),
@@ -240,23 +250,27 @@ async function repairIncompleteAuthContext(authSession, authContext = {}) {
   }
 
   if (role === ROLES.ARTIST && (!authContext.artist || !hasRoleAssignment(authContext, ROLES.ARTIST))) {
+    if (!birthday) {
+      console.log('ARTIST REPAIR SKIPPED', {
+        reason: 'missing_birthday',
+        hasArtist: Boolean(authContext.artist),
+        hasArtistRole: hasRoleAssignment(authContext, ROLES.ARTIST),
+      })
+      return authContext
+    }
+
     return bootstrapArtistProfile({
       displayName,
       phone,
       artisticName: metadata.artistic_name || displayName,
       city: metadata.city || '',
+      birthday,
       claimToken: metadata.claim_token || null,
     })
   }
 
   return authContext
 }
-
-const initialBlockedDates = [
-  { id: '2026-05-20', label: '20 mayo / Capacitacion' },
-  { id: '2026-05-25', label: '25 mayo / Dia libre' },
-  { id: '2026-06-02', label: '02 junio / Evento privado' },
-]
 
 function getTodayDateValue() {
   const today = new Date()
@@ -274,6 +288,7 @@ function createArtistProfessionalProfile(overrides = {}) {
       fullName: '',
       phone: '55 0000 0000',
       email: 'valeria@studioflow.mx',
+      birthday: '',
       ...(overrides.personalInfo || {}),
     },
     professionalProfile: {
@@ -324,7 +339,7 @@ function createInitialAgendaSettings() {
         ? [{ id: `${day.day}-break`, start: day.breakStart, end: day.breakEnd }]
         : [],
     })),
-    blockedDates: initialBlockedDates,
+    blockedDates: [],
     intervalMinutes: 15,
     minAdvanceHours: 2,
     bookedSlots: [],
@@ -428,6 +443,7 @@ function createInitialClientState() {
       name: 'Clienta Demo',
       email: 'mariana.lopez@studioflow.demo',
       phone: '55 0000 0000',
+      birthday: '',
       notes: 'Clienta premium Studio Flow.',
       flowPoints: 98,
       vipTier: 'Glow',
@@ -920,7 +936,7 @@ export function AppProvider({ children }) {
     }
   }, [hydrateSupabaseSession])
 
-  const registerClient = useCallback(async ({ displayName, email, phone, password }) => {
+  const registerClient = useCallback(async ({ displayName, email, phone, birthday, password }) => {
     setAuthError('')
     setIsAuthLoading(true)
 
@@ -931,6 +947,9 @@ export function AppProvider({ children }) {
         displayName,
         phone,
         defaultRole: ROLES.CLIENT,
+        metadata: {
+          birthday,
+        },
       })
 
       if (!data.session) {
@@ -938,7 +957,7 @@ export function AppProvider({ children }) {
         return { needsEmailConfirmation: true }
       }
 
-      const authContext = await bootstrapClientProfile({ displayName, phone })
+      const authContext = await bootstrapClientProfile({ displayName, phone, birthday })
       const nextSession = createSessionFromAuthContext(data.session, authContext)
       const mappedClientProfile = mapAuthContextToClientProfile(authContext)
       const remoteClientProfile = await fetchOwnClientProfile().catch(() => ({}))
@@ -968,7 +987,7 @@ export function AppProvider({ children }) {
     }
   }, [])
 
-  const registerArtist = useCallback(async ({ displayName, email, phone, password, artisticName, city, claimToken }) => {
+  const registerArtist = useCallback(async ({ displayName, email, phone, birthday, password, artisticName, city, claimToken }) => {
     setAuthError('')
     setIsAuthLoading(true)
 
@@ -982,6 +1001,7 @@ export function AppProvider({ children }) {
         metadata: {
           artistic_name: artisticName,
           city,
+          birthday,
           claim_token: claimToken || null,
         },
       })
@@ -991,7 +1011,7 @@ export function AppProvider({ children }) {
         return { needsEmailConfirmation: true }
       }
 
-      const authContext = await bootstrapArtistProfile({ displayName, phone, artisticName, city, claimToken })
+      const authContext = await bootstrapArtistProfile({ displayName, phone, artisticName, city, birthday, claimToken })
       const nextSession = createSessionFromAuthContext(data.session, authContext)
       const artistProfile = await fetchArtistProfile({ artistId: authContext.artist?.id })
       setArtistState((currentState) => ({

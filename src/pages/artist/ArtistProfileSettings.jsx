@@ -7,6 +7,7 @@ import StatusPill from '../../components/StatusPill'
 import { useApp } from '../../contexts/appContextCore'
 import { buildGoogleMapsUrl, createArtistLocationSettings, validateProfessionalLocation } from '../../utils/locationHelpers'
 import { mapAuthContextToArtistProfile } from '../../utils/artistProfileMapper'
+import { getMaxBirthDateForAdult, validateBirthDate } from '../../utils/birthdayValidation'
 import {
   deriveMembershipsFromLegacyData,
   getCurrentArtist,
@@ -191,6 +192,12 @@ function ArtistProfileSettings() {
 
   const saveProfile = async () => {
     const nextProfile = { ...profileDraft }
+    const birthdayError = validateBirthDate(profileDraft.personalInfo?.birthday)
+
+    if (birthdayError) {
+      setSaveFeedback(birthdayError)
+      return
+    }
 
     if (!profileDraft.professionalLocation.useStudioLocation) {
       const nextErrors = validateProfessionalLocation(profileDraft.professionalLocation.customLocation)
@@ -232,6 +239,14 @@ function ArtistProfileSettings() {
               label="Nombre completo"
               value={profileDraft.personalInfo.fullName}
               onChange={(event) => updateDraftSection('personalInfo', 'fullName', event.target.value)}
+            />
+            <Input
+              label="Fecha de nacimiento"
+              type="date"
+              value={profileDraft.personalInfo.birthday || ''}
+              max={getMaxBirthDateForAdult()}
+              onChange={(event) => updateDraftSection('personalInfo', 'birthday', event.target.value)}
+              required
             />
             <div className="location-form-grid">
               <Input

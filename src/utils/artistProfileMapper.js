@@ -73,6 +73,7 @@ export function mapAuthContextToArtistProfile(authContext = {}, currentProfile =
       fullName,
       phone,
       email,
+      birthday: firstText(artistProfile.birthday, artistProfile.birthDate, currentProfile.personalInfo?.birthday),
     },
     professionalProfile: {
       ...(currentProfile.professionalProfile || {}),

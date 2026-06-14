@@ -7,11 +7,13 @@ import Input from '../../components/Input'
 import { useApp } from '../../contexts/appContextCore'
 import { paths } from '../../routes/paths'
 import { getDefaultStudioStatus, getStudioStatusLabel } from '../../modules/governance/studioGovernance'
+import { getMaxBirthDateForAdult, validateBirthDate } from '../../utils/birthdayValidation'
 
 const initialClientForm = {
   displayName: '',
   email: '',
   phone: '',
+  birthday: '',
   password: '',
   confirmPassword: '',
 }
@@ -21,6 +23,7 @@ const initialArtistForm = {
   displayName: '',
   email: '',
   phone: '',
+  birthday: '',
   password: '',
   confirmPassword: '',
   address: '',
@@ -56,11 +59,22 @@ function Register() {
     return true
   }
 
+  const validateBirthday = (birthday) => {
+    const error = validateBirthDate(birthday)
+    if (error) {
+      setLocalError(error)
+      return false
+    }
+
+    setLocalError('')
+    return true
+  }
+
   const handleClientSubmit = async (event) => {
     event.preventDefault()
     setConfirmationMessage('')
 
-    if (!validatePasswords(clientForm)) return
+    if (!validatePasswords(clientForm) || !validateBirthday(clientForm.birthday)) return
 
     try {
       const result = await registerClient(clientForm)
@@ -80,7 +94,7 @@ function Register() {
     event.preventDefault()
     setConfirmationMessage('')
 
-    if (!validatePasswords(artistForm)) return
+    if (!validatePasswords(artistForm) || !validateBirthday(artistForm.birthday)) return
 
     try {
       const result = await registerArtist({
@@ -178,6 +192,14 @@ function Register() {
               onChange={(event) => updateClientForm('phone', event.target.value)}
             />
             <Input
+              label="Fecha de nacimiento"
+              type="date"
+              value={clientForm.birthday}
+              max={getMaxBirthDateForAdult()}
+              onChange={(event) => updateClientForm('birthday', event.target.value)}
+              required
+            />
+            <Input
               label="Crear contrasena"
               type="password"
               placeholder="********"
@@ -248,6 +270,14 @@ function Register() {
               placeholder="coloca aqui tu numero para recibir notificaciones y recordatorios de tus citas"
               value={artistForm.phone}
               onChange={(event) => updateArtistForm('phone', event.target.value)}
+            />
+            <Input
+              label="Fecha de nacimiento"
+              type="date"
+              value={artistForm.birthday}
+              max={getMaxBirthDateForAdult()}
+              onChange={(event) => updateArtistForm('birthday', event.target.value)}
+              required
             />
             <Input
               label="Crear contrasena"

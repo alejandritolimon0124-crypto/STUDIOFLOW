@@ -10,6 +10,7 @@ function normalizeClientProfilePayload(data = {}) {
     name: client.display_name || client.displayName || client.name || '',
     email: client.email || '',
     phone: client.phone || '',
+    birthday: clientProfile.birthday || clientProfile.birthDate || client.birthday || '',
     photoUrl: clientProfile.photo_path || clientProfile.photoPath || client.photoUrl || client.photo_url || '',
   }
 }

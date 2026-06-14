@@ -161,29 +161,35 @@ function ArtistScheduleSettings() {
         <Card className="mobile-screen">
           <PanelHeader title="Fechas bloqueadas" eyebrow="No disponible" />
           <div className="blocked-dates">
-            {agendaSettings.blockedDates.map((date) => (
-              <span
-                key={date.id}
-                style={{ alignItems: 'center', display: 'flex', gap: '10px', justifyContent: 'space-between' }}
-              >
-                {date.label}
-                <button
-                  type="button"
-                  onClick={() => removeBlockedDate(date.id)}
-                  style={{
-                    background: '#fff',
-                    border: '1px solid var(--line)',
-                    borderRadius: '999px',
-                    color: 'var(--muted)',
-                    fontWeight: 900,
-                    minHeight: '28px',
-                    minWidth: '28px',
-                  }}
+            {agendaSettings.blockedDates.length > 0 ? (
+              agendaSettings.blockedDates.map((date) => (
+                <span
+                  key={date.id}
+                  style={{ alignItems: 'center', display: 'flex', gap: '10px', justifyContent: 'space-between' }}
                 >
-                  x
-                </button>
+                  {date.label}
+                  <button
+                    type="button"
+                    onClick={() => removeBlockedDate(date.id)}
+                    style={{
+                      background: '#fff',
+                      border: '1px solid var(--line)',
+                      borderRadius: '999px',
+                      color: 'var(--muted)',
+                      fontWeight: 900,
+                      minHeight: '28px',
+                      minWidth: '28px',
+                    }}
+                  >
+                    x
+                  </button>
+                </span>
+              ))
+            ) : (
+              <span style={{ color: 'var(--muted)', fontWeight: 800 }}>
+                Sin fechas bloqueadas
               </span>
-            ))}
+            )}
           </div>
           {showDatePicker && (
             <div className="form-stack compact-form" style={{ marginBottom: '14px' }}>

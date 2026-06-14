@@ -17,6 +17,7 @@ import {
   getStudioForArtist,
 } from '../../modules/entities/entitySelectors'
 import { buildGoogleMapsQuery, buildGoogleMapsUrl } from '../../utils/locationHelpers'
+import { getMaxBirthDateForAdult, validateBirthDate } from '../../utils/birthdayValidation'
 
 const searchServices = {
   Unas: [
@@ -506,6 +507,7 @@ function ClientDashboard({ view = 'inicio' }) {
   } = useApp()
   const [bookingDate, setBookingDate] = useState(getTodayDateValue)
   const [profileDraft, setProfileDraft] = useState(clientState.profile)
+  const [profileError, setProfileError] = useState('')
   const [searchMode, setSearchMode] = useState('Servicio')
   const [primaryService, setPrimaryService] = useState('Pestanas')
   const [secondaryService, setSecondaryService] = useState(searchServices.Pestanas[0].name)
@@ -757,6 +759,7 @@ function ClientDashboard({ view = 'inicio' }) {
     name: sessionClientName || clientState.profile?.name || artistClientProfile?.name,
     email: sessionClientEmail || clientState.profile?.email || artistClientProfile?.email,
     phone: sessionClientPhone || clientState.profile?.phone || artistClientProfile?.phone,
+    birthday: clientState.profile?.birthday || '',
     notes: clientState.profile?.notes || artistClientProfile?.notes,
     photoUrl: clientState.profile?.photoUrl || '',
     flowPoints: hasRealClientSession ? null : clientState.profile?.flowPoints || 0,
@@ -782,6 +785,7 @@ function ClientDashboard({ view = 'inicio' }) {
       name: currentClient.name,
       email: currentClient.email,
       phone: currentClient.phone,
+      birthday: currentClient.birthday,
     }))
   }, [
     hasRealClientSession,
@@ -790,6 +794,7 @@ function ClientDashboard({ view = 'inicio' }) {
     currentClient.name,
     currentClient.email,
     currentClient.phone,
+    currentClient.birthday,
   ])
   const nextRewardProgress = 0
 
@@ -810,6 +815,17 @@ function ClientDashboard({ view = 'inicio' }) {
   const removeClientPhoto = () => {
     setProfileDraft((currentDraft) => ({ ...currentDraft, photoUrl: '' }))
     updateClientProfile({ photoUrl: '' })
+  }
+
+  const saveClientProfile = async () => {
+    const birthdayError = validateBirthDate(profileDraft.birthday)
+    if (birthdayError) {
+      setProfileError(birthdayError)
+      return
+    }
+
+    setProfileError('')
+    await updateClientProfile(profileDraft)
   }
 
   const nearestExpiration = null
@@ -1923,6 +1939,14 @@ function ClientDashboard({ view = 'inicio' }) {
                   value={profileDraft.phone}
                   onChange={(event) => setProfileDraft({ ...profileDraft, phone: event.target.value })}
                 />
+                <Input
+                  label="Fecha de nacimiento"
+                  type="date"
+                  value={profileDraft.birthday || ''}
+                  max={getMaxBirthDateForAdult()}
+                  onChange={(event) => setProfileDraft({ ...profileDraft, birthday: event.target.value })}
+                  required
+                />
                 <label className="input-field">
                   <span>Notas</span>
                   <textarea
@@ -1931,7 +1955,8 @@ function ClientDashboard({ view = 'inicio' }) {
                     rows="3"
                   />
                 </label>
-                <Button className="full-width" onClick={() => updateClientProfile(profileDraft)}>Guardar perfil</Button>
+                {profileError && <small style={{ color: 'var(--rose-dark)', fontWeight: 800 }}>{profileError}</small>}
+                <Button className="full-width" onClick={saveClientProfile}>Guardar perfil</Button>
               </div>
             </Card>
             <Card className="mobile-screen">

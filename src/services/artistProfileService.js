@@ -50,6 +50,7 @@ function mapArtistProfileRow(row = {}) {
     id: row.id,
     artist_id: row.artist_id,
     artistic_name: row.artistic_name || '',
+    birthday: row.birthday || '',
     bio: row.bio || '',
     specialties: Array.isArray(row.specialties) ? row.specialties : [],
     primary_specialty: row.primary_specialty || '',
@@ -87,6 +88,7 @@ function profileToPayload(profile = {}, artistId) {
   return {
     artist_id: artistId,
     artistic_name: artisticName,
+    birthday: nullableText(profile.personalInfo?.birthday),
     bio: bio || null,
     specialties: splitSpecialties(professionalProfile.specialties),
     primary_specialty: nullableText(professionalProfile.primarySpecialty),
