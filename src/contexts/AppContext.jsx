@@ -32,6 +32,10 @@ import {
   updateArtistServiceOfferingStatus,
 } from '../services/artistServiceService'
 import {
+  createIndependentWorkContext,
+  fetchArtistWorkContexts,
+} from '../services/artistWorkContextService'
+import {
   fetchArtistScheduleSettings,
   saveArtistScheduleSettings as saveArtistScheduleSettingsRecord,
 } from '../services/scheduleService'
@@ -88,9 +92,14 @@ const adminRealStateStoragePrefix = 'studio-flow-admin-state-real'
 const clientStateStorageKey = 'studio-flow-client-state'
 const legacyArtistStateStorageKey = 'studio-flow-artist-state'
 const artistStateStoragePrefix = 'studio-flow-artist-state'
+const artistWorkContextStoragePrefix = 'studio-flow-artist-work-context'
 
 function getArtistStateStorageKey(profileId) {
   return profileId ? `${artistStateStoragePrefix}-${profileId}` : null
+}
+
+function getArtistWorkContextStorageKey(profileId) {
+  return profileId ? `${artistWorkContextStoragePrefix}-${profileId}` : null
 }
 
 function clearPersistedArtistStates() {
@@ -659,6 +668,21 @@ function getStoredArtistState(profileId) {
   }
 }
 
+function getStoredArtistWorkContextId(profileId) {
+  const scopedStorageKey = getArtistWorkContextStorageKey(profileId)
+  if (!scopedStorageKey) return ''
+
+  try {
+    return localStorage.getItem(scopedStorageKey) || ''
+  } catch {
+    return ''
+  }
+}
+
+function normalizeWorkContextId(context = {}) {
+  return context.id || `${context.contextType || context.type || 'artist'}:${context.membershipId || context.artistId || 'independent'}`
+}
+
 function formatBlockedDate(value) {
   if (!value) return ''
 
@@ -739,6 +763,8 @@ export function AppProvider({ children }) {
   const [adminState, setAdminState] = useState(() => getStoredAdminState(session))
   const [clientState, setClientState] = useState(getStoredClientState)
   const [artistState, setArtistState] = useState(() => getStoredArtistState(activeProfileId))
+  const [artistWorkContexts, setArtistWorkContexts] = useState([])
+  const [artistWorkContextId, setArtistWorkContextId] = useState(() => getStoredArtistWorkContextId(activeProfileId))
   const [isArtistServicesLoading, setIsArtistServicesLoading] = useState(false)
   const [artistServicesError, setArtistServicesError] = useState('')
   const [isArtistScheduleLoading, setIsArtistScheduleLoading] = useState(false)
@@ -802,10 +828,77 @@ export function AppProvider({ children }) {
   const [isPublicationLoading, setIsPublicationLoading] = useState(false)
   const [publicationError, setPublicationError] = useState('')
   const [selectedDate, setSelectedDate] = useState(getTodayDateValue)
+  const fallbackArtistWorkContext = useMemo(
+    () => createIndependentWorkContext(session.artist || {
+      id: session.user?.artistId,
+      name: session.user?.name,
+    }),
+    [session.artist, session.user?.artistId, session.user?.name],
+  )
+  const activeArtistWorkContext = useMemo(() => (
+    artistWorkContexts.find((context) => normalizeWorkContextId(context) === artistWorkContextId)
+    || artistWorkContexts[0]
+    || fallbackArtistWorkContext
+  ), [artistWorkContextId, artistWorkContexts, fallbackArtistWorkContext])
 
   useEffect(() => {
     sessionRef.current = session
   }, [session])
+
+  useEffect(() => {
+    setArtistWorkContextId(getStoredArtistWorkContextId(activeProfileId))
+  }, [activeProfileId])
+
+  useEffect(() => {
+    const scopedStorageKey = getArtistWorkContextStorageKey(activeProfileId)
+    if (!scopedStorageKey || !artistWorkContextId) return
+
+    try {
+      localStorage.setItem(scopedStorageKey, artistWorkContextId)
+    } catch {
+      // Runtime state is enough if storage is unavailable.
+    }
+  }, [activeProfileId, artistWorkContextId])
+
+  useEffect(() => {
+    if (session.role !== ROLES.ARTIST) {
+      setArtistWorkContexts([])
+      return
+    }
+
+    if (session.isMockSession) {
+      const mockContext = createIndependentWorkContext(session.artist || {
+        id: session.user?.artistId,
+        name: session.user?.name,
+      })
+      setArtistWorkContexts([mockContext])
+      setArtistWorkContextId((currentId) => currentId || mockContext.id)
+      return
+    }
+
+    let isMounted = true
+
+    fetchArtistWorkContexts()
+      .then((contexts) => {
+        if (!isMounted) return
+        const nextContexts = contexts.length ? contexts : [fallbackArtistWorkContext]
+        setArtistWorkContexts(nextContexts)
+        setArtistWorkContextId((currentId) => (
+          nextContexts.some((context) => normalizeWorkContextId(context) === currentId)
+            ? currentId
+            : normalizeWorkContextId(nextContexts[0])
+        ))
+      })
+      .catch(() => {
+        if (!isMounted) return
+        setArtistWorkContexts([fallbackArtistWorkContext])
+        setArtistWorkContextId((currentId) => currentId || normalizeWorkContextId(fallbackArtistWorkContext))
+      })
+
+    return () => {
+      isMounted = false
+    }
+  }, [activeProfileId, fallbackArtistWorkContext, session.artist, session.isMockSession, session.role, session.user?.artistId, session.user?.name])
 
   useEffect(() => {
     setAppointmentState({
@@ -1194,14 +1287,14 @@ export function AppProvider({ children }) {
     }
   }, [activeProfileId, artistState])
 
-  const loadArtistServices = useCallback(async (artistId = session.artist?.id || session.user?.artistId) => {
+  const loadArtistServices = useCallback(async (artistId = session.artist?.id || session.user?.artistId, workContext = activeArtistWorkContext) => {
     if (!artistId || session.isMockSession) return []
 
     setIsArtistServicesLoading(true)
     setArtistServicesError('')
 
     try {
-      const services = await fetchArtistServices({ artistId })
+      const services = await fetchArtistServices({ artistId, workContext })
       setArtistState((currentState) => ({
         ...currentState,
         services,
@@ -1213,24 +1306,22 @@ export function AppProvider({ children }) {
       setIsArtistServicesLoading(false)
       throw error
     }
-  }, [session.artist?.id, session.isMockSession, session.user?.artistId])
+  }, [activeArtistWorkContext, session.artist?.id, session.isMockSession, session.user?.artistId])
 
-  const loadArtistScheduleSettings = useCallback(async () => {
+  const loadArtistScheduleSettings = useCallback(async (workContext = activeArtistWorkContext) => {
     if (session.isMockSession || session.role !== ROLES.ARTIST) return null
 
     setIsArtistScheduleLoading(true)
     setArtistScheduleError('')
 
     try {
-      const scheduleSettings = await fetchArtistScheduleSettings()
+      const scheduleSettings = await fetchArtistScheduleSettings(workContext)
 
-      if (scheduleSettings.source !== 'empty') {
-        setAgendaSettings((currentSettings) => ({
-          ...currentSettings,
-          ...scheduleSettings,
-          bookedSlots: currentSettings.bookedSlots,
-        }))
-      }
+      setAgendaSettings((currentSettings) => ({
+        ...currentSettings,
+        ...scheduleSettings,
+        bookedSlots: currentSettings.bookedSlots,
+      }))
 
       return scheduleSettings
     } catch (error) {
@@ -1239,7 +1330,7 @@ export function AppProvider({ children }) {
     } finally {
       setIsArtistScheduleLoading(false)
     }
-  }, [session.isMockSession, session.role])
+  }, [activeArtistWorkContext, session.isMockSession, session.role])
 
   const saveArtistScheduleSettings = useCallback(async () => {
     if (session.isMockSession || session.role !== ROLES.ARTIST) {
@@ -1252,7 +1343,7 @@ export function AppProvider({ children }) {
     setArtistScheduleStatus('')
 
     try {
-      const savedSettings = await saveArtistScheduleSettingsRecord(agendaSettings)
+      const savedSettings = await saveArtistScheduleSettingsRecord(agendaSettings, activeArtistWorkContext)
 
       setAgendaSettings((currentSettings) => ({
         ...currentSettings,
@@ -1268,7 +1359,7 @@ export function AppProvider({ children }) {
     } finally {
       setIsArtistScheduleLoading(false)
     }
-  }, [agendaSettings, session.isMockSession, session.role])
+  }, [activeArtistWorkContext, agendaSettings, session.isMockSession, session.role])
 
   const loadClientAppointments = useCallback(async () => {
     if (session.isMockSession || session.role !== ROLES.CLIENT) return []
@@ -1548,10 +1639,10 @@ export function AppProvider({ children }) {
     const artistId = session.artist?.id || session.user?.artistId
     if (!artistId) return
 
-    loadArtistServices(artistId).catch(() => {
+    loadArtistServices(artistId, activeArtistWorkContext).catch(() => {
       // artistServicesError already exposes the failure to the UI.
     })
-    loadArtistScheduleSettings().catch(() => {
+    loadArtistScheduleSettings(activeArtistWorkContext).catch(() => {
       // artistScheduleError already exposes the failure to the UI.
     })
     loadArtistAppointments(artistId).catch(() => {
@@ -1560,7 +1651,7 @@ export function AppProvider({ children }) {
     loadIndependentArtistPublicationReadiness(artistId).catch(() => {
       // publicationError already exposes the failure to the UI.
     })
-  }, [loadArtistAppointments, loadArtistScheduleSettings, loadArtistServices, loadIndependentArtistPublicationReadiness, session.artist?.id, session.isMockSession, session.role, session.user?.artistId])
+  }, [activeArtistWorkContext, loadArtistAppointments, loadArtistScheduleSettings, loadArtistServices, loadIndependentArtistPublicationReadiness, session.artist?.id, session.isMockSession, session.role, session.user?.artistId])
 
   useEffect(() => {
     if (session.role !== ROLES.CLIENT || session.isMockSession) return
@@ -2332,7 +2423,7 @@ export function AppProvider({ children }) {
     }
 
     setArtistServicesError('')
-    const savedService = await saveArtistServiceOffering({ artistId, service })
+    const savedService = await saveArtistServiceOffering({ artistId, service, workContext: activeArtistWorkContext })
     setArtistState((currentState) => ({
       ...currentState,
       services: service.id
@@ -2340,7 +2431,7 @@ export function AppProvider({ children }) {
         : [savedService, ...currentState.services],
     }))
     return savedService
-  }, [session.artist?.id, session.isMockSession, session.user?.artistId])
+  }, [activeArtistWorkContext, session.artist?.id, session.isMockSession, session.user?.artistId])
 
   const updateArtistServiceStatus = useCallback(async (serviceId, status) => {
     if (session.isMockSession) {
@@ -2380,6 +2471,13 @@ export function AppProvider({ children }) {
       services: currentState.services.filter((service) => service.id !== serviceId),
     }))
   }, [session.isMockSession])
+
+  const selectArtistWorkContext = useCallback((contextId) => {
+    const nextContext = artistWorkContexts.find((context) => normalizeWorkContextId(context) === contextId)
+    if (!nextContext) return
+
+    setArtistWorkContextId(normalizeWorkContextId(nextContext))
+  }, [artistWorkContexts])
 
   const addArtistClient = useCallback((client) => {
     setArtistState((currentState) => ({
@@ -2555,6 +2653,9 @@ export function AppProvider({ children }) {
       adminState,
       clientState,
       artistState,
+      artistWorkContexts,
+      artistWorkContext: activeArtistWorkContext,
+      artistWorkContextId: normalizeWorkContextId(activeArtistWorkContext),
       appointmentState,
       clientAppointments: appointmentState.clientAppointments,
       artistAppointments: appointmentState.artistAppointments,
@@ -2638,6 +2739,7 @@ export function AppProvider({ children }) {
       saveArtistService,
       updateArtistServiceStatus,
       archiveArtistService,
+      selectArtistWorkContext,
       addArtistClient,
       updateArtistClient,
       updateArtistProfile,
@@ -2662,6 +2764,8 @@ export function AppProvider({ children }) {
       adminState,
       clientState,
       artistState,
+      artistWorkContexts,
+      activeArtistWorkContext,
       appointmentState,
       marketplaceState,
       availabilityState,
@@ -2740,6 +2844,7 @@ export function AppProvider({ children }) {
       saveArtistService,
       updateArtistServiceStatus,
       archiveArtistService,
+      selectArtistWorkContext,
       addArtistClient,
       updateArtistClient,
       updateArtistProfile,

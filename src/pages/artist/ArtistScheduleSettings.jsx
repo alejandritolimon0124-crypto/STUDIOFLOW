@@ -15,7 +15,10 @@ function ArtistScheduleSettings() {
     addScheduleBlock,
     updateScheduleBlock,
     addBlockedDate,
+    artistWorkContext,
+    artistWorkContexts,
     removeBlockedDate,
+    selectArtistWorkContext,
     updateAgendaRule,
     saveArtistScheduleSettings,
     isArtistScheduleLoading,
@@ -56,6 +59,28 @@ function ArtistScheduleSettings() {
               </StatusPill>
             </div>
           )}
+          <div className="list-row elevated-row" style={{ marginBottom: '14px' }}>
+            <div>
+              <strong>Trabajando como:</strong>
+              <div className="row-actions" style={{ flexWrap: 'wrap', marginTop: '8px' }}>
+                {(artistWorkContexts.length ? artistWorkContexts : [artistWorkContext].filter(Boolean)).map((context) => (
+                  <label key={context.id} style={{ alignItems: 'center', display: 'inline-flex', gap: '8px', fontWeight: 800 }}>
+                    <input
+                      checked={artistWorkContext?.id === context.id}
+                      name="artist-schedule-work-context"
+                      type="radio"
+                      value={context.id}
+                      onChange={() => selectArtistWorkContext(context.id)}
+                    />
+                    {context.label}
+                  </label>
+                ))}
+              </div>
+            </div>
+            <StatusPill tone={artistWorkContext?.contextType === 'membership' ? 'success' : 'neutral'}>
+              {artistWorkContext?.contextType === 'membership' ? 'Estudio' : 'Independiente'}
+            </StatusPill>
+          </div>
           <div className="schedule-list">
             {agendaSettings.schedule.map((day) => (
               <article

@@ -1,4 +1,5 @@
 import { requireSupabase } from '../lib/supabaseClient'
+import { getContextRpcParams } from './artistWorkContextService'
 
 const WEEKDAYS = [
   { weekday: 1, day: 'Lunes' },
@@ -58,6 +59,8 @@ function normalizeSchedulePayload(data = {}) {
   return {
     scheduleId: data.scheduleId || data.schedule_id || null,
     artistId: data.artistId || data.artist_id || null,
+    studioId: data.studioId || data.studio_id || null,
+    membershipId: data.membershipId || data.membership_id || null,
     source: data.source || 'supabase',
     timezone: data.timezone || 'America/Mexico_City',
     intervalMinutes: Number(data.intervalMinutes ?? data.interval_minutes ?? 15),
@@ -102,19 +105,22 @@ function schedulePayloadFromAgendaSettings(agendaSettings = {}) {
   }
 }
 
-export async function fetchArtistScheduleSettings() {
+export async function fetchArtistScheduleSettings(workContext = null) {
   const client = requireSupabase()
-  const { data, error } = await client.rpc('studio_flow_artist_get_schedule_settings')
+  const { data, error } = await client.rpc('studio_flow_artist_get_context_schedule_settings', {
+    ...getContextRpcParams(workContext),
+  })
 
   if (error) throw error
 
   return normalizeSchedulePayload(data)
 }
 
-export async function saveArtistScheduleSettings(agendaSettings) {
+export async function saveArtistScheduleSettings(agendaSettings, workContext = null) {
   const client = requireSupabase()
-  const { data, error } = await client.rpc('studio_flow_artist_save_schedule_settings', {
+  const { data, error } = await client.rpc('studio_flow_artist_save_context_schedule_settings', {
     p_payload: schedulePayloadFromAgendaSettings(agendaSettings),
+    ...getContextRpcParams(workContext),
   })
 
   if (error) throw error

@@ -1,4 +1,5 @@
 import { requireSupabase } from '../lib/supabaseClient'
+import { getContextRpcParams } from './artistWorkContextService'
 
 const STATUS_TO_DB = {
   Activo: 'active',
@@ -37,6 +38,10 @@ function mapServiceOffering(row, catalogs = {}) {
 
   return {
     id: row.id,
+    ownerType: row.ownerType || row.owner_type || 'artist',
+    artistId: row.artistId || row.artist_id || null,
+    studioId: row.studioId || row.studio_id || null,
+    membershipId: row.membershipId || row.membership_id || null,
     category: category?.name || row.category || 'Servicios',
     name: row.name,
     price: Number(row.price_amount ?? row.price) || 0,
@@ -48,12 +53,12 @@ function mapServiceOffering(row, catalogs = {}) {
   }
 }
 
-export async function fetchArtistServices({ artistId }) {
+export async function fetchArtistServices({ artistId, workContext = null }) {
   if (!artistId) return []
 
   const client = requireSupabase()
-  const { data, error } = await client.rpc('studio_flow_artist_get_service_offerings', {
-    p_artist_id: artistId,
+  const { data, error } = await client.rpc('studio_flow_artist_get_context_service_offerings', {
+    ...getContextRpcParams(workContext),
     p_include_archived: false,
   })
 
@@ -62,7 +67,7 @@ export async function fetchArtistServices({ artistId }) {
   return (data?.services || []).map((row) => mapServiceOffering(row))
 }
 
-export async function saveArtistServiceOffering({ artistId, service }) {
+export async function saveArtistServiceOffering({ artistId, service, workContext = null }) {
   if (!artistId) throw new Error('Artist id requerido para guardar servicios.')
 
   const client = requireSupabase()
@@ -78,13 +83,13 @@ export async function saveArtistServiceOffering({ artistId, service }) {
   if (!payload.name) throw new Error('Nombre de servicio requerido.')
 
   const { data, error } = service.id && isDatabaseId(service.id)
-    ? await client.rpc('studio_flow_artist_update_service_offering', {
+    ? await client.rpc('studio_flow_artist_update_context_service_offering', {
         p_service_offering_id: service.id,
         p_patch: payload,
       })
-    : await client.rpc('studio_flow_artist_create_service_offering', {
-        p_artist_id: artistId,
+    : await client.rpc('studio_flow_artist_create_context_service_offering', {
         p_service: payload,
+        ...getContextRpcParams(workContext),
       })
   if (error) throw error
 
@@ -96,13 +101,11 @@ export async function updateArtistServiceOfferingStatus({ serviceId, status }) {
 
   const client = requireSupabase()
   const dbStatus = STATUS_TO_DB[status] || 'active'
-  const rpcName = dbStatus === 'suspended'
-    ? 'studio_flow_artist_suspend_service_offering'
-    : 'studio_flow_artist_activate_service_offering'
-  const params = dbStatus === 'suspended'
-    ? { p_service_offering_id: serviceId, p_reason: null }
-    : { p_service_offering_id: serviceId }
-  const { data, error } = await client.rpc(rpcName, params)
+  const { data, error } = await client.rpc('studio_flow_artist_update_context_service_status', {
+    p_service_offering_id: serviceId,
+    p_status: dbStatus,
+    p_reason: null,
+  })
 
   if (error) throw error
 
@@ -113,8 +116,9 @@ export async function archiveArtistServiceOffering({ serviceId }) {
   if (!isDatabaseId(serviceId)) throw new Error('Service id invalido para archivar.')
 
   const client = requireSupabase()
-  const { error } = await client.rpc('studio_flow_artist_archive_service_offering', {
+  const { error } = await client.rpc('studio_flow_artist_update_context_service_status', {
     p_service_offering_id: serviceId,
+    p_status: 'archived',
     p_reason: null,
   })
 
