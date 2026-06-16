@@ -1,11 +1,15 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import Button from '../../components/Button'
 import Card from '../../components/Card'
 import Input from '../../components/Input'
 import PanelHeader from '../../components/PanelHeader'
 import StatusPill from '../../components/StatusPill'
+import { paths } from '../../routes/paths'
 import { fetchArtistClients } from '../../services/artistClientService'
 
 function ArtistClients() {
+  const navigate = useNavigate()
   const [clients, setClients] = useState([])
   const [search, setSearch] = useState('')
   const [selectedClient, setSelectedClient] = useState(null)
@@ -103,7 +107,18 @@ function ArtistClients() {
 
       {selectedClient && (
         <Card className="mobile-screen">
-          <PanelHeader title="Perfil clienta" eyebrow={selectedClient.name} />
+          <PanelHeader
+            title="Perfil clienta"
+            eyebrow={selectedClient.name}
+            action={(
+              <Button
+                size="sm"
+                onClick={() => navigate(paths.artistAppointments, { state: { selectedClient } })}
+              >
+                Generar cita
+              </Button>
+            )}
+          />
           <div className="compact-list">
             <div className="list-row elevated-row">
               <div>

@@ -127,6 +127,7 @@ export async function fetchManualArtistAvailability({
 }
 
 export async function createManualArtistAppointment({
+  clientId,
   firstName,
   lastName,
   phone,
@@ -136,15 +137,28 @@ export async function createManualArtistAppointment({
   notes = '',
 } = {}) {
   const client = requireSupabase()
-  const { data, error } = await client.rpc('studio_flow_artist_create_manual_appointment', {
-    p_client_first_name: firstName,
-    p_client_last_name: lastName,
-    p_client_phone: phone,
-    p_service_offering_id: serviceOfferingId,
-    p_date: date,
-    p_time: time,
-    p_notes: notes || null,
-  })
+  const rpcName = clientId
+    ? 'studio_flow_artist_create_manual_appointment_for_client'
+    : 'studio_flow_artist_create_manual_appointment'
+  const params = clientId
+    ? {
+      p_client_id: clientId,
+      p_service_offering_id: serviceOfferingId,
+      p_date: date,
+      p_time: time,
+      p_notes: notes || null,
+    }
+    : {
+      p_client_first_name: firstName,
+      p_client_last_name: lastName,
+      p_client_phone: phone,
+      p_service_offering_id: serviceOfferingId,
+      p_date: date,
+      p_time: time,
+      p_notes: notes || null,
+    }
+
+  const { data, error } = await client.rpc(rpcName, params)
 
   if (error) throw error
 

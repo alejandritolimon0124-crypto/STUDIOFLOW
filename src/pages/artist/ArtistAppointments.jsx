@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { useLocation } from 'react-router-dom'
 import Button from '../../components/Button'
 import Card from '../../components/Card'
 import Input from '../../components/Input'
@@ -24,6 +25,8 @@ const emptyDraft = {
 }
 
 function ArtistAppointments() {
+  const location = useLocation()
+  const selectedClient = location.state?.selectedClient || null
   const {
     artistServices,
     artistAppointments,
@@ -44,6 +47,20 @@ function ArtistAppointments() {
   const [availabilityMeta, setAvailabilityMeta] = useState({ durationMinutes: 0 })
   const [isAvailabilityLoading, setIsAvailabilityLoading] = useState(false)
   const [availabilityError, setAvailabilityError] = useState('')
+
+  useEffect(() => {
+    if (!selectedClient?.id) return
+
+    setShowForm(true)
+    setDraft((currentDraft) => ({
+      ...currentDraft,
+      clientId: selectedClient.id,
+      firstName: '',
+      lastName: '',
+      phone: '',
+    }))
+    setFormErrors({})
+  }, [selectedClient?.id])
 
   useEffect(() => {
     if (!draft.serviceOfferingId && artistServices[0]?.id) {
@@ -97,9 +114,11 @@ function ArtistAppointments() {
   const validateDraft = () => {
     const nextErrors = {}
 
-    if (!draft.firstName.trim()) nextErrors.firstName = 'Nombre obligatorio.'
-    if (!draft.lastName.trim()) nextErrors.lastName = 'Apellido obligatorio.'
-    if (!draft.phone.trim()) nextErrors.phone = 'Celular obligatorio.'
+    if (!selectedClient?.id) {
+      if (!draft.firstName.trim()) nextErrors.firstName = 'Nombre obligatorio.'
+      if (!draft.lastName.trim()) nextErrors.lastName = 'Apellido obligatorio.'
+      if (!draft.phone.trim()) nextErrors.phone = 'Celular obligatorio.'
+    }
     if (!draft.serviceOfferingId) nextErrors.serviceOfferingId = 'Servicio obligatorio.'
     if (!draft.date) nextErrors.date = 'Fecha obligatoria.'
     if (!draft.time) nextErrors.time = 'Horario obligatorio.'
@@ -120,7 +139,10 @@ function ArtistAppointments() {
   const saveAppointment = async () => {
     if (!validateDraft()) return
 
-    const appointment = await createManualArtistAppointment(draft)
+    const appointment = await createManualArtistAppointment({
+      ...draft,
+      clientId: selectedClient?.id || draft.clientId,
+    })
 
     if (appointment) {
       setDraft({
@@ -196,27 +218,71 @@ function ArtistAppointments() {
         <Card className="mobile-screen primary-panel">
           <PanelHeader title="Generar cita" eyebrow="Agenda real" />
           <div className="form-stack compact-form">
-            <Input
-              label="Nombre"
-              value={draft.firstName}
-              onChange={(event) => updateDraft('firstName', event.target.value)}
-            />
-            {formErrors.firstName && <small style={{ color: 'var(--rose-dark)', fontWeight: 800 }}>{formErrors.firstName}</small>}
+            {selectedClient?.id ? (
+              <div className="list-row elevated-row">
+                <div style={{
+                  alignItems: 'center',
+                  display: 'flex',
+                  gap: 12,
+                }}>
+                  {selectedClient.photoUrl ? (
+                    <img
+                      alt=""
+                      src={selectedClient.photoUrl}
+                      style={{
+                        borderRadius: '50%',
+                        height: 48,
+                        objectFit: 'cover',
+                        width: 48,
+                      }}
+                    />
+                  ) : (
+                    <span style={{
+                      alignItems: 'center',
+                      background: 'var(--surface-rose)',
+                      borderRadius: '50%',
+                      color: 'var(--rose-dark)',
+                      display: 'inline-flex',
+                      fontWeight: 900,
+                      height: 48,
+                      justifyContent: 'center',
+                      width: 48,
+                    }}>
+                      {selectedClient.name?.slice(0, 1) || 'C'}
+                    </span>
+                  )}
+                  <div>
+                    <strong>{selectedClient.name || 'Clienta'}</strong>
+                    <small>{selectedClient.phone || 'Sin celular'}</small>
+                  </div>
+                </div>
+                <StatusPill tone="success">Clienta existente</StatusPill>
+              </div>
+            ) : (
+              <>
+                <Input
+                  label="Nombre"
+                  value={draft.firstName}
+                  onChange={(event) => updateDraft('firstName', event.target.value)}
+                />
+                {formErrors.firstName && <small style={{ color: 'var(--rose-dark)', fontWeight: 800 }}>{formErrors.firstName}</small>}
 
-            <Input
-              label="Apellido"
-              value={draft.lastName}
-              onChange={(event) => updateDraft('lastName', event.target.value)}
-            />
-            {formErrors.lastName && <small style={{ color: 'var(--rose-dark)', fontWeight: 800 }}>{formErrors.lastName}</small>}
+                <Input
+                  label="Apellido"
+                  value={draft.lastName}
+                  onChange={(event) => updateDraft('lastName', event.target.value)}
+                />
+                {formErrors.lastName && <small style={{ color: 'var(--rose-dark)', fontWeight: 800 }}>{formErrors.lastName}</small>}
 
-            <Input
-              label="Celular"
-              type="tel"
-              value={draft.phone}
-              onChange={(event) => updateDraft('phone', event.target.value)}
-            />
-            {formErrors.phone && <small style={{ color: 'var(--rose-dark)', fontWeight: 800 }}>{formErrors.phone}</small>}
+                <Input
+                  label="Celular"
+                  type="tel"
+                  value={draft.phone}
+                  onChange={(event) => updateDraft('phone', event.target.value)}
+                />
+                {formErrors.phone && <small style={{ color: 'var(--rose-dark)', fontWeight: 800 }}>{formErrors.phone}</small>}
+              </>
+            )}
 
             <label className="input-field">
               <span>Servicio</span>
