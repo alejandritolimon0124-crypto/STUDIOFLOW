@@ -253,16 +253,56 @@ function ArtistAppointments() {
               )}
               {!isAvailabilityLoading && availabilitySlots.length > 0 && (
                 <div className="row-actions" style={{ justifyContent: 'flex-start' }}>
-                  {availabilitySlots.map((slot) => (
-                    <Button
-                      key={slot.id}
-                      size="sm"
-                      variant={draft.time === slot.time ? 'primary' : 'ghost'}
-                      onClick={() => updateDraft('time', slot.time)}
-                    >
-                      {slot.time}
-                    </Button>
-                  ))}
+                  {availabilitySlots.map((slot) => {
+                    const isSelected = draft.time === slot.time
+
+                    return (
+                      <Button
+                        key={slot.id}
+                        size="sm"
+                        variant={isSelected ? 'primary' : 'ghost'}
+                        onClick={() => updateDraft('time', slot.time)}
+                        style={isSelected ? {
+                          position: 'relative',
+                          minWidth: 82,
+                          padding: '0 28px 0 18px',
+                          background: '#5e3d43',
+                          border: '2px solid #5e3d43',
+                          borderRadius: 12,
+                          boxShadow: '0 12px 24px rgba(94, 61, 67, 0.24)',
+                          color: '#fff',
+                          fontWeight: 800,
+                          transform: 'scale(1.05)',
+                          transition: 'transform 180ms ease, box-shadow 180ms ease, background 180ms ease, border-color 180ms ease',
+                        } : undefined}
+                      >
+                        {slot.time}
+                        {isSelected && (
+                          <span
+                            aria-hidden="true"
+                            style={{
+                              alignItems: 'center',
+                              background: '#fff',
+                              borderRadius: '999px',
+                              color: '#5e3d43',
+                              display: 'inline-flex',
+                              fontSize: 13,
+                              fontWeight: 900,
+                              height: 22,
+                              justifyContent: 'center',
+                              lineHeight: 1,
+                              position: 'absolute',
+                              right: 5,
+                              top: 4,
+                              width: 22,
+                            }}
+                          >
+                            ✓
+                          </span>
+                        )}
+                      </Button>
+                    )
+                  })}
                 </div>
               )}
               {availabilityMeta.durationMinutes > 0 && (
