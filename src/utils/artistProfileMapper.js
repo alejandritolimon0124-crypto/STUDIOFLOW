@@ -63,6 +63,8 @@ export function mapAuthContextToArtistProfile(authContext = {}, currentProfile =
 
   return {
     ...currentProfile,
+    artistId: artistProfile.artist_id || artistProfile.artistId || artist.id || artist.artistId || currentProfile.artistId || null,
+    artistProfileId: artistProfile.id || artistProfile.artistProfileId || currentProfile.artistProfileId || null,
     registration: {
       ...(currentProfile.registration || {}),
       studioStatus: currentProfile.registration?.studioStatus || 'pending',

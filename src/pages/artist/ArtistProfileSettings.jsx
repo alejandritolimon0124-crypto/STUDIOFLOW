@@ -1,53 +1,35 @@
 import { useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import Button from '../../components/Button'
 import Card from '../../components/Card'
 import Input from '../../components/Input'
 import PanelHeader from '../../components/PanelHeader'
 import StatusPill from '../../components/StatusPill'
+import StudioBootstrapPanel from '../../components/StudioBootstrapPanel'
 import { useApp } from '../../contexts/appContextCore'
+import { paths } from '../../routes/paths'
+import { claimArtistInvitation } from '../../services/profileBootstrapService'
 import { getCurrentBrowserCoordinates } from '../../utils/browserGeolocation'
 import { buildGoogleMapsUrl, createArtistLocationSettings, validateProfessionalLocation } from '../../utils/locationHelpers'
 import { mapAuthContextToArtistProfile } from '../../utils/artistProfileMapper'
 import { getMaxBirthDateForAdult, validateBirthDate } from '../../utils/birthdayValidation'
-import {
-  deriveMembershipsFromLegacyData,
-  getCurrentArtist,
-  getCurrentProfile,
-  getCurrentStudio,
-  getMembershipForArtist,
-} from '../../modules/entities/entitySelectors'
 
 const portfolioLimit = 12
 
 function ArtistProfileSettings() {
-  const { adminState, artistProfileError, artistState, isArtistProfileSaving, saveArtistProfile, session } = useApp()
-  const localProfiles = session.user ? [{ ...session.user, id: session.user.id }] : []
-  const currentProfile = getCurrentProfile({ session, profiles: localProfiles })
-  const artistStudioMemberships = deriveMembershipsFromLegacyData({ artists: adminState.artists })
-  const selectorArtists = adminState.artists.map((artist) => (
-    getMembershipForArtist({
-      artistId: artist.id,
-      studioId: session.user?.studioId,
-      artistStudioMemberships,
-    })
-      ? { ...artist, profileId: currentProfile?.id }
-      : artist
-  ))
-  const primaryArtist = getCurrentArtist({ session, profiles: localProfiles, artists: selectorArtists }) || selectorArtists[0]
-  const primaryMembership = getMembershipForArtist({
-    artistId: primaryArtist?.id,
-    artistStudioMemberships,
-  })
-  const currentStudio = getCurrentStudio({
-    session,
-    profiles: localProfiles,
-    studios: adminState.studios,
-    artists: selectorArtists,
-    artistStudioMemberships,
-    activeStudioId: primaryMembership?.studioId,
-  }) || adminState.studios[0]
+  const navigate = useNavigate()
+  const { artistProfileError, artistState, isArtistProfileSaving, saveArtistProfile, session, setSession } = useApp()
+  const currentStudio = null
+  const artistProfileBelongsToSession = Boolean(
+    session.artist?.id
+    && (
+      artistState.profile?.artistId === session.artist.id
+      || artistState.profile?.artist_id === session.artist.id
+    ),
+  )
+  const safeArtistProfile = artistProfileBelongsToSession ? artistState.profile : {}
   const sessionArtistProfile = session.artist
-    ? mapAuthContextToArtistProfile({ profile: session.profile, artist: session.artist }, artistState.profile)
+    ? mapAuthContextToArtistProfile({ profile: session.profile, artist: session.artist }, safeArtistProfile)
     : artistState.profile
   const [profileDraft, setProfileDraft] = useState({
     ...sessionArtistProfile,
@@ -56,6 +38,9 @@ function ArtistProfileSettings() {
   const [locationErrors, setLocationErrors] = useState({})
   const [locationDetection, setLocationDetection] = useState({ status: 'idle', message: '' })
   const [saveFeedback, setSaveFeedback] = useState('')
+  const [claimToken, setClaimToken] = useState('')
+  const [claimStatus, setClaimStatus] = useState({ tone: 'neutral', message: '' })
+  const [isClaimingInvitation, setIsClaimingInvitation] = useState(false)
   const effectiveLocation = profileDraft.professionalLocation.useStudioLocation
     ? currentStudio?.professionalLocation
     : profileDraft.professionalLocation.customLocation
@@ -240,7 +225,7 @@ function ArtistProfileSettings() {
 
       if (Object.keys(nextErrors).length > 0) {
         setLocationErrors(nextErrors)
-        nextProfile.professionalLocation = artistState.profile.professionalLocation
+        nextProfile.professionalLocation = safeArtistProfile.professionalLocation
       } else {
         setLocationErrors({})
       }
@@ -253,6 +238,44 @@ function ArtistProfileSettings() {
       setSaveFeedback('Perfil guardado')
     } catch (error) {
       setSaveFeedback(error.message || 'No se pudo guardar el perfil')
+    }
+  }
+
+  const claimStudioInvitation = async () => {
+    if (!claimToken.trim()) {
+      setClaimStatus({ tone: 'warm', message: 'Ingresa un token de invitacion.' })
+      return
+    }
+
+    setIsClaimingInvitation(true)
+    setClaimStatus({ tone: 'neutral', message: '' })
+
+    try {
+      const authContext = await claimArtistInvitation(claimToken.trim())
+      setSession((currentSession) => ({
+        ...currentSession,
+        roles: authContext.roles || currentSession.roles,
+        memberships: authContext.memberships || currentSession.memberships,
+        artist: authContext.artist || currentSession.artist,
+        activeSessionContext: {
+          ...(currentSession.activeSessionContext || {}),
+          membershipId: authContext.memberships?.[0]?.id || currentSession.activeSessionContext?.membershipId || null,
+          studioId: authContext.memberships?.[0]?.studioId || authContext.memberships?.[0]?.studio_id || currentSession.activeSessionContext?.studioId || null,
+        },
+        user: currentSession.user
+          ? {
+              ...currentSession.user,
+              membershipId: authContext.memberships?.[0]?.id || currentSession.user.membershipId || null,
+              studioId: authContext.memberships?.[0]?.studioId || authContext.memberships?.[0]?.studio_id || currentSession.user.studioId || null,
+            }
+          : currentSession.user,
+      }))
+      setClaimToken('')
+      setClaimStatus({ tone: 'success', message: 'Token vinculado correctamente.' })
+    } catch (error) {
+      setClaimStatus({ tone: 'warm', message: error.message || 'No se pudo vincular el token.' })
+    } finally {
+      setIsClaimingInvitation(false)
     }
   }
 
@@ -523,6 +546,38 @@ function ArtistProfileSettings() {
               Google Maps futuro: {mapsUrl || 'Completa una ubicacion profesional para generar la URL base.'}
             </small>
           </section>
+
+          <section className="profile-foundation-card">
+            <div>
+              <span className="eyebrow">Colaboraciones y Estudios</span>
+              <h3>Token de invitacion</h3>
+              <small>Vincula tu perfil artista a un estudio cuando recibas una invitacion.</small>
+            </div>
+            <Input
+              label="Token de invitacion"
+              placeholder="Pega aqui tu token"
+              value={claimToken}
+              onChange={(event) => {
+                setClaimToken(event.target.value)
+                setClaimStatus({ tone: 'neutral', message: '' })
+              }}
+            />
+            <Button
+              disabled={isClaimingInvitation}
+              onClick={claimStudioInvitation}
+            >
+              {isClaimingInvitation ? 'Vinculando...' : 'Vincular a estudio'}
+            </Button>
+            {claimStatus.message && (
+              <StatusPill tone={claimStatus.tone}>{claimStatus.message}</StatusPill>
+            )}
+          </section>
+
+          <StudioBootstrapPanel
+            mode="artist"
+            surface="section"
+            onOpenOwnerPanel={() => navigate(paths.admin)}
+          />
 
           <section className="profile-foundation-card">
             <div>

@@ -49,3 +49,14 @@ export async function bootstrapArtistProfile({ displayName, phone, artisticName,
 
   return unwrapContext(data)
 }
+
+export async function claimArtistInvitation(claimToken) {
+  const client = requireSupabase()
+  const { data, error } = await client.rpc('studio_flow_artist_claim_invitation', {
+    p_claim_token: claimToken || null,
+  })
+
+  if (error) throw error
+
+  return unwrapContext(data)
+}

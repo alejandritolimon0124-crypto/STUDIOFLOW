@@ -1,9 +1,9 @@
 import Card from '../../components/Card'
-import Input from '../../components/Input'
 import MetricCard from '../../components/MetricCard'
 import PanelHeader from '../../components/PanelHeader'
 import StatusPill from '../../components/StatusPill'
 import Button from '../../components/Button'
+import StudioBootstrapPanel from '../../components/StudioBootstrapPanel'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { paths } from '../../routes/paths'
@@ -37,8 +37,6 @@ import {
   getArtistsForStudio,
   getStudiosForArtist,
 } from '../../modules/entities/entitySelectors'
-import { getCurrentBrowserCoordinates } from '../../utils/browserGeolocation'
-import { bootstrapStudio, fetchOwnStudios } from '../../services/studioService'
 
 const executiveAlertMessages = {
   medium: 'Evento con posible inconsistencia de duracion y servicio.',
@@ -49,17 +47,6 @@ const executiveAlertMessages = {
 const formatCurrency = (value) => `$${Math.round(value).toLocaleString('es-MX')}`
 const getStudioCommercialName = (studio = {}) => studio.profile?.commercialName?.trim() || ''
 const uniqueById = (items = []) => Array.from(new Map(items.filter(Boolean).map((item) => [item.id, item])).values())
-const initialStudioForm = {
-  studioName: '',
-  commercialName: '',
-  city: '',
-  phone: '',
-  email: '',
-  addressLine: '',
-  description: '',
-  latitude: '',
-  longitude: '',
-}
 const emptyDashboardData = {
   source: 'supabase',
   studios: [],
@@ -92,15 +79,6 @@ function AdminDashboard() {
   const dashboardUsers = dashboardData.users || []
   const dashboardSystemStatus = dashboardData.systemStatus || []
   const [reviewStudios, setReviewStudios] = useState(dashboardStudios)
-  const [ownStudios, setOwnStudios] = useState([])
-  const [isOwnStudiosLoading, setIsOwnStudiosLoading] = useState(false)
-  const [ownStudiosError, setOwnStudiosError] = useState('')
-  const [showCreateStudioForm, setShowCreateStudioForm] = useState(false)
-  const [studioForm, setStudioForm] = useState(initialStudioForm)
-  const [studioFormError, setStudioFormError] = useState('')
-  const [studioFormSuccess, setStudioFormSuccess] = useState('')
-  const [isCreatingStudio, setIsCreatingStudio] = useState(false)
-  const [locationDetection, setLocationDetection] = useState({ status: 'idle', message: '' })
 
   useEffect(() => {
     setReviewStudios(dashboardStudios)
@@ -129,10 +107,6 @@ function AdminDashboard() {
     artistStudioMemberships,
   })))
   const accessibleStudios = isPlatformOwner ? reviewStudios : studiosFromOwnedArtists
-  const ownOperationalStudios = ownStudios.filter((studio) => ['pending', 'approved'].includes(studio.studioStatus))
-  const hasOwnOperationalStudio = ownOperationalStudios.length > 0
-  const hasAnyOwnStudio = ownStudios.length > 0
-  const shouldShowCreateStudio = isOwnerWorkspace && !hasOwnOperationalStudio
   const accessibleStudioIds = accessibleStudios.map((studio) => studio.id)
   const accessibleArtists = isPlatformOwner
     ? dashboardArtists
@@ -263,97 +237,6 @@ function AdminDashboard() {
     }),
   }))
 
-  useEffect(() => {
-    if (session.isMockSession || !isOwnerWorkspace) {
-      setOwnStudios([])
-      return undefined
-    }
-
-    let isMounted = true
-    setIsOwnStudiosLoading(true)
-    setOwnStudiosError('')
-
-    fetchOwnStudios()
-      .then((studios) => {
-        if (!isMounted) return
-        setOwnStudios(studios)
-      })
-      .catch((error) => {
-        if (!isMounted) return
-        setOwnStudios([])
-        setOwnStudiosError(error.message || 'No se pudieron cargar tus estudios.')
-      })
-      .finally(() => {
-        if (isMounted) setIsOwnStudiosLoading(false)
-      })
-
-    return () => {
-      isMounted = false
-    }
-  }, [isOwnerWorkspace, session.isMockSession])
-
-  const updateStudioForm = (field, value) => {
-    setStudioForm((currentForm) => ({
-      ...currentForm,
-      [field]: value,
-    }))
-    setStudioFormError('')
-    setStudioFormSuccess('')
-  }
-
-  const useCurrentLocationForStudio = async () => {
-    setLocationDetection({ status: 'loading', message: 'Detectando ubicacion actual...' })
-
-    try {
-      const coordinates = await getCurrentBrowserCoordinates()
-      setStudioForm((currentForm) => ({
-        ...currentForm,
-        latitude: coordinates.latitude,
-        longitude: coordinates.longitude,
-      }))
-      setLocationDetection({
-        status: 'success',
-        message: `Ubicacion detectada: ${coordinates.latitude}, ${coordinates.longitude}`,
-      })
-    } catch (error) {
-      setLocationDetection({
-        status: 'error',
-        message: error.message || 'No se pudo usar la ubicacion actual.',
-      })
-    }
-  }
-
-  const submitCreateStudio = async (event) => {
-    event.preventDefault()
-
-    if (isCreatingStudio || hasOwnOperationalStudio) return
-
-    if (!studioForm.studioName.trim() || !studioForm.commercialName.trim() || !studioForm.city.trim()) {
-      setStudioFormError('Completa nombre del estudio, nombre comercial y ciudad.')
-      return
-    }
-
-    setIsCreatingStudio(true)
-    setStudioFormError('')
-    setStudioFormSuccess('')
-
-    try {
-      const result = await bootstrapStudio(studioForm)
-      const nextOwnStudio = result.ownStudio
-      const refreshedOwnStudios = await fetchOwnStudios().catch(() => (nextOwnStudio?.id ? [nextOwnStudio] : []))
-
-      setOwnStudios(refreshedOwnStudios)
-      setShowCreateStudioForm(false)
-      setStudioForm(initialStudioForm)
-      setLocationDetection({ status: 'idle', message: '' })
-      setStudioFormSuccess('Tu estudio fue creado y se encuentra en revision.')
-    } catch (error) {
-      setStudioFormError(error.message || 'No se pudo crear el estudio.')
-    } finally {
-      setIsCreatingStudio(false)
-    }
-  }
-
   const updateReviewStatus = async (studioId, decision) => {
     const result = await reviewStudioGovernance({
       studioId,
@@ -441,173 +324,7 @@ function AdminDashboard() {
       ))}
 
       {isOwnerWorkspace && (
-      <Card className="wide-card executive-card">
-        <PanelHeader title="Mi estudio" eyebrow="Alta de estudio" />
-        {isOwnStudiosLoading && (
-          <div className="studio-review-row">
-            <div>
-              <strong>Cargando estado del estudio...</strong>
-              <small>Estamos revisando tus estudios asociados.</small>
-            </div>
-            <StatusPill tone="neutral">Cargando</StatusPill>
-          </div>
-        )}
-        {ownStudiosError && (
-          <div className="studio-review-row">
-            <div>
-              <strong>No se pudo cargar tu estudio.</strong>
-              <small>{ownStudiosError}</small>
-            </div>
-            <StatusPill tone="warm">Error</StatusPill>
-          </div>
-        )}
-        {!isOwnStudiosLoading && hasAnyOwnStudio && (
-          <div className="studio-review-stack">
-            {ownStudios.map((studio) => (
-              <div className="studio-review-row" key={studio.id}>
-                <div>
-                  <strong>{studio.commercialName || 'Estudio profesional'}</strong>
-                  <small>{studio.city || 'Ciudad por confirmar'} / Registro {studio.createdAt || 'reciente'}</small>
-                  <small>
-                    {studio.studioStatus === STUDIO_STATUS.PENDING
-                      ? 'Tu estudio se encuentra en revision.'
-                      : studio.studioStatus === STUDIO_STATUS.APPROVED
-                        ? 'Tu estudio esta activo.'
-                        : studio.studioStatus === STUDIO_STATUS.REJECTED
-                          ? 'Tu estudio requiere ajustes.'
-                          : studio.studioStatus === STUDIO_STATUS.SUSPENDED
-                            ? 'Tu estudio esta suspendido.'
-                            : 'Estado del estudio actualizado.'}
-                  </small>
-                </div>
-                <StatusPill tone={getStudioStatusTone(studio.studioStatus)}>
-                  {getStudioStatusLabel(studio.studioStatus)}
-                </StatusPill>
-              </div>
-            ))}
-          </div>
-        )}
-        {!isOwnStudiosLoading && shouldShowCreateStudio && (
-          <div className="profile-foundation-stack">
-            <section className="profile-foundation-card">
-              <div>
-                <span className="eyebrow">Studio owner</span>
-                <h3>Aun no tienes un estudio registrado.</h3>
-                <p>Crear un estudio te permitira invitar artistas, gestionar membresias, administrar clientas, publicar servicios y participar en marketplace.</p>
-              </div>
-              {!showCreateStudioForm && (
-                <Button onClick={() => setShowCreateStudioForm(true)}>Crear Estudio</Button>
-              )}
-            </section>
-            {showCreateStudioForm && (
-              <form className="profile-foundation-card" onSubmit={submitCreateStudio}>
-                <div>
-                  <span className="eyebrow">Nuevo estudio</span>
-                  <h3>Datos iniciales</h3>
-                </div>
-                <Input
-                  label="Nombre del estudio"
-                  required
-                  value={studioForm.studioName}
-                  onChange={(event) => updateStudioForm('studioName', event.target.value)}
-                />
-                <Input
-                  label="Nombre comercial"
-                  required
-                  value={studioForm.commercialName}
-                  onChange={(event) => updateStudioForm('commercialName', event.target.value)}
-                />
-                <div className="location-form-grid">
-                  <Input
-                    label="Ciudad"
-                    required
-                    value={studioForm.city}
-                    onChange={(event) => updateStudioForm('city', event.target.value)}
-                  />
-                  <Input
-                    label="Telefono"
-                    value={studioForm.phone}
-                    onChange={(event) => updateStudioForm('phone', event.target.value)}
-                  />
-                </div>
-                <Input
-                  label="Email"
-                  type="email"
-                  value={studioForm.email}
-                  onChange={(event) => updateStudioForm('email', event.target.value)}
-                />
-                <Input
-                  label="Direccion"
-                  value={studioForm.addressLine}
-                  onChange={(event) => updateStudioForm('addressLine', event.target.value)}
-                />
-                <label className="input-field">
-                  <span>Descripcion</span>
-                  <textarea
-                    rows="3"
-                    value={studioForm.description}
-                    onChange={(event) => updateStudioForm('description', event.target.value)}
-                  />
-                </label>
-                <div className="location-form-grid">
-                  <Input
-                    label="Latitude"
-                    value={studioForm.latitude}
-                    onChange={(event) => updateStudioForm('latitude', event.target.value)}
-                  />
-                  <Input
-                    label="Longitude"
-                    value={studioForm.longitude}
-                    onChange={(event) => updateStudioForm('longitude', event.target.value)}
-                  />
-                </div>
-                <div className="location-detection-row">
-                  <Button
-                    disabled={locationDetection.status === 'loading' || isCreatingStudio}
-                    size="sm"
-                    type="button"
-                    variant="ghost"
-                    onClick={useCurrentLocationForStudio}
-                  >
-                    {locationDetection.status === 'loading' ? 'Detectando...' : 'Usar mi ubicacion actual'}
-                  </Button>
-                  {locationDetection.message && (
-                    <small className={`location-detection-message location-detection-${locationDetection.status}`}>
-                      {locationDetection.message}
-                    </small>
-                  )}
-                </div>
-                {studioFormError && <small style={{ color: 'var(--rose-dark)', fontWeight: 800 }}>{studioFormError}</small>}
-                <div className="studio-review-actions">
-                  <Button disabled={isCreatingStudio} type="submit">
-                    {isCreatingStudio ? 'Creando...' : 'Crear Estudio'}
-                  </Button>
-                  <Button
-                    disabled={isCreatingStudio}
-                    type="button"
-                    variant="ghost"
-                    onClick={() => {
-                      setShowCreateStudioForm(false)
-                      setStudioFormError('')
-                    }}
-                  >
-                    Cancelar
-                  </Button>
-                </div>
-              </form>
-            )}
-          </div>
-        )}
-        {studioFormSuccess && (
-          <div className="studio-review-row">
-            <div>
-              <strong>Estudio creado.</strong>
-              <small>{studioFormSuccess}</small>
-            </div>
-            <StatusPill tone="success">Listo</StatusPill>
-          </div>
-        )}
-      </Card>
+        <StudioBootstrapPanel />
       )}
 
       <Card className="wide-card executive-card">
