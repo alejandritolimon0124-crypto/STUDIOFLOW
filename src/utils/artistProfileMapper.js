@@ -8,9 +8,9 @@ function firstDefined(...values) {
   return values.find((value) => value !== undefined && value !== null)
 }
 
-function sourceText(source = {}, key, fallback = '') {
+function sourceText(source = {}, key) {
   if (Object.prototype.hasOwnProperty.call(source, key)) return String(source[key] || '')
-  return fallback
+  return ''
 }
 
 function formatSpecialties(value) {
@@ -26,7 +26,7 @@ function getArtistProfileSource(authContext = {}) {
     || {}
 }
 
-export function mapAuthContextToArtistProfile(authContext = {}, currentProfile = {}) {
+export function mapAuthContextToArtistProfile(authContext = {}) {
   const profile = authContext.profile || {}
   const artist = authContext.artist || {}
   const artistProfile = getArtistProfileSource(authContext)
@@ -48,7 +48,7 @@ export function mapAuthContextToArtistProfile(authContext = {}, currentProfile =
   const useStudioLocation = firstDefined(
     artistProfile.use_studio_location,
     artistProfile.useStudioLocation,
-    currentProfile.professionalLocation?.useStudioLocation,
+    true,
   )
   const portfolioPaths = Array.isArray(artistProfile.portfolio_paths)
     ? artistProfile.portfolio_paths
@@ -62,91 +62,72 @@ export function mapAuthContextToArtistProfile(authContext = {}, currentProfile =
       : {}
 
   return {
-    ...currentProfile,
-    artistId: artistProfile.artist_id || artistProfile.artistId || artist.id || artist.artistId || currentProfile.artistId || null,
-    artistProfileId: artistProfile.id || artistProfile.artistProfileId || currentProfile.artistProfileId || null,
+    artistId: artistProfile.artist_id || artistProfile.artistId || artist.id || artist.artistId || null,
+    artistProfileId: artistProfile.id || artistProfile.artistProfileId || null,
     registration: {
-      ...(currentProfile.registration || {}),
-      studioStatus: currentProfile.registration?.studioStatus || 'pending',
+      studioStatus: 'pending',
     },
     personalInfo: {
-      ...(currentProfile.personalInfo || {}),
       artisticName,
       fullName,
       phone,
       email,
-      birthday: firstText(artistProfile.birthday, artistProfile.birthDate, currentProfile.personalInfo?.birthday),
+      birthday: firstText(artistProfile.birthday, artistProfile.birthDate),
     },
     professionalProfile: {
-      ...(currentProfile.professionalProfile || {}),
       primarySpecialty: firstText(
         artistProfile.primary_specialty,
         artistProfile.primarySpecialty,
-        currentProfile.professionalProfile?.primarySpecialty,
         specialties,
       ),
-      specialties: specialties || currentProfile.professionalProfile?.specialties || '',
-      shortBio: firstText(artistProfile.bio, artistProfile.shortBio, currentProfile.professionalProfile?.shortBio),
+      specialties,
+      shortBio: firstText(artistProfile.bio, artistProfile.shortBio),
       experienceYears: firstText(
         artistProfile.years_experience,
         artistProfile.yearsExperience,
-        currentProfile.professionalProfile?.experienceYears,
       ),
-      paymentMethods: {
-        ...(currentProfile.professionalProfile?.paymentMethods || {}),
-        ...paymentMethods,
-      },
+      paymentMethods,
     },
     contactLinks: {
-      ...(currentProfile.contactLinks || {}),
-      whatsapp: sourceText(artistProfile, 'whatsapp', currentProfile.contactLinks?.whatsapp || ''),
-      instagram: sourceText(artistProfile, 'instagram', currentProfile.contactLinks?.instagram || ''),
-      facebook: sourceText(artistProfile, 'facebook', currentProfile.contactLinks?.facebook || ''),
-      tiktok: sourceText(artistProfile, 'tiktok', currentProfile.contactLinks?.tiktok || ''),
-      website: sourceText(artistProfile, 'website', currentProfile.contactLinks?.website || ''),
+      whatsapp: sourceText(artistProfile, 'whatsapp'),
+      instagram: sourceText(artistProfile, 'instagram'),
+      facebook: sourceText(artistProfile, 'facebook'),
+      tiktok: sourceText(artistProfile, 'tiktok'),
+      website: sourceText(artistProfile, 'website'),
     },
-    photoUrl: firstText(artistProfile.photo_url, artistProfile.photoUrl, artistProfile.photo_path, artistProfile.photoPath, currentProfile.photoUrl),
+    photoUrl: firstText(artistProfile.photo_url, artistProfile.photoUrl, artistProfile.photo_path, artistProfile.photoPath),
     portfolio: portfolioPaths.length > 0
       ? portfolioPaths.slice(0, 12).map((path, index) => ({
           id: `artist-profile-portfolio-${index + 1}`,
           label: `Portfolio ${index + 1}`,
           url: path,
         }))
-      : Array.isArray(currentProfile.portfolio)
-        ? currentProfile.portfolio
-        : [],
+      : [],
     security: {
-      ...(currentProfile.security || {}),
       email,
     },
     professionalLocation: createArtistLocationSettings({
-      ...(currentProfile.professionalLocation || {}),
       useStudioLocation,
       customLocation: {
-        ...(currentProfile.professionalLocation?.customLocation || {}),
         address: firstText(
           artistProfile.address_line,
           artistProfile.addressLine,
-          currentProfile.professionalLocation?.customLocation?.address,
         ),
-        city: city || currentProfile.professionalLocation?.customLocation?.city || '',
-        state: firstText(artistProfile.state, currentProfile.professionalLocation?.customLocation?.state),
+        city,
+        state: firstText(artistProfile.state),
         postalCode: firstText(
           artistProfile.postal_code,
           artistProfile.postalCode,
-          currentProfile.professionalLocation?.customLocation?.postalCode,
         ),
         address_references: firstText(
           artistProfile.address_references,
           artistProfile.addressReferences,
-          currentProfile.professionalLocation?.customLocation?.address_references,
         ),
-        latitude: firstText(artistProfile.latitude, currentProfile.professionalLocation?.customLocation?.latitude),
-        longitude: firstText(artistProfile.longitude, currentProfile.professionalLocation?.customLocation?.longitude),
+        latitude: firstText(artistProfile.latitude),
+        longitude: firstText(artistProfile.longitude),
         googleMapsUrl: firstText(
           artistProfile.google_maps_url,
           artistProfile.googleMapsUrl,
-          currentProfile.professionalLocation?.customLocation?.googleMapsUrl,
         ),
       },
     }),

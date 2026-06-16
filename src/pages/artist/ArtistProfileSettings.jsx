@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Button from '../../components/Button'
 import Card from '../../components/Card'
@@ -28,9 +28,9 @@ function ArtistProfileSettings() {
     ),
   )
   const safeArtistProfile = artistProfileBelongsToSession ? artistState.profile : {}
-  const sessionArtistProfile = session.artist
-    ? mapAuthContextToArtistProfile({ profile: session.profile, artist: session.artist }, safeArtistProfile)
-    : artistState.profile
+  const sessionArtistProfile = artistProfileBelongsToSession
+    ? safeArtistProfile
+    : mapAuthContextToArtistProfile({ profile: session.profile, artist: session.artist })
   const [profileDraft, setProfileDraft] = useState({
     ...sessionArtistProfile,
     professionalLocation: createArtistLocationSettings(sessionArtistProfile?.professionalLocation),
@@ -55,6 +55,16 @@ function ArtistProfileSettings() {
     ].filter(Boolean).join(' / '),
     [currentStudio],
   )
+
+  useEffect(() => {
+    setProfileDraft({
+      ...sessionArtistProfile,
+      professionalLocation: createArtistLocationSettings(sessionArtistProfile?.professionalLocation),
+    })
+    setLocationErrors({})
+    setLocationDetection({ status: 'idle', message: '' })
+    setSaveFeedback('')
+  }, [session.artist?.id, session.profile?.id, sessionArtistProfile.artistId, sessionArtistProfile.artistProfileId])
 
   const updateDraftSection = (section, field, value) => {
     setProfileDraft((currentDraft) => ({

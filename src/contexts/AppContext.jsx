@@ -86,7 +86,22 @@ const storageKey = 'studio-flow-session'
 const adminMockStateStorageKey = 'studio-flow-admin-state-mock'
 const adminRealStateStoragePrefix = 'studio-flow-admin-state-real'
 const clientStateStorageKey = 'studio-flow-client-state'
-const artistStateStorageKey = 'studio-flow-artist-state'
+const legacyArtistStateStorageKey = 'studio-flow-artist-state'
+const artistStateStoragePrefix = 'studio-flow-artist-state'
+
+function getArtistStateStorageKey(profileId) {
+  return profileId ? `${artistStateStoragePrefix}-${profileId}` : null
+}
+
+function clearPersistedArtistStates() {
+  try {
+    Object.keys(localStorage)
+      .filter((key) => key === legacyArtistStateStorageKey || key.startsWith(`${artistStateStoragePrefix}-`))
+      .forEach((key) => localStorage.removeItem(key))
+  } catch {
+    localStorage.removeItem(legacyArtistStateStorageKey)
+  }
+}
 
 function getStoredSession() {
   try {
@@ -580,11 +595,14 @@ function createInitialArtistState() {
   }
 }
 
-function getStoredArtistState() {
+function getStoredArtistState(profileId) {
   const initialArtistState = createInitialArtistState()
+  const scopedStorageKey = getArtistStateStorageKey(profileId)
+
+  if (!scopedStorageKey) return initialArtistState
 
   try {
-    const storedArtistState = localStorage.getItem(artistStateStorageKey)
+    const storedArtistState = localStorage.getItem(scopedStorageKey)
     const parsedArtistState = storedArtistState ? JSON.parse(storedArtistState) : null
     return parsedArtistState
       ? {
@@ -698,6 +716,7 @@ function hasDuplicateClientServiceBooking(bookedSlots, nextSlot) {
 
 export function AppProvider({ children }) {
   const [session, setSession] = useState(getStoredSession)
+  const activeProfileId = session.profile?.id || session.user?.profileId || null
   const adminStorageKey = getAdminStateStorageKey(session)
   const [isAuthLoading, setIsAuthLoading] = useState(hasSupabaseAuth)
   const [authError, setAuthError] = useState('')
@@ -707,7 +726,7 @@ export function AppProvider({ children }) {
   const [agendaSettings, setAgendaSettings] = useState(createInitialAgendaSettings)
   const [adminState, setAdminState] = useState(() => getStoredAdminState(session))
   const [clientState, setClientState] = useState(getStoredClientState)
-  const [artistState, setArtistState] = useState(getStoredArtistState)
+  const [artistState, setArtistState] = useState(() => getStoredArtistState(activeProfileId))
   const [isArtistServicesLoading, setIsArtistServicesLoading] = useState(false)
   const [artistServicesError, setArtistServicesError] = useState('')
   const [isArtistScheduleLoading, setIsArtistScheduleLoading] = useState(false)
@@ -858,7 +877,7 @@ export function AppProvider({ children }) {
         profile: mapAuthContextToArtistProfile({
           ...authContext,
           artistProfile,
-        }, currentState.profile),
+        }),
       }))
     }
 
@@ -1020,7 +1039,7 @@ export function AppProvider({ children }) {
         profile: mapAuthContextToArtistProfile({
           ...authContext,
           artistProfile,
-        }, currentState.profile),
+        }),
       }))
       localStorage.removeItem(storageKey)
       setSession(nextSession)
@@ -1062,9 +1081,11 @@ export function AppProvider({ children }) {
     }
 
     localStorage.removeItem(storageKey)
+    clearPersistedArtistStates()
+    setArtistState(createInitialArtistState())
     sessionRef.current = initialSession
     setSession(initialSession)
-  }, [session.isMockSession])
+  }, [session.isMockSession, session.profile?.id, session.user?.profileId])
 
   useEffect(() => {
     if (!hasSupabaseAuth()) {
@@ -1131,12 +1152,16 @@ export function AppProvider({ children }) {
   }, [clientState])
 
   useEffect(() => {
+    const scopedStorageKey = getArtistStateStorageKey(activeProfileId)
+    if (!scopedStorageKey) return
+
     try {
-      localStorage.setItem(artistStateStorageKey, JSON.stringify(artistState))
+      localStorage.removeItem(legacyArtistStateStorageKey)
+      localStorage.setItem(scopedStorageKey, JSON.stringify(artistState))
     } catch {
       // Data URL photos can exceed localStorage in some browsers; keep runtime state even if persistence fails.
     }
-  }, [artistState])
+  }, [activeProfileId, artistState])
 
   const loadArtistServices = useCallback(async (artistId = session.artist?.id || session.user?.artistId) => {
     if (!artistId || session.isMockSession) return []
