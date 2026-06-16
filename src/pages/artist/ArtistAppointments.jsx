@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import Button from '../../components/Button'
 import Card from '../../components/Card'
 import Input from '../../components/Input'
 import PanelHeader from '../../components/PanelHeader'
 import StatusPill from '../../components/StatusPill'
 import { useApp } from '../../contexts/appContextCore'
+import { fetchManualArtistAvailability } from '../../services/appointmentService'
 
 function getTodayDateValue() {
   const today = new Date()
@@ -39,12 +40,51 @@ function ArtistAppointments() {
   const [selectedDate, setSelectedDate] = useState(getTodayDateValue)
   const [showForm, setShowForm] = useState(false)
   const [showFilter, setShowFilter] = useState(false)
+  const [availabilitySlots, setAvailabilitySlots] = useState([])
+  const [availabilityMeta, setAvailabilityMeta] = useState({ durationMinutes: 0 })
+  const [isAvailabilityLoading, setIsAvailabilityLoading] = useState(false)
+  const [availabilityError, setAvailabilityError] = useState('')
 
   useEffect(() => {
     if (!draft.serviceOfferingId && artistServices[0]?.id) {
       setDraft((currentDraft) => ({ ...currentDraft, serviceOfferingId: artistServices[0].id }))
     }
   }, [artistServices, draft.serviceOfferingId])
+
+  const loadManualAvailability = useCallback(async ({
+    serviceOfferingId = draft.serviceOfferingId,
+    date = draft.date,
+  } = {}) => {
+    if (!showForm || !serviceOfferingId || !date) {
+      setAvailabilitySlots([])
+      setAvailabilityMeta({ durationMinutes: 0 })
+      return null
+    }
+
+    setIsAvailabilityLoading(true)
+    setAvailabilityError('')
+
+    try {
+      const availability = await fetchManualArtistAvailability({
+        serviceOfferingId,
+        date,
+      })
+      setAvailabilitySlots(availability.slots)
+      setAvailabilityMeta({ durationMinutes: availability.durationMinutes })
+      return availability
+    } catch (error) {
+      setAvailabilitySlots([])
+      setAvailabilityMeta({ durationMinutes: 0 })
+      setAvailabilityError(error.message || 'No se pudieron cargar horarios disponibles.')
+      return null
+    } finally {
+      setIsAvailabilityLoading(false)
+    }
+  }, [draft.date, draft.serviceOfferingId, showForm])
+
+  useEffect(() => {
+    loadManualAvailability()
+  }, [loadManualAvailability])
 
   const isHistoryAppointment = (appointment) => (
     ['Completada', 'Cancelada', 'No show'].includes(appointment.status)
@@ -62,14 +102,18 @@ function ArtistAppointments() {
     if (!draft.phone.trim()) nextErrors.phone = 'Celular obligatorio.'
     if (!draft.serviceOfferingId) nextErrors.serviceOfferingId = 'Servicio obligatorio.'
     if (!draft.date) nextErrors.date = 'Fecha obligatoria.'
-    if (!draft.time) nextErrors.time = 'Hora obligatoria.'
+    if (!draft.time) nextErrors.time = 'Horario obligatorio.'
 
     setFormErrors(nextErrors)
     return Object.keys(nextErrors).length === 0
   }
 
   const updateDraft = (field, value) => {
-    setDraft((currentDraft) => ({ ...currentDraft, [field]: value }))
+    setDraft((currentDraft) => ({
+      ...currentDraft,
+      [field]: value,
+      ...(field === 'serviceOfferingId' || field === 'date' ? { time: '' } : {}),
+    }))
     setFormErrors((currentErrors) => ({ ...currentErrors, [field]: '' }))
   }
 
@@ -84,9 +128,12 @@ function ArtistAppointments() {
         serviceOfferingId: draft.serviceOfferingId,
         date: draft.date,
       })
-      setShowForm(false)
       setSelectedDate(draft.date)
       await loadArtistAppointments()
+      await loadManualAvailability({
+        serviceOfferingId: draft.serviceOfferingId,
+        date: draft.date,
+      })
     }
   }
 
@@ -195,12 +242,33 @@ function ArtistAppointments() {
             />
             {formErrors.date && <small style={{ color: 'var(--rose-dark)', fontWeight: 800 }}>{formErrors.date}</small>}
 
-            <Input
-              label="Hora"
-              type="time"
-              value={draft.time}
-              onChange={(event) => updateDraft('time', event.target.value)}
-            />
+            <div className="input-field">
+              <span>Horarios disponibles</span>
+              {isAvailabilityLoading && <small>Cargando horarios...</small>}
+              {!isAvailabilityLoading && availabilityError && (
+                <small style={{ color: 'var(--rose-dark)', fontWeight: 800 }}>{availabilityError}</small>
+              )}
+              {!isAvailabilityLoading && !availabilityError && availabilitySlots.length === 0 && (
+                <small>Sin horarios disponibles</small>
+              )}
+              {!isAvailabilityLoading && availabilitySlots.length > 0 && (
+                <div className="row-actions" style={{ justifyContent: 'flex-start' }}>
+                  {availabilitySlots.map((slot) => (
+                    <Button
+                      key={slot.id}
+                      size="sm"
+                      variant={draft.time === slot.time ? 'primary' : 'ghost'}
+                      onClick={() => updateDraft('time', slot.time)}
+                    >
+                      {slot.time}
+                    </Button>
+                  ))}
+                </div>
+              )}
+              {availabilityMeta.durationMinutes > 0 && (
+                <small>Duracion del servicio: {availabilityMeta.durationMinutes} min</small>
+              )}
+            </div>
             {formErrors.time && <small style={{ color: 'var(--rose-dark)', fontWeight: 800 }}>{formErrors.time}</small>}
 
             <label className="input-field">

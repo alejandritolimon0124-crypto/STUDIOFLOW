@@ -50,6 +50,44 @@ function mapAppointmentsPayload(data) {
   return asArray(data?.appointments).map(normalizeAppointment)
 }
 
+function normalizeAvailabilitySlot(slot = {}) {
+  return {
+    ...slot,
+    id: slot.id || slot.availabilitySlotId || slot.availability_slot_id,
+    availabilitySlotId: slot.availabilitySlotId || slot.availability_slot_id || slot.id,
+    availabilitySlotIds: Array.isArray(slot.availabilitySlotIds)
+      ? slot.availabilitySlotIds
+      : Array.isArray(slot.availability_slot_ids)
+        ? slot.availability_slot_ids
+        : [],
+    artistId: slot.artistId || slot.artist_id || null,
+    studioId: slot.studioId || slot.studio_id || null,
+    membershipId: slot.membershipId || slot.membership_id || null,
+    serviceOfferingId: slot.serviceOfferingId || slot.service_offering_id || null,
+    startsAt: slot.startsAt || slot.starts_at || slot.start || null,
+    endsAt: slot.endsAt || slot.ends_at || null,
+    date: slot.date || '',
+    time: slot.time || '',
+    end: slot.end || '',
+    durationMinutes: normalizeNumber(slot.durationMinutes || slot.duration_minutes),
+    available: slot.available !== false,
+    status: slot.status || 'available',
+  }
+}
+
+function normalizeManualAvailabilityPayload(data = {}) {
+  return {
+    artistId: data.artistId || data.artist_id || null,
+    studioId: data.studioId || data.studio_id || null,
+    membershipId: data.membershipId || data.membership_id || null,
+    serviceOfferingId: data.serviceOfferingId || data.service_offering_id || null,
+    date: data.date || '',
+    requestedDate: data.requestedDate || data.requested_date || '',
+    durationMinutes: normalizeNumber(data.durationMinutes || data.duration_minutes),
+    slots: asArray(data.slots).map(normalizeAvailabilitySlot),
+  }
+}
+
 export async function fetchClientAppointments() {
   const client = requireSupabase()
   const { data, error } = await client.rpc('studio_flow_get_client_appointments')
@@ -68,6 +106,24 @@ export async function fetchArtistAppointments({ artistId } = {}) {
   if (error) throw error
 
   return mapAppointmentsPayload(data)
+}
+
+export async function fetchManualArtistAvailability({
+  serviceOfferingId,
+  date,
+} = {}) {
+  if (!serviceOfferingId) throw new Error('Selecciona un servicio.')
+  if (!date) throw new Error('Selecciona una fecha.')
+
+  const client = requireSupabase()
+  const { data, error } = await client.rpc('studio_flow_artist_get_manual_availability', {
+    p_service_offering_id: serviceOfferingId,
+    p_date: date,
+  })
+
+  if (error) throw error
+
+  return normalizeManualAvailabilityPayload(data)
 }
 
 export async function createManualArtistAppointment({

@@ -7,10 +7,13 @@ import { useApp } from '../../contexts/appContextCore'
 import { getCurrentBrowserCoordinates } from '../../utils/browserGeolocation'
 import { buildGoogleMapsUrl, createProfessionalLocation, validateProfessionalLocation } from '../../utils/locationHelpers'
 import { getCurrentProfile, getCurrentStudio } from '../../modules/entities/entitySelectors'
+import { paths } from '../../routes/paths'
+import { useNavigate } from 'react-router-dom'
 
 const galleryLimit = 5
 
 function AdminStudioProfile() {
+  const navigate = useNavigate()
   const { adminState, session, updateManagedStudioProfile } = useApp()
   const localProfiles = session.user ? [{ ...session.user, id: session.user.id }] : []
   const currentProfile = getCurrentProfile({ session, profiles: localProfiles })
@@ -24,8 +27,8 @@ function AdminStudioProfile() {
     )),
     activeStudioId: session.user?.studioId,
   }) || adminState.studios[0]
-  const [profileDraft, setProfileDraft] = useState(currentStudio.profile)
-  const [locationDraft, setLocationDraft] = useState(createProfessionalLocation(currentStudio.professionalLocation))
+  const [profileDraft, setProfileDraft] = useState(currentStudio?.profile || {})
+  const [locationDraft, setLocationDraft] = useState(createProfessionalLocation(currentStudio?.professionalLocation || {}))
   const [locationErrors, setLocationErrors] = useState({})
   const [locationDetection, setLocationDetection] = useState({ status: 'idle', message: '' })
   const mapsUrl = buildGoogleMapsUrl(locationDraft)
@@ -158,6 +161,26 @@ function AdminStudioProfile() {
     }
 
     updateManagedStudioProfile(currentStudio.id, nextStudioProfile)
+  }
+
+  if (!currentStudio?.id) {
+    return (
+      <main className="dashboard-grid admin-grid profile-foundation-grid">
+        <Card className="wide-card mobile-screen primary-panel">
+          <PanelHeader title="Mi Estudio" eyebrow="Fuente profesional" />
+          <div className="profile-foundation-stack">
+            <section className="profile-foundation-card">
+              <div>
+                <span className="eyebrow">Studio owner</span>
+                <h3>Aun no tienes un estudio registrado.</h3>
+                <p>Primero crea tu estudio desde el dashboard para poder completar perfil, ubicacion y branding.</p>
+              </div>
+              <Button onClick={() => navigate(paths.admin)}>Ir al dashboard</Button>
+            </section>
+          </div>
+        </Card>
+      </main>
+    )
   }
 
   return (
