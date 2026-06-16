@@ -24,8 +24,13 @@ function ProtectedRoute({ allowedRole, children }) {
   }
 
   const allowedOrganizationalRoles = allowedOrganizationalRolesByRoute[allowedRole] || []
+  const assignedRoles = Array.isArray(session.roles)
+    ? session.roles.map((assignment) => assignment.role || assignment.code).filter(Boolean)
+    : []
   const hasLegacyRouteRole = session.role === allowedRole
-  const hasOrganizationalRole = allowedOrganizationalRoles.includes(session.user?.role)
+  const hasOrganizationalRole = allowedOrganizationalRoles.some((role) => (
+    role === session.user?.role || assignedRoles.includes(role)
+  ))
 
   if (!hasLegacyRouteRole && !hasOrganizationalRole) {
     return <Navigate to="/login" replace />

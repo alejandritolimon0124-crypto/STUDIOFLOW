@@ -7,6 +7,12 @@ function normalizeStudio(row = {}) {
     studioStatus: row.studioStatus || row.studio_status || 'pending',
     commercialName: row.commercialName || row.commercial_name || '',
     city: row.city || '',
+    addressLine: row.addressLine || row.address_line || '',
+    geoLat: row.geoLat || row.geo_lat || null,
+    geoLng: row.geoLng || row.geo_lng || null,
+    marketplaceProfileId: row.marketplaceProfileId || row.marketplace_profile_id || null,
+    marketplaceListingId: row.marketplaceListingId || row.marketplace_listing_id || null,
+    marketplaceStatus: row.marketplaceStatus || row.marketplace_status || 'not_published',
     createdAt: row.createdAt || row.created_at || null,
   }
 }
@@ -74,4 +80,17 @@ export async function bootstrapStudio({
       created_at: studio.created_at,
     }),
   }
+}
+
+export async function publishStudioMarketplace(studioId) {
+  if (!studioId) throw new Error('Studio requerido para publicar marketplace.')
+
+  const client = requireSupabase()
+  const { data, error } = await client.rpc('studio_flow_publish_studio_marketplace', {
+    p_studio_id: studioId,
+  })
+
+  if (error) throw error
+
+  return data
 }

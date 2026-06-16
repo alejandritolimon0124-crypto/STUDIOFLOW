@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { STUDIO_STATUS } from '../modules/governance/studioGovernance'
+import { useApp } from '../contexts/appContextCore'
 import { getCurrentBrowserCoordinates } from '../utils/browserGeolocation'
 import { bootstrapStudio, fetchOwnStudios } from '../services/studioService'
 import Button from './Button'
@@ -57,7 +58,9 @@ function StudioBootstrapPanel({
   const [studioFormError, setStudioFormError] = useState('')
   const [studioFormSuccess, setStudioFormSuccess] = useState('')
   const [isCreatingStudio, setIsCreatingStudio] = useState(false)
+  const [isOpeningOwnerPanel, setIsOpeningOwnerPanel] = useState(false)
   const [locationDetection, setLocationDetection] = useState({ status: 'idle', message: '' })
+  const { refreshAuthContext } = useApp()
 
   const isArtistMode = mode === 'artist'
   const operationalStudio = ownStudios.find((studio) => ['pending', 'approved'].includes(studio.studioStatus))
@@ -158,6 +161,7 @@ function StudioBootstrapPanel({
         setOwnStudios([nextOwnStudio])
       }
 
+      await refreshAuthContext?.()
       setShowCreateStudioForm(false)
       setStudioForm(initialStudioForm)
       setLocationDetection({ status: 'idle', message: '' })
@@ -166,6 +170,18 @@ function StudioBootstrapPanel({
       setStudioFormError(error.message || 'No se pudo crear el estudio.')
     } finally {
       setIsCreatingStudio(false)
+    }
+  }
+
+  const openOwnerPanel = async () => {
+    if (!onOpenOwnerPanel || isOpeningOwnerPanel) return
+
+    setIsOpeningOwnerPanel(true)
+    try {
+      await refreshAuthContext?.()
+      await onOpenOwnerPanel()
+    } finally {
+      setIsOpeningOwnerPanel(false)
     }
   }
 
@@ -310,8 +326,8 @@ function StudioBootstrapPanel({
             </Button>
           )}
           {operationalStudio.studioStatus === STUDIO_STATUS.APPROVED && onOpenOwnerPanel && (
-            <Button size="sm" onClick={onOpenOwnerPanel}>
-              Abrir Panel Owner
+            <Button disabled={isOpeningOwnerPanel} size="sm" onClick={openOwnerPanel}>
+              {isOpeningOwnerPanel ? 'Abriendo...' : 'Abrir Panel Owner'}
             </Button>
           )}
         </div>

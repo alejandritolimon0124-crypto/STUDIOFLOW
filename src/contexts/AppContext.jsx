@@ -206,6 +206,18 @@ function hasRoleAssignment(authContext, role) {
   return getRoleAssignments(authContext).some((assignment) => assignment.role === role)
 }
 
+function sessionHasRole(session, role) {
+  if (session?.role === role || session?.user?.role === role) return true
+
+  return (session?.roles || []).some((assignment) => (
+    assignment.role === role || assignment.code === role
+  ))
+}
+
+function sessionHasAnyRole(session, roles = []) {
+  return roles.some((role) => sessionHasRole(session, role))
+}
+
 async function repairIncompleteAuthContext(authSession, authContext = {}) {
   const metadata = getAuthMetadata(authSession)
   const role = getBootstrapRole(authSession, authContext)
@@ -907,6 +919,18 @@ export function AppProvider({ children }) {
     return nextSession
   }, [])
 
+  const refreshAuthContext = useCallback(async () => {
+    if (sessionRef.current.isMockSession) return sessionRef.current
+
+    const authSession = await getCurrentAuthSession()
+    if (!authSession?.user) {
+      setSession(initialSession)
+      return initialSession
+    }
+
+    return hydrateSupabaseSession(authSession)
+  }, [hydrateSupabaseSession])
+
   const loginDemo = useCallback(async (role) => {
     demoLoginInProgressRef.current = true
 
@@ -1544,7 +1568,7 @@ export function AppProvider({ children }) {
 
   const loadAdminArtists = useCallback(async () => {
     if (session.isMockSession) return null
-    if (![ROLES.PLATFORM_OWNER, ROLES.STUDIO_OWNER, ROLES.STUDIO_MANAGER].includes(session.role)) return null
+    if (!sessionHasAnyRole(session, [ROLES.PLATFORM_OWNER, ROLES.STUDIO_OWNER, ROLES.STUDIO_MANAGER])) return null
 
     setIsAdminArtistsLoading(true)
     setAdminArtistsError('')
@@ -1568,11 +1592,11 @@ export function AppProvider({ children }) {
       setIsAdminArtistsLoading(false)
       throw error
     }
-  }, [session.isMockSession, session.role])
+  }, [session])
 
   const loadAdminDashboard = useCallback(async () => {
     if (session.isMockSession) return null
-    if (![ROLES.PLATFORM_OWNER, ROLES.STUDIO_OWNER, ROLES.STUDIO_MANAGER].includes(session.role)) return null
+    if (!sessionHasAnyRole(session, [ROLES.PLATFORM_OWNER, ROLES.STUDIO_OWNER, ROLES.STUDIO_MANAGER])) return null
 
     setIsAdminDashboardLoading(true)
     setAdminDashboardError('')
@@ -1602,11 +1626,11 @@ export function AppProvider({ children }) {
     } finally {
       setIsAdminDashboardLoading(false)
     }
-  }, [session.isMockSession, session.role])
+  }, [session])
 
   const loadAdminClients = useCallback(async () => {
     if (session.isMockSession) return null
-    if (![ROLES.PLATFORM_OWNER, ROLES.STUDIO_OWNER, ROLES.STUDIO_MANAGER].includes(session.role)) return null
+    if (!sessionHasAnyRole(session, [ROLES.PLATFORM_OWNER, ROLES.STUDIO_OWNER, ROLES.STUDIO_MANAGER])) return null
 
     setIsAdminClientsLoading(true)
     setAdminClientsError('')
@@ -1628,7 +1652,7 @@ export function AppProvider({ children }) {
     } finally {
       setIsAdminClientsLoading(false)
     }
-  }, [session.isMockSession, session.role])
+  }, [session])
 
   const loadGovernanceQueue = useCallback(async () => {
     if (session.isMockSession || session.role !== ROLES.PLATFORM_OWNER) return []
@@ -1744,7 +1768,7 @@ export function AppProvider({ children }) {
 
   useEffect(() => {
     if (session.isMockSession) return
-    if (![ROLES.PLATFORM_OWNER, ROLES.STUDIO_OWNER, ROLES.STUDIO_MANAGER].includes(session.role)) return
+    if (!sessionHasAnyRole(session, [ROLES.PLATFORM_OWNER, ROLES.STUDIO_OWNER, ROLES.STUDIO_MANAGER])) return
 
     loadAdminArtists().catch(() => {
       // adminArtistsError keeps the failure available to admin screens.
@@ -1755,12 +1779,12 @@ export function AppProvider({ children }) {
     loadAdminClients().catch(() => {
       // adminClientsError keeps the failure available to admin screens.
     })
-    if (session.role === ROLES.PLATFORM_OWNER) {
+    if (sessionHasRole(session, ROLES.PLATFORM_OWNER)) {
       loadGovernanceQueue().catch(() => {
         // governanceError keeps the failure available to admin screens.
       })
     }
-  }, [loadAdminArtists, loadAdminClients, loadAdminDashboard, loadGovernanceQueue, session.isMockSession, session.role])
+  }, [loadAdminArtists, loadAdminClients, loadAdminDashboard, loadGovernanceQueue, session])
 
   const toggleScheduleDay = useCallback((dayName) => {
     setAgendaSettings((currentSettings) => ({
@@ -2514,6 +2538,7 @@ export function AppProvider({ children }) {
       registerArtist,
       logout,
       resetPassword,
+      refreshAuthContext,
       updatePassword,
       isAuthenticated: Boolean(session.user),
       isAuthLoading,
@@ -2622,6 +2647,7 @@ export function AppProvider({ children }) {
       registerArtist,
       logout,
       resetPassword,
+      refreshAuthContext,
       updatePassword,
       isAuthLoading,
       authError,

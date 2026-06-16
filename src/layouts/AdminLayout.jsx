@@ -17,10 +17,25 @@ function AdminLayout() {
   const { pathname } = useLocation()
   const { session } = useApp()
   const [title, subtitle] = copyByPath[pathname] || copyByPath[paths.admin]
-  const canSeeArtists = hasPermission(session.user, permissions.STUDIO_ARTISTS)
-  const canSeeClients = hasPermission(session.user, permissions.CLIENTS) || hasPermission(session.user, permissions.STUDIO_CLIENTS)
-  const canSeeStudioProfile = [ROLES.PLATFORM_OWNER, ROLES.STUDIO_OWNER].includes(session.user?.role)
-  const canSeeSystem = hasPermission(session.user, permissions.GOVERNANCE)
+  const assignedRoles = Array.isArray(session.roles) ? session.roles : []
+  const effectiveAdminRole =
+    session.user?.role === ROLES.PLATFORM_OWNER || assignedRoles.some((assignment) => assignment.role === ROLES.PLATFORM_OWNER)
+      ? ROLES.PLATFORM_OWNER
+      : assignedRoles.some((assignment) => assignment.role === ROLES.STUDIO_OWNER)
+        ? ROLES.STUDIO_OWNER
+        : assignedRoles.some((assignment) => assignment.role === ROLES.STUDIO_MANAGER)
+          ? ROLES.STUDIO_MANAGER
+          : session.user?.role
+  const effectiveAdminAssignment = assignedRoles.find((assignment) => assignment.role === effectiveAdminRole)
+  const effectiveAdminUser = {
+    ...session.user,
+    role: effectiveAdminRole,
+    studioId: effectiveAdminAssignment?.studioId || effectiveAdminAssignment?.studio_id || session.user?.studioId || null,
+  }
+  const canSeeArtists = hasPermission(effectiveAdminUser, permissions.STUDIO_ARTISTS)
+  const canSeeClients = hasPermission(effectiveAdminUser, permissions.CLIENTS) || hasPermission(effectiveAdminUser, permissions.STUDIO_CLIENTS)
+  const canSeeStudioProfile = [ROLES.PLATFORM_OWNER, ROLES.STUDIO_OWNER].includes(effectiveAdminUser.role)
+  const canSeeSystem = hasPermission(effectiveAdminUser, permissions.GOVERNANCE)
 
   return (
     <DashboardLayout role="admin" title={title} subtitle={subtitle} showMobileAppbar={false}>

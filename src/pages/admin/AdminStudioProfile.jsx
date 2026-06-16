@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Button from '../../components/Button'
 import Card from '../../components/Card'
 import Input from '../../components/Input'
@@ -9,23 +9,28 @@ import { buildGoogleMapsUrl, createProfessionalLocation, validateProfessionalLoc
 import { getCurrentProfile, getCurrentStudio } from '../../modules/entities/entitySelectors'
 import { paths } from '../../routes/paths'
 import { useNavigate } from 'react-router-dom'
+import { publishStudioMarketplace } from '../../services/studioService'
 
 const galleryLimit = 5
 
 function AdminStudioProfile() {
   const navigate = useNavigate()
-  const { adminState, session, updateManagedStudioProfile } = useApp()
+  const { adminState, loadAdminArtists, session, updateManagedStudioProfile } = useApp()
+  const [isPublishingMarketplace, setIsPublishingMarketplace] = useState(false)
+  const [marketplaceFeedback, setMarketplaceFeedback] = useState({ tone: 'neutral', message: '' })
   const localProfiles = session.user ? [{ ...session.user, id: session.user.id }] : []
   const currentProfile = getCurrentProfile({ session, profiles: localProfiles })
+  const studioOwnerAssignment = (session.roles || []).find((assignment) => assignment.role === 'studio_owner')
+  const activeStudioId = session.user?.studioId || studioOwnerAssignment?.studioId || studioOwnerAssignment?.studio_id || null
   const currentStudio = getCurrentStudio({
     session,
     profiles: localProfiles,
     studios: adminState.studios.map((studio) => (
-      studio.id === session.user?.studioId && currentProfile
+      studio.id === activeStudioId && currentProfile
         ? { ...studio, ownerProfileId: currentProfile.id }
         : studio
     )),
-    activeStudioId: session.user?.studioId,
+    activeStudioId,
   }) || adminState.studios[0]
   const [profileDraft, setProfileDraft] = useState(currentStudio?.profile || {})
   const [locationDraft, setLocationDraft] = useState(createProfessionalLocation(currentStudio?.professionalLocation || {}))
@@ -34,6 +39,14 @@ function AdminStudioProfile() {
   const mapsUrl = buildGoogleMapsUrl(locationDraft)
   const galleryCount = (profileDraft.gallery || []).length
   const hasGalleryCapacity = galleryCount < galleryLimit
+
+  useEffect(() => {
+    queueMicrotask(() => {
+      setProfileDraft(currentStudio?.profile || {})
+      setLocationDraft(createProfessionalLocation(currentStudio?.professionalLocation || {}))
+      setMarketplaceFeedback({ tone: 'neutral', message: '' })
+    })
+  }, [currentStudio?.id, currentStudio?.professionalLocation, currentStudio?.profile])
 
   const updateProfileField = (field, value) => {
     setProfileDraft((currentDraft) => ({
@@ -161,6 +174,33 @@ function AdminStudioProfile() {
     }
 
     updateManagedStudioProfile(currentStudio.id, nextStudioProfile)
+  }
+
+  const hasMarketplaceMinimumData = Boolean(
+    currentStudio?.studioStatus === 'approved'
+    && String(profileDraft.commercialName || currentStudio?.profile?.commercialName || currentStudio?.name || '').trim()
+    && String(locationDraft.city || currentStudio?.profile?.city || currentStudio?.city || '').trim()
+    && (
+      String(locationDraft.address || currentStudio?.professionalLocation?.address || '').trim()
+      || (String(locationDraft.latitude || '').trim() && String(locationDraft.longitude || '').trim())
+    ),
+  )
+
+  const publishMarketplace = async () => {
+    if (!currentStudio?.id || !hasMarketplaceMinimumData || isPublishingMarketplace) return
+
+    setIsPublishingMarketplace(true)
+    setMarketplaceFeedback({ tone: 'neutral', message: '' })
+
+    try {
+      await publishStudioMarketplace(currentStudio.id)
+      await loadAdminArtists?.().catch(() => null)
+      setMarketplaceFeedback({ tone: 'success', message: 'Estudio publicado en Marketplace.' })
+    } catch (error) {
+      setMarketplaceFeedback({ tone: 'warm', message: error.message || 'No se pudo publicar el estudio.' })
+    } finally {
+      setIsPublishingMarketplace(false)
+    }
   }
 
   if (!currentStudio?.id) {
@@ -372,6 +412,30 @@ function AdminStudioProfile() {
               type="file"
               onChange={handleGalleryChange}
             />
+          </section>
+
+          <section className="profile-foundation-card">
+            <div>
+              <span className="eyebrow">Marketplace</span>
+              <h3>Publicacion del estudio</h3>
+              <small>Disponible cuando el estudio esta aprobado y tiene nombre comercial, ciudad y ubicacion.</small>
+            </div>
+            <Button
+              disabled={!hasMarketplaceMinimumData || isPublishingMarketplace}
+              onClick={publishMarketplace}
+            >
+              {isPublishingMarketplace ? 'Publicando...' : 'Publicar estudio en Marketplace'}
+            </Button>
+            {!hasMarketplaceMinimumData && (
+              <small style={{ color: 'var(--muted)', fontWeight: 800 }}>
+                Requiere estudio aprobado, nombre comercial, ciudad y direccion o coordenadas.
+              </small>
+            )}
+            {marketplaceFeedback.message && (
+              <small style={{ color: marketplaceFeedback.tone === 'success' ? 'var(--success)' : 'var(--rose-dark)', fontWeight: 800 }}>
+                {marketplaceFeedback.message}
+              </small>
+            )}
           </section>
 
           <Button className="full-width" onClick={saveStudioProfile}>Guardar estudio</Button>

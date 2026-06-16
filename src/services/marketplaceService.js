@@ -85,13 +85,16 @@ function getAvailabilityBadge(availability) {
 function normalizeListing(listing = {}) {
   const services = asArray(listing.services).map(normalizeService)
   const availability = normalizeAvailabilitySummary(listing)
+  const profileType = listing.profileType || listing.profile_type || 'artist'
   const artistId = listing.artistId || listing.artist_id || null
   const studioId = listing.studioId || listing.studio_id || null
   const membershipId = listing.membershipId || listing.membership_id || null
   const listingId = listing.listingId || listing.listing_id || listing.id
-  const title = listing.title || listing.artistName || listing.artist_name || listing.name || 'Perfil publicado'
-  const artistName = listing.artistName || listing.artist_name || title
   const studioName = listing.studioName || listing.studio_name || ''
+  const title = listing.title || listing.artistName || listing.artist_name || studioName || listing.name || 'Perfil publicado'
+  const artistName = profileType === 'studio'
+    ? title
+    : listing.artistName || listing.artist_name || title
   const city = listing.city || ''
   const profile = listing.profile || {}
   const studio = listing.studio || null
@@ -103,15 +106,15 @@ function normalizeListing(listing = {}) {
 
   return {
     ...listing,
-    id: artistId || listingId,
+    id: artistId || studioId || listingId,
     listingId,
     profileId: listing.profileId || listing.profile_id || null,
-    profileType: listing.profileType || listing.profile_type || 'artist',
+    profileType,
     artistId,
     studioId,
     membershipId,
     name: artistName,
-    owner: artistName,
+    owner: profileType === 'studio' ? studioName || artistName : artistName,
     title,
     summary: listing.summary || '',
     city,

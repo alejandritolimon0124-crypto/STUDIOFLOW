@@ -18,7 +18,15 @@ const portfolioLimit = 12
 
 function ArtistProfileSettings() {
   const navigate = useNavigate()
-  const { artistProfileError, artistState, isArtistProfileSaving, saveArtistProfile, session, setSession } = useApp()
+  const {
+    artistProfileError,
+    artistState,
+    isArtistProfileSaving,
+    refreshAuthContext,
+    saveArtistProfile,
+    session,
+    setSession,
+  } = useApp()
   const currentStudio = null
   const artistProfileBelongsToSession = Boolean(
     session.artist?.id
@@ -287,6 +295,11 @@ function ArtistProfileSettings() {
     } finally {
       setIsClaimingInvitation(false)
     }
+  }
+
+  const openOwnerPanel = async () => {
+    await refreshAuthContext?.()
+    navigate(paths.adminStudio)
   }
 
   return (
@@ -586,7 +599,7 @@ function ArtistProfileSettings() {
           <StudioBootstrapPanel
             mode="artist"
             surface="section"
-            onOpenOwnerPanel={() => navigate(paths.admin)}
+            onOpenOwnerPanel={openOwnerPanel}
           />
 
           <section className="profile-foundation-card">
