@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import Button from '../../components/Button'
 import Card from '../../components/Card'
 import Input from '../../components/Input'
@@ -14,6 +14,7 @@ import { publishStudioMarketplace } from '../../services/studioService'
 import {
   cancelStudioArtistInvitation,
   fetchStudioMemberships,
+  findStudioArtistByEmail,
   inviteStudioArtist,
 } from '../../services/studioMembershipService'
 
@@ -31,9 +32,11 @@ function AdminStudioProfile() {
     lastInvitation: null,
   })
   const [isMembershipsLoading, setIsMembershipsLoading] = useState(false)
+  const [isArtistSearchLoading, setIsArtistSearchLoading] = useState(false)
   const [membershipFeedback, setMembershipFeedback] = useState({ tone: 'neutral', message: '' })
   const [inviteEmail, setInviteEmail] = useState('')
-  const [inviteArtistId, setInviteArtistId] = useState('')
+  const [searchedArtist, setSearchedArtist] = useState(null)
+  const [artistSearchStatus, setArtistSearchStatus] = useState({ tone: 'neutral', message: '' })
   const localProfiles = session.user ? [{ ...session.user, id: session.user.id }] : []
   const currentProfile = getCurrentProfile({ session, profiles: localProfiles })
   const studioOwnerAssignment = (session.roles || []).find((assignment) => assignment.role === 'studio_owner')
@@ -57,7 +60,31 @@ function AdminStudioProfile() {
   const locationHasCoordinates = hasCoordinates(locationDraft)
   const galleryCount = (profileDraft.gallery || []).length
   const hasGalleryCapacity = galleryCount < galleryLimit
-  const selectedInviteArtist = membershipState.artistCandidates.find((artist) => artist.id === inviteArtistId)
+
+  const loadStudioMemberships = useCallback(async ({ silent = false, successMessage = '' } = {}) => {
+    if (!currentStudio?.id) return null
+
+    if (!silent) {
+      setIsMembershipsLoading(true)
+      setMembershipFeedback({ tone: 'neutral', message: '' })
+    }
+
+    try {
+      const payload = await fetchStudioMemberships(currentStudio.id)
+      setMembershipState(payload)
+      if (successMessage) {
+        setMembershipFeedback({ tone: 'success', message: successMessage })
+      }
+      return payload
+    } catch (error) {
+      if (!silent) {
+        setMembershipFeedback({ tone: 'warm', message: error.message || 'No se pudieron cargar artistas del estudio.' })
+      }
+      return null
+    } finally {
+      if (!silent) setIsMembershipsLoading(false)
+    }
+  }, [currentStudio?.id])
 
   useEffect(() => {
     queueMicrotask(() => {
@@ -71,27 +98,21 @@ function AdminStudioProfile() {
   useEffect(() => {
     if (!currentStudio?.id) return
 
-    let isMounted = true
-    setIsMembershipsLoading(true)
-    setMembershipFeedback({ tone: 'neutral', message: '' })
+    loadStudioMemberships()
+  }, [currentStudio?.id, loadStudioMemberships])
 
-    fetchStudioMemberships(currentStudio.id)
-      .then((payload) => {
-        if (!isMounted) return
-        setMembershipState(payload)
-      })
-      .catch((error) => {
-        if (!isMounted) return
-        setMembershipFeedback({ tone: 'warm', message: error.message || 'No se pudieron cargar artistas del estudio.' })
-      })
-      .finally(() => {
-        if (isMounted) setIsMembershipsLoading(false)
-      })
+  useEffect(() => {
+    if (!currentStudio?.id) return undefined
+
+    const intervalId = window.setInterval(() => {
+      if (document.visibilityState && document.visibilityState !== 'visible') return
+      loadStudioMemberships({ silent: true })
+    }, 30000)
 
     return () => {
-      isMounted = false
+      window.clearInterval(intervalId)
     }
-  }, [currentStudio?.id])
+  }, [currentStudio?.id, loadStudioMemberships])
 
   const updateProfileField = (field, value) => {
     setProfileDraft((currentDraft) => ({
@@ -258,13 +279,61 @@ function AdminStudioProfile() {
     }
   }
 
+  const resetArtistSearch = () => {
+    setSearchedArtist(null)
+    setArtistSearchStatus({ tone: 'neutral', message: '' })
+  }
+
+  const searchArtistByEmail = async () => {
+    const email = inviteEmail.trim().toLowerCase()
+
+    if (!email) {
+      setArtistSearchStatus({ tone: 'warm', message: 'Agrega el correo de la artista.' })
+      setSearchedArtist(null)
+      return
+    }
+
+    setIsArtistSearchLoading(true)
+    setArtistSearchStatus({ tone: 'neutral', message: '' })
+    setSearchedArtist(null)
+
+    try {
+      const artist = await findStudioArtistByEmail({
+        studioId: currentStudio.id,
+        email,
+      })
+
+      if (!artist) {
+        setArtistSearchStatus({ tone: 'warm', message: 'No se encontro una artista registrada con ese correo.' })
+        return
+      }
+
+      setSearchedArtist(artist)
+      setArtistSearchStatus({ tone: 'success', message: 'Artista encontrada.' })
+    } catch (error) {
+      setArtistSearchStatus({ tone: 'warm', message: error.message || 'No se pudo buscar la artista.' })
+    } finally {
+      setIsArtistSearchLoading(false)
+    }
+  }
+
   const inviteArtist = async () => {
     if (isMembershipsLoading) return
 
-    const email = selectedInviteArtist?.email || inviteEmail
+    const email = searchedArtist?.email || inviteEmail
 
     if (!String(email || '').trim()) {
-      setMembershipFeedback({ tone: 'warm', message: 'Agrega un correo o selecciona una artista registrada.' })
+      setMembershipFeedback({ tone: 'warm', message: 'Busca una artista registrada por correo antes de invitar.' })
+      return
+    }
+
+    if (!searchedArtist?.id) {
+      setMembershipFeedback({ tone: 'warm', message: 'Busca una artista registrada por correo antes de invitar.' })
+      return
+    }
+
+    if (searchedArtist.alreadyMember) {
+      setMembershipFeedback({ tone: 'warm', message: 'Esta artista ya pertenece al estudio.' })
       return
     }
 
@@ -275,11 +344,12 @@ function AdminStudioProfile() {
       const payload = await inviteStudioArtist({
         studioId: currentStudio.id,
         email,
-        artistId: inviteArtistId || null,
+        artistId: searchedArtist.id,
       })
       setMembershipState(payload)
+      await loadStudioMemberships({ silent: true })
       setInviteEmail('')
-      setInviteArtistId('')
+      resetArtistSearch()
       setMembershipFeedback({
         tone: 'success',
         message: payload.lastInvitation?.token
@@ -302,6 +372,7 @@ function AdminStudioProfile() {
     try {
       const payload = await cancelStudioArtistInvitation(invitationId)
       setMembershipState(payload)
+      await loadStudioMemberships({ silent: true })
       setMembershipFeedback({ tone: 'success', message: 'Invitacion cancelada.' })
     } catch (error) {
       setMembershipFeedback({ tone: 'warm', message: error.message || 'No se pudo cancelar la invitacion.' })
@@ -548,6 +619,12 @@ function AdminStudioProfile() {
               <h3>Artistas del estudio</h3>
               <small>Invita artistas reales y consulta memberships activas del estudio.</small>
             </div>
+            <Button
+              disabled={isMembershipsLoading}
+              onClick={() => loadStudioMemberships({ successMessage: 'Artistas del estudio actualizadas.' })}
+            >
+              {isMembershipsLoading ? 'Actualizando...' : 'Actualizar'}
+            </Button>
           </section>
 
           <section className="profile-foundation-card">
@@ -555,34 +632,43 @@ function AdminStudioProfile() {
                   <span className="eyebrow">Invitar artista</span>
                   <h3>Nueva invitacion</h3>
                 </div>
-                <label className="input-field">
-                  <span>Artista registrada</span>
-                  <select
-                    value={inviteArtistId}
-                    onChange={(event) => {
-                      setInviteArtistId(event.target.value)
-                      const nextArtist = membershipState.artistCandidates.find((artist) => artist.id === event.target.value)
-                      setInviteEmail(nextArtist?.email || '')
-                    }}
-                  >
-                    <option value="">Seleccionar artista registrada</option>
-                    {membershipState.artistCandidates.map((artist) => (
-                      <option key={artist.id} value={artist.id}>
-                        {artist.name} / {artist.email}
-                      </option>
-                    ))}
-                  </select>
-                </label>
                 <Input
-                  label="Correo electronico"
+                  label="Correo electronico de la artista"
                   type="email"
                   value={inviteEmail}
                   onChange={(event) => {
                     setInviteEmail(event.target.value)
-                    if (inviteArtistId) setInviteArtistId('')
+                    resetArtistSearch()
                   }}
                 />
-                <Button disabled={isMembershipsLoading} onClick={inviteArtist}>
+                <Button disabled={isArtistSearchLoading || isMembershipsLoading} onClick={searchArtistByEmail}>
+                  {isArtistSearchLoading ? 'Buscando...' : 'Buscar artista'}
+                </Button>
+                {artistSearchStatus.message && (
+                  <small style={{ color: artistSearchStatus.tone === 'success' ? 'var(--success)' : 'var(--rose-dark)', fontWeight: 800 }}>
+                    {artistSearchStatus.message}
+                  </small>
+                )}
+                {searchedArtist && (
+                  <div className="list-row elevated-row">
+                    <div className="client-photo-preview" style={{ height: 44, width: 44 }}>
+                      {searchedArtist.photoUrl ? (
+                        <img src={searchedArtist.photoUrl} alt={`Foto de ${searchedArtist.name}`} />
+                      ) : (
+                        <span>{String(searchedArtist.name || 'AR').slice(0, 2).toUpperCase()}</span>
+                      )}
+                    </div>
+                    <div>
+                      <strong>{searchedArtist.name}</strong>
+                      <small>{searchedArtist.email}</small>
+                      <small>Estado: {searchedArtist.status}</small>
+                    </div>
+                    <StatusPill tone={searchedArtist.alreadyMember ? 'success' : 'neutral'}>
+                      {searchedArtist.alreadyMember ? 'Ya vinculada' : 'Disponible'}
+                    </StatusPill>
+                  </div>
+                )}
+                <Button disabled={isMembershipsLoading || !searchedArtist || searchedArtist.alreadyMember} onClick={inviteArtist}>
                   {isMembershipsLoading ? 'Procesando...' : 'Invitar artista'}
                 </Button>
                 {membershipFeedback.message && (

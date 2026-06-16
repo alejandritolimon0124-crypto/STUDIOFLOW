@@ -39,10 +39,14 @@ function normalizeArtistCandidate(artist = {}) {
   return {
     id: artist.id || artist.artistId || artist.artist_id,
     artistId: artist.artistId || artist.artist_id || artist.id,
+    profileId: artist.profileId || artist.profile_id || null,
     name: artist.name || 'Artista',
     email: artist.email || '',
     photoUrl: artist.photoUrl || artist.photo_url || '',
     city: artist.city || '',
+    status: artist.status || 'active',
+    membershipStatus: artist.membershipStatus || artist.membership_status || '',
+    alreadyMember: Boolean(artist.alreadyMember || artist.already_member),
   }
 }
 
@@ -67,6 +71,18 @@ export async function fetchStudioMemberships(studioId = null) {
   if (error) throw error
 
   return normalizePayload(data)
+}
+
+export async function findStudioArtistByEmail({ studioId = null, email = '' } = {}) {
+  const client = requireSupabase()
+  const { data, error } = await client.rpc('studio_flow_owner_find_artist_by_email', {
+    p_studio_id: studioId,
+    p_email: email || null,
+  })
+
+  if (error) throw error
+
+  return data?.artist ? normalizeArtistCandidate(data.artist) : null
 }
 
 export async function inviteStudioArtist({ studioId = null, email = '', artistId = null } = {}) {
