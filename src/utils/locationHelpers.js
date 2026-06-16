@@ -47,6 +47,13 @@ export function validateProfessionalLocation(location = {}) {
   return errors
 }
 
+export function hasCoordinates(location = {}) {
+  return Boolean(
+    String(location.latitude || '').trim()
+    && String(location.longitude || '').trim(),
+  )
+}
+
 export function buildGoogleMapsQuery(location = {}) {
   return [
     location.address,

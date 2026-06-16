@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { STUDIO_STATUS } from '../modules/governance/studioGovernance'
 import { useApp } from '../contexts/appContextCore'
 import { getCurrentBrowserCoordinates } from '../utils/browserGeolocation'
+import { buildGoogleMapsUrl, hasCoordinates } from '../utils/locationHelpers'
 import { bootstrapStudio, fetchOwnStudios } from '../services/studioService'
 import Button from './Button'
 import Card from './Card'
@@ -60,11 +61,14 @@ function StudioBootstrapPanel({
   const [isCreatingStudio, setIsCreatingStudio] = useState(false)
   const [isOpeningOwnerPanel, setIsOpeningOwnerPanel] = useState(false)
   const [locationDetection, setLocationDetection] = useState({ status: 'idle', message: '' })
+  const [isStudioLocationConfirmed, setIsStudioLocationConfirmed] = useState(false)
   const { refreshAuthContext } = useApp()
 
   const isArtistMode = mode === 'artist'
   const operationalStudio = ownStudios.find((studio) => ['pending', 'approved'].includes(studio.studioStatus))
   const shouldShowCreateStudio = !operationalStudio
+  const studioFormHasCoordinates = hasCoordinates(studioForm)
+  const studioMapsUrl = buildGoogleMapsUrl(studioForm)
 
   const refreshOwnStudios = async () => {
     setIsOwnStudiosLoading(true)
@@ -112,6 +116,9 @@ function StudioBootstrapPanel({
       ...currentForm,
       [field]: value,
     }))
+    if (['addressLine', 'city', 'latitude', 'longitude'].includes(field)) {
+      setIsStudioLocationConfirmed(false)
+    }
     setStudioFormError('')
     setStudioFormSuccess('')
   }
@@ -128,8 +135,9 @@ function StudioBootstrapPanel({
       }))
       setLocationDetection({
         status: 'success',
-        message: `Ubicacion detectada: ${coordinates.latitude}, ${coordinates.longitude}`,
+        message: `Ubicacion detectada: ${coordinates.latitude}, ${coordinates.longitude}. Esta ubicacion es aproximada. Verifica que corresponda a tu direccion antes de guardar.`,
       })
+      setIsStudioLocationConfirmed(false)
     } catch (error) {
       setLocationDetection({
         status: 'error',
@@ -145,6 +153,11 @@ function StudioBootstrapPanel({
 
     if (!studioForm.studioName.trim() || !studioForm.commercialName.trim() || !studioForm.city.trim()) {
       setStudioFormError('Completa nombre del estudio, nombre comercial y ciudad.')
+      return
+    }
+
+    if (studioFormHasCoordinates && !isStudioLocationConfirmed) {
+      setStudioFormError('Confirma que esta ubicacion corresponde a tu estudio.')
       return
     }
 
@@ -164,6 +177,7 @@ function StudioBootstrapPanel({
       await refreshAuthContext?.()
       setShowCreateStudioForm(false)
       setStudioForm(initialStudioForm)
+      setIsStudioLocationConfirmed(false)
       setLocationDetection({ status: 'idle', message: '' })
       setStudioFormSuccess('Tu estudio fue creado y se encuentra en revision.')
     } catch (error) {
@@ -237,12 +251,14 @@ function StudioBootstrapPanel({
       </label>
       <div className="location-form-grid">
         <Input
-          label="Latitude"
+          helper="Puedes ajustar manualmente las coordenadas si el punto no es exacto."
+          label="Latitud"
           value={studioForm.latitude}
           onChange={(event) => updateStudioForm('latitude', event.target.value)}
         />
         <Input
-          label="Longitude"
+          helper="Puedes ajustar manualmente las coordenadas si el punto no es exacto."
+          label="Longitud"
           value={studioForm.longitude}
           onChange={(event) => updateStudioForm('longitude', event.target.value)}
         />
@@ -263,6 +279,26 @@ function StudioBootstrapPanel({
           </small>
         )}
       </div>
+      {studioFormHasCoordinates && (
+        <div className="location-detection-row">
+          <Button
+            size="sm"
+            type="button"
+            variant="ghost"
+            onClick={() => window.open(studioMapsUrl, '_blank', 'noopener,noreferrer')}
+          >
+            Ver ubicacion en Google Maps
+          </Button>
+          <label className="location-toggle-row">
+            <input
+              checked={isStudioLocationConfirmed}
+              type="checkbox"
+              onChange={(event) => setIsStudioLocationConfirmed(event.target.checked)}
+            />
+            <span>Confirmo que esta ubicacion corresponde a mi estudio.</span>
+          </label>
+        </div>
+      )}
       {studioFormError && <small style={{ color: 'var(--rose-dark)', fontWeight: 800 }}>{studioFormError}</small>}
       <div className="studio-review-actions">
         <Button disabled={isCreatingStudio} type="submit">

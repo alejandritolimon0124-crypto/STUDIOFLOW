@@ -3,13 +3,19 @@ import Button from '../../components/Button'
 import Card from '../../components/Card'
 import Input from '../../components/Input'
 import PanelHeader from '../../components/PanelHeader'
+import StatusPill from '../../components/StatusPill'
 import { useApp } from '../../contexts/appContextCore'
 import { getCurrentBrowserCoordinates } from '../../utils/browserGeolocation'
-import { buildGoogleMapsUrl, createProfessionalLocation, validateProfessionalLocation } from '../../utils/locationHelpers'
+import { buildGoogleMapsUrl, createProfessionalLocation, hasCoordinates, validateProfessionalLocation } from '../../utils/locationHelpers'
 import { getCurrentProfile, getCurrentStudio } from '../../modules/entities/entitySelectors'
 import { paths } from '../../routes/paths'
 import { useNavigate } from 'react-router-dom'
 import { publishStudioMarketplace } from '../../services/studioService'
+import {
+  cancelStudioArtistInvitation,
+  fetchStudioMemberships,
+  inviteStudioArtist,
+} from '../../services/studioMembershipService'
 
 const galleryLimit = 5
 
@@ -18,6 +24,16 @@ function AdminStudioProfile() {
   const { adminState, loadAdminArtists, session, updateManagedStudioProfile } = useApp()
   const [isPublishingMarketplace, setIsPublishingMarketplace] = useState(false)
   const [marketplaceFeedback, setMarketplaceFeedback] = useState({ tone: 'neutral', message: '' })
+  const [membershipState, setMembershipState] = useState({
+    memberships: [],
+    invitations: [],
+    artistCandidates: [],
+    lastInvitation: null,
+  })
+  const [isMembershipsLoading, setIsMembershipsLoading] = useState(false)
+  const [membershipFeedback, setMembershipFeedback] = useState({ tone: 'neutral', message: '' })
+  const [inviteEmail, setInviteEmail] = useState('')
+  const [inviteArtistId, setInviteArtistId] = useState('')
   const localProfiles = session.user ? [{ ...session.user, id: session.user.id }] : []
   const currentProfile = getCurrentProfile({ session, profiles: localProfiles })
   const studioOwnerAssignment = (session.roles || []).find((assignment) => assignment.role === 'studio_owner')
@@ -36,17 +52,46 @@ function AdminStudioProfile() {
   const [locationDraft, setLocationDraft] = useState(createProfessionalLocation(currentStudio?.professionalLocation || {}))
   const [locationErrors, setLocationErrors] = useState({})
   const [locationDetection, setLocationDetection] = useState({ status: 'idle', message: '' })
+  const [isStudioLocationConfirmed, setIsStudioLocationConfirmed] = useState(false)
   const mapsUrl = buildGoogleMapsUrl(locationDraft)
+  const locationHasCoordinates = hasCoordinates(locationDraft)
   const galleryCount = (profileDraft.gallery || []).length
   const hasGalleryCapacity = galleryCount < galleryLimit
+  const selectedInviteArtist = membershipState.artistCandidates.find((artist) => artist.id === inviteArtistId)
 
   useEffect(() => {
     queueMicrotask(() => {
       setProfileDraft(currentStudio?.profile || {})
       setLocationDraft(createProfessionalLocation(currentStudio?.professionalLocation || {}))
+      setIsStudioLocationConfirmed(false)
       setMarketplaceFeedback({ tone: 'neutral', message: '' })
     })
   }, [currentStudio?.id, currentStudio?.professionalLocation, currentStudio?.profile])
+
+  useEffect(() => {
+    if (!currentStudio?.id) return
+
+    let isMounted = true
+    setIsMembershipsLoading(true)
+    setMembershipFeedback({ tone: 'neutral', message: '' })
+
+    fetchStudioMemberships(currentStudio.id)
+      .then((payload) => {
+        if (!isMounted) return
+        setMembershipState(payload)
+      })
+      .catch((error) => {
+        if (!isMounted) return
+        setMembershipFeedback({ tone: 'warm', message: error.message || 'No se pudieron cargar artistas del estudio.' })
+      })
+      .finally(() => {
+        if (isMounted) setIsMembershipsLoading(false)
+      })
+
+    return () => {
+      isMounted = false
+    }
+  }, [currentStudio?.id])
 
   const updateProfileField = (field, value) => {
     setProfileDraft((currentDraft) => ({
@@ -60,6 +105,9 @@ function AdminStudioProfile() {
       ...currentDraft,
       [field]: value,
     }))
+    if (['address', 'city', 'state', 'postalCode', 'latitude', 'longitude'].includes(field)) {
+      setIsStudioLocationConfirmed(false)
+    }
     setLocationErrors((currentErrors) => ({ ...currentErrors, [field]: '' }))
   }
 
@@ -81,8 +129,9 @@ function AdminStudioProfile() {
       }))
       setLocationDetection({
         status: 'success',
-        message: `Ubicacion detectada: ${coordinates.latitude}, ${coordinates.longitude}`,
+        message: `Ubicacion detectada: ${coordinates.latitude}, ${coordinates.longitude}. Esta ubicacion es aproximada. Verifica que corresponda a tu direccion antes de guardar.`,
       })
+      setIsStudioLocationConfirmed(false)
     } catch (error) {
       setLocationDetection({
         status: 'error',
@@ -158,6 +207,12 @@ function AdminStudioProfile() {
 
     if (hasLocationErrors) {
       setLocationErrors(nextErrors)
+      return
+    }
+
+    if (locationHasCoordinates && !isStudioLocationConfirmed) {
+      setLocationErrors({ latitude: 'Confirma que esta ubicacion corresponde a tu estudio.' })
+      return
     } else {
       setLocationErrors({})
     }
@@ -200,6 +255,58 @@ function AdminStudioProfile() {
       setMarketplaceFeedback({ tone: 'warm', message: error.message || 'No se pudo publicar el estudio.' })
     } finally {
       setIsPublishingMarketplace(false)
+    }
+  }
+
+  const inviteArtist = async () => {
+    if (isMembershipsLoading) return
+
+    const email = selectedInviteArtist?.email || inviteEmail
+
+    if (!String(email || '').trim()) {
+      setMembershipFeedback({ tone: 'warm', message: 'Agrega un correo o selecciona una artista registrada.' })
+      return
+    }
+
+    setIsMembershipsLoading(true)
+    setMembershipFeedback({ tone: 'neutral', message: '' })
+
+    try {
+      const payload = await inviteStudioArtist({
+        studioId: currentStudio.id,
+        email,
+        artistId: inviteArtistId || null,
+      })
+      setMembershipState(payload)
+      setInviteEmail('')
+      setInviteArtistId('')
+      setMembershipFeedback({
+        tone: 'success',
+        message: payload.lastInvitation?.token
+          ? `Invitacion creada. Token: ${payload.lastInvitation.token}`
+          : 'Invitacion creada.',
+      })
+    } catch (error) {
+      setMembershipFeedback({ tone: 'warm', message: error.message || 'No se pudo invitar a la artista.' })
+    } finally {
+      setIsMembershipsLoading(false)
+    }
+  }
+
+  const cancelInvitation = async (invitationId) => {
+    if (!invitationId || isMembershipsLoading) return
+
+    setIsMembershipsLoading(true)
+    setMembershipFeedback({ tone: 'neutral', message: '' })
+
+    try {
+      const payload = await cancelStudioArtistInvitation(invitationId)
+      setMembershipState(payload)
+      setMembershipFeedback({ tone: 'success', message: 'Invitacion cancelada.' })
+    } catch (error) {
+      setMembershipFeedback({ tone: 'warm', message: error.message || 'No se pudo cancelar la invitacion.' })
+    } finally {
+      setIsMembershipsLoading(false)
     }
   }
 
@@ -338,13 +445,15 @@ function AdminStudioProfile() {
                 onChange={(event) => updateLocationField('postalCode', event.target.value)}
               />
               <Input
-                label="Latitude"
+                helper={locationErrors.latitude || 'Puedes ajustar manualmente las coordenadas si el punto no es exacto.'}
+                label="Latitud"
                 value={locationDraft.latitude}
                 onChange={(event) => updateLocationField('latitude', event.target.value)}
               />
             </div>
             <Input
-              label="Longitude"
+              helper="Puedes ajustar manualmente las coordenadas si el punto no es exacto."
+              label="Longitud"
               value={locationDraft.longitude}
               onChange={(event) => updateLocationField('longitude', event.target.value)}
             />
@@ -363,6 +472,25 @@ function AdminStudioProfile() {
                 </small>
               )}
             </div>
+            {locationHasCoordinates && (
+              <div className="location-detection-row">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => window.open(mapsUrl, '_blank', 'noopener,noreferrer')}
+                >
+                  Ver ubicacion en Google Maps
+                </Button>
+                <label className="location-toggle-row">
+                  <input
+                    checked={isStudioLocationConfirmed}
+                    type="checkbox"
+                    onChange={(event) => setIsStudioLocationConfirmed(event.target.checked)}
+                  />
+                  <span>Confirmo que esta ubicacion corresponde a mi estudio.</span>
+                </label>
+              </div>
+            )}
             <label className="input-field">
               <span>Referencias</span>
               <textarea
@@ -372,7 +500,7 @@ function AdminStudioProfile() {
               />
             </label>
             <small className="location-helper-text">
-              Google Maps futuro: {mapsUrl || 'Completa direccion, ciudad y estado para generar la URL base.'}
+              Google Maps: {mapsUrl || 'Completa direccion, ciudad y estado para generar la URL base.'}
             </small>
           </section>
 
@@ -412,6 +540,132 @@ function AdminStudioProfile() {
               type="file"
               onChange={handleGalleryChange}
             />
+          </section>
+
+          <section className="profile-foundation-card">
+            <div>
+              <span className="eyebrow">Equipo</span>
+              <h3>Artistas del estudio</h3>
+              <small>Invita artistas reales y consulta memberships activas del estudio.</small>
+            </div>
+          </section>
+
+          <section className="profile-foundation-card">
+                <div>
+                  <span className="eyebrow">Invitar artista</span>
+                  <h3>Nueva invitacion</h3>
+                </div>
+                <label className="input-field">
+                  <span>Artista registrada</span>
+                  <select
+                    value={inviteArtistId}
+                    onChange={(event) => {
+                      setInviteArtistId(event.target.value)
+                      const nextArtist = membershipState.artistCandidates.find((artist) => artist.id === event.target.value)
+                      setInviteEmail(nextArtist?.email || '')
+                    }}
+                  >
+                    <option value="">Seleccionar artista registrada</option>
+                    {membershipState.artistCandidates.map((artist) => (
+                      <option key={artist.id} value={artist.id}>
+                        {artist.name} / {artist.email}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <Input
+                  label="Correo electronico"
+                  type="email"
+                  value={inviteEmail}
+                  onChange={(event) => {
+                    setInviteEmail(event.target.value)
+                    if (inviteArtistId) setInviteArtistId('')
+                  }}
+                />
+                <Button disabled={isMembershipsLoading} onClick={inviteArtist}>
+                  {isMembershipsLoading ? 'Procesando...' : 'Invitar artista'}
+                </Button>
+                {membershipFeedback.message && (
+                  <small style={{ color: membershipFeedback.tone === 'success' ? 'var(--success)' : 'var(--rose-dark)', fontWeight: 800 }}>
+                    {membershipFeedback.message}
+                  </small>
+                )}
+          </section>
+
+          <section className="profile-foundation-card">
+                <div>
+                  <span className="eyebrow">Memberships</span>
+                  <h3>Artistas vinculadas</h3>
+                </div>
+                <div className="compact-list">
+                  {membershipState.memberships.map((membership) => (
+                    <div className="list-row elevated-row" key={membership.id}>
+                      <div className="client-photo-preview" style={{ height: 44, width: 44 }}>
+                        {membership.photoUrl ? (
+                          <img src={membership.photoUrl} alt={`Foto de ${membership.name}`} />
+                        ) : (
+                          <span>{String(membership.name || 'AR').slice(0, 2).toUpperCase()}</span>
+                        )}
+                      </div>
+                      <div>
+                        <strong>{membership.name}</strong>
+                        <small>{membership.email || 'Correo no disponible'}</small>
+                        <small>Incorporacion: {membership.startedAt || membership.createdAt || 'Pendiente'}</small>
+                      </div>
+                      <StatusPill tone={membership.active ? 'success' : 'neutral'}>
+                        {membership.active ? 'Membership activa' : membership.status}
+                      </StatusPill>
+                    </div>
+                  ))}
+                  {!isMembershipsLoading && membershipState.memberships.length === 0 && (
+                    <div className="list-row elevated-row">
+                      <div>
+                        <strong>Sin artistas vinculadas</strong>
+                        <small>Las artistas apareceran aqui cuando acepten su token.</small>
+                      </div>
+                      <StatusPill tone="neutral">Vacio</StatusPill>
+                    </div>
+                  )}
+                </div>
+          </section>
+
+          <section className="profile-foundation-card">
+                <div>
+                  <span className="eyebrow">Pendientes</span>
+                  <h3>Invitaciones pendientes</h3>
+                </div>
+                <div className="compact-list">
+                  {membershipState.invitations.map((invitation) => (
+                    <div className="list-row elevated-row" key={invitation.id}>
+                      <div>
+                        <strong>{invitation.artistName || invitation.invitedEmail}</strong>
+                        <small>{invitation.invitedEmail}</small>
+                        <small>Token: {invitation.token}</small>
+                        <small>Expira: {invitation.expiresAt || '14 dias'}</small>
+                      </div>
+                      <div className="studio-review-actions">
+                        <StatusPill tone="pending">Pendiente</StatusPill>
+                        <Button
+                          disabled={isMembershipsLoading}
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => cancelInvitation(invitation.id)}
+                        >
+                          Cancelar
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                  {!isMembershipsLoading && membershipState.invitations.length === 0 && (
+                    <div className="list-row elevated-row">
+                      <div>
+                        <strong>Sin invitaciones pendientes</strong>
+                        <small>Genera una invitacion para compartir el token con la artista.</small>
+                      </div>
+                      <StatusPill tone="neutral">Pendientes</StatusPill>
+                    </div>
+                  )}
+                </div>
           </section>
 
           <section className="profile-foundation-card">

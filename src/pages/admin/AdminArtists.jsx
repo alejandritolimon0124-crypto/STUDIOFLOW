@@ -15,7 +15,7 @@ import {
   getStudioForArtist,
   getStudiosForArtist,
 } from '../../modules/entities/entitySelectors'
-import { buildGoogleMapsUrl, createArtistLocationSettings, createProfessionalLocation, validateProfessionalLocation } from '../../utils/locationHelpers'
+import { buildGoogleMapsUrl, createArtistLocationSettings, createProfessionalLocation, hasCoordinates, validateProfessionalLocation } from '../../utils/locationHelpers'
 
 const uniqueById = (items = []) => Array.from(new Map(items.filter(Boolean).map((item) => [item.id, item])).values())
 
@@ -37,9 +37,11 @@ function AdminArtists() {
   const [studioLocationDraft, setStudioLocationDraft] = useState(createProfessionalLocation())
   const [studioLocationErrors, setStudioLocationErrors] = useState({})
   const [studioLocationDetection, setStudioLocationDetection] = useState({ status: 'idle', message: '' })
+  const [isStudioLocationConfirmed, setIsStudioLocationConfirmed] = useState(false)
   const [artistLocationDraft, setArtistLocationDraft] = useState(createArtistLocationSettings())
   const [artistLocationErrors, setArtistLocationErrors] = useState({})
   const [artistLocationDetection, setArtistLocationDetection] = useState({ status: 'idle', message: '' })
+  const [isArtistLocationConfirmed, setIsArtistLocationConfirmed] = useState(false)
   const normalizedRole = session.user?.role === 'admin' ? ROLES.PLATFORM_OWNER : session.user?.role
   const isPlatformOwner = normalizedRole === ROLES.PLATFORM_OWNER
   const artistStudioMemberships = useMemo(
@@ -91,19 +93,23 @@ function AdminArtists() {
     artistStudioMemberships,
   })
   const studioMapsUrl = buildGoogleMapsUrl(studioLocationDraft)
+  const studioLocationHasCoordinates = hasCoordinates(studioLocationDraft)
   const effectiveArtistLocation = artistLocationDraft.useStudioLocation
     ? studioLocationDraft
     : artistLocationDraft.customLocation
   const artistMapsUrl = buildGoogleMapsUrl(effectiveArtistLocation)
+  const artistCustomLocationHasCoordinates = hasCoordinates(artistLocationDraft.customLocation)
 
   useEffect(() => {
     if (!editingArtist) {
       setStudioLocationDraft(createProfessionalLocation())
       setStudioLocationErrors({})
       setStudioLocationDetection({ status: 'idle', message: '' })
+      setIsStudioLocationConfirmed(false)
       setArtistLocationDraft(createArtistLocationSettings())
       setArtistLocationErrors({})
       setArtistLocationDetection({ status: 'idle', message: '' })
+      setIsArtistLocationConfirmed(false)
       return
     }
 
@@ -122,6 +128,8 @@ function AdminArtists() {
     setArtistLocationErrors({})
     setStudioLocationDetection({ status: 'idle', message: '' })
     setArtistLocationDetection({ status: 'idle', message: '' })
+    setIsStudioLocationConfirmed(false)
+    setIsArtistLocationConfirmed(false)
   }, [adminState.studios, artistStudioMemberships, editingArtist?.id])
 
   const openDashboard = (artist) => {
@@ -148,11 +156,21 @@ function AdminArtists() {
       return
     }
 
+    if (studioLocationHasCoordinates && !isStudioLocationConfirmed) {
+      setStudioLocationErrors({ latitude: 'Confirma que esta ubicacion corresponde a tu estudio.' })
+      return
+    }
+
     if (!artistLocationDraft.useStudioLocation) {
       const nextArtistLocationErrors = validateProfessionalLocation(artistLocationDraft.customLocation)
 
       if (Object.keys(nextArtistLocationErrors).length > 0) {
         setArtistLocationErrors(nextArtistLocationErrors)
+        return
+      }
+
+      if (artistCustomLocationHasCoordinates && !isArtistLocationConfirmed) {
+        setArtistLocationErrors({ latitude: 'Confirma que esta ubicacion corresponde a tu estudio.' })
         return
       }
     }
@@ -177,6 +195,9 @@ function AdminArtists() {
       ...currentDraft,
       [field]: value,
     }))
+    if (['address', 'city', 'state', 'postalCode', 'latitude', 'longitude'].includes(field)) {
+      setIsStudioLocationConfirmed(false)
+    }
     setStudioLocationErrors((currentErrors) => ({
       ...currentErrors,
       [field]: '',
@@ -203,6 +224,9 @@ function AdminArtists() {
       ...currentErrors,
       [field]: '',
     }))
+    if (['address', 'city', 'state', 'postalCode', 'latitude', 'longitude'].includes(field)) {
+      setIsArtistLocationConfirmed(false)
+    }
   }
 
   const useCurrentStudioLocation = async () => {
@@ -223,8 +247,9 @@ function AdminArtists() {
       }))
       setStudioLocationDetection({
         status: 'success',
-        message: `Ubicacion detectada: ${coordinates.latitude}, ${coordinates.longitude}`,
+        message: `Ubicacion detectada: ${coordinates.latitude}, ${coordinates.longitude}. Esta ubicacion es aproximada. Verifica que corresponda a tu direccion antes de guardar.`,
       })
+      setIsStudioLocationConfirmed(false)
     } catch (error) {
       setStudioLocationDetection({
         status: 'error',
@@ -254,8 +279,9 @@ function AdminArtists() {
       }))
       setArtistLocationDetection({
         status: 'success',
-        message: `Ubicacion detectada: ${coordinates.latitude}, ${coordinates.longitude}`,
+        message: `Ubicacion detectada: ${coordinates.latitude}, ${coordinates.longitude}. Esta ubicacion es aproximada. Verifica que corresponda a tu direccion antes de guardar.`,
       })
+      setIsArtistLocationConfirmed(false)
     } catch (error) {
       setArtistLocationDetection({
         status: 'error',
@@ -408,13 +434,15 @@ function AdminArtists() {
                     onChange={(event) => updateStudioLocationDraft('postalCode', event.target.value)}
                   />
                   <Input
-                    label="Latitude"
+                    helper={studioLocationErrors.latitude || 'Puedes ajustar manualmente las coordenadas si el punto no es exacto.'}
+                    label="Latitud"
                     value={studioLocationDraft.latitude}
                     onChange={(event) => updateStudioLocationDraft('latitude', event.target.value)}
                   />
                 </div>
                 <Input
-                  label="Longitude"
+                  helper="Puedes ajustar manualmente las coordenadas si el punto no es exacto."
+                  label="Longitud"
                   value={studioLocationDraft.longitude}
                   onChange={(event) => updateStudioLocationDraft('longitude', event.target.value)}
                 />
@@ -433,6 +461,25 @@ function AdminArtists() {
                     </small>
                   )}
                 </div>
+                {studioLocationHasCoordinates && (
+                  <div className="location-detection-row">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => window.open(studioMapsUrl, '_blank', 'noopener,noreferrer')}
+                    >
+                      Ver ubicacion en Google Maps
+                    </Button>
+                    <label className="location-toggle-row">
+                      <input
+                        checked={isStudioLocationConfirmed}
+                        type="checkbox"
+                        onChange={(event) => setIsStudioLocationConfirmed(event.target.checked)}
+                      />
+                      <span>Confirmo que esta ubicacion corresponde a mi estudio.</span>
+                    </label>
+                  </div>
+                )}
                 <label className="input-field">
                   <span>Referencias</span>
                   <textarea
@@ -442,7 +489,7 @@ function AdminArtists() {
                   />
                 </label>
                 <small className="location-helper-text">
-                  Google Maps futuro: {studioMapsUrl || 'Completa direccion, ciudad y estado para generar la URL base.'}
+                  Google Maps: {studioMapsUrl || 'Completa direccion, ciudad y estado para generar la URL base.'}
                 </small>
               </div>
               <div className="location-foundation-card">
@@ -511,13 +558,15 @@ function AdminArtists() {
                         onChange={(event) => updateArtistCustomLocation('postalCode', event.target.value)}
                       />
                       <Input
-                        label="Latitude"
+                        helper={artistLocationErrors.latitude || 'Puedes ajustar manualmente las coordenadas si el punto no es exacto.'}
+                        label="Latitud"
                         value={artistLocationDraft.customLocation.latitude}
                         onChange={(event) => updateArtistCustomLocation('latitude', event.target.value)}
                       />
                     </div>
                     <Input
-                      label="Longitude"
+                      helper="Puedes ajustar manualmente las coordenadas si el punto no es exacto."
+                      label="Longitud"
                       value={artistLocationDraft.customLocation.longitude}
                       onChange={(event) => updateArtistCustomLocation('longitude', event.target.value)}
                     />
@@ -536,6 +585,25 @@ function AdminArtists() {
                         </small>
                       )}
                     </div>
+                    {artistCustomLocationHasCoordinates && (
+                      <div className="location-detection-row">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => window.open(buildGoogleMapsUrl(artistLocationDraft.customLocation), '_blank', 'noopener,noreferrer')}
+                        >
+                          Ver ubicacion en Google Maps
+                        </Button>
+                        <label className="location-toggle-row">
+                          <input
+                            checked={isArtistLocationConfirmed}
+                            type="checkbox"
+                            onChange={(event) => setIsArtistLocationConfirmed(event.target.checked)}
+                          />
+                          <span>Confirmo que esta ubicacion corresponde a mi estudio.</span>
+                        </label>
+                      </div>
+                    )}
                     <label className="input-field">
                       <span>Referencias</span>
                       <textarea
@@ -547,7 +615,7 @@ function AdminArtists() {
                   </>
                 )}
                 <small className="location-helper-text">
-                  Google Maps futuro: {artistMapsUrl || 'Completa una ubicacion profesional para generar la URL base.'}
+                  Google Maps: {artistMapsUrl || 'Completa una ubicacion profesional para generar la URL base.'}
                 </small>
               </div>
               <div className="row-actions">

@@ -10,7 +10,7 @@ import { useApp } from '../../contexts/appContextCore'
 import { paths } from '../../routes/paths'
 import { claimArtistInvitation } from '../../services/profileBootstrapService'
 import { getCurrentBrowserCoordinates } from '../../utils/browserGeolocation'
-import { buildGoogleMapsUrl, createArtistLocationSettings, validateProfessionalLocation } from '../../utils/locationHelpers'
+import { buildGoogleMapsUrl, createArtistLocationSettings, hasCoordinates, validateProfessionalLocation } from '../../utils/locationHelpers'
 import { mapAuthContextToArtistProfile } from '../../utils/artistProfileMapper'
 import { getMaxBirthDateForAdult, validateBirthDate } from '../../utils/birthdayValidation'
 
@@ -45,6 +45,7 @@ function ArtistProfileSettings() {
   })
   const [locationErrors, setLocationErrors] = useState({})
   const [locationDetection, setLocationDetection] = useState({ status: 'idle', message: '' })
+  const [isArtistLocationConfirmed, setIsArtistLocationConfirmed] = useState(false)
   const [saveFeedback, setSaveFeedback] = useState('')
   const [claimToken, setClaimToken] = useState('')
   const [claimStatus, setClaimStatus] = useState({ tone: 'neutral', message: '' })
@@ -53,6 +54,7 @@ function ArtistProfileSettings() {
     ? currentStudio?.professionalLocation
     : profileDraft.professionalLocation.customLocation
   const mapsUrl = buildGoogleMapsUrl(effectiveLocation)
+  const customLocationHasCoordinates = hasCoordinates(profileDraft.professionalLocation.customLocation)
   const portfolioCount = (profileDraft.portfolio || []).length
   const hasPortfolioCapacity = portfolioCount < portfolioLimit
   const studioLocationLabel = useMemo(
@@ -71,6 +73,7 @@ function ArtistProfileSettings() {
     })
     setLocationErrors({})
     setLocationDetection({ status: 'idle', message: '' })
+    setIsArtistLocationConfirmed(false)
     setSaveFeedback('')
   }, [session.artist?.id, session.profile?.id, sessionArtistProfile.artistId, sessionArtistProfile.artistProfileId])
 
@@ -120,6 +123,9 @@ function ArtistProfileSettings() {
       },
     }))
     setLocationErrors((currentErrors) => ({ ...currentErrors, [field]: '' }))
+    if (['address', 'city', 'state', 'postalCode', 'latitude', 'longitude'].includes(field)) {
+      setIsArtistLocationConfirmed(false)
+    }
   }
 
   const useCurrentLocation = async () => {
@@ -146,8 +152,9 @@ function ArtistProfileSettings() {
       }))
       setLocationDetection({
         status: 'success',
-        message: `Ubicacion detectada: ${coordinates.latitude}, ${coordinates.longitude}`,
+        message: `Ubicacion detectada: ${coordinates.latitude}, ${coordinates.longitude}. Esta ubicacion es aproximada. Verifica que corresponda a tu direccion antes de guardar.`,
       })
+      setIsArtistLocationConfirmed(false)
     } catch (error) {
       setLocationDetection({
         status: 'error',
@@ -244,6 +251,10 @@ function ArtistProfileSettings() {
       if (Object.keys(nextErrors).length > 0) {
         setLocationErrors(nextErrors)
         nextProfile.professionalLocation = safeArtistProfile.professionalLocation
+      } else if (customLocationHasCoordinates && !isArtistLocationConfirmed) {
+        setLocationErrors({ latitude: 'Confirma que esta ubicacion corresponde a tu estudio.' })
+        setSaveFeedback('Confirma que esta ubicacion corresponde a tu estudio.')
+        return
       } else {
         setLocationErrors({})
       }
@@ -532,12 +543,14 @@ function ArtistProfileSettings() {
                 onChange={(event) => updateCustomLocation('postalCode', event.target.value)}
               />
               <Input
+                helper={locationErrors.latitude || 'Puedes ajustar manualmente las coordenadas si el punto no es exacto.'}
                 label="Latitud"
                 value={profileDraft.professionalLocation.customLocation.latitude}
                 onChange={(event) => updateCustomLocation('latitude', event.target.value)}
               />
             </div>
             <Input
+              helper="Puedes ajustar manualmente las coordenadas si el punto no es exacto."
               label="Longitud"
               value={profileDraft.professionalLocation.customLocation.longitude}
               onChange={(event) => updateCustomLocation('longitude', event.target.value)}
@@ -557,6 +570,25 @@ function ArtistProfileSettings() {
                 </small>
               )}
             </div>
+            {customLocationHasCoordinates && !profileDraft.professionalLocation.useStudioLocation && (
+              <div className="location-detection-row">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => window.open(buildGoogleMapsUrl(profileDraft.professionalLocation.customLocation), '_blank', 'noopener,noreferrer')}
+                >
+                  Ver ubicacion en Google Maps
+                </Button>
+                <label className="location-toggle-row">
+                  <input
+                    checked={isArtistLocationConfirmed}
+                    type="checkbox"
+                    onChange={(event) => setIsArtistLocationConfirmed(event.target.checked)}
+                  />
+                  <span>Confirmo que esta ubicacion corresponde a mi estudio.</span>
+                </label>
+              </div>
+            )}
             <label className="input-field">
               <span>Referencias</span>
               <textarea
@@ -566,7 +598,7 @@ function ArtistProfileSettings() {
               />
             </label>
             <small className="location-helper-text">
-              Google Maps futuro: {mapsUrl || 'Completa una ubicacion profesional para generar la URL base.'}
+              Google Maps: {mapsUrl || 'Completa una ubicacion profesional para generar la URL base.'}
             </small>
           </section>
 
