@@ -8,6 +8,7 @@ export const paths = {
   admin: '/admin',
   adminDashboard: '/admin/dashboard',
   adminArtists: '/admin/artists',
+  adminStudios: '/admin/studios',
   adminClients: '/admin/clients',
   adminStudio: '/admin/studio',
   adminSystem: '/admin/system',

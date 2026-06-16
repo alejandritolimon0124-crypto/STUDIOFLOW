@@ -13,7 +13,6 @@ import { paths } from '../../routes/paths'
 import { artistAppointments as mockArtistAppointments, recurringClients } from '../../services/mockData'
 import { getClientById } from '../../utils/clientHelpers'
 import { formatCurrency } from '../../utils/formatters'
-import { mapAuthContextToArtistProfile } from '../../utils/artistProfileMapper'
 import { calculateFlowPoints, addPointsToClient, vipTierThresholds } from '../../modules/loyalty/flowPointsEngine'
 import { calculateAppointmentEconomy } from '../../modules/business/appointmentEconomyEngine'
 import { canUseOperationalFeature } from '../../modules/governance/studioGovernance'
@@ -87,14 +86,6 @@ function getInitials(name = '') {
     .toUpperCase()
 }
 
-function getConfiguredStudioName(...names) {
-  return names.find((name) => {
-    const normalizedName = String(name || '').trim()
-
-    return normalizedName
-  }) || ''
-}
-
 function ArtistDashboard({ view = 'agenda' }) {
   const navigate = useNavigate()
   const {
@@ -166,23 +157,21 @@ function ArtistDashboard({ view = 'agenda' }) {
     artistStudioMemberships,
     preferredStudioId: primaryMembership?.studioId,
   }) || adminState.studios[0]
-  const studioProfile = currentStudio?.profile || {}
-  const sessionArtistProfile = session.artist
-    ? mapAuthContextToArtistProfile({ profile: session.profile, artist: session.artist }, artistState.profile)
-    : artistState.profile
-  const artistPersonalInfo = sessionArtistProfile?.personalInfo || {}
-  const profileName = artistPersonalInfo.artisticName || artistPersonalInfo.fullName || ''
-  const artistDisplayName = profileName || primaryArtist?.owner || primaryArtist?.name || 'Artista profesional'
-  const profilePhoto = sessionArtistProfile?.photoUrl || ''
-  const studioDisplayName = getConfiguredStudioName(studioProfile.commercialName)
-  const artistLocationSettings = sessionArtistProfile?.professionalLocation || {}
-  const customProfileLocation = artistLocationSettings.customLocation || {}
-  const profileLocation = artistLocationSettings.useStudioLocation === false || hasProfessionalLocationContent(customProfileLocation)
-    ? customProfileLocation
-    : currentStudio?.professionalLocation || {}
-  const effectiveLocation = profileLocation
-  const heroLocation = formatProfessionalLocation(effectiveLocation, currentStudio?.city)
-  const studioNameLabel = studioDisplayName && studioDisplayName !== artistDisplayName ? studioDisplayName : ''
+  const authenticatedArtistProfile = artistState.profile || {}
+  const artistPersonalInfo = authenticatedArtistProfile.personalInfo || {}
+  const authenticatedArtistName = session.artist?.display_name
+    || session.artist?.displayName
+    || session.profile?.display_name
+    || session.profile?.displayName
+    || ''
+  const profileName = artistPersonalInfo.artisticName || authenticatedArtistName
+  const artistDisplayName = profileName || 'Artista profesional'
+  const profilePhoto = authenticatedArtistProfile.photoUrl || ''
+  const customProfileLocation = authenticatedArtistProfile.professionalLocation?.customLocation || {}
+  const heroLocation = hasProfessionalLocationContent(customProfileLocation)
+    ? formatProfessionalLocation(customProfileLocation)
+    : ''
+  const studioNameLabel = ''
   const canUseEconomy = canUseOperationalFeature(currentStudio, 'economy')
   const canUsePublicAgenda = canUseOperationalFeature(currentStudio, 'publicAgenda')
 

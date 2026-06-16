@@ -559,7 +559,7 @@ function AdminDashboard() {
 
       {(isPlatformOwner || isStudioOwner) && (
       <Card className="wide-card">
-        <PanelHeader title={isPlatformOwner ? 'Gestion de studios' : 'Mi estudio'} eyebrow="Operaciones" action={<Button size="sm" onClick={() => navigate(paths.adminArtists)}>Abrir</Button>} />
+        <PanelHeader title={isPlatformOwner ? 'Gestion de artistas' : 'Mi estudio'} eyebrow="Operaciones" action={<Button size="sm" onClick={() => navigate(paths.adminArtists)}>Abrir</Button>} />
         <div className="data-table">
           <div className="table-head">
             <span>Studio</span>

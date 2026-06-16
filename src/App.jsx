@@ -3,6 +3,7 @@ import { AppProvider } from './contexts/AppContext'
 import AdminArtists from './pages/admin/AdminArtists'
 import AdminClients from './pages/admin/AdminClients'
 import AdminDashboard from './pages/admin/AdminDashboard'
+import AdminStudios from './pages/admin/AdminStudios'
 import AdminStudioProfile from './pages/admin/AdminStudioProfile'
 import QASandbox from './pages/admin/QASandbox'
 import AdminLayout from './layouts/AdminLayout'
@@ -60,6 +61,7 @@ function App() {
           <Route path="/admin" element={<ProtectedRoute allowedRole="admin"><AdminLayout /></ProtectedRoute>}>
             <Route index element={<AdminDashboard />} />
             <Route path="artists" element={<AdminArtists />} />
+            <Route path="studios" element={<AdminStudios />} />
             <Route path="clients" element={<AdminClients />} />
             <Route path="studio" element={<AdminStudioProfile />} />
             <Route path="system" element={<QASandbox />} />

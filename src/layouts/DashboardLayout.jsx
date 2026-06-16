@@ -48,6 +48,7 @@ const roleNavigation = {
   admin: [
     { label: 'Dashboard', path: paths.admin },
     { label: 'Artistas', path: paths.adminArtists },
+    { label: 'Estudios', path: paths.adminStudios },
     { label: 'Clientes', path: paths.adminClients },
     { label: 'Mi Estudio', path: paths.adminStudio },
     { label: 'Sistema', path: paths.adminSystem },
@@ -87,6 +88,7 @@ const bottomNavigationByRole = {
   admin: [
     { label: 'Dashboard', path: paths.admin },
     { label: 'Artistas', path: paths.adminArtists },
+    { label: 'Estudios', path: paths.adminStudios },
     { label: 'Clientes', path: paths.adminClients },
     { label: 'Mi Estudio', path: paths.adminStudio },
     { label: 'Sistema', path: paths.adminSystem },
@@ -102,6 +104,7 @@ function DashboardLayout({ children, role, title, subtitle, showMobileAppbar = t
   const canUseAdminItem = (item) => {
     if (role !== 'admin') return true
     if (item.path === paths.adminArtists) return hasPermission(session.user, permissions.STUDIO_ARTISTS)
+    if (item.path === paths.adminStudios) return session.user?.role === ROLES.PLATFORM_OWNER || hasPermission(session.user, permissions.GOVERNANCE)
     if (item.path === paths.adminClients) return hasPermission(session.user, permissions.CLIENTS) || hasPermission(session.user, permissions.STUDIO_CLIENTS)
     if (item.path === paths.adminStudio) return [ROLES.PLATFORM_OWNER, ROLES.STUDIO_OWNER].includes(session.user?.role)
     if (item.path === paths.adminSystem) return hasPermission(session.user, permissions.GOVERNANCE)
