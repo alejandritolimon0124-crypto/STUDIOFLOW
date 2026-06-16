@@ -922,13 +922,20 @@ export function AppProvider({ children }) {
   const refreshAuthContext = useCallback(async () => {
     if (sessionRef.current.isMockSession) return sessionRef.current
 
+    setIsAuthLoading(true)
     const authSession = await getCurrentAuthSession()
     if (!authSession?.user) {
       setSession(initialSession)
+      setIsAuthLoading(false)
       return initialSession
     }
 
-    return hydrateSupabaseSession(authSession)
+    try {
+      return await hydrateSupabaseSession(authSession)
+    } catch (error) {
+      setIsAuthLoading(false)
+      throw error
+    }
   }, [hydrateSupabaseSession])
 
   const loginDemo = useCallback(async (role) => {
@@ -1596,7 +1603,7 @@ export function AppProvider({ children }) {
 
   const loadAdminDashboard = useCallback(async () => {
     if (session.isMockSession) return null
-    if (!sessionHasAnyRole(session, [ROLES.PLATFORM_OWNER, ROLES.STUDIO_OWNER, ROLES.STUDIO_MANAGER])) return null
+    if (!sessionHasRole(session, ROLES.PLATFORM_OWNER)) return null
 
     setIsAdminDashboardLoading(true)
     setAdminDashboardError('')
@@ -1773,13 +1780,13 @@ export function AppProvider({ children }) {
     loadAdminArtists().catch(() => {
       // adminArtistsError keeps the failure available to admin screens.
     })
-    loadAdminDashboard().catch(() => {
-      // adminDashboardError keeps the failure available to admin screens.
-    })
     loadAdminClients().catch(() => {
       // adminClientsError keeps the failure available to admin screens.
     })
     if (sessionHasRole(session, ROLES.PLATFORM_OWNER)) {
+      loadAdminDashboard().catch(() => {
+        // adminDashboardError keeps the failure available to admin screens.
+      })
       loadGovernanceQueue().catch(() => {
         // governanceError keeps the failure available to admin screens.
       })

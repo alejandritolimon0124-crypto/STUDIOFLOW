@@ -101,21 +101,36 @@ function DashboardLayout({ children, role, title, subtitle, showMobileAppbar = t
   const { adminState, artistState, clientState, logout, selectedDate, session } = useApp()
   const location = useLocation()
   const currentPath = location.pathname
+  const assignedRoles = Array.isArray(session.roles) ? session.roles : []
+  const effectiveAdminRole =
+    session.user?.role === ROLES.PLATFORM_OWNER || assignedRoles.some((assignment) => assignment.role === ROLES.PLATFORM_OWNER)
+      ? ROLES.PLATFORM_OWNER
+      : assignedRoles.some((assignment) => assignment.role === ROLES.STUDIO_OWNER)
+        ? ROLES.STUDIO_OWNER
+        : assignedRoles.some((assignment) => assignment.role === ROLES.STUDIO_MANAGER)
+          ? ROLES.STUDIO_MANAGER
+          : session.user?.role
+  const effectiveAdminAssignment = assignedRoles.find((assignment) => assignment.role === effectiveAdminRole)
+  const effectiveAdminUser = {
+    ...session.user,
+    role: effectiveAdminRole,
+    studioId: effectiveAdminAssignment?.studioId || effectiveAdminAssignment?.studio_id || session.user?.studioId || null,
+  }
   const canUseAdminItem = (item) => {
     if (role !== 'admin') return true
-    if (item.path === paths.adminArtists) return hasPermission(session.user, permissions.STUDIO_ARTISTS)
-    if (item.path === paths.adminStudios) return session.user?.role === ROLES.PLATFORM_OWNER || hasPermission(session.user, permissions.GOVERNANCE)
-    if (item.path === paths.adminClients) return hasPermission(session.user, permissions.CLIENTS) || hasPermission(session.user, permissions.STUDIO_CLIENTS)
-    if (item.path === paths.adminStudio) return [ROLES.PLATFORM_OWNER, ROLES.STUDIO_OWNER].includes(session.user?.role)
-    if (item.path === paths.adminSystem) return hasPermission(session.user, permissions.GOVERNANCE)
+    if (item.path === paths.adminArtists) return hasPermission(effectiveAdminUser, permissions.STUDIO_ARTISTS)
+    if (item.path === paths.adminStudios) return effectiveAdminUser.role === ROLES.PLATFORM_OWNER || hasPermission(effectiveAdminUser, permissions.GOVERNANCE)
+    if (item.path === paths.adminClients) return hasPermission(effectiveAdminUser, permissions.CLIENTS) || hasPermission(effectiveAdminUser, permissions.STUDIO_CLIENTS)
+    if (item.path === paths.adminStudio) return [ROLES.PLATFORM_OWNER, ROLES.STUDIO_OWNER].includes(effectiveAdminUser.role)
+    if (item.path === paths.adminSystem) return hasPermission(effectiveAdminUser, permissions.GOVERNANCE)
     return true
   }
   const navigation = roleNavigation[role].filter(canUseAdminItem)
   const bottomNavigation = bottomNavigationByRole[role].filter(canUseAdminItem)
   const drawerHomePath = role === 'admin' ? paths.admin : role === 'client' ? paths.client : paths.artist
-  const adminPrimaryAction = hasPermission(session.user, permissions.STUDIO_ARTISTS)
+  const adminPrimaryAction = hasPermission(effectiveAdminUser, permissions.STUDIO_ARTISTS)
     ? { label: 'Artistas', path: paths.adminArtists }
-    : hasPermission(session.user, permissions.CLIENTS) || hasPermission(session.user, permissions.STUDIO_CLIENTS)
+    : hasPermission(effectiveAdminUser, permissions.CLIENTS) || hasPermission(effectiveAdminUser, permissions.STUDIO_CLIENTS)
       ? { label: 'Clientas', path: paths.adminClients }
       : { label: 'Inicio', path: paths.admin }
   const primaryActionPath = role === 'client' ? paths.clientExplore : role === 'admin' ? adminPrimaryAction.path : paths.artistAppointments
@@ -247,7 +262,7 @@ function DashboardLayout({ children, role, title, subtitle, showMobileAppbar = t
           {navigation.map((item, index) => (
             <button
               className={isItemActive(item, index) ? 'active' : ''}
-              key={item.label}
+              key={`${item.path}-${item.label}`}
               type="button"
               onClick={() => handleNavigate(item.path)}
             >
@@ -259,8 +274,8 @@ function DashboardLayout({ children, role, title, subtitle, showMobileAppbar = t
 
         <div className="sidebar-switcher drawer-actions">
           <small>Acciones</small>
-          {drawerActions.map((item) => (
-            <button type="button" onClick={() => handleNavigate(item.path)} key={item.label}>
+          {drawerActions.map((item, index) => (
+            <button type="button" onClick={() => handleNavigate(item.path)} key={`${item.path}-${item.label}-${index}`}>
               {item.label}
             </button>
           ))}
@@ -318,7 +333,7 @@ function DashboardLayout({ children, role, title, subtitle, showMobileAppbar = t
 
       <nav className="mobile-bottom-nav" aria-label="Navegacion movil">
         {bottomNavigation.map((item, index) => (
-          <button className={isItemActive(item, index) ? 'active' : ''} type="button" onClick={() => handleNavigate(item.path)} key={item.label}>
+          <button className={isItemActive(item, index) ? 'active' : ''} type="button" onClick={() => handleNavigate(item.path)} key={`${item.path}-${item.label}`}>
             <span>{item.label}</span>
           </button>
         ))}
