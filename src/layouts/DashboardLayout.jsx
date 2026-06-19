@@ -98,7 +98,7 @@ const bottomNavigationByRole = {
 function DashboardLayout({ children, role, title, subtitle, showMobileAppbar = true }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const navigate = useNavigate()
-  const { adminState, artistState, clientState, logout, selectedDate, session } = useApp()
+  const { adminState, artistState, clientState, logout, selectedDate, session, setSession } = useApp()
   const location = useLocation()
   const currentPath = location.pathname
   const assignedRoles = Array.isArray(session.roles) ? session.roles : []
@@ -217,10 +217,61 @@ function DashboardLayout({ children, role, title, subtitle, showMobileAppbar = t
   const renderAvatarContent = () => (
     profilePhotoUrl ? <img src={profilePhotoUrl} alt="Foto de perfil" /> : fallbackAvatar
   )
+  const studioOwnerWorkspaceItems = assignedRoles
+    .filter((assignment) => (
+      assignment.role === ROLES.STUDIO_OWNER
+      && assignment.status !== 'inactive'
+      && assignment.status !== 'revoked'
+      && (assignment.studioId || assignment.studio_id)
+    ))
+    .reduce((items, assignment) => {
+      const studioId = assignment.studioId || assignment.studio_id
+      if (items.some((item) => item.studioId === studioId)) return items
+
+      const studio = adminState.studios.find((item) => item.id === studioId)
+      const studioName = studio?.profile?.commercialName || studio?.name || assignment.studioName || assignment.studio_name || 'Studio Owner'
+
+      return [
+        ...items,
+        {
+          label: studioName,
+          path: paths.adminStudio,
+          role: ROLES.STUDIO_OWNER,
+          studioId,
+        },
+      ]
+    }, [])
+  const workspaceItems = [
+    { label: 'Admin', path: paths.admin },
+    { label: 'Artista', path: paths.artistAgenda },
+    ...studioOwnerWorkspaceItems,
+    { label: 'Cliente', path: paths.client },
+  ]
 
   const handleNavigate = (path) => {
     navigate(path)
     setIsMenuOpen(false)
+  }
+
+  const handleWorkspaceNavigate = (workspace) => {
+    if (workspace.studioId) {
+      setSession((currentSession) => ({
+        ...currentSession,
+        activeSessionContext: {
+          ...(currentSession.activeSessionContext || {}),
+          role: workspace.role || currentSession.activeSessionContext?.role || currentSession.role,
+          studioId: workspace.studioId,
+        },
+        user: currentSession.user
+          ? {
+              ...currentSession.user,
+              studioId: workspace.studioId,
+            }
+          : currentSession.user,
+      }))
+    }
+
+    handleNavigate(workspace.path)
   }
 
   const handleLogout = async () => {
@@ -284,9 +335,11 @@ function DashboardLayout({ children, role, title, subtitle, showMobileAppbar = t
 
         <div className="sidebar-switcher">
           <small>Workspaces</small>
-          <button type="button" onClick={() => handleNavigate(paths.admin)}>Admin</button>
-          <button type="button" onClick={() => handleNavigate(paths.artistAgenda)}>Artista</button>
-          <button type="button" onClick={() => handleNavigate(paths.client)}>Cliente</button>
+          {workspaceItems.map((workspace) => (
+            <button type="button" onClick={() => handleWorkspaceNavigate(workspace)} key={`${workspace.path}-${workspace.label}-${workspace.studioId || 'base'}`}>
+              {workspace.label}
+            </button>
+          ))}
         </div>
       </aside>
 
