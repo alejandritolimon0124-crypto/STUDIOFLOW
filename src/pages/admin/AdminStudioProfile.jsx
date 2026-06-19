@@ -13,6 +13,7 @@ import { useNavigate } from 'react-router-dom'
 import { publishStudioMarketplace } from '../../services/studioService'
 import {
   cancelStudioArtistInvitation,
+  fetchStudioMembershipOperations,
   fetchStudioMemberships,
   findStudioArtistByEmail,
   inviteStudioArtist,
@@ -34,6 +35,9 @@ function AdminStudioProfile() {
   const [isMembershipsLoading, setIsMembershipsLoading] = useState(false)
   const [isArtistSearchLoading, setIsArtistSearchLoading] = useState(false)
   const [membershipFeedback, setMembershipFeedback] = useState({ tone: 'neutral', message: '' })
+  const [expandedMembershipId, setExpandedMembershipId] = useState('')
+  const [membershipOperationsById, setMembershipOperationsById] = useState({})
+  const [membershipOperationsLoadingId, setMembershipOperationsLoadingId] = useState('')
   const [inviteEmail, setInviteEmail] = useState('')
   const [searchedArtist, setSearchedArtist] = useState(null)
   const [artistSearchStatus, setArtistSearchStatus] = useState({ tone: 'neutral', message: '' })
@@ -60,6 +64,7 @@ function AdminStudioProfile() {
   const locationHasCoordinates = hasCoordinates(locationDraft)
   const galleryCount = (profileDraft.gallery || []).length
   const hasGalleryCapacity = galleryCount < galleryLimit
+  const activeMemberships = membershipState.memberships.filter((membership) => membership.active || membership.status === 'active')
 
   const loadStudioMemberships = useCallback(async ({ silent = false, successMessage = '' } = {}) => {
     if (!currentStudio?.id) return null
@@ -83,6 +88,29 @@ function AdminStudioProfile() {
       return null
     } finally {
       if (!silent) setIsMembershipsLoading(false)
+    }
+  }, [currentStudio?.id])
+
+  const loadMembershipOperations = useCallback(async (membershipId) => {
+    if (!currentStudio?.id || !membershipId) return null
+
+    setMembershipOperationsLoadingId(membershipId)
+
+    try {
+      const payload = await fetchStudioMembershipOperations({
+        studioId: currentStudio.id,
+        membershipId,
+      })
+      setMembershipOperationsById((currentState) => ({
+        ...currentState,
+        [membershipId]: payload,
+      }))
+      return payload
+    } catch (error) {
+      setMembershipFeedback({ tone: 'warm', message: error.message || 'No se pudo cargar la operacion de la artista.' })
+      return null
+    } finally {
+      setMembershipOperationsLoadingId('')
     }
   }, [currentStudio?.id])
 
@@ -378,6 +406,15 @@ function AdminStudioProfile() {
       setMembershipFeedback({ tone: 'warm', message: error.message || 'No se pudo cancelar la invitacion.' })
     } finally {
       setIsMembershipsLoading(false)
+    }
+  }
+
+  const toggleMembershipOperations = async (membershipId) => {
+    const nextExpandedId = expandedMembershipId === membershipId ? '' : membershipId
+    setExpandedMembershipId(nextExpandedId)
+
+    if (nextExpandedId && !membershipOperationsById[nextExpandedId]) {
+      await loadMembershipOperations(nextExpandedId)
     }
   }
 
@@ -684,26 +721,122 @@ function AdminStudioProfile() {
                   <h3>Artistas vinculadas</h3>
                 </div>
                 <div className="compact-list">
-                  {membershipState.memberships.map((membership) => (
-                    <div className="list-row elevated-row" key={membership.id}>
-                      <div className="client-photo-preview" style={{ height: 44, width: 44 }}>
-                        {membership.photoUrl ? (
-                          <img src={membership.photoUrl} alt={`Foto de ${membership.name}`} />
-                        ) : (
-                          <span>{String(membership.name || 'AR').slice(0, 2).toUpperCase()}</span>
+                  {activeMemberships.map((membership) => {
+                    const operations = membershipOperationsById[membership.id]
+                    const isExpanded = expandedMembershipId === membership.id
+                    const isLoadingOperations = membershipOperationsLoadingId === membership.id
+
+                    return (
+                      <div className="elevated-row" key={membership.id}>
+                        <div className="list-row" style={{ padding: 0 }}>
+                          <div className="client-photo-preview" style={{ height: 44, width: 44 }}>
+                            {membership.photoUrl ? (
+                              <img src={membership.photoUrl} alt={`Foto de ${membership.name}`} />
+                            ) : (
+                              <span>{String(membership.name || 'AR').slice(0, 2).toUpperCase()}</span>
+                            )}
+                          </div>
+                          <div>
+                            <strong>{membership.name}</strong>
+                            <small>{membership.email || 'Correo no disponible'}</small>
+                            <small>Incorporacion: {membership.startedAt || membership.createdAt || 'Pendiente'}</small>
+                          </div>
+                          <div className="studio-review-actions">
+                            <StatusPill tone="success">Membership activa</StatusPill>
+                            <Button
+                              disabled={isLoadingOperations}
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => toggleMembershipOperations(membership.id)}
+                            >
+                              {isLoadingOperations ? 'Cargando...' : isExpanded ? 'Ocultar' : 'Ver recursos'}
+                            </Button>
+                          </div>
+                        </div>
+                        {isExpanded && (
+                          <div className="compact-list" style={{ marginTop: 14 }}>
+                            <div className="list-row elevated-row">
+                              <div>
+                                <strong>Servicios de la artista en este estudio</strong>
+                                <small>Solo servicios con owner_type membership.</small>
+                              </div>
+                              <StatusPill tone="neutral">{operations?.services?.length || 0} servicios</StatusPill>
+                            </div>
+                            {operations?.services?.map((service) => (
+                              <div className="list-row elevated-row" key={service.id}>
+                                <div>
+                                  <strong>{service.name}</strong>
+                                  <small>{service.category} / {service.duration || `${service.durationMinutes} min`}</small>
+                                  <small>{service.status}</small>
+                                </div>
+                                <StatusPill tone={service.status === 'active' ? 'success' : 'neutral'}>
+                                  ${service.price}
+                                </StatusPill>
+                              </div>
+                            ))}
+                            {operations && operations.services.length === 0 && (
+                              <div className="list-row elevated-row">
+                                <div>
+                                  <strong>Sin servicios configurados</strong>
+                                  <small>La artista aun no tiene servicios para este contexto de estudio.</small>
+                                </div>
+                                <StatusPill tone="neutral">Lectura</StatusPill>
+                              </div>
+                            )}
+                            <div className="list-row elevated-row">
+                              <div>
+                                <strong>Agenda del contexto de estudio</strong>
+                                <small>{operations?.schedule ? `${operations.schedule.timezone} / cada ${operations.schedule.intervalMinutes} min` : 'Sin agenda membership configurada.'}</small>
+                              </div>
+                              <StatusPill tone={operations?.schedule ? 'success' : 'neutral'}>
+                                Solo lectura
+                              </StatusPill>
+                            </div>
+                            {operations?.schedule?.rules?.map((rule) => (
+                              <div className="list-row elevated-row" key={rule.id || rule.weekday}>
+                                <div>
+                                  <strong>{rule.day}</strong>
+                                  <small>{rule.active ? `${String(rule.startTime).slice(0, 5)} a ${String(rule.endTime).slice(0, 5)}` : 'Dia no disponible'}</small>
+                                  {rule.active && rule.breakStartTime && rule.breakEndTime && (
+                                    <small>Descanso: {String(rule.breakStartTime).slice(0, 5)} a {String(rule.breakEndTime).slice(0, 5)}</small>
+                                  )}
+                                </div>
+                                <StatusPill tone={rule.active ? 'success' : 'neutral'}>
+                                  {rule.active ? 'Activo' : 'Libre'}
+                                </StatusPill>
+                              </div>
+                            ))}
+                            <div className="list-row elevated-row">
+                              <div>
+                                <strong>Proximos slots disponibles</strong>
+                                <small>Disponibilidad real con membership_id de este estudio.</small>
+                              </div>
+                              <StatusPill tone="neutral">{operations?.upcomingSlots?.length || 0} slots</StatusPill>
+                            </div>
+                            {operations?.upcomingSlots?.map((slot) => (
+                              <div className="list-row elevated-row" key={slot.id}>
+                                <div>
+                                  <strong>{slot.date || String(slot.startsAt || '').slice(0, 10)}</strong>
+                                  <small>{slot.time || String(slot.startsAt || '').slice(11, 16)} a {slot.end || String(slot.endsAt || '').slice(11, 16)}</small>
+                                </div>
+                                <StatusPill tone="success">{slot.status}</StatusPill>
+                              </div>
+                            ))}
+                            {operations && operations.upcomingSlots.length === 0 && (
+                              <div className="list-row elevated-row">
+                                <div>
+                                  <strong>Sin proximos slots</strong>
+                                  <small>No hay availability_slots disponibles para esta membership.</small>
+                                </div>
+                                <StatusPill tone="neutral">Lectura</StatusPill>
+                              </div>
+                            )}
+                          </div>
                         )}
                       </div>
-                      <div>
-                        <strong>{membership.name}</strong>
-                        <small>{membership.email || 'Correo no disponible'}</small>
-                        <small>Incorporacion: {membership.startedAt || membership.createdAt || 'Pendiente'}</small>
-                      </div>
-                      <StatusPill tone={membership.active ? 'success' : 'neutral'}>
-                        {membership.active ? 'Membership activa' : membership.status}
-                      </StatusPill>
-                    </div>
-                  ))}
-                  {!isMembershipsLoading && membershipState.memberships.length === 0 && (
+                    )
+                  })}
+                  {!isMembershipsLoading && activeMemberships.length === 0 && (
                     <div className="list-row elevated-row">
                       <div>
                         <strong>Sin artistas vinculadas</strong>

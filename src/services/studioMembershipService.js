@@ -62,6 +62,76 @@ function normalizePayload(data = {}) {
   }
 }
 
+function normalizeStudioService(service = {}) {
+  const durationMinutes = Number(service.durationMinutes || service.duration_minutes || 0)
+
+  return {
+    id: service.id,
+    name: service.name || 'Servicio',
+    description: service.description || '',
+    category: service.category || 'Servicios',
+    price: Number(service.price || service.priceAmount || service.price_amount || 0),
+    durationMinutes,
+    duration: durationMinutes ? `${durationMinutes} min` : '',
+    status: service.status || 'draft',
+    ownerType: service.ownerType || service.owner_type || 'membership',
+    membershipId: service.membershipId || service.membership_id || null,
+  }
+}
+
+function normalizeScheduleRule(rule = {}) {
+  const weekdayLabels = ['Domingo', 'Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', 'Sabado']
+  const weekday = Number(rule.weekday)
+
+  return {
+    id: rule.id,
+    weekday,
+    day: weekdayLabels[weekday] || `Dia ${weekday}`,
+    active: Boolean(rule.isActive ?? rule.is_active),
+    startTime: rule.startTime || rule.start_time || '',
+    endTime: rule.endTime || rule.end_time || '',
+    breakStartTime: rule.breakStartTime || rule.break_start_time || '',
+    breakEndTime: rule.breakEndTime || rule.break_end_time || '',
+  }
+}
+
+function normalizeStudioSlot(slot = {}) {
+  return {
+    id: slot.id || slot.availabilitySlotId || slot.availability_slot_id,
+    scheduleId: slot.scheduleId || slot.schedule_id || null,
+    artistId: slot.artistId || slot.artist_id || null,
+    studioId: slot.studioId || slot.studio_id || null,
+    membershipId: slot.membershipId || slot.membership_id || null,
+    startsAt: slot.startsAt || slot.starts_at || null,
+    endsAt: slot.endsAt || slot.ends_at || null,
+    date: slot.date || '',
+    time: slot.time || '',
+    end: slot.end || '',
+    status: slot.status || 'available',
+  }
+}
+
+function normalizeMembershipOperations(data = {}) {
+  const schedule = data.schedule
+
+  return {
+    studioId: data.studioId || data.studio_id || null,
+    membershipId: data.membershipId || data.membership_id || null,
+    artistId: data.artistId || data.artist_id || null,
+    services: asArray(data.services).map(normalizeStudioService),
+    schedule: schedule
+      ? {
+          id: schedule.id || schedule.scheduleId || schedule.schedule_id,
+          timezone: schedule.timezone || 'America/Mexico_City',
+          intervalMinutes: Number(schedule.intervalMinutes || schedule.interval_minutes || 0),
+          status: schedule.status || 'active',
+          rules: asArray(schedule.rules).map(normalizeScheduleRule),
+        }
+      : null,
+    upcomingSlots: asArray(data.upcomingSlots || data.upcoming_slots).map(normalizeStudioSlot),
+  }
+}
+
 export async function fetchStudioMemberships(studioId = null) {
   const client = requireSupabase()
   const { data, error } = await client.rpc('studio_flow_owner_get_studio_memberships', {
@@ -71,6 +141,18 @@ export async function fetchStudioMemberships(studioId = null) {
   if (error) throw error
 
   return normalizePayload(data)
+}
+
+export async function fetchStudioMembershipOperations({ studioId = null, membershipId = null } = {}) {
+  const client = requireSupabase()
+  const { data, error } = await client.rpc('studio_flow_owner_get_membership_operations', {
+    p_studio_id: studioId,
+    p_membership_id: membershipId,
+  })
+
+  if (error) throw error
+
+  return normalizeMembershipOperations(data)
 }
 
 export async function findStudioArtistByEmail({ studioId = null, email = '' } = {}) {
