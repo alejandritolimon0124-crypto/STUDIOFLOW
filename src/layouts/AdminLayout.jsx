@@ -13,25 +13,43 @@ const copyByPath = {
   [paths.adminSystem]: ['Sistema', 'Estado operativo y modulos listos para conectar.'],
 }
 
+const studioOwnerNavItems = [
+  ['Inicio', `${paths.adminStudio}?section=summary`],
+  ['Equipo', `${paths.adminStudio}?section=team`],
+  ['Agenda', `${paths.adminStudio}?section=schedule`],
+  ['Clientes', paths.adminClients],
+  ['Config', `${paths.adminStudio}?section=settings`],
+]
+
 function AdminLayout() {
   const { pathname } = useLocation()
-  const { session } = useApp()
-  const [title, subtitle] = copyByPath[pathname] || copyByPath[paths.admin]
+  const { adminState, session } = useApp()
   const assignedRoles = Array.isArray(session.roles) ? session.roles : []
+  const activeContextRole = session.activeSessionContext?.role || null
+  const activeContextStudioId = session.activeSessionContext?.studioId || session.activeSessionContext?.studio_id || null
   const effectiveAdminRole =
-    session.user?.role === ROLES.PLATFORM_OWNER || assignedRoles.some((assignment) => assignment.role === ROLES.PLATFORM_OWNER)
+    activeContextRole
+      || (session.user?.role === ROLES.PLATFORM_OWNER || assignedRoles.some((assignment) => assignment.role === ROLES.PLATFORM_OWNER)
       ? ROLES.PLATFORM_OWNER
       : assignedRoles.some((assignment) => assignment.role === ROLES.STUDIO_OWNER)
         ? ROLES.STUDIO_OWNER
         : assignedRoles.some((assignment) => assignment.role === ROLES.STUDIO_MANAGER)
           ? ROLES.STUDIO_MANAGER
-          : session.user?.role
+          : session.user?.role)
   const effectiveAdminAssignment = assignedRoles.find((assignment) => assignment.role === effectiveAdminRole)
   const effectiveAdminUser = {
     ...session.user,
     role: effectiveAdminRole,
-    studioId: effectiveAdminAssignment?.studioId || effectiveAdminAssignment?.studio_id || session.user?.studioId || null,
+    studioId: activeContextStudioId || session.user?.studioId || effectiveAdminAssignment?.studioId || effectiveAdminAssignment?.studio_id || null,
   }
+  const activeStudio = effectiveAdminUser.studioId
+    ? adminState.studios.find((studio) => studio.id === effectiveAdminUser.studioId)
+    : null
+  const activeStudioName = activeStudio?.profile?.commercialName || activeStudio?.name || ''
+  const isStudioOwnerWorkspace = effectiveAdminUser.role === ROLES.STUDIO_OWNER && Boolean(effectiveAdminUser.studioId)
+  const [title, subtitle] = isStudioOwnerWorkspace
+    ? [activeStudioName || 'Studio Owner', 'Operacion, equipo, servicios y configuracion del estudio.']
+    : copyByPath[pathname] || copyByPath[paths.admin]
   const canSeeArtists = hasPermission(effectiveAdminUser, permissions.STUDIO_ARTISTS)
   const canSeeClients = hasPermission(effectiveAdminUser, permissions.CLIENTS) || hasPermission(effectiveAdminUser, permissions.STUDIO_CLIENTS)
   const canSeeStudioProfile = [ROLES.PLATFORM_OWNER, ROLES.STUDIO_OWNER].includes(effectiveAdminUser.role)
@@ -42,12 +60,20 @@ function AdminLayout() {
       <div className="role-layout-shell">
         <Outlet />
         <nav className="role-bottom-nav" aria-label="Navegacion de admin">
-          <NavLink to="/admin">Inicio</NavLink>
-          {canSeeArtists && <NavLink to="/admin/artists">Artistas</NavLink>}
-          {canSeeSystem && <NavLink to="/admin/studios">Estudios</NavLink>}
-          {canSeeClients && <NavLink to="/admin/clients">Clientes</NavLink>}
-          {canSeeStudioProfile && <NavLink to="/admin/studio">Mi Estudio</NavLink>}
-          {canSeeSystem && <NavLink to="/admin/system">Sistema</NavLink>}
+          {isStudioOwnerWorkspace ? (
+            studioOwnerNavItems.map(([label, path]) => (
+              <NavLink to={path} key={path}>{label}</NavLink>
+            ))
+          ) : (
+            <>
+              <NavLink to="/admin">Inicio</NavLink>
+              {canSeeArtists && <NavLink to="/admin/artists">Artistas</NavLink>}
+              {canSeeSystem && <NavLink to="/admin/studios">Estudios</NavLink>}
+              {canSeeClients && <NavLink to="/admin/clients">Clientes</NavLink>}
+              {canSeeStudioProfile && <NavLink to="/admin/studio">Mi Estudio</NavLink>}
+              {canSeeSystem && <NavLink to="/admin/system">Sistema</NavLink>}
+            </>
+          )}
         </nav>
       </div>
     </DashboardLayout>

@@ -5,16 +5,19 @@ import Input from '../../components/Input'
 import PanelHeader from '../../components/PanelHeader'
 import StatusPill from '../../components/StatusPill'
 import { useApp } from '../../contexts/appContextCore'
+import { paths } from '../../routes/paths'
 import { filterByStudioAccess, hasPermission, permissions, ROLES } from '../../modules/permissions/rolePermissions'
 import {
   deriveMembershipsFromLegacyData,
   getArtistsForStudio,
   getStudiosForArtist,
 } from '../../modules/entities/entitySelectors'
+import { useNavigate } from 'react-router-dom'
 
 const uniqueById = (items = []) => Array.from(new Map(items.filter(Boolean).map((item) => [item.id, item])).values())
 
 function AdminClients() {
+  const navigate = useNavigate()
   const {
     adminState,
     session,
@@ -26,6 +29,7 @@ function AdminClients() {
   const [historyClient, setHistoryClient] = useState(null)
   const normalizedRole = session.user?.role === 'admin' ? ROLES.PLATFORM_OWNER : session.user?.role
   const isPlatformOwner = normalizedRole === ROLES.PLATFORM_OWNER
+  const isStudioOwnerContext = session.activeSessionContext?.role === ROLES.STUDIO_OWNER || session.activeSessionContext?.role === 'studio_owner'
   const artistStudioMemberships = useMemo(
     () => deriveMembershipsFromLegacyData({ artists: adminState.artists }),
     [adminState.artists],
@@ -69,13 +73,32 @@ function AdminClients() {
 
   const filteredClients = useMemo(
     () =>
-      filterByStudioAccess(adminState.clients, session.user, accessibleClientStudioIds).filter((client) => {
-        const searchable = `${client.name} ${client.segment} ${client.status}`.toLowerCase()
-        return searchable.includes(query.toLowerCase())
-      }),
+      filterByStudioAccess(adminState.clients, session.user, accessibleClientStudioIds)
+        .filter((client) => {
+          const searchable = `${client.name} ${client.email}`.toLowerCase()
+          return searchable.includes(query.toLowerCase())
+        })
+        .sort((firstClient, secondClient) => {
+          const firstDate = firstClient.lastAppointmentAt || firstClient.lastVisit || firstClient.createdAt || ''
+          const secondDate = secondClient.lastAppointmentAt || secondClient.lastVisit || secondClient.createdAt || ''
+          return String(secondDate).localeCompare(String(firstDate))
+        })
+        .slice(0, 5),
     [accessibleClientStudioIds, adminState.clients, query, session.user],
   )
   const canSeeStudioRevenue = hasPermission(session.user, permissions.STUDIO_REVENUE)
+
+  const openOwnerAppointmentFlow = (client = null) => {
+    if (!isStudioOwnerContext) return
+
+    navigate(`${paths.adminStudio}?section=schedule`, {
+      state: {
+        ownerAppointment: {
+          client,
+        },
+      },
+    })
+  }
 
   const saveClientProfile = async () => {
     if (!profileClient) return
@@ -87,12 +110,16 @@ function AdminClients() {
   return (
     <main className="dashboard-grid admin-grid">
         <Card className="wide-card mobile-screen primary-panel">
-          <PanelHeader title="Gestion de clientes" eyebrow="Admin" action={<Button size="sm">Nueva clienta</Button>} />
+          <PanelHeader
+            title="Gestion de clientes"
+            eyebrow="Admin"
+            action={<Button disabled={!isStudioOwnerContext} size="sm" onClick={() => openOwnerAppointmentFlow()}>Nueva clienta</Button>}
+          />
           <div className="admin-search">
             <Input
               label="Buscar clienta"
               type="search"
-              placeholder="Nombre, segmento o estado..."
+              placeholder="Nombre o correo..."
               value={query}
               onChange={(event) => setQuery(event.target.value)}
             />
@@ -116,6 +143,9 @@ function AdminClients() {
                   <button type="button" onClick={() => toggleManagedClientStatus(client.id)}>
                     {client.status === 'Activo' ? 'Inactivar' : 'Activar'}
                   </button>
+                  {isStudioOwnerContext && (
+                    <button type="button" onClick={() => openOwnerAppointmentFlow(client)}>Generar cita</button>
+                  )}
                   <button type="button" onClick={() => setHistoryClient(client)}>Ver historial</button>
                   <button type="button" onClick={() => setProfileClient(client)}>Ver perfil</button>
                 </div>

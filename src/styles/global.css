@@ -1416,6 +1416,7 @@ select:focus,
 }
 
 .agenda-rules-strip span,
+.agenda-rules-strip button,
 .step-label {
   background: rgba(247, 238, 235, 0.86);
   border: 1px solid var(--line);
@@ -1425,6 +1426,31 @@ select:focus,
   font-size: 12px;
   font-weight: 900;
   padding: 8px 10px;
+}
+
+.agenda-rules-strip button {
+  cursor: pointer;
+}
+
+.agenda-rules-strip button.active {
+  background: #2d2527;
+  border-color: #2d2527;
+  color: #fff;
+}
+
+.owner-day-strip {
+  flex-wrap: nowrap;
+  margin-right: -12px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scroll-snap-type: x proximity;
+  -webkit-overflow-scrolling: touch;
+}
+
+.owner-day-strip button {
+  flex: 0 0 auto;
+  min-width: 76px;
+  scroll-snap-align: start;
 }
 
 .timeline-item,
