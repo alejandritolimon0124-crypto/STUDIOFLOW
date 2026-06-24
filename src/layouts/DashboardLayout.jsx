@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { paths } from '../routes/paths'
 import { isActivePath } from '../routes/routerUtils'
@@ -44,22 +44,27 @@ function getCleanArtistBusinessName(value = '') {
   return normalizedName
 }
 
+function normalizeArtistWorkspaceId(context = {}) {
+  return context.id || `${context.contextType || context.type || 'artist'}:${context.membershipId || context.membership_id || context.artistId || context.artist_id || 'independent'}`
+}
+
+function cleanWorkspaceLabel(value = '') {
+  return String(value || '')
+    .replace(/\s*\(Independiente\)\s*$/i, '')
+    .trim()
+}
+
 const roleNavigation = {
   admin: [
     { label: 'Dashboard', path: paths.admin },
     { label: 'Artistas', path: paths.adminArtists },
     { label: 'Estudios', path: paths.adminStudios },
-    { label: 'Clientes', path: paths.adminClients },
-    { label: 'Mi Estudio', path: paths.adminStudio },
     { label: 'Sistema', path: paths.adminSystem },
   ],
   artist: [
     { label: 'Agenda', path: paths.artistAgenda },
     { label: 'Citas', path: paths.artistAppointments },
-    { label: 'Servicios', path: paths.artistServices },
-    { label: 'MI PERFIL', path: paths.artistSettings },
     { label: 'Clientes', path: paths.artistClients },
-    { label: 'Horarios', path: paths.artistSchedule },
     { label: 'Impulsa tu negocio', path: paths.artistMarketing },
   ],
   client: [
@@ -79,18 +84,15 @@ const bottomNavigationByRole = {
     { label: 'MI PERFIL', path: paths.clientProfile },
   ],
   artist: [
-    { label: 'Dashboard', path: paths.artist },
-    { label: 'Servicios', path: paths.artistServices },
     { label: 'Agenda', path: paths.artistAgenda },
+    { label: 'Citas', path: paths.artistAppointments },
     { label: 'Clientes', path: paths.artistClients },
-    { label: 'MI PERFIL', path: paths.artistSettings },
+    { label: 'Impulsa', path: paths.artistMarketing },
   ],
   admin: [
     { label: 'Dashboard', path: paths.admin },
     { label: 'Artistas', path: paths.adminArtists },
     { label: 'Estudios', path: paths.adminStudios },
-    { label: 'Clientes', path: paths.adminClients },
-    { label: 'Mi Estudio', path: paths.adminStudio },
     { label: 'Sistema', path: paths.adminSystem },
   ],
 }
@@ -113,13 +115,54 @@ const studioOwnerBottomNavigation = [
 
 function DashboardLayout({ children, role, title, subtitle, showMobileAppbar = true }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const [pendingStudioWorkspace, setPendingStudioWorkspace] = useState(null)
   const navigate = useNavigate()
-  const { adminState, artistState, clientState, logout, selectedDate, session, setSession } = useApp()
+  const {
+    adminState,
+    artistState,
+    artistWorkContextId,
+    artistWorkContexts,
+    clientState,
+    logout,
+    selectedDate,
+    selectArtistWorkContext,
+    session,
+    setSession,
+  } = useApp()
   const location = useLocation()
   const currentPath = location.pathname
   const assignedRoles = Array.isArray(session.roles) ? session.roles : []
   const activeContextRole = session.activeSessionContext?.role || null
   const activeContextStudioId = session.activeSessionContext?.studioId || session.activeSessionContext?.studio_id || null
+  useEffect(() => {
+    if (
+      pendingStudioWorkspace
+      && activeContextRole === ROLES.STUDIO_OWNER
+      && activeContextStudioId === pendingStudioWorkspace.studioId
+    ) {
+      setPendingStudioWorkspace(null)
+    }
+  }, [activeContextRole, activeContextStudioId, pendingStudioWorkspace])
+  const isStudioWorkspacePending = pendingStudioWorkspace
+    && (activeContextRole !== ROLES.STUDIO_OWNER || activeContextStudioId !== pendingStudioWorkspace.studioId)
+  const isAdminContextResolving = role === 'admin'
+    && !session.isMockSession
+    && (!session.activeSessionContext || isStudioWorkspacePending)
+  if (isAdminContextResolving) {
+    return (
+      <div className="app-shell">
+        <div className="main-shell">
+          <main className="dashboard-grid admin-grid">
+            <section className="profile-foundation-card">
+              <span className="eyebrow">Studio Flow</span>
+              <h3>Resolviendo contexto...</h3>
+              <small>Preparando workspace activo.</small>
+            </section>
+          </main>
+        </div>
+      </div>
+    )
+  }
   const effectiveAdminRole =
     activeContextRole
       || (session.user?.role === ROLES.PLATFORM_OWNER || assignedRoles.some((assignment) => assignment.role === ROLES.PLATFORM_OWNER)
@@ -130,10 +173,23 @@ function DashboardLayout({ children, role, title, subtitle, showMobileAppbar = t
           ? ROLES.STUDIO_MANAGER
           : session.user?.role)
   const effectiveAdminAssignment = assignedRoles.find((assignment) => assignment.role === effectiveAdminRole)
+  const ownerRouteStudioId = activeContextStudioId || session.user?.studioId || session.user?.studio_id || null
+  const hasOwnerAssignmentForRouteStudio = assignedRoles.some((assignment) => (
+    assignment.role === ROLES.STUDIO_OWNER
+    && (assignment.studioId || assignment.studio_id)
+    && (assignment.studioId || assignment.studio_id) === ownerRouteStudioId
+  ))
+  const shouldForceStudioOwnerChrome = role === 'admin'
+    && [paths.adminStudio, paths.adminClients].includes(currentPath)
+    && hasOwnerAssignmentForRouteStudio
+    && Boolean(ownerRouteStudioId)
+    && activeContextRole !== ROLES.PLATFORM_OWNER
   const effectiveAdminUser = {
     ...session.user,
-    role: effectiveAdminRole,
-    studioId: activeContextStudioId || session.user?.studioId || effectiveAdminAssignment?.studioId || effectiveAdminAssignment?.studio_id || null,
+    role: shouldForceStudioOwnerChrome ? ROLES.STUDIO_OWNER : effectiveAdminRole,
+    studioId: shouldForceStudioOwnerChrome
+      ? ownerRouteStudioId
+      : activeContextStudioId || session.user?.studioId || effectiveAdminAssignment?.studioId || effectiveAdminAssignment?.studio_id || null,
   }
   const activeAdminStudio = role === 'admin' && effectiveAdminUser.studioId
     ? adminState.studios.find((studio) => studio.id === effectiveAdminUser.studioId)
@@ -144,8 +200,6 @@ function DashboardLayout({ children, role, title, subtitle, showMobileAppbar = t
     if (role !== 'admin') return true
     if (item.path === paths.adminArtists) return hasPermission(effectiveAdminUser, permissions.STUDIO_ARTISTS)
     if (item.path === paths.adminStudios) return effectiveAdminUser.role === ROLES.PLATFORM_OWNER || hasPermission(effectiveAdminUser, permissions.GOVERNANCE)
-    if (item.path === paths.adminClients) return hasPermission(effectiveAdminUser, permissions.CLIENTS) || hasPermission(effectiveAdminUser, permissions.STUDIO_CLIENTS)
-    if (item.path === paths.adminStudio) return [ROLES.PLATFORM_OWNER, ROLES.STUDIO_OWNER].includes(effectiveAdminUser.role)
     if (item.path === paths.adminSystem) return hasPermission(effectiveAdminUser, permissions.GOVERNANCE)
     return true
   }
@@ -158,9 +212,7 @@ function DashboardLayout({ children, role, title, subtitle, showMobileAppbar = t
   const drawerHomePath = isStudioOwnerWorkspace ? paths.adminStudio : role === 'admin' ? paths.admin : role === 'client' ? paths.client : paths.artist
   const adminPrimaryAction = hasPermission(effectiveAdminUser, permissions.STUDIO_ARTISTS)
     ? { label: 'Artistas', path: paths.adminArtists }
-    : hasPermission(effectiveAdminUser, permissions.CLIENTS) || hasPermission(effectiveAdminUser, permissions.STUDIO_CLIENTS)
-      ? { label: 'Clientas', path: paths.adminClients }
-      : { label: 'Inicio', path: paths.admin }
+    : { label: 'Inicio', path: paths.admin }
   const primaryActionPath = role === 'client' ? paths.clientExplore : role === 'admin' ? adminPrimaryAction.path : paths.artistAppointments
   const primaryActionLabel = role === 'client' ? 'Reservar' : role === 'admin' ? adminPrimaryAction.label : 'Nueva cita'
   const drawerActions = role === 'client'
@@ -168,6 +220,8 @@ function DashboardLayout({ children, role, title, subtitle, showMobileAppbar = t
         { label: 'Inicio', path: drawerHomePath },
         { label: 'MI PERFIL', path: paths.clientProfile },
       ]
+    : role === 'artist'
+      ? []
     : [
         { label: 'Inicio', path: drawerHomePath },
         { label: primaryActionLabel, path: primaryActionPath },
@@ -275,14 +329,84 @@ function DashboardLayout({ children, role, title, subtitle, showMobileAppbar = t
         },
       ]
     }, [])
+  const artistWorkspaceItems = (artistWorkContexts || [])
+    .filter((context) => ['artist', 'membership'].includes(context.contextType || context.type || 'artist'))
+    .map((context) => {
+      const contextType = context.contextType || context.type || 'artist'
+      const studioName = context.studioName || context.studio_name || ''
+      const label = cleanWorkspaceLabel(
+        contextType === 'membership'
+          ? studioName || context.label || 'Estudio'
+          : context.label || artistName || artistStudioName || 'Artista independiente',
+      )
+
+      return {
+        label,
+        path: paths.artistAgenda,
+        role: ROLES.ARTIST,
+        contextId: normalizeArtistWorkspaceId(context),
+        contextType,
+        studioId: context.studioId || context.studio_id || null,
+        membershipId: context.membershipId || context.membership_id || null,
+      }
+    })
+  const sessionMembershipWorkspaceItems = (session.memberships || [])
+    .filter((membership) => (
+      (membership.status || 'active') === 'active'
+      && (membership.id || membership.membershipId || membership.membership_id)
+      && (membership.studioId || membership.studio_id)
+    ))
+    .map((membership) => {
+      const membershipId = membership.id || membership.membershipId || membership.membership_id
+      const studioId = membership.studioId || membership.studio_id
+      const studio = adminState.studios.find((item) => item.id === studioId)
+      const studioName = studio?.profile?.commercialName
+        || studio?.name
+        || membership.studioName
+        || membership.studio_name
+        || membership.commercialName
+        || membership.commercial_name
+        || 'Estudio'
+
+      return {
+        label: cleanWorkspaceLabel(studioName),
+        path: paths.artistAgenda,
+        role: ROLES.ARTIST,
+        contextId: `membership:${membershipId}`,
+        contextType: 'membership',
+        studioId,
+        membershipId,
+      }
+    })
+  const artistIndependentWorkspaceItems = artistWorkspaceItems.filter((workspace) => workspace.contextType === 'artist')
+  const artistMembershipWorkspaceItems = [
+    ...artistWorkspaceItems.filter((workspace) => workspace.contextType === 'membership'),
+    ...sessionMembershipWorkspaceItems,
+  ]
+  const allArtistWorkspaceItems = [
+    ...artistIndependentWorkspaceItems,
+    ...studioOwnerWorkspaceItems,
+    ...artistMembershipWorkspaceItems,
+  ]
+    .filter((workspace, index, items) => (
+      workspace.label
+      && !['admin', 'cliente', 'client', 'platform owner', 'studio owner', 'artista'].includes(workspace.label.toLowerCase())
+      && items.findIndex((item) => (
+        item.contextId === workspace.contextId
+        || (workspace.studioId && item.studioId === workspace.studioId)
+        || item.label === workspace.label
+      )) === index
+    ))
   const isStudioOwnerActiveContext = activeContextRole === ROLES.STUDIO_OWNER && Boolean(activeContextStudioId)
   const shouldShowAdminWorkspace = !isStudioOwnerActiveContext || activeContextRole === ROLES.PLATFORM_OWNER
-  const workspaceItems = [
-    ...(shouldShowAdminWorkspace ? [{ label: 'Admin', path: paths.admin, role: ROLES.PLATFORM_OWNER }] : []),
-    { label: 'Artista', path: paths.artistAgenda },
-    ...studioOwnerWorkspaceItems,
-    { label: 'Cliente', path: paths.client },
-  ]
+  const workspaceItems = role === 'artist'
+    ? allArtistWorkspaceItems
+    : [
+        ...(shouldShowAdminWorkspace ? [{ label: 'Admin', path: paths.admin, role: ROLES.PLATFORM_OWNER }] : []),
+        { label: 'Artista', path: paths.artistAgenda },
+        ...studioOwnerWorkspaceItems,
+        { label: 'Cliente', path: paths.client },
+      ]
 
   const handleNavigate = (path) => {
     navigate(path)
@@ -290,7 +414,35 @@ function DashboardLayout({ children, role, title, subtitle, showMobileAppbar = t
   }
 
   const handleWorkspaceNavigate = (workspace) => {
+    if (workspace.contextId) {
+      selectArtistWorkContext?.(workspace.contextId)
+      setPendingStudioWorkspace(null)
+      setSession((currentSession) => ({
+        ...currentSession,
+        role: ROLES.ARTIST,
+        activeSessionContext: {
+          role: ROLES.ARTIST,
+          contextType: workspace.contextType,
+          studioId: workspace.studioId || null,
+          membershipId: workspace.membershipId || null,
+        },
+        user: currentSession.user
+          ? {
+              ...currentSession.user,
+              role: ROLES.ARTIST,
+              studioId: workspace.studioId || null,
+            }
+          : currentSession.user,
+      }))
+      handleNavigate(workspace.path)
+      return
+    }
+
     if (workspace.studioId) {
+      setPendingStudioWorkspace({
+        studioId: workspace.studioId,
+        role: workspace.role || ROLES.STUDIO_OWNER,
+      })
       setSession((currentSession) => {
         const nextRole = workspace.role || ROLES.STUDIO_OWNER
         const previousContext = currentSession.activeSessionContext || null
@@ -316,6 +468,8 @@ function DashboardLayout({ children, role, title, subtitle, showMobileAppbar = t
 
         return nextSession
       })
+    } else {
+      setPendingStudioWorkspace(null)
     }
 
     handleNavigate(workspace.path)
@@ -339,7 +493,7 @@ function DashboardLayout({ children, role, title, subtitle, showMobileAppbar = t
     <div className={`app-shell ${isMenuOpen ? 'menu-open' : ''}`}>
       <button className="sidebar-backdrop" type="button" aria-label="Cerrar menu" onClick={() => setIsMenuOpen(false)}></button>
 
-      <aside className="sidebar">
+      <aside className={`sidebar ${role === 'artist' ? 'artist-sidebar' : ''}`}>
         <button className="brand-button sidebar-brand drawer-brand-logo" type="button" onClick={() => handleNavigate(drawerHomePath)}>
           <img src={drawerLogo} alt="Studio Flow" />
         </button>
@@ -372,6 +526,20 @@ function DashboardLayout({ children, role, title, subtitle, showMobileAppbar = t
           ))}
         </nav>
 
+        <div className="sidebar-switcher">
+          <small>Workspaces</small>
+          {workspaceItems.map((workspace) => (
+            <button
+              className={workspace.contextId && workspace.contextId === artistWorkContextId ? 'active' : ''}
+              type="button"
+              onClick={() => handleWorkspaceNavigate(workspace)}
+              key={`${workspace.path}-${workspace.label}-${workspace.studioId || workspace.contextId || 'base'}`}
+            >
+              {workspace.label}
+            </button>
+          ))}
+        </div>
+
         <div className="sidebar-switcher drawer-actions">
           <small>Acciones</small>
           {drawerActions.map((item, index) => (
@@ -380,15 +548,6 @@ function DashboardLayout({ children, role, title, subtitle, showMobileAppbar = t
             </button>
           ))}
           <button type="button" onClick={handleLogout}>Cerrar sesion</button>
-        </div>
-
-        <div className="sidebar-switcher">
-          <small>Workspaces</small>
-          {workspaceItems.map((workspace) => (
-            <button type="button" onClick={() => handleWorkspaceNavigate(workspace)} key={`${workspace.path}-${workspace.label}-${workspace.studioId || 'base'}`}>
-              {workspace.label}
-            </button>
-          ))}
         </div>
       </aside>
 

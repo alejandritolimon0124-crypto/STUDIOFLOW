@@ -12,6 +12,7 @@ import ClientDashboard from '../pages/client/ClientDashboard'
 import Login from '../pages/auth/Login'
 import Register from '../pages/auth/Register'
 import AdminLayout from '../layouts/AdminLayout'
+import StudioOwnerLayout from '../layouts/StudioOwnerLayout'
 import ArtistLayout from '../layouts/ArtistLayout'
 import ClientLayout from '../layouts/ClientLayout'
 import { paths } from './paths'
@@ -27,9 +28,12 @@ function AppRouter() {
         <Route path={paths.admin} element={<AdminDashboard />} />
         <Route path={paths.adminDashboard} element={<AdminDashboard />} />
         <Route path={paths.adminArtists} element={<AdminArtists />} />
+        <Route path={paths.adminSystem} element={<AdminDashboard />} />
+      </Route>
+
+      <Route element={<StudioOwnerLayout />}>
         <Route path={paths.adminClients} element={<AdminClients />} />
         <Route path={paths.adminStudio} element={<AdminStudioProfile />} />
-        <Route path={paths.adminSystem} element={<AdminDashboard />} />
       </Route>
 
       <Route element={<ArtistLayout />}>

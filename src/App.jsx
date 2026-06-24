@@ -7,6 +7,7 @@ import AdminStudios from './pages/admin/AdminStudios'
 import AdminStudioProfile from './pages/admin/AdminStudioProfile'
 import QASandbox from './pages/admin/QASandbox'
 import AdminLayout from './layouts/AdminLayout'
+import StudioOwnerLayout from './layouts/StudioOwnerLayout'
 import ArtistLayout from './layouts/ArtistLayout'
 import ArtistAppointments from './pages/artist/ArtistAppointments'
 import ArtistClients from './pages/artist/ArtistClients'
@@ -62,9 +63,12 @@ function App() {
             <Route index element={<AdminDashboard />} />
             <Route path="artists" element={<AdminArtists />} />
             <Route path="studios" element={<AdminStudios />} />
-            <Route path="clients" element={<AdminClients />} />
-            <Route path="studio" element={<AdminStudioProfile />} />
             <Route path="system" element={<QASandbox />} />
+          </Route>
+
+          <Route element={<ProtectedRoute allowedRole="admin"><StudioOwnerLayout /></ProtectedRoute>}>
+            <Route path="/admin/studio" element={<AdminStudioProfile />} />
+            <Route path="/admin/clients" element={<AdminClients />} />
           </Route>
         </Routes>
         <PWAResumeGuard />

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Button from '../../components/Button'
 import Card from '../../components/Card'
 import Input from '../../components/Input'
@@ -11,7 +11,11 @@ import { getCurrentProfile, getCurrentStudio } from '../../modules/entities/enti
 import { paths } from '../../routes/paths'
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { publishStudioMarketplace } from '../../services/studioService'
-import { createStudioOwnerAppointment } from '../../services/studioOwnerAppointmentService'
+import {
+  createStudioOwnerAppointment,
+  fetchStudioOwnerAppointments,
+  searchStudioOwnerClients,
+} from '../../services/studioOwnerAppointmentService'
 import {
   cancelStudioArtistInvitation,
   fetchStudioMembershipOperations,
@@ -103,6 +107,30 @@ function getMonthEndDate(startDateValue) {
   return formatDateValue(new Date(startDate.getFullYear(), startDate.getMonth() + 1, 0))
 }
 
+function OwnerDayStrip({ selectedDate, setSelectedDate, visibleDays }) {
+  return (
+    <div className="day-strip">
+      {visibleDays.map((dateValue) => {
+        const date = parseDateValue(dateValue)
+        const dayLabel = date.toLocaleDateString('es-MX', { weekday: 'short' }).substring(0, 3)
+        const dayNum = date.getDate()
+
+        return (
+          <button
+            className={selectedDate === dateValue ? 'active' : ''}
+            key={dateValue}
+            type="button"
+            onClick={() => setSelectedDate(dateValue)}
+          >
+            <span>{dayLabel}</span>
+            <strong>{dayNum}</strong>
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
 function StudioSummarySection({
   activeMemberships,
   currentStudio,
@@ -114,6 +142,9 @@ function StudioSummarySection({
   const [showMetrics, setShowMetrics] = useState(false)
   const [showCalendarFilter, setShowCalendarFilter] = useState(false)
   const [selectedAgendaDate, setSelectedAgendaDate] = useState(getTodayDateValue)
+  const [pendingMetricsScroll, setPendingMetricsScroll] = useState('')
+  const dashboardHeaderRef = useRef(null)
+  const metricsRef = useRef(null)
   const [nowTimestamp] = useState(() => Date.now())
   const studioName = profileDraft.commercialName || currentStudio?.profile?.commercialName || currentStudio?.name || 'Estudio'
   const visibleDays = useMemo(() => buildVisibleDays(selectedAgendaDate), [selectedAgendaDate])
@@ -142,10 +173,71 @@ function StudioSummarySection({
     return accumulator
   }, {})
   const mostActiveArtist = Object.entries(appointmentsByArtist).sort((first, second) => second[1] - first[1])[0]
+  const toggleMetrics = () => {
+    const nextShowMetrics = !showMetrics
+    setShowMetrics(nextShowMetrics)
+    setPendingMetricsScroll(nextShowMetrics ? 'metrics' : 'header')
+  }
+
+  useEffect(() => {
+    if (!pendingMetricsScroll) return
+
+    const target = pendingMetricsScroll === 'metrics' ? metricsRef.current : dashboardHeaderRef.current
+    window.requestAnimationFrame(() => {
+      target?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      setPendingMetricsScroll('')
+    })
+  }, [pendingMetricsScroll, showMetrics])
 
   return (
     <>
       <section className="profile-foundation-card">
+        <div>
+          <span className="eyebrow">Agenda visual</span>
+          <h3>{selectedAgendaDate === today ? 'Hoy' : selectedAgendaDate}</h3>
+          <small>Desliza lateralmente para revisar dias cercanos.</small>
+        </div>
+        <div className="studio-review-actions">
+          <Button size="sm" variant="ghost" onClick={() => setShowCalendarFilter((currentValue) => !currentValue)}>
+            Filtrar
+          </Button>
+        </div>
+        {showCalendarFilter && (
+          <Input
+            label="Seleccionar fecha"
+            type="date"
+            value={selectedAgendaDate}
+            onChange={(event) => setSelectedAgendaDate(event.target.value || today)}
+          />
+        )}
+        <OwnerDayStrip
+          selectedDate={selectedAgendaDate}
+          setSelectedDate={setSelectedAgendaDate}
+          visibleDays={visibleDays}
+        />
+        <div className="compact-list">
+          {selectedDateAppointments.slice(0, 6).map((appointment) => (
+            <div className="list-row elevated-row" key={appointment.id || `${getAppointmentDate(appointment)}-${getAppointmentTime(appointment)}-${appointment.client}`}>
+              <div>
+                <strong>{getAppointmentTime(appointment)} / {appointment.client || 'Clienta'}</strong>
+                <small>{appointment.service || 'Servicio'} con {appointment.artist || 'Artista'}</small>
+              </div>
+              <StatusPill tone="success">Confirmada</StatusPill>
+            </div>
+          ))}
+          {selectedDateAppointments.length === 0 && (
+            <div className="list-row elevated-row">
+              <div>
+                <strong>Sin citas confirmadas</strong>
+                <small>No hay citas operativas para este dia.</small>
+              </div>
+              <StatusPill tone="neutral">Libre</StatusPill>
+            </div>
+          )}
+        </div>
+      </section>
+
+      <section className="profile-foundation-card" ref={dashboardHeaderRef}>
         <div>
           <span className="eyebrow">Resumen operativo</span>
           <h3>{studioName}</h3>
@@ -153,7 +245,7 @@ function StudioSummarySection({
         </div>
         <div className="studio-review-actions">
           <Button onClick={() => navigate(`${paths.adminStudio}?section=schedule`)}>Agregar cita</Button>
-          <Button variant="ghost" onClick={() => setShowMetrics((currentValue) => !currentValue)}>
+          <Button variant="ghost" onClick={toggleMetrics}>
             {showMetrics ? 'Ocultar metricas' : 'Ver metricas'}
           </Button>
         </div>
@@ -189,58 +281,41 @@ function StudioSummarySection({
         </div>
       </section>
 
-      <section className="profile-foundation-card">
-        <div>
-          <span className="eyebrow">Agenda visual</span>
-          <h3>{selectedAgendaDate === today ? 'Hoy' : selectedAgendaDate}</h3>
-          <small>Desliza lateralmente para revisar dias cercanos.</small>
-        </div>
-        <div className="studio-review-actions">
-          <Button size="sm" variant="ghost" onClick={() => setShowCalendarFilter((currentValue) => !currentValue)}>
-            Filtrar
-          </Button>
-        </div>
-        {showCalendarFilter && (
-          <Input
-            label="Seleccionar fecha"
-            type="date"
-            value={selectedAgendaDate}
-            onChange={(event) => setSelectedAgendaDate(event.target.value || today)}
-          />
-        )}
-        <div className="agenda-rules-strip owner-day-strip">
-          {visibleDays.map((dateValue, index) => (
-            <button
-              className={selectedAgendaDate === dateValue ? 'active' : ''}
-              key={dateValue}
-              type="button"
-              onClick={() => setSelectedAgendaDate(dateValue)}
-            >
-              {index === 0 ? 'Hoy' : parseDateValue(dateValue).toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric' })}
-            </button>
-          ))}
-        </div>
-        <div className="compact-list">
-          {selectedDateAppointments.slice(0, 6).map((appointment) => (
-            <div className="list-row elevated-row" key={appointment.id || `${getAppointmentDate(appointment)}-${getAppointmentTime(appointment)}-${appointment.client}`}>
-              <div>
-                <strong>{getAppointmentTime(appointment)} / {appointment.client || 'Clienta'}</strong>
-                <small>{appointment.service || 'Servicio'} con {appointment.artist || 'Artista'}</small>
-              </div>
-              <StatusPill tone="success">Confirmada</StatusPill>
-            </div>
-          ))}
-          {selectedDateAppointments.length === 0 && (
+      {showMetrics && (
+        <section className="profile-foundation-card" ref={metricsRef}>
+          <div>
+            <span className="eyebrow">Metricas operativas</span>
+            <h3>Rendimiento del estudio</h3>
+          </div>
+          <div className="compact-list">
             <div className="list-row elevated-row">
-              <div>
-                <strong>Sin citas confirmadas</strong>
-                <small>No hay citas operativas para este dia.</small>
-              </div>
-              <StatusPill tone="neutral">Libre</StatusPill>
+              <strong>Citas hoy</strong>
+              <StatusPill tone="neutral">{todayAppointments.length}</StatusPill>
             </div>
-          )}
-        </div>
-      </section>
+            <div className="list-row elevated-row">
+              <strong>Citas semana</strong>
+              <StatusPill tone="neutral">{countAppointmentsBetween(ownerAppointments, today, weekEndDate)}</StatusPill>
+            </div>
+            <div className="list-row elevated-row">
+              <strong>Citas mes</strong>
+              <StatusPill tone="neutral">{countAppointmentsBetween(ownerAppointments, today, monthEndDate)}</StatusPill>
+            </div>
+            <div className="list-row elevated-row">
+              <strong>Ocupacion agenda</strong>
+              <StatusPill tone={occupancy > 70 ? 'success' : 'neutral'}>{occupancy}%</StatusPill>
+            </div>
+            <div className="list-row elevated-row">
+              <strong>Servicios realizados</strong>
+              <StatusPill tone="neutral">{completedServices}</StatusPill>
+            </div>
+            <div className="list-row elevated-row">
+              <strong>Artista mas activa</strong>
+              <StatusPill tone="neutral">{mostActiveArtist ? `${mostActiveArtist[0]} (${mostActiveArtist[1]})` : 'Sin citas'}</StatusPill>
+            </div>
+          </div>
+          <Button variant="ghost" onClick={toggleMetrics}>Ocultar metricas</Button>
+        </section>
+      )}
 
       <section className="profile-foundation-card">
         <div>
@@ -273,42 +348,6 @@ function StudioSummarySection({
           )}
         </div>
       </section>
-
-      {showMetrics && (
-        <section className="profile-foundation-card">
-          <div>
-            <span className="eyebrow">Metricas operativas</span>
-            <h3>Rendimiento del estudio</h3>
-          </div>
-          <div className="compact-list">
-            <div className="list-row elevated-row">
-              <strong>Citas hoy</strong>
-              <StatusPill tone="neutral">{todayAppointments.length}</StatusPill>
-            </div>
-            <div className="list-row elevated-row">
-              <strong>Citas semana</strong>
-              <StatusPill tone="neutral">{countAppointmentsBetween(ownerAppointments, today, weekEndDate)}</StatusPill>
-            </div>
-            <div className="list-row elevated-row">
-              <strong>Citas mes</strong>
-              <StatusPill tone="neutral">{countAppointmentsBetween(ownerAppointments, today, monthEndDate)}</StatusPill>
-            </div>
-            <div className="list-row elevated-row">
-              <strong>Ocupacion agenda</strong>
-              <StatusPill tone={occupancy > 70 ? 'success' : 'neutral'}>{occupancy}%</StatusPill>
-            </div>
-            <div className="list-row elevated-row">
-              <strong>Servicios realizados</strong>
-              <StatusPill tone="neutral">{completedServices}</StatusPill>
-            </div>
-            <div className="list-row elevated-row">
-              <strong>Artista mas activa</strong>
-              <StatusPill tone="neutral">{mostActiveArtist ? `${mostActiveArtist[0]} (${mostActiveArtist[1]})` : 'Sin citas'}</StatusPill>
-            </div>
-          </div>
-          <Button variant="ghost" onClick={() => setShowMetrics(false)}>Ocultar metricas</Button>
-        </section>
-      )}
     </>
   )
 }
@@ -435,20 +474,11 @@ function StudioScheduleSection({
             onChange={(event) => setSelectedAgendaDate(event.target.value || getTodayDateValue())}
           />
         )}
-        <div className="agenda-rules-strip owner-day-strip">
-          {visibleDays.map((dateValue, index) => (
-            <button
-              className={selectedAgendaDate === dateValue ? 'active' : ''}
-              key={dateValue}
-              type="button"
-              onClick={() => setSelectedAgendaDate(dateValue)}
-            >
-              {index === 0 && dateValue === getTodayDateValue()
-                ? 'Hoy'
-                : parseDateValue(dateValue).toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric' })}
-            </button>
-          ))}
-        </div>
+        <OwnerDayStrip
+          selectedDate={selectedAgendaDate}
+          setSelectedDate={setSelectedAgendaDate}
+          visibleDays={visibleDays}
+        />
         <div className="compact-list">
           {selectedDateAppointments.map((appointment) => (
             <div className="list-row elevated-row" key={appointment.id || `${getAppointmentDate(appointment)}-${getAppointmentTime(appointment)}-${appointment.client}`}>
@@ -630,14 +660,17 @@ function StudioSettingsSection({ children }) {
 
 function OwnerAppointmentModal({
   clients,
+  clientSearchStatus,
   currentStudio,
   draft,
   feedback,
+  isClientSearchLoading,
   isSaving,
   membershipOperationsById,
   memberships,
   onClose,
   onDraftChange,
+  onSearchClients,
   onSave,
 }) {
   const selectedMembership = memberships.find((membership) => membership.id === draft.membershipId)
@@ -649,27 +682,34 @@ function OwnerAppointmentModal({
   const search = draft.clientSearch.trim().toLowerCase()
   const matchingClients = search
     ? clients.filter((client) => `${client.name} ${client.email}`.toLowerCase().includes(search)).slice(0, 5)
-    : clients.slice(0, 5)
+    : []
   const selectedClient = clients.find((client) => client.id === draft.clientId)
 
   return (
-    <div className="modal-shell" aria-label="Agendar cita">
+    <div className="modal-shell owner-appointment-modal" aria-label="Agendar cita">
       <div className="modal-card">
         <div className="modal-header">
           <div>
-            <span className="eyebrow">{currentStudio?.profile?.commercialName || currentStudio?.name || 'Studio Owner'}</span>
+            <span className="eyebrow">{currentStudio?.profile?.commercialName || currentStudio?.name || 'Estudio'}</span>
             <h3>Generar cita</h3>
           </div>
           <button className="modal-close" type="button" aria-label="Cerrar" onClick={onClose}>x</button>
         </div>
         <div className="modal-body form-stack compact-form">
-          <Input
-            label="Buscar clienta"
-            placeholder="Nombre o correo electronico"
-            type="search"
-            value={draft.clientSearch}
-            onChange={(event) => onDraftChange({ clientSearch: event.target.value, clientId: '' })}
-          />
+          <div className="location-form-grid">
+            <Input
+              label="Buscar clienta"
+              placeholder="Nombre o correo electronico"
+              type="search"
+              value={draft.clientSearch}
+              onChange={(event) => onDraftChange({ clientSearch: event.target.value, clientId: '' })}
+            />
+            <div style={{ alignSelf: 'end' }}>
+              <Button disabled={isClientSearchLoading} size="sm" onClick={onSearchClients}>
+                {isClientSearchLoading ? 'Buscando...' : 'Buscar'}
+              </Button>
+            </div>
+          </div>
           <div className="compact-list">
             {matchingClients.map((client) => (
               <div className="list-row elevated-row" key={client.id}>
@@ -691,6 +731,14 @@ function OwnerAppointmentModal({
                 </Button>
               </div>
             ))}
+            {clientSearchStatus.message && (
+              <div className="list-row elevated-row">
+                <div>
+                  <strong>{clientSearchStatus.message}</strong>
+                  <small>Tambien puedes crear una clienta rapida abajo.</small>
+                </div>
+              </div>
+            )}
           </div>
           {selectedClient && (
             <small style={{ color: 'var(--success)', fontWeight: 800 }}>
@@ -734,7 +782,7 @@ function OwnerAppointmentModal({
             <span>Servicio</span>
             <select
               value={draft.serviceOfferingId}
-              onChange={(event) => onDraftChange({ serviceOfferingId: event.target.value, availabilitySlotId: '' })}
+              onChange={(event) => onDraftChange({ serviceOfferingId: event.target.value })}
             >
               <option value="">Selecciona servicio</option>
               {services.map((service) => (
@@ -828,10 +876,27 @@ function AdminStudioProfile() {
   const [isOwnerAppointmentOpen, setIsOwnerAppointmentOpen] = useState(false)
   const [isOwnerAppointmentSaving, setIsOwnerAppointmentSaving] = useState(false)
   const [ownerAppointmentFeedback, setOwnerAppointmentFeedback] = useState({ tone: 'neutral', message: '' })
+  const [ownerClientResults, setOwnerClientResults] = useState([])
+  const [isOwnerClientSearchLoading, setIsOwnerClientSearchLoading] = useState(false)
+  const [ownerClientSearchStatus, setOwnerClientSearchStatus] = useState({ tone: 'neutral', message: '' })
+  const [studioOwnerAppointments, setStudioOwnerAppointments] = useState([])
   const localProfiles = session.user ? [{ ...session.user, id: session.user.id }] : []
   const currentProfile = getCurrentProfile({ session, profiles: localProfiles })
-  const studioOwnerAssignment = (session.roles || []).find((assignment) => assignment.role === 'studio_owner')
-  const activeStudioId = session.user?.studioId || studioOwnerAssignment?.studioId || studioOwnerAssignment?.studio_id || null
+  const studioOwnerAssignment = (session.roles || []).find((assignment) => (
+    assignment.role === 'studio_owner'
+    && (assignment.status || 'active') !== 'inactive'
+    && (assignment.status || 'active') !== 'revoked'
+    && (assignment.studioId || assignment.studio_id)
+  ))
+  const activeStudioOwnerContextId = session.activeSessionContext?.role === 'studio_owner'
+    ? session.activeSessionContext?.studioId || session.activeSessionContext?.studio_id || null
+    : null
+  const activeStudioId = activeStudioOwnerContextId
+    || studioOwnerAssignment?.studioId
+    || studioOwnerAssignment?.studio_id
+    || session.user?.studioId
+    || session.user?.studio_id
+    || null
   const currentStudio = getCurrentStudio({
     session,
     profiles: localProfiles,
@@ -861,7 +926,7 @@ function AdminStudioProfile() {
     const activeMembershipIds = new Set(activeMemberships.map((membership) => membership.membershipId || membership.id).filter(Boolean))
     const activeArtistIds = new Set(activeMemberships.map((membership) => membership.artistId).filter(Boolean))
 
-    return (adminState.dashboard?.appointments || [])
+    return studioOwnerAppointments
       .filter(isConfirmedAppointment)
       .filter((appointment) => {
         const appointmentStudioId = appointment.studioId || appointment.studio_id || null
@@ -873,17 +938,29 @@ function AdminStudioProfile() {
         if (appointmentArtistId) return activeArtistIds.has(appointmentArtistId)
         return false
       })
-  }, [activeMemberships, adminState.dashboard?.appointments, currentStudio?.id])
-  const ownerAppointmentClients = useMemo(
-    () => (adminState.clients || [])
-      .map(normalizeOwnerClient)
-      .sort((firstClient, secondClient) => {
-        const firstDate = firstClient.lastAppointmentAt || firstClient.createdAt || ''
-        const secondDate = secondClient.lastAppointmentAt || secondClient.createdAt || ''
-        return String(secondDate).localeCompare(String(firstDate))
-      }),
-    [adminState.clients],
+  }, [activeMemberships, currentStudio?.id, studioOwnerAppointments])
+  const modalClientResults = ownerClientResults
+
+  const activeMembershipIds = useMemo(
+    () => activeMemberships.map((membership) => membership.membershipId || membership.id).filter(Boolean),
+    [activeMemberships],
   )
+
+  const loadStudioOwnerAppointments = useCallback(async () => {
+    if (!currentStudio?.id) return []
+
+    try {
+      const appointments = await fetchStudioOwnerAppointments({
+        studioId: currentStudio.id,
+        membershipIds: activeMembershipIds,
+      })
+      setStudioOwnerAppointments(appointments)
+      return appointments
+    } catch (error) {
+      setStudioOwnerAppointments([])
+      return []
+    }
+  }, [activeMembershipIds, currentStudio?.id])
 
   const loadStudioMemberships = useCallback(async ({ silent = false, successMessage = '' } = {}) => {
     if (!currentStudio?.id) return null
@@ -947,6 +1024,12 @@ function AdminStudioProfile() {
 
     loadStudioMemberships()
   }, [currentStudio?.id, loadStudioMemberships])
+
+  useEffect(() => {
+    if (!currentStudio?.id) return
+
+    loadStudioOwnerAppointments()
+  }, [currentStudio?.id, loadStudioOwnerAppointments])
 
   useEffect(() => {
     if (!currentStudio?.id) return undefined
@@ -1265,15 +1348,15 @@ function AdminStudioProfile() {
       ...patch,
     }))
     setOwnerAppointmentFeedback({ tone: 'neutral', message: '' })
+    if (Object.prototype.hasOwnProperty.call(patch, 'clientSearch')) {
+      setOwnerClientResults([])
+      setOwnerClientSearchStatus({ tone: 'neutral', message: '' })
+    }
   }
 
   const openOwnerAppointmentModal = async ({ membership = null, slot = null, client = null } = {}) => {
     const normalizedClient = client ? normalizeOwnerClient(client) : null
     const membershipId = membership?.id || ''
-
-    if (membershipId && !membershipOperationsById[membershipId]) {
-      await loadMembershipOperations(membershipId)
-    }
 
     setOwnerAppointmentDraft({
       ...emptyOwnerAppointmentDraft,
@@ -1285,8 +1368,14 @@ function AdminStudioProfile() {
       membershipId,
       availabilitySlotId: slot?.id || '',
     })
+    setOwnerClientResults(normalizedClient ? [normalizedClient] : [])
+    setOwnerClientSearchStatus({ tone: 'neutral', message: '' })
     setOwnerAppointmentFeedback({ tone: 'neutral', message: '' })
     setIsOwnerAppointmentOpen(true)
+
+    if (membershipId && !membershipOperationsById[membershipId]) {
+      loadMembershipOperations(membershipId).catch(() => null)
+    }
   }
 
   const closeOwnerAppointmentModal = () => {
@@ -1295,6 +1384,35 @@ function AdminStudioProfile() {
     setIsOwnerAppointmentOpen(false)
     setOwnerAppointmentDraft(emptyOwnerAppointmentDraft)
     setOwnerAppointmentFeedback({ tone: 'neutral', message: '' })
+    setOwnerClientResults([])
+    setOwnerClientSearchStatus({ tone: 'neutral', message: '' })
+  }
+
+  const searchOwnerClients = async () => {
+    const query = ownerAppointmentDraft.clientSearch.trim()
+
+    if (!query) {
+      setOwnerClientResults([])
+      setOwnerClientSearchStatus({ tone: 'neutral', message: 'Ingresa nombre o correo para buscar.' })
+      return
+    }
+
+    setIsOwnerClientSearchLoading(true)
+    setOwnerClientSearchStatus({ tone: 'neutral', message: '' })
+
+    try {
+      const clients = await searchStudioOwnerClients({
+        query,
+        limit: 5,
+      })
+      setOwnerClientResults(clients.map(normalizeOwnerClient))
+      setOwnerClientSearchStatus(clients.length === 0 ? { tone: 'neutral', message: 'No se encontraron clientas con ese nombre o correo.' } : { tone: 'neutral', message: '' })
+    } catch (error) {
+      setOwnerClientResults([])
+      setOwnerClientSearchStatus({ tone: 'warm', message: error.message || 'No se pudo buscar clientas.' })
+    } finally {
+      setIsOwnerClientSearchLoading(false)
+    }
   }
 
   const saveOwnerAppointment = async () => {
@@ -1326,6 +1444,7 @@ function AdminStudioProfile() {
         notes: ownerAppointmentDraft.notes,
       })
       await loadMembershipOperations(ownerAppointmentDraft.membershipId)
+      await loadStudioOwnerAppointments()
       await loadAdminClients?.().catch(() => null)
       setOwnerAppointmentFeedback({ tone: 'success', message: 'Cita creada y slots bloqueados.' })
       setIsOwnerAppointmentOpen(false)
@@ -1349,7 +1468,6 @@ function AdminStudioProfile() {
     return (
       <main className="dashboard-grid admin-grid profile-foundation-grid">
         <Card className="wide-card mobile-screen primary-panel">
-          <PanelHeader title="Mi Estudio" eyebrow="Fuente profesional" />
           <div className="profile-foundation-stack">
             <section className="profile-foundation-card">
               <div>
@@ -1368,7 +1486,6 @@ function AdminStudioProfile() {
   return (
     <main className="dashboard-grid admin-grid profile-foundation-grid">
       <Card className="wide-card mobile-screen primary-panel">
-        {selectedSection !== 'summary' && <PanelHeader title="Mi Estudio" eyebrow="Fuente profesional" />}
         <div className="profile-foundation-stack">
           {selectedSection === 'summary' && (
             <StudioSummarySection
@@ -1385,7 +1502,7 @@ function AdminStudioProfile() {
             <StudioSettingsSection>
           <section className="profile-foundation-card">
             <div>
-              <span className="eyebrow">Perfil Publico futuro</span>
+              <span className="eyebrow">Configuracion</span>
               <h3>Perfil del estudio</h3>
             </div>
             <Input
@@ -1428,7 +1545,7 @@ function AdminStudioProfile() {
             <div>
               <span className="eyebrow">Branding</span>
               <h3>Logo del estudio</h3>
-              <small>Preparado para Marketplace y Perfil Publico futuro.</small>
+              <small>Imagen principal del estudio.</small>
             </div>
             <div className="studio-logo-row">
               <div className="studio-logo-preview">
@@ -1908,15 +2025,18 @@ function AdminStudioProfile() {
       </Card>
       {isOwnerAppointmentOpen && (
         <OwnerAppointmentModal
-          clients={ownerAppointmentClients}
+          clients={modalClientResults}
+          clientSearchStatus={ownerClientSearchStatus}
           currentStudio={currentStudio}
           draft={ownerAppointmentDraft}
           feedback={ownerAppointmentFeedback}
+          isClientSearchLoading={isOwnerClientSearchLoading}
           isSaving={isOwnerAppointmentSaving}
           membershipOperationsById={membershipOperationsById}
           memberships={activeMemberships}
           onClose={closeOwnerAppointmentModal}
           onDraftChange={updateOwnerAppointmentDraft}
+          onSearchClients={searchOwnerClients}
           onSave={saveOwnerAppointment}
         />
       )}

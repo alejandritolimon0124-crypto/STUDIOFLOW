@@ -899,6 +899,8 @@ select:focus,
   position: sticky;
   top: 0;
   height: 100vh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .sidebar-brand {
@@ -1039,6 +1041,74 @@ select:focus,
   font-size: 11px;
   font-weight: 800;
   text-transform: uppercase;
+}
+
+.studio-owner-sidebar {
+  gap: 14px;
+  max-height: 100vh;
+  min-height: 0;
+  padding: 14px 20px 96px;
+}
+
+.studio-owner-sidebar .sidebar-brand {
+  min-height: 74px;
+}
+
+.studio-owner-sidebar .sidebar-profile {
+  padding: 10px;
+}
+
+.studio-owner-sidebar .sidebar-insight {
+  gap: 2px;
+  padding: 12px 14px;
+}
+
+.studio-owner-sidebar .sidebar-insight strong {
+  font-size: 18px;
+}
+
+.studio-owner-sidebar .sidebar-insight span,
+.studio-owner-sidebar .sidebar-insight small {
+  font-size: 11px;
+}
+
+.studio-owner-sidebar .sidebar-nav {
+  flex-shrink: 0;
+  gap: 6px;
+}
+
+.studio-owner-sidebar .sidebar-nav button,
+.studio-owner-sidebar .sidebar-switcher button {
+  min-height: 38px;
+}
+
+.studio-owner-sidebar .workspace-switcher {
+  margin-top: 0;
+  padding-top: 8px;
+}
+
+.studio-owner-sidebar .drawer-actions {
+  flex-shrink: 0;
+  margin-top: 0;
+  margin-bottom: 8px;
+  padding: 10px;
+}
+
+.artist-sidebar {
+  gap: 14px;
+}
+
+.artist-sidebar .sidebar-nav {
+  gap: 6px;
+}
+
+.artist-sidebar .sidebar-switcher {
+  margin-top: 0;
+  padding-top: 10px;
+}
+
+.artist-sidebar .drawer-actions {
+  padding: 0;
 }
 
 .main-shell {
@@ -2362,6 +2432,26 @@ select:focus,
   padding: 12px;
 }
 
+.owner-appointment-modal {
+  align-items: center;
+  background: rgba(45, 37, 39, 0.34);
+  border: 0;
+  border-radius: 0;
+  display: flex;
+  inset: 0;
+  justify-content: center;
+  padding: 18px;
+  position: fixed;
+  z-index: 120;
+}
+
+.owner-appointment-modal .modal-card {
+  max-height: min(86svh, 820px);
+  max-width: 720px;
+  overflow-y: auto;
+  width: min(100%, 720px);
+}
+
 .modal-card {
   background: rgba(255, 255, 255, 0.9);
   border: 1px solid rgba(255, 255, 255, 0.9);
@@ -3469,8 +3559,11 @@ select:focus,
     z-index: 80;
   }
 
-  .role-bottom-nav a {
+  .role-bottom-nav a,
+  .role-bottom-nav button {
     align-items: center;
+    background: transparent;
+    border: 0;
     border-radius: 16px;
     color: var(--muted);
     display: inline-flex;
@@ -3482,7 +3575,8 @@ select:focus,
     text-decoration: none;
   }
 
-  .role-bottom-nav a.active {
+  .role-bottom-nav a.active,
+  .role-bottom-nav button.active {
     background: #2d2527;
     color: #fff;
   }
