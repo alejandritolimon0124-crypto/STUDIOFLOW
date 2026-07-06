@@ -78,6 +78,10 @@ function StudioOwnerLayout() {
   const currentSection = location.pathname === paths.adminStudio
     ? new URLSearchParams(location.search).get('section') || 'summary'
     : ''
+  const normalizeSection = (section = '') => {
+    const normalizedSection = section || 'summary'
+    return normalizedSection === 'config' ? 'settings' : normalizedSection
+  }
   const normalizeStudioPath = (path) => {
     if (!path.includes('?')) return path
 
@@ -95,8 +99,8 @@ function StudioOwnerLayout() {
     const [, queryString] = path.split('?')
     const params = new URLSearchParams(queryString)
     const targetSection = params.get('section') || 'summary'
-    const normalizedCurrentSection = currentSection === 'config' ? 'settings' : currentSection
-    const normalizedTargetSection = targetSection === 'config' ? 'settings' : targetSection
+    const normalizedCurrentSection = normalizeSection(currentSection)
+    const normalizedTargetSection = normalizeSection(targetSection)
 
     return normalizedCurrentSection === normalizedTargetSection
   }

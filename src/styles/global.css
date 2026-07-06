@@ -1508,21 +1508,6 @@ select:focus,
   color: #fff;
 }
 
-.owner-day-strip {
-  flex-wrap: nowrap;
-  margin-right: -12px;
-  overflow-x: auto;
-  padding-bottom: 4px;
-  scroll-snap-type: x proximity;
-  -webkit-overflow-scrolling: touch;
-}
-
-.owner-day-strip button {
-  flex: 0 0 auto;
-  min-width: 76px;
-  scroll-snap-align: start;
-}
-
 .timeline-item,
 .list-row,
 .service-row,

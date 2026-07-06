@@ -1,5 +1,34 @@
 import { requireSupabase } from '../lib/supabaseClient'
 
+const studioOwnerTimeZone = 'America/Mexico_City'
+
+function formatAppointmentDateTime(value, options) {
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: studioOwnerTimeZone,
+    ...options,
+  }).format(date)
+}
+
+function getAppointmentDateValue(value) {
+  return formatAppointmentDateTime(value, {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  })
+}
+
+function getAppointmentTimeValue(value) {
+  return formatAppointmentDateTime(value, {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  })
+}
+
 function normalizeAppointment(appointment = {}) {
   return {
     ...appointment,
@@ -12,9 +41,9 @@ function normalizeAppointment(appointment = {}) {
     availabilitySlotId: appointment.availabilitySlotId || appointment.availability_slot_id || null,
     startsAt: appointment.startsAt || appointment.starts_at || null,
     endsAt: appointment.endsAt || appointment.ends_at || null,
-    date: appointment.date || '',
-    time: appointment.time || '',
-    end: appointment.end || '',
+    date: appointment.date || getAppointmentDateValue(appointment.startsAt || appointment.starts_at),
+    time: appointment.time || getAppointmentTimeValue(appointment.startsAt || appointment.starts_at),
+    end: appointment.end || getAppointmentTimeValue(appointment.endsAt || appointment.ends_at),
     client: appointment.client || appointment.clientName || 'Clienta',
     service: appointment.service || 'Servicio',
     artist: appointment.artist || 'Artista',
@@ -192,9 +221,9 @@ export async function fetchStudioOwnerAppointments({ studioId, membershipIds = [
       client: appointmentClient?.display_name || 'Clienta',
       service: service?.name || 'Servicio',
       artist: artist?.display_name || 'Artista',
-      date: startsAt.slice(0, 10),
-      time: startsAt.slice(11, 16),
-      end: endsAt.slice(11, 16),
+      date: getAppointmentDateValue(startsAt),
+      time: getAppointmentTimeValue(startsAt),
+      end: getAppointmentTimeValue(endsAt),
       status: mapAppointmentStatus(appointment.status),
       appointmentStatus: appointment.status,
     })
@@ -264,9 +293,9 @@ export async function fetchStudioOwnerClientAppointments({
       ...appointment,
       service: service?.name || 'Servicio',
       artist: artist?.display_name || 'Artista',
-      date: startsAt.slice(0, 10),
-      time: startsAt.slice(11, 16),
-      end: endsAt.slice(11, 16),
+      date: getAppointmentDateValue(startsAt),
+      time: getAppointmentTimeValue(startsAt),
+      end: getAppointmentTimeValue(endsAt),
       status: mapAppointmentStatus(appointment.status),
       appointmentStatus: appointment.status,
     })

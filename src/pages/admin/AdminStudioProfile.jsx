@@ -191,7 +191,7 @@ function StudioSummarySection({
 
   return (
     <>
-      <section className="profile-foundation-card">
+      <section className="profile-foundation-card" ref={dashboardHeaderRef}>
         <div>
           <span className="eyebrow">Agenda visual</span>
           <h3>{selectedAgendaDate === today ? 'Hoy' : selectedAgendaDate}</h3>
@@ -237,7 +237,7 @@ function StudioSummarySection({
         </div>
       </section>
 
-      <section className="profile-foundation-card" ref={dashboardHeaderRef}>
+      <section className="profile-foundation-card">
         <div>
           <span className="eyebrow">Resumen operativo</span>
           <h3>{studioName}</h3>
@@ -906,7 +906,23 @@ function AdminStudioProfile() {
         : studio
     )),
     activeStudioId,
-  }) || adminState.studios[0]
+  }) || (activeStudioId
+    ? {
+        id: activeStudioId,
+        name: session.activeSessionContext?.studioName
+          || session.activeSessionContext?.studio_name
+          || studioOwnerAssignment?.studioName
+          || studioOwnerAssignment?.studio_name
+          || 'Estudio',
+        studioStatus: session.activeSessionContext?.studioStatus
+          || session.activeSessionContext?.studio_status
+          || studioOwnerAssignment?.studioStatus
+          || studioOwnerAssignment?.studio_status
+          || '',
+        profile: {},
+        professionalLocation: {},
+      }
+    : null)
   const [profileDraft, setProfileDraft] = useState(currentStudio?.profile || {})
   const [locationDraft, setLocationDraft] = useState(createProfessionalLocation(currentStudio?.professionalLocation || {}))
   const [locationErrors, setLocationErrors] = useState({})
@@ -920,7 +936,8 @@ function AdminStudioProfile() {
     () => membershipState.memberships.filter((membership) => membership.active || membership.status === 'active'),
     [membershipState.memberships],
   )
-  const requestedSection = searchParams.get('section') || 'summary'
+  const requestedSectionParam = searchParams.get('section') || 'summary'
+  const requestedSection = requestedSectionParam === 'config' ? 'settings' : requestedSectionParam
   const selectedSection = studioSections.includes(requestedSection) ? requestedSection : 'summary'
   const ownerAppointments = useMemo(() => {
     const activeMembershipIds = new Set(activeMemberships.map((membership) => membership.membershipId || membership.id).filter(Boolean))
