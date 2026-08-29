@@ -37,11 +37,19 @@ function normalizeAvailabilitySummary(listing = {}) {
       ?? listing.availableCount
       ?? listing.available_count,
   )
+  const availableTodayCount = normalizeNumber(
+    rawAvailability.availableTodayCount
+      ?? rawAvailability.available_today_count
+      ?? listing.availableTodayCount
+      ?? listing.available_today_count,
+  )
 
   return {
     ...rawAvailability,
     availableCount,
     available_count: availableCount,
+    availableTodayCount,
+    available_today_count: availableTodayCount,
     hasFutureSlots: Boolean(
       rawAvailability.hasFutureSlots
         ?? rawAvailability.has_future_slots
@@ -83,7 +91,12 @@ function getAvailabilityBadge(availability) {
 }
 
 function normalizeListing(listing = {}) {
-  const services = asArray(listing.services).map(normalizeService)
+  const services = asArray(listing.services)
+    .map(normalizeService)
+    .filter((service) => {
+      const status = String(service.status || 'active').toLowerCase()
+      return !['archived', 'borrador', 'draft', 'suspended', 'suspendido', 'inactive', 'inactivo'].includes(status)
+    })
   const availability = normalizeAvailabilitySummary(listing)
   const profileType = listing.profileType || listing.profile_type || 'artist'
   const artistId = listing.artistId || listing.artist_id || null

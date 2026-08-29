@@ -3,6 +3,8 @@ import { requireSupabase } from '../lib/supabaseClient'
 const STATUS_FROM_DB = {
   active: 'Activo',
   inactive: 'Inactivo',
+  pending: 'Pendiente',
+  rejected: 'Rechazado',
   archived: 'Archivado',
 }
 
@@ -198,6 +200,28 @@ export async function activateAdminArtist(artistId) {
 export async function deactivateAdminArtist(artistId) {
   const client = requireSupabase()
   const { data, error } = await client.rpc('studio_flow_admin_deactivate_artist', {
+    p_artist_id: artistId,
+  })
+
+  if (error) throw error
+
+  return firstMappedArtistFromPayload(data)
+}
+
+export async function approveAdminArtist(artistId) {
+  const client = requireSupabase()
+  const { data, error } = await client.rpc('studio_flow_admin_approve_artist', {
+    p_artist_id: artistId,
+  })
+
+  if (error) throw error
+
+  return firstMappedArtistFromPayload(data)
+}
+
+export async function rejectAdminArtist(artistId) {
+  const client = requireSupabase()
+  const { data, error } = await client.rpc('studio_flow_admin_reject_artist', {
     p_artist_id: artistId,
   })
 

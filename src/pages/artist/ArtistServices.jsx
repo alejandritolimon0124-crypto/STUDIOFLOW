@@ -4,8 +4,9 @@ import Card from '../../components/Card'
 import Input from '../../components/Input'
 import PanelHeader from '../../components/PanelHeader'
 import StatusPill from '../../components/StatusPill'
+import WorkspaceCardSelector from '../../components/WorkspaceCardSelector'
 import { useApp } from '../../contexts/appContextCore'
-import { serviceCatalog } from '../../services/mockData'
+import { serviceCatalog } from '../../services/staticCatalogs'
 import { formatCurrency } from '../../utils/formatters'
 
 const durations = ['30 min', '45 min', '60 min', '75 min', '90 min', '120 min']
@@ -126,20 +127,12 @@ function ArtistServices() {
           <div className="list-row elevated-row" style={{ marginBottom: '14px' }}>
             <div>
               <strong>Trabajando como:</strong>
-              <div className="row-actions" style={{ flexWrap: 'wrap', marginTop: '8px' }}>
-                {(artistWorkContexts.length ? artistWorkContexts : [artistWorkContext].filter(Boolean)).map((context) => (
-                  <label key={context.id} style={{ alignItems: 'center', display: 'inline-flex', gap: '8px', fontWeight: 800 }}>
-                    <input
-                      checked={artistWorkContext?.id === context.id}
-                      name="artist-service-work-context"
-                      type="radio"
-                      value={context.id}
-                      onChange={() => selectArtistWorkContext(context.id)}
-                    />
-                    {context.label}
-                  </label>
-                ))}
-              </div>
+              <WorkspaceCardSelector
+                activeContext={artistWorkContext}
+                contexts={artistWorkContexts}
+                name="artist-service-work-context"
+                onSelect={selectArtistWorkContext}
+              />
             </div>
             <StatusPill tone={artistWorkContext?.contextType === 'membership' ? 'success' : 'neutral'}>
               {artistWorkContext?.contextType === 'membership' ? 'Estudio' : 'Independiente'}

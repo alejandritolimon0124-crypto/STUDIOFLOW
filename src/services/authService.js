@@ -40,6 +40,24 @@ export async function signInWithPassword({ email, password }) {
   return data
 }
 
+export async function signInWithGoogle() {
+  const client = requireSupabase()
+  const { data, error } = await client.auth.signInWithOAuth({
+    provider: 'google',
+    options: {
+      redirectTo: getAuthRedirectUrl('/login'),
+      queryParams: {
+        access_type: 'offline',
+        prompt: 'select_account',
+      },
+    },
+  })
+
+  if (error) throw error
+
+  return data
+}
+
 export async function signUpWithPassword({ email, password, displayName, phone, defaultRole, metadata = {} }) {
   const client = requireSupabase()
   const payload = {

@@ -20,12 +20,6 @@ import {
   getStudioForArtist,
 } from '../../modules/entities/entitySelectors'
 
-const vipClients = [
-  { name: 'Mariana Lopez', visits: 12, benefits: ['Prioridad agenda', 'Promociones privadas'] },
-  { name: 'Camila Ruiz', visits: 9, benefits: ['Reserva anticipada'] },
-  { name: 'Renata Morales', visits: 7, benefits: ['Prioridad agenda'] },
-]
-
 const automations = [
   { name: 'Recordatorio cumpleaños', active: true },
   { name: 'Reactivación 30 días', active: false },
@@ -84,17 +78,22 @@ function ArtistMarketing() {
     preferredStudioId: primaryMembership?.studioId,
   }) || adminState.studios[0]
   const canUseMarketing = canUseOperationalFeature(currentStudio, 'marketing')
+  const loadedClients = Array.isArray(artistState.clients) ? artistState.clients : []
+  const loadedAppointments = Array.isArray(artistState.appointments) ? artistState.appointments : []
+  const loadedServices = Array.isArray(artistState.services) ? artistState.services : []
+  const premiumClients = loadedClients
+    .map((client) => ({
+      ...client,
+      visits: Number(client.visits || client.history?.length || 0),
+      tier: calculateClientTier(Number(client.visits || client.history?.length || 0)),
+    }))
+    .filter((client) => client.visits >= visitsRequired)
+  const activePromotionsCount = [happyHour, lowOccupancy, silentPromo, loyaltyActive].filter(Boolean).length
 
-  const premiumClients = [
-    { name: 'Ana López', tier: 'VIP', visits: 15 },
-    { name: 'Clienta frecuente', tier: 'Gold', visits: 9 },
-    { name: 'Clienta recurrente', tier: 'Frequent', visits: 5 },
-  ]
-
-  const { weeklyOccupancy, lowSlots, busyDays } = calculateWeeklyOccupancy()
+  const { weeklyOccupancy, lowSlots, busyDays } = calculateWeeklyOccupancy(loadedAppointments)
   const promotionSummary = generateAutomaticPromotion(weeklyOccupancy)
-  const inactiveClients = detectInactiveClients()
-  const loyaltyTier = calculateClientTier(12)
+  const inactiveClients = detectInactiveClients(loadedClients)
+  const loyaltyTier = calculateClientTier(premiumClients[0]?.visits || 0)
   const baseInsights = generateInsights({
     weeklyOccupancy,
     lowSlots,
@@ -214,9 +213,9 @@ function ArtistMarketing() {
   const analyticsRows = [
     {
       title: 'Ocupación semanal',
-      description: happyHour ? 'Happy Hour suaviza la baja ocupación y atrae nuevas reservas.' : '78% promedio / +5% vs semana anterior',
+      description: loadedAppointments.length > 0 ? `${loadedAppointments.length} citas cargadas` : 'Sin citas cargadas esta semana.',
       tone: happyHour ? 'success' : lowOccupancy ? 'warm' : 'nude',
-      label: happyHour ? 'Optimizado' : 'Estable',
+      label: loadedAppointments.length > 0 ? 'Con datos' : 'Sin datos',
     },
     {
       title: 'Retorno clientes',
@@ -226,15 +225,15 @@ function ArtistMarketing() {
     },
     {
       title: 'Promociones activas',
-      description: silentPromo ? 'Silenciosa y directa para clientas VIP.' : '3 campañas en ejecución.',
+      description: `${activePromotionsCount} configuraciones activas.`,
       tone: silentPromo ? 'sage' : 'nude',
-      label: silentPromo ? 'Exclusivo' : 'Visible',
+      label: activePromotionsCount > 0 ? 'Activas' : 'Sin activar',
     },
     {
       title: 'Crecimiento mensual',
-      description: happyHour || loyaltyActive ? '+18% impulso premium' : '+8% ingresos',
+      description: loadedServices.length > 0 ? `${loadedServices.length} servicios cargados.` : 'Sin servicios cargados.',
       tone: happyHour || loyaltyActive ? 'success' : 'rose',
-      label: happyHour || loyaltyActive ? 'Creciente' : 'Atento',
+      label: loadedServices.length > 0 ? 'Con datos' : 'Pendiente',
     },
   ]
 
@@ -292,10 +291,10 @@ function ArtistMarketing() {
         </div>
       </section>
 
-      <MetricCard label="Clientes recurrentes" value="24" trend={loyaltyActive ? '+18%' : '+12%'} className="mobile-compact" />
-      <MetricCard label="Ocupación semanal" value="78%" trend={happyHour ? '+12%' : '+5%'} tone="nude" className="mobile-compact" />
-      <MetricCard label="Promociones activas" value="3" trend={silentPromo ? 'Silenciosa' : 'Activas'} tone="sage" className="mobile-compact" />
-      <MetricCard label="Recompensas utilizadas" value="18" trend={loyaltyActive ? '+12%' : '+8%'} tone="rose" className="mobile-compact" />
+      <MetricCard label="Clientes recurrentes" value={premiumClients.length} trend={loyaltyActive ? 'Programa activo' : 'Programa pausado'} className="mobile-compact" />
+      <MetricCard label="Citas cargadas" value={loadedAppointments.length} trend={loadedAppointments.length > 0 ? 'Con agenda' : 'Sin citas'} tone="nude" className="mobile-compact" />
+      <MetricCard label="Promociones activas" value={activePromotionsCount} trend={silentPromo ? 'Silenciosa' : 'Configuradas'} tone="sage" className="mobile-compact" />
+      <MetricCard label="Servicios activos" value={loadedServices.filter((service) => service.status === 'Activo').length} trend="Catalogo real" tone="rose" className="mobile-compact" />
 
       {artistAutomations.length > 0 && (
         <Card className="wide-card mobile-screen primary-panel automations-panel">
@@ -431,15 +430,22 @@ function ArtistMarketing() {
       <Card className="mobile-screen primary-panel">
         <PanelHeader title="Clientes VIP" eyebrow="Beneficios premium" />
         <div className="compact-list">
-          {vipClients.map((client) => (
+          {premiumClients.length > 0 ? premiumClients.map((client) => (
             <div className="list-row elevated-row" key={client.name}>
               <div>
                 <strong>{client.name}</strong>
-                <small>{client.visits} visitas / {client.benefits.join(', ')}</small>
+                <small>{client.visits} visitas registradas</small>
               </div>
-              <StatusPill tone="rose">VIP</StatusPill>
+              <StatusPill tone="rose">{client.tier}</StatusPill>
             </div>
-          ))}
+          )) : (
+            <div className="list-row elevated-row">
+              <div>
+                <strong>No hay clientas recurrentes.</strong>
+                <small>Se mostraran cuando exista historial real.</small>
+              </div>
+            </div>
+          )}
         </div>
         <Button className="full-width" variant="ghost" onClick={() => setIsPremiumModalOpen(true)}>
           Gestionar beneficios
@@ -581,15 +587,22 @@ function ArtistMarketing() {
                   <Button variant="ghost" size="sm">Agregar a VIP</Button>
                 </div>
                 <div className="vip-card-grid">
-                  {premiumClients.map((client) => (
+                  {premiumClients.length > 0 ? premiumClients.map((client) => (
                     <div key={client.name} className="vip-card">
                       <div>
                         <strong>{client.name}</strong>
-                        <small>{client.tier} • {client.visits} visitas</small>
+                        <small>{client.tier} / {client.visits} visitas</small>
                       </div>
                       <span className="vip-card-badge">{client.tier}</span>
                     </div>
-                  ))}
+                  )) : (
+                    <div className="vip-card">
+                      <div>
+                        <strong>Sin clientas VIP.</strong>
+                        <small>Se mostraran con historial real.</small>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 

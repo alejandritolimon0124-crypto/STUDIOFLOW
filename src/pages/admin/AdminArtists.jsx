@@ -1,39 +1,36 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import Button from '../../components/Button'
 import Card from '../../components/Card'
 import Input from '../../components/Input'
+import MetricCard from '../../components/MetricCard'
 import PanelHeader from '../../components/PanelHeader'
 import StatusPill from '../../components/StatusPill'
 import { useApp } from '../../contexts/appContextCore'
-import { paths } from '../../routes/paths'
 import { getCurrentBrowserCoordinates } from '../../utils/browserGeolocation'
-import { hasPermission, permissions, ROLES } from '../../modules/permissions/rolePermissions'
 import {
   deriveMembershipsFromLegacyData,
   getArtistsForStudio,
   getStudioForArtist,
   getStudiosForArtist,
 } from '../../modules/entities/entitySelectors'
+import { ROLES } from '../../modules/permissions/rolePermissions'
 import { buildGoogleMapsUrl, createArtistLocationSettings, createProfessionalLocation, hasCoordinates, validateProfessionalLocation } from '../../utils/locationHelpers'
 
 const uniqueById = (items = []) => Array.from(new Map(items.filter(Boolean).map((item) => [item.id, item])).values())
+const parseMoneyValue = (value) => Number(String(value || '').replace(/[^\d.-]/g, '')) || 0
 
 function AdminArtists() {
-  const navigate = useNavigate()
   const {
     adminState,
+    loadAdminArtists,
     session,
+    reviewManagedArtist,
     toggleManagedArtistStatus,
     updateManagedArtistProfile,
     updateManagedStudioProfile,
-    publishIndependentArtistProfile,
-    isPublicationLoading,
-    publicationError,
   } = useApp()
   const [query, setQuery] = useState('')
   const [editingArtist, setEditingArtist] = useState(null)
-  const [dashboardArtist, setDashboardArtist] = useState(null)
   const [studioLocationDraft, setStudioLocationDraft] = useState(createProfessionalLocation())
   const [studioLocationErrors, setStudioLocationErrors] = useState({})
   const [studioLocationDetection, setStudioLocationDetection] = useState({ status: 'idle', message: '' })
@@ -81,12 +78,18 @@ function AdminArtists() {
   const filteredArtists = useMemo(
     () =>
       accessibleArtists.filter((artist) => {
-        const searchable = `${artist.name} ${artist.owner} ${artist.city} ${artist.plan}`.toLowerCase()
+        const searchable = `${artist.name} ${artist.email} ${artist.phone} ${artist.owner} ${artist.city} ${artist.plan}`.toLowerCase()
         return searchable.includes(query.toLowerCase())
-      }),
+      })
+        .sort((firstArtist, secondArtist) => parseMoneyValue(secondArtist.revenue) - parseMoneyValue(firstArtist.revenue))
+        .slice(0, 5),
     [accessibleArtists, query],
   )
-  const canSeeStudioRevenue = hasPermission(session.user, permissions.STUDIO_REVENUE)
+  const activeArtistsCount = accessibleArtists.filter((artist) => artist.status === 'Activo').length
+  const pendingArtistsCount = accessibleArtists.filter((artist) => artist.status === 'Pendiente').length
+  const rejectedArtists = accessibleArtists.filter((artist) => artist.status === 'Rechazado')
+  const rejectedArtistsCount = rejectedArtists.length
+  const previewRejectedArtists = rejectedArtists.slice(0, 5)
   const editingStudio = getStudioForArtist({
     artistId: editingArtist?.id,
     studios: adminState.studios,
@@ -131,20 +134,6 @@ function AdminArtists() {
     setIsStudioLocationConfirmed(false)
     setIsArtistLocationConfirmed(false)
   }, [adminState.studios, artistStudioMemberships, editingArtist?.id])
-
-  const openDashboard = (artist) => {
-    setDashboardArtist(artist)
-    navigate(paths.adminArtists, { state: { dashboardArtistId: artist.id } })
-  }
-
-  const publishArtist = (artist) => {
-    publishIndependentArtistProfile({
-      artistId: artist.id,
-      title: artist.name,
-      summary: artist.description,
-      city: artist.city,
-    })
-  }
 
   const saveArtistProfile = () => {
     if (!editingArtist) return
@@ -229,6 +218,13 @@ function AdminArtists() {
     }
   }
 
+  const approveArtist = async (artistId) => {
+    const result = await reviewManagedArtist(artistId, 'approve')
+    if (result) {
+      loadAdminArtists?.().catch(() => null)
+    }
+  }
+
   const useCurrentStudioLocation = async () => {
     setStudioLocationDetection({ status: 'loading', message: 'Detectando ubicacion actual...' })
 
@@ -292,17 +288,45 @@ function AdminArtists() {
 
   return (
     <main className="dashboard-grid admin-grid">
+        <MetricCard
+          label="Artistas activas"
+          value={activeArtistsCount}
+          trend={`${pendingArtistsCount} pendientes`}
+          tone="success"
+        />
+        <Card className="wide-card mobile-screen primary-panel">
+          <PanelHeader title="Artistas rechazadas" eyebrow="Resumen" />
+          <div className="compact-list">
+            <div className="list-row elevated-row">
+              <div>
+                <strong>{rejectedArtistsCount}</strong>
+                <small>No aparecen en Studio Flow.</small>
+              </div>
+              <StatusPill tone={rejectedArtistsCount ? 'warm' : 'success'}>
+                {rejectedArtistsCount ? 'Revisar' : 'Sin rechazadas'}
+              </StatusPill>
+            </div>
+            {previewRejectedArtists.map((artist) => (
+              <div className="list-row elevated-row" key={artist.id || artist.name}>
+                <div>
+                  <strong>{artist.name}</strong>
+                  <small>{artist.email || artist.phone || artist.city || 'Sin contacto'}</small>
+                </div>
+                <button type="button" onClick={() => setEditingArtist(artist)}>Ver perfil</button>
+              </div>
+            ))}
+          </div>
+        </Card>
         <Card className="wide-card mobile-screen primary-panel">
           <PanelHeader title="Gestion de artistas" eyebrow="Admin" action={<Button size="sm">Nueva artista</Button>} />
           <div className="admin-search">
             <Input
               label="Buscar artista"
               type="search"
-              placeholder="Nombre, ciudad o plan..."
+              placeholder="Nombre, correo o celular..."
               value={query}
               onChange={(event) => setQuery(event.target.value)}
             />
-            {publicationError && <small className="form-error">{publicationError}</small>}
           </div>
           <div className="master-list">
             {filteredArtists.length === 0 ? (
@@ -312,57 +336,33 @@ function AdminArtists() {
                   <small>Cuando Supabase devuelva artistas reales, apareceran aqui.</small>
                 </div>
               </article>
-            ) : filteredArtists.map((artist) => (
-              <article className="master-row" key={artist.name}>
-                <div>
-                  <strong>{artist.name}</strong>
-                  <small>{artist.owner} / {artist.city} / {artist.plan}</small>
-                </div>
-                <StatusPill tone={artist.status === 'Activo' ? 'success' : 'neutral'}>{artist.status}</StatusPill>
-                <div className="row-actions">
-                  <button type="button" onClick={() => toggleManagedArtistStatus(artist.id)}>
-                    {artist.status === 'Activo' ? 'Inactivar' : 'Activar'}
-                  </button>
-                  {isPlatformOwner && !artist.studioId && !artist.membershipId && (
-                    <button
-                      type="button"
-                      disabled={isPublicationLoading || artist.status !== 'Activo'}
-                      onClick={() => publishArtist(artist)}
-                    >
-                      Publicar artista
-                    </button>
-                  )}
-                  <button type="button" onClick={() => openDashboard(artist)}>Ver dashboard</button>
-                  <button type="button" onClick={() => setEditingArtist(artist)}>Editar perfil</button>
-                </div>
-              </article>
-            ))}
+            ) : filteredArtists.map((artist) => {
+              const isActive = artist.status === 'Activo'
+              const needsApproval = artist.status === 'Pendiente' || artist.status === 'Rechazado'
+              return (
+                <article className="master-row" key={artist.id || artist.name}>
+                  <div>
+                    <strong>{artist.name}</strong>
+                    <small>{artist.owner} / {artist.city} / {artist.plan}</small>
+                  </div>
+                  <StatusPill tone={isActive ? 'success' : artist.status === 'Rechazado' ? 'neutral' : 'warm'}>{artist.status}</StatusPill>
+                  <div className="row-actions">
+                    {needsApproval ? (
+                      <button type="button" onClick={() => approveArtist(artist.id)}>
+                        Aprobar
+                      </button>
+                    ) : (
+                      <button type="button" onClick={() => toggleManagedArtistStatus(artist.id)}>
+                        {isActive ? 'Suspender' : 'Reactivar'}
+                      </button>
+                    )}
+                    <button type="button" onClick={() => setEditingArtist(artist)}>Editar perfil</button>
+                  </div>
+                </article>
+              )
+            })}
           </div>
         </Card>
-
-        {dashboardArtist && (
-          <Card className="mobile-screen">
-            <PanelHeader title="Dashboard artista" eyebrow="Vista admin" />
-            <div className="compact-list">
-              <div className="list-row elevated-row">
-                <div>
-                  <strong>{dashboardArtist.name}</strong>
-                  <small>{dashboardArtist.description}</small>
-                </div>
-                <StatusPill tone={dashboardArtist.status === 'Activo' ? 'success' : 'neutral'}>
-                  {dashboardArtist.status}
-                </StatusPill>
-              </div>
-              <div className="list-row elevated-row">
-                <div>
-                  <strong>{dashboardArtist.city}</strong>
-                  <small>{dashboardArtist.plan} / {dashboardArtist.services}</small>
-                </div>
-                {canSeeStudioRevenue && <span>{dashboardArtist.revenue}</span>}
-              </div>
-            </div>
-          </Card>
-        )}
 
         {editingArtist && (
           <Card className="mobile-screen">

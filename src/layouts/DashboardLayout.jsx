@@ -26,20 +26,8 @@ function getInitials(value = '') {
     .toUpperCase()
 }
 
-const mockArtistBusinessNames = [
-  'valeria artist',
-  'valeria moon',
-  'valeria moon studio',
-  'studio glow',
-  'studio glow beauty',
-]
-
 function getCleanArtistBusinessName(value = '') {
   const normalizedName = String(value || '').trim()
-
-  if (!normalizedName || mockArtistBusinessNames.includes(normalizedName.toLowerCase())) {
-    return ''
-  }
 
   return normalizedName
 }
@@ -56,9 +44,11 @@ function cleanWorkspaceLabel(value = '') {
 
 const roleNavigation = {
   admin: [
-    { label: 'Dashboard', path: paths.admin },
+    { label: 'Inicio', path: paths.admin },
     { label: 'Artistas', path: paths.adminArtists },
     { label: 'Estudios', path: paths.adminStudios },
+    { label: 'Cobranza', path: paths.adminBilling },
+    { label: 'Clientes', path: paths.adminClients },
     { label: 'Sistema', path: paths.adminSystem },
   ],
   artist: [
@@ -90,9 +80,11 @@ const bottomNavigationByRole = {
     { label: 'Impulsa', path: paths.artistMarketing },
   ],
   admin: [
-    { label: 'Dashboard', path: paths.admin },
+    { label: 'Inicio', path: paths.admin },
     { label: 'Artistas', path: paths.adminArtists },
     { label: 'Estudios', path: paths.adminStudios },
+    { label: 'Cobranza', path: paths.adminBilling },
+    { label: 'Clientes', path: paths.adminClients },
     { label: 'Sistema', path: paths.adminSystem },
   ],
 }
@@ -101,7 +93,7 @@ const studioOwnerNavigation = [
   { label: 'Inicio', path: `${paths.adminStudio}?section=summary` },
   { label: 'Equipo', path: `${paths.adminStudio}?section=team` },
   { label: 'Agenda', path: `${paths.adminStudio}?section=schedule` },
-  { label: 'Clientes', path: paths.adminClients },
+  { label: 'Clientes', path: paths.adminStudioClients },
   { label: 'Configuracion', path: `${paths.adminStudio}?section=settings` },
 ]
 
@@ -109,7 +101,7 @@ const studioOwnerBottomNavigation = [
   { label: 'Inicio', path: `${paths.adminStudio}?section=summary` },
   { label: 'Equipo', path: `${paths.adminStudio}?section=team` },
   { label: 'Agenda', path: `${paths.adminStudio}?section=schedule` },
-  { label: 'Clientes', path: paths.adminClients },
+  { label: 'Clientes', path: paths.adminStudioClients },
   { label: 'Config', path: `${paths.adminStudio}?section=settings` },
 ]
 
@@ -119,6 +111,7 @@ function DashboardLayout({ children, role, title, subtitle, showMobileAppbar = t
   const navigate = useNavigate()
   const {
     adminState,
+    appointmentState,
     artistState,
     artistWorkContextId,
     artistWorkContexts,
@@ -180,7 +173,7 @@ function DashboardLayout({ children, role, title, subtitle, showMobileAppbar = t
     && (assignment.studioId || assignment.studio_id) === ownerRouteStudioId
   ))
   const shouldForceStudioOwnerChrome = role === 'admin'
-    && [paths.adminStudio, paths.adminClients].includes(currentPath)
+    && [paths.adminStudio, paths.adminStudioClients].includes(currentPath)
     && hasOwnerAssignmentForRouteStudio
     && Boolean(ownerRouteStudioId)
     && activeContextRole !== ROLES.PLATFORM_OWNER
@@ -200,6 +193,8 @@ function DashboardLayout({ children, role, title, subtitle, showMobileAppbar = t
     if (role !== 'admin') return true
     if (item.path === paths.adminArtists) return hasPermission(effectiveAdminUser, permissions.STUDIO_ARTISTS)
     if (item.path === paths.adminStudios) return effectiveAdminUser.role === ROLES.PLATFORM_OWNER || hasPermission(effectiveAdminUser, permissions.GOVERNANCE)
+    if (item.path === paths.adminBilling) return hasPermission(effectiveAdminUser, permissions.GOVERNANCE) || hasPermission(effectiveAdminUser, permissions.GLOBAL_REVENUE)
+    if (item.path === paths.adminClients) return hasPermission(effectiveAdminUser, permissions.GOVERNANCE) || hasPermission(effectiveAdminUser, permissions.CLIENTS)
     if (item.path === paths.adminSystem) return hasPermission(effectiveAdminUser, permissions.GOVERNANCE)
     return true
   }
@@ -209,6 +204,8 @@ function DashboardLayout({ children, role, title, subtitle, showMobileAppbar = t
   const bottomNavigation = isStudioOwnerWorkspace
     ? studioOwnerBottomNavigation
     : bottomNavigationByRole[role].filter(canUseAdminItem)
+  const shouldShowDrawerWorkspaces = role === 'artist'
+  const shouldShowDrawerActions = role === 'artist'
   const drawerHomePath = isStudioOwnerWorkspace ? paths.adminStudio : role === 'admin' ? paths.admin : role === 'client' ? paths.client : paths.artist
   const adminPrimaryAction = hasPermission(effectiveAdminUser, permissions.STUDIO_ARTISTS)
     ? { label: 'Artistas', path: paths.adminArtists }
@@ -287,17 +284,36 @@ function DashboardLayout({ children, role, title, subtitle, showMobileAppbar = t
     return sum + minutes
   }, 0)
   const occupancy = Math.round((totalDuration / 480) * 100)
+  const adminDashboard = adminState.dashboard || {}
+  const hasRealAdminDashboard = role === 'admin' && adminDashboard.source === 'supabase' && !session.isMockSession
+  const adminReservationCount = hasRealAdminDashboard && Array.isArray(adminDashboard.appointments)
+    ? adminDashboard.appointments.length
+    : 0
+  const clientActiveAppointmentCount = !session.isMockSession && appointmentState?.clientLoaded
+    ? (appointmentState.clientAppointments || []).filter((appointment) => {
+        const status = String(appointment.status || appointment.appointmentStatus || '').toLowerCase()
+        if (['completada', 'completed', 'cancelada', 'cancelled', 'no show', 'no_show'].includes(status)) return false
+
+        const appointmentDate = appointment.startsAt || appointment.starts_at || appointment.date || ''
+        if (!appointmentDate) return true
+
+        const parsedDate = new Date(appointmentDate)
+        if (Number.isNaN(parsedDate.getTime())) return true
+
+        return parsedDate >= new Date()
+      }).length
+    : 0
   const sidebarAppointmentsLabel = isStudioOwnerWorkspace
     ? 'Consola owner'
     : role === 'admin'
-      ? '2,184 reservas'
+      ? `${adminReservationCount.toLocaleString('es-MX')} reservas`
     : role === 'client'
-      ? '2 citas activas'
+      ? `${clientActiveAppointmentCount.toLocaleString('es-MX')} citas activas`
       : `${appointmentCount} citas agendadas`
   const sidebarOccupancyLabel = isStudioOwnerWorkspace
     ? activeAdminStudioName || 'Studio Owner'
     : role === 'admin'
-      ? 'Sistema estable'
+      ? hasRealAdminDashboard ? 'Datos Supabase' : 'Sin datos reales'
     : role === 'client'
       ? 'Tu agenda beauty'
       : `Ocupación al ${occupancy}%`
@@ -524,31 +540,41 @@ function DashboardLayout({ children, role, title, subtitle, showMobileAppbar = t
               {item.label}
             </button>
           ))}
+          {(role === 'admin' || role === 'client') && (
+            <button type="button" onClick={handleLogout}>
+              <span aria-hidden="true"></span>
+              Cerrar sesion
+            </button>
+          )}
         </nav>
 
-        <div className="sidebar-switcher">
-          <small>Workspaces</small>
-          {workspaceItems.map((workspace) => (
-            <button
-              className={workspace.contextId && workspace.contextId === artistWorkContextId ? 'active' : ''}
-              type="button"
-              onClick={() => handleWorkspaceNavigate(workspace)}
-              key={`${workspace.path}-${workspace.label}-${workspace.studioId || workspace.contextId || 'base'}`}
-            >
-              {workspace.label}
-            </button>
-          ))}
-        </div>
+        {shouldShowDrawerWorkspaces && (
+          <div className="sidebar-switcher">
+            <small>Workspaces</small>
+            {workspaceItems.map((workspace) => (
+              <button
+                className={workspace.contextId && workspace.contextId === artistWorkContextId ? 'active' : ''}
+                type="button"
+                onClick={() => handleWorkspaceNavigate(workspace)}
+                key={`${workspace.path}-${workspace.label}-${workspace.studioId || workspace.contextId || 'base'}`}
+              >
+                {workspace.label}
+              </button>
+            ))}
+          </div>
+        )}
 
-        <div className="sidebar-switcher drawer-actions">
-          <small>Acciones</small>
-          {drawerActions.map((item, index) => (
-            <button type="button" onClick={() => handleNavigate(item.path)} key={`${item.path}-${item.label}-${index}`}>
-              {item.label}
-            </button>
-          ))}
-          <button type="button" onClick={handleLogout}>Cerrar sesion</button>
-        </div>
+        {shouldShowDrawerActions && (
+          <div className="sidebar-switcher drawer-actions">
+            <small>Acciones</small>
+            {drawerActions.map((item, index) => (
+              <button type="button" onClick={() => handleNavigate(item.path)} key={`${item.path}-${item.label}-${index}`}>
+                {item.label}
+              </button>
+            ))}
+            <button type="button" onClick={handleLogout}>Cerrar sesion</button>
+          </div>
+        )}
       </aside>
 
       <div className="main-shell">

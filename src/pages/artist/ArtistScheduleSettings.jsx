@@ -4,6 +4,7 @@ import Card from '../../components/Card'
 import Input from '../../components/Input'
 import PanelHeader from '../../components/PanelHeader'
 import StatusPill from '../../components/StatusPill'
+import WorkspaceCardSelector from '../../components/WorkspaceCardSelector'
 import { useApp } from '../../contexts/appContextCore'
 
 function ArtistScheduleSettings() {
@@ -62,20 +63,12 @@ function ArtistScheduleSettings() {
           <div className="list-row elevated-row" style={{ marginBottom: '14px' }}>
             <div>
               <strong>Trabajando como:</strong>
-              <div className="row-actions" style={{ flexWrap: 'wrap', marginTop: '8px' }}>
-                {(artistWorkContexts.length ? artistWorkContexts : [artistWorkContext].filter(Boolean)).map((context) => (
-                  <label key={context.id} style={{ alignItems: 'center', display: 'inline-flex', gap: '8px', fontWeight: 800 }}>
-                    <input
-                      checked={artistWorkContext?.id === context.id}
-                      name="artist-schedule-work-context"
-                      type="radio"
-                      value={context.id}
-                      onChange={() => selectArtistWorkContext(context.id)}
-                    />
-                    {context.label}
-                  </label>
-                ))}
-              </div>
+              <WorkspaceCardSelector
+                activeContext={artistWorkContext}
+                contexts={artistWorkContexts}
+                name="artist-schedule-work-context"
+                onSelect={selectArtistWorkContext}
+              />
             </div>
             <StatusPill tone={artistWorkContext?.contextType === 'membership' ? 'success' : 'neutral'}>
               {artistWorkContext?.contextType === 'membership' ? 'Estudio' : 'Independiente'}
@@ -212,7 +205,7 @@ function ArtistScheduleSettings() {
               ))
             ) : (
               <span style={{ color: 'var(--muted)', fontWeight: 800 }}>
-                Sin fechas bloqueadas
+                No hay fechas bloqueadas.
               </span>
             )}
           </div>

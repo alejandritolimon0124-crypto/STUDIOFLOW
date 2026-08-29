@@ -7,7 +7,6 @@ import PanelHeader from '../../components/PanelHeader'
 import StatusPill from '../../components/StatusPill'
 import { useApp } from '../../contexts/appContextCore'
 import { paths } from '../../routes/paths'
-import { clientAppointments as mockClientAppointments } from '../../services/mockData'
 import { getClientById } from '../../utils/clientHelpers'
 import { generateClientAutomations } from '../../modules/automation/smartAutomationEngine'
 import { canUseOperationalFeature } from '../../modules/governance/studioGovernance'
@@ -105,22 +104,66 @@ const searchServices = {
   ],
 }
 
-const artistMarketplaceProfile = {
-  'artist-1': {
-    services: ['Lash lifting', 'Brow design', 'Laminado de ceja', 'Soft glam makeup', 'Combo ceja y pestana'],
-    occupancy: 58,
-  },
-  'artist-2': {
-    services: ['Acrilicas', 'Gelish', 'Nail art', 'Soft gel', 'Francesas'],
-    occupancy: 86,
-  },
-  'artist-3': {
-    services: ['Facial glow', 'Limpieza facial profunda', 'Brow design', 'Facial hidratante', 'Masaje facial'],
-    occupancy: 42,
-  },
+const allSearchServices = Object.values(searchServices).flat()
+
+function getTodayAvailabilityCount(artist = {}) {
+  return Number(artist.availability?.availableTodayCount || artist.availability?.available_today_count || 0)
 }
 
-const allSearchServices = Object.values(searchServices).flat()
+function getKnownServiceCategory(serviceName = '') {
+  const normalizedName = String(serviceName || '').trim().toLowerCase()
+  const entry = Object.entries(searchServices).find(([, services]) => (
+    services.some((service) => service.name.toLowerCase() === normalizedName)
+  ))
+
+  return entry?.[0] || 'Servicios'
+}
+
+function isActiveMarketplaceService(service = {}) {
+  const status = String(service.status || 'active').toLowerCase()
+  return !['archived', 'borrador', 'draft', 'suspended', 'suspendido', 'inactive', 'inactivo'].includes(status)
+}
+
+function normalizeMarketplaceServiceOption(service) {
+  const rawName = typeof service === 'string' ? service : service?.name
+  const name = String(rawName || '').trim()
+  if (!name) return null
+
+  const knownService = allSearchServices.find((item) => item.name.toLowerCase() === name.toLowerCase())
+  const durationMinutes = Number(service?.durationMinutes || service?.duration_minutes || knownService?.durationMinutes) || 60
+
+  return {
+    ...(typeof service === 'object' && service !== null ? service : {}),
+    id: typeof service === 'object' && service?.id ? service.id : name,
+    name,
+    category: service?.category || service?.category_name || getKnownServiceCategory(name),
+    durationMinutes,
+    status: service?.status || 'active',
+  }
+}
+
+function getArtistServiceOptions(artist = {}) {
+  const source = Array.isArray(artist.marketplaceServiceOptions) && artist.marketplaceServiceOptions.length > 0
+    ? artist.marketplaceServiceOptions
+    : Array.isArray(artist.marketplaceServices) && artist.marketplaceServices.length > 0
+      ? artist.marketplaceServices
+      : String(artist.services || '')
+        .split(/[,•|]/)
+        .map((service) => service.trim())
+        .filter(Boolean)
+
+  return Array.from(
+    source
+      .map(normalizeMarketplaceServiceOption)
+      .filter(Boolean)
+      .filter(isActiveMarketplaceService)
+      .reduce((itemsByName, service) => {
+        if (!itemsByName.has(service.name)) itemsByName.set(service.name, service)
+        return itemsByName
+      }, new Map())
+      .values(),
+  )
+}
 
 function getTodayDateValue() {
   const today = new Date()
@@ -128,9 +171,47 @@ function getTodayDateValue() {
   return today.toISOString().slice(0, 10)
 }
 
+function getAppointmentDateKey(appointmentOrDate) {
+  const rawValue = typeof appointmentOrDate === 'object' && appointmentOrDate !== null
+    ? appointmentOrDate.date || appointmentOrDate.startsAt || appointmentOrDate.starts_at
+    : appointmentOrDate
+  const value = String(rawValue || '')
+
+  if (value.includes('T')) return value.slice(0, 10)
+  return value.slice(0, 10)
+}
+
+function parseAppointmentDateValue(appointmentOrDate) {
+  const value = getAppointmentDateKey(appointmentOrDate)
+  const [year, month, day] = value.split('-').map(Number)
+
+  if (!year || !month || !day) return null
+
+  return new Date(year, month - 1, day)
+}
+
+function isFutureAppointmentDate(dateValue) {
+  const appointmentDate = parseAppointmentDateValue(dateValue)
+  const today = parseAppointmentDateValue(getTodayDateValue())
+
+  return Boolean(appointmentDate && today && appointmentDate >= today)
+}
+
+function isCurrentMonthAppointment(dateValue) {
+  const appointmentDate = parseAppointmentDateValue(dateValue)
+  const today = parseAppointmentDateValue(getTodayDateValue())
+
+  return Boolean(
+    appointmentDate
+    && today
+    && appointmentDate.getFullYear() === today.getFullYear()
+    && appointmentDate.getMonth() === today.getMonth()
+  )
+}
+
 function buildServiceGroupsFromListings(listings = []) {
   return listings.reduce((groups, listing) => {
-    const services = Array.isArray(listing.marketplaceServiceOptions) ? listing.marketplaceServiceOptions : []
+    const services = getArtistServiceOptions(listing)
 
     services.forEach((service) => {
       const category = service.category || 'Servicios'
@@ -153,8 +234,10 @@ function buildServiceGroupsFromListings(listings = []) {
 }
 
 function getServiceOptionsForArtist(artist = {}) {
-  if (Array.isArray(artist.marketplaceServiceOptions) && artist.marketplaceServiceOptions.length > 0) {
-    return artist.marketplaceServiceOptions.map((service) => ({
+  const serviceOptions = getArtistServiceOptions(artist)
+
+  if (serviceOptions.length > 0) {
+    return serviceOptions.map((service) => ({
       value: service.name,
       label: service.name,
       meta: `${service.durationMinutes || 60} min`,
@@ -267,9 +350,9 @@ function PremiumDropdown({ label, value, options, open, onToggle, onChange }) {
 }
 
 function getArtistMarketplaceProfile(artist) {
-  return artistMarketplaceProfile[artist.id] || {
-    services: ['Lash lifting', 'Brow design'],
-    occupancy: 64,
+  return {
+    services: getArtistServiceOptions(artist).map((service) => service.name),
+    occupancy: Number(artist?.occupancy || 0),
   }
 }
 
@@ -282,6 +365,9 @@ function getMarketplaceBadge(availableCount, occupancy) {
 
 function hydrateMarketplaceArtist(artist, visibleSlotCount, studio = null, membership = null) {
   const profile = getArtistMarketplaceProfile(artist)
+  const serviceOptions = getArtistServiceOptions(artist)
+  const fallbackServiceOptions = profile.services.map(normalizeMarketplaceServiceOption).filter(Boolean)
+  const marketplaceServiceOptions = serviceOptions.length > 0 ? serviceOptions : fallbackServiceOptions
   const availabilityScore = Math.max(0, visibleSlotCount - Math.floor(profile.occupancy / 25))
   const badge = getMarketplaceBadge(availabilityScore, profile.occupancy)
 
@@ -289,7 +375,8 @@ function hydrateMarketplaceArtist(artist, visibleSlotCount, studio = null, membe
     ...artist,
     membership,
     studio,
-    marketplaceServices: profile.services,
+    marketplaceServices: marketplaceServiceOptions.map((service) => service.name),
+    marketplaceServiceOptions,
     occupancy: profile.occupancy,
     availabilityScore,
     badge,
@@ -414,6 +501,49 @@ function formatProfessionalAddress(location = {}, fallbackCity = '') {
   ].filter(Boolean).join(' / ')
 }
 
+function normalizeCoordinate(value) {
+  const number = Number(value)
+  return Number.isFinite(number) ? number : null
+}
+
+function calculateDistanceKm(firstLocation = {}, secondLocation = {}) {
+  const firstLatitude = normalizeCoordinate(firstLocation.latitude)
+  const firstLongitude = normalizeCoordinate(firstLocation.longitude)
+  const secondLatitude = normalizeCoordinate(secondLocation.latitude)
+  const secondLongitude = normalizeCoordinate(secondLocation.longitude)
+
+  if ([firstLatitude, firstLongitude, secondLatitude, secondLongitude].some((value) => value === null)) {
+    return null
+  }
+
+  const toRadians = (value) => (value * Math.PI) / 180
+  const earthRadiusKm = 6371
+  const deltaLatitude = toRadians(secondLatitude - firstLatitude)
+  const deltaLongitude = toRadians(secondLongitude - firstLongitude)
+  const haversine =
+    Math.sin(deltaLatitude / 2) ** 2
+    + Math.cos(toRadians(firstLatitude)) * Math.cos(toRadians(secondLatitude))
+    * Math.sin(deltaLongitude / 2) ** 2
+
+  return earthRadiusKm * 2 * Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine))
+}
+
+function normalizeText(value = '') {
+  return String(value || '').trim().toLowerCase()
+}
+
+function getClientLocation(client = {}) {
+  const location = client.location || client.professionalLocation || {}
+
+  return {
+    latitude: client.latitude || client.geoLat || location.latitude || '',
+    longitude: client.longitude || client.geoLng || location.longitude || '',
+    city: client.city || location.city || '',
+    state: client.state || location.state || '',
+    postalCode: client.postalCode || location.postalCode || '',
+  }
+}
+
 function buildWhatsAppMessage(serviceName) {
   if (serviceName) {
     return `Hola 👋
@@ -515,20 +645,12 @@ function ClientDashboard({ view = 'inicio' }) {
   const [selectedArtistProfile, setSelectedArtistProfile] = useState(null)
   const [selectedMarketplaceServiceId, setSelectedMarketplaceServiceId] = useState('')
   const [openDropdown, setOpenDropdown] = useState(null)
+  const [recommendationMode, setRecommendationMode] = useState('')
+  const [showPastAppointments, setShowPastAppointments] = useState(false)
+  const [showAppointmentDateFilter, setShowAppointmentDateFilter] = useState(false)
+  const [appointmentHistoryDate, setAppointmentHistoryDate] = useState('')
+  const [visibleHistoryCount, setVisibleHistoryCount] = useState(5)
   const isRealMarketplace = !session.isMockSession
-  const marketplaceSearchServices = useMemo(() => {
-    if (!isRealMarketplace) return searchServices
-
-    return buildServiceGroupsFromListings(marketplaceListings)
-  }, [isRealMarketplace, marketplaceListings])
-  const primaryServiceOptions = Object.keys(marketplaceSearchServices)
-  const currentServiceGroup = marketplaceSearchServices[primaryService]
-    || marketplaceSearchServices[primaryServiceOptions[0]]
-    || []
-  const marketplaceService =
-    currentServiceGroup.find((service) => service.name === secondaryService)
-    || currentServiceGroup[0]
-    || { name: secondaryService || 'Servicio', durationMinutes: 60 }
   const artistStudioMemberships = useMemo(
     () => deriveMembershipsFromLegacyData({ artists: adminState.artists }),
     [adminState.artists],
@@ -542,6 +664,26 @@ function ClientDashboard({ view = 'inicio' }) {
     studios: adminState.studios,
     artistStudioMemberships,
   })
+  const activeArtists = isRealMarketplace
+    ? marketplaceListings
+    : adminState.artists.filter((artist) => {
+      const artistStudio = getArtistStudio(artist)
+      return artist.status === 'Activo' && canUseOperationalFeature(artistStudio || artist, 'publicAgenda')
+    })
+  const marketplaceSearchServices = useMemo(() => {
+    const groupsFromArtists = buildServiceGroupsFromListings(activeArtists)
+    if (Object.keys(groupsFromArtists).length > 0) return groupsFromArtists
+
+    return isRealMarketplace ? {} : searchServices
+  }, [activeArtists, isRealMarketplace])
+  const primaryServiceOptions = Object.keys(marketplaceSearchServices)
+  const currentServiceGroup = marketplaceSearchServices[primaryService]
+    || marketplaceSearchServices[primaryServiceOptions[0]]
+    || []
+  const marketplaceService =
+    currentServiceGroup.find((service) => service.name === secondaryService)
+    || currentServiceGroup[0]
+    || { name: secondaryService || 'Servicio', durationMinutes: 60 }
   const selectedArtistMembership = selectedArtistProfile?.membership || getArtistMembership(selectedArtistProfile)
   const selectedArtistStudio = selectedArtistProfile?.studio || getArtistStudio(selectedArtistProfile)
   const selectedMarketplaceService = useMemo(() => {
@@ -688,13 +830,6 @@ function ClientDashboard({ view = 'inicio' }) {
       durationMinutes: effectiveMarketplaceService.durationMinutes || 60,
     }).filter((slot) => slot.available).length
   }
-  const activeArtists = isRealMarketplace
-    ? marketplaceListings
-    : adminState.artists.filter((artist) => {
-      const artistStudio = getArtistStudio(artist)
-      return artist.status === 'Activo' && canUseOperationalFeature(artistStudio || artist, 'publicAgenda')
-    })
-
   useEffect(() => {
     if (!isRealMarketplace || !selectedArtistProfile) return
 
@@ -767,6 +902,7 @@ function ClientDashboard({ view = 'inicio' }) {
     streak: hasRealClientSession ? null : clientState.profile?.streak || 0,
     rewardsHistory: hasRealClientSession ? [] : artistClientProfile?.rewardsHistory || [],
   }
+  const clientLocation = getClientLocation(currentClient)
   console.log('CLIENT DASHBOARD SESSION CLIENT', {
     hasRealClientSession,
     sessionClient: session.client,
@@ -796,8 +932,6 @@ function ClientDashboard({ view = 'inicio' }) {
     currentClient.phone,
     currentClient.birthday,
   ])
-  const nextRewardProgress = 0
-
   const handleClientPhotoChange = (event) => {
     const file = event.target.files?.[0]
     if (!file) return
@@ -828,21 +962,7 @@ function ClientDashboard({ view = 'inicio' }) {
     await updateClientProfile(profileDraft)
   }
 
-  const nearestExpiration = null
-
   const realAppointmentSourceReady = !session.isMockSession && appointmentState.clientLoaded
-  const clientAppointmentSource = realAppointmentSourceReady
-    ? realClientAppointments
-    : session.isMockSession
-      ? artistState.appointments
-      : []
-  const clientHistoryConnected = clientAppointmentSource
-    .filter((item) => item.clientId === clientLookupId && item.type === 'appointment')
-    .map((item) => ({
-      ...item,
-      points: null,
-      artist: item.artist || 'Valeria Moon',
-    }))
 
   // Generar automatizaciones inteligentes
   const clientAutomations = hasRealClientSession ? [] : generateClientAutomations(currentClient, artistServices)
@@ -868,26 +988,71 @@ function ClientDashboard({ view = 'inicio' }) {
 
           return !secondaryService || artist.marketplaceServices.includes(secondaryService)
         })
-        .sort((firstArtist, secondArtist) => (
-          secondArtist.availabilityScore - firstArtist.availabilityScore
-          || firstArtist.occupancy - secondArtist.occupancy
-        ))
+        .filter((artist) => recommendationMode !== 'today' || getTodayAvailabilityCount(artist) > 0)
+        .sort((firstArtist, secondArtist) => {
+          if (recommendationMode === 'nearby') {
+            const firstProfile = getArtistPublicProfile(artistState, firstArtist)
+            const firstStudio = getStudioPublicProfile({
+              artist: firstArtist,
+              studios: adminState.studios,
+              artistStudioMemberships,
+            })
+            const secondProfile = getArtistPublicProfile(artistState, secondArtist)
+            const secondStudio = getStudioPublicProfile({
+              artist: secondArtist,
+              studios: adminState.studios,
+              artistStudioMemberships,
+            })
+            const firstLocation = getEffectiveProfessionalLocation(firstProfile, firstStudio, firstArtist).location
+            const secondLocation = getEffectiveProfessionalLocation(secondProfile, secondStudio, secondArtist).location
+            const firstDistance = calculateDistanceKm(clientLocation, firstLocation)
+            const secondDistance = calculateDistanceKm(clientLocation, secondLocation)
+
+            if (firstDistance !== null || secondDistance !== null) {
+              return (firstDistance ?? Number.POSITIVE_INFINITY) - (secondDistance ?? Number.POSITIVE_INFINITY)
+                || secondArtist.availabilityScore - firstArtist.availabilityScore
+            }
+
+            const clientCity = normalizeText(clientLocation.city)
+            const clientState = normalizeText(clientLocation.state)
+            const firstLocationScore = Number(clientCity && normalizeText(firstLocation.city || firstArtist.city).includes(clientCity))
+              + Number(clientState && normalizeText(firstLocation.state).includes(clientState))
+            const secondLocationScore = Number(clientCity && normalizeText(secondLocation.city || secondArtist.city).includes(clientCity))
+              + Number(clientState && normalizeText(secondLocation.state).includes(clientState))
+
+            return secondLocationScore - firstLocationScore
+              || secondArtist.availabilityScore - firstArtist.availabilityScore
+              || firstArtist.occupancy - secondArtist.occupancy
+          }
+
+          if (recommendationMode === 'today') {
+            return getTodayAvailabilityCount(secondArtist) - getTodayAvailabilityCount(firstArtist)
+              || secondArtist.availabilityScore - firstArtist.availabilityScore
+              || firstArtist.occupancy - secondArtist.occupancy
+          }
+
+          return secondArtist.availabilityScore - firstArtist.availabilityScore
+            || firstArtist.occupancy - secondArtist.occupancy
+        })
     },
     [
       activeArtists,
       adminState.studios,
       artistStudioMemberships,
+      artistState,
       bookingDate,
+      clientLocation,
       getAvailableSlots,
       isRealMarketplace,
       effectiveMarketplaceService.durationMinutes,
+      recommendationMode,
       searchMode,
       secondaryService,
       studioQuery,
     ],
   )
   const bookedAppointments = realAppointmentSourceReady ? [] : agendaSettings.bookedSlots.map((slot) => ({
-    artist: slot.artist || 'Valeria Moon',
+    artist: slot.artist || 'Artista',
     service: slot.service || 'Servicio reservado',
     date: slot.date,
     time: slot.time,
@@ -895,18 +1060,35 @@ function ClientDashboard({ view = 'inicio' }) {
     status: 'Reservada',
   }))
   const upcomingAppointments = realAppointmentSourceReady
-    ? realClientAppointments.filter((appointment) => !['Completada', 'Cancelada'].includes(appointment.status))
-    : session.isMockSession
-      ? [...bookedAppointments, ...mockClientAppointments]
-      : []
-  const historicalAppointments = realAppointmentSourceReady
     ? realClientAppointments.filter((appointment) => (
-      ['Completada', 'Cancelada', 'No show'].includes(appointment.status)
-      || ['completed', 'cancelled', 'no_show'].includes(appointment.appointmentStatus)
+      !['Completada', 'Cancelada'].includes(appointment.status)
+      && isFutureAppointmentDate(appointment)
     ))
-    : session.isMockSession
-      ? clientHistoryConnected
-      : []
+    : bookedAppointments
+  const historicalAppointments = realAppointmentSourceReady
+    ? realClientAppointments
+      .filter((appointment) => (
+        ['Completada', 'Cancelada', 'No show'].includes(appointment.status)
+        || ['completed', 'cancelled', 'no_show'].includes(appointment.appointmentStatus)
+        || !isFutureAppointmentDate(appointment)
+      ))
+      .filter((appointment) => appointmentHistoryDate || isCurrentMonthAppointment(appointment))
+      .filter((appointment) => !appointmentHistoryDate || getAppointmentDateKey(appointment) === appointmentHistoryDate)
+      .sort((firstAppointment, secondAppointment) => (
+        String(secondAppointment.date || '').localeCompare(String(firstAppointment.date || ''))
+        || String(secondAppointment.time || '').localeCompare(String(firstAppointment.time || ''))
+      ))
+    : []
+  const visibleHistoricalAppointments = historicalAppointments.slice(0, visibleHistoryCount)
+  const hasMoreHistoricalAppointments = visibleHistoryCount < historicalAppointments.length
+  const nextAppointment = [...upcomingAppointments].sort((firstAppointment, secondAppointment) => (
+    String(firstAppointment.date || '').localeCompare(String(secondAppointment.date || ''))
+    || String(firstAppointment.time || '').localeCompare(String(secondAppointment.time || ''))
+  ))[0]
+
+  useEffect(() => {
+    setVisibleHistoryCount(5)
+  }, [appointmentHistoryDate, showPastAppointments])
 
   const reserveSlot = async (slot) => {
     console.error('[BOOKING TRACE]', 'ClientDashboard reserveSlot entry', {
@@ -972,7 +1154,7 @@ function ClientDashboard({ view = 'inicio' }) {
       artistId: selectedArtistProfile.id,
       studioId: selectedArtistStudio?.id || null,
       membershipId: selectedArtistMembership?.id || null,
-      artist: selectedArtistProfile?.owner || selectedArtistProfile?.name || 'Valeria Moon',
+      artist: selectedArtistProfile?.owner || selectedArtistProfile?.name || 'Artista',
       service: effectiveMarketplaceService.name,
       durationMinutes: effectiveMarketplaceService.durationMinutes,
     })
@@ -1023,6 +1205,15 @@ function ClientDashboard({ view = 'inicio' }) {
     setOpenDropdown(null)
   }
 
+  const selectRecommendationMode = (nextMode) => {
+    setRecommendationMode((currentMode) => currentMode === nextMode ? '' : nextMode)
+    closeArtistProfile()
+
+    if (nextMode === 'today') {
+      setBookingDate(getTodayDateValue())
+    }
+  }
+
   const changeSelectedMarketplaceService = (nextServiceName) => {
     const services = Array.isArray(selectedArtistProfile?.marketplaceServiceOptions)
       ? selectedArtistProfile.marketplaceServiceOptions
@@ -1049,77 +1240,44 @@ function ClientDashboard({ view = 'inicio' }) {
                 <span className="client-hero-greeting">Hola</span>
                 <strong className="client-hero-name">{currentClient.name}</strong>
                 <h2>Tu universo beauty premium</h2>
-                <p>Agenda servicios reales y revisa tus citas confirmadas en Studio Flow.</p>
                 <div className="hero-actions">
                   <Button onClick={() => navigate(paths.clientExplore)}>Agendar ahora</Button>
                   <Button variant="ghost" onClick={() => navigate(paths.clientAppointments)}>Ver mis citas</Button>
                 </div>
               </div>
               <div className="hero-summary client-hero-summary">
-                <span>Cuenta cliente</span>
                 <strong>{upcomingAppointments.length} citas próximas</strong>
-                <small>{realAppointmentSourceReady ? 'Datos conectados a Supabase' : 'Cargando datos reales'}</small>
               </div>
             </section>
 
-            <aside className="client-metrics-grid mobile-screen">
-              <Card className="loyalty-card">
-                <PanelHeader title="Flow Points" eyebrow="Próximamente" />
-                <div className="loyalty-status">
-                  <div>
-                    <strong>--</strong>
-                    <span>sin balance activo</span>
+            <Card className="mobile-screen primary-panel client-next-appointment-card">
+              <PanelHeader title="Tu próxima cita" eyebrow="Agenda activa" />
+              {nextAppointment ? (
+                <article className="client-next-appointment">
+                  <div className="date-block">
+                    <strong>{nextAppointment.date}</strong>
+                    <span>{nextAppointment.time || '--:--'}</span>
                   </div>
                   <div>
-                    <strong>--</strong>
-                    <span>sin tier activo</span>
+                    <h3>{nextAppointment.service || 'Servicio agendado'}</h3>
+                    <p>{nextAppointment.artist || 'Artista'} / {nextAppointment.address || 'Ubicacion por confirmar'}</p>
                   </div>
-                </div>
-                <div className="progress-row">
-                  <span>Módulo pendiente</span>
-                  <strong>Sin recompensas reales</strong>
-                </div>
-                <div className="progress-bar">
-                  <div className="progress-fill" style={{ width: `${nextRewardProgress}%` }} />
-                </div>
-                <small>No se muestran puntos hasta conectar el balance real de loyalty.</small>
-              </Card>
-
-              <Card className="loyalty-card streak-card">
-                <PanelHeader title="Streak" eyebrow="Próximamente" />
-                <div className="streak-block">
-                  <strong>Sin conteo activo</strong>
-                  <p>El ritmo de visitas se mostrará cuando exista cálculo real.</p>
-                </div>
-                <div className="reward-callout">
-                  <span>Recompensas</span>
-                  <strong>Próximamente</strong>
-                </div>
-              </Card>
-            </aside>
-
-            <section className="client-summary-grid mobile-screen">
-              <Card className="points-expire-card">
-                <PanelHeader title="Puntos por vencer" eyebrow="Próximamente" />
-                {nearestExpiration ? (
-                  <>
-                    <strong>Puntos por vencer</strong>
-                    <p>Activa tu próxima cita para conservar tu saldo premium.</p>
-                    <Button onClick={() => navigate(paths.clientExplore)}>Agendar ahora</Button>
-                  </>
-                ) : (
-                  <p>No hay vencimientos reales disponibles todavía.</p>
-                )}
-              </Card>
-
-              <Card className="vip-benefits-card">
-                <PanelHeader title="Beneficios" eyebrow="Próximamente" />
-                <ul className="benefits-list">
-                  <li>Sin beneficios activos conectados a backend.</li>
-                  <li>Bonus de cumpleaños pendiente de diseño.</li>
-                </ul>
-              </Card>
-            </section>
+                  <StatusPill tone="success">{nextAppointment.status || 'Agendada'}</StatusPill>
+                </article>
+              ) : (
+                <article className="client-next-appointment">
+                  <div className="date-block">
+                    <strong>Sin cita</strong>
+                    <span>--:--</span>
+                  </div>
+                  <div>
+                    <h3>{isClientAppointmentsLoading ? 'Consultando tu agenda...' : 'No tienes citas activas'}</h3>
+                    <p>{isClientAppointmentsLoading ? 'Estamos revisando tus reservas.' : 'Agenda un servicio para verlo aqui.'}</p>
+                  </div>
+                  <StatusPill tone="neutral">Vacio</StatusPill>
+                </article>
+              )}
+            </Card>
 
             {clientAutomations.length > 0 && (
               <section className="automations-grid mobile-screen">
@@ -1146,29 +1304,6 @@ function ClientDashboard({ view = 'inicio' }) {
               </section>
             )}
 
-            <Card className="mobile-screen primary-panel history-card">
-              <PanelHeader title="Historial conectado" eyebrow="Tus últimos servicios" />
-              <div className="history-table">
-                <div className="history-row header-row">
-                  <span>Fecha</span>
-                  <span>Servicio</span>
-                  <span>Artista</span>
-                  <span>Estado</span>
-                </div>
-                {clientHistoryConnected.length > 0 ? clientHistoryConnected.map((item) => (
-                  <div className="history-row" key={`${item.service}-${item.date}-${item.time}`}>
-                    <span>{item.date}</span>
-                    <span>{item.service}</span>
-                    <span>{item.artist}</span>
-                    <strong>{item.status || 'Real'}</strong>
-                  </div>
-                )) : (
-                  <div className="history-row empty-row">
-                    <span>Aún no tienes historial conectado con tus citas.</span>
-                  </div>
-                )}
-              </div>
-            </Card>
           </>
         )}
 
@@ -1214,26 +1349,79 @@ function ClientDashboard({ view = 'inicio' }) {
               </div>
             </Card>
             <Card className="mobile-screen">
-              <PanelHeader title="Historial" eyebrow="Reservas anteriores" />
-              <div className="compact-list">
-                {historicalAppointments.length > 0 ? historicalAppointments.map((item) => (
-                  <div className="list-row elevated-row" key={`${item.id || item.service}-${item.date}-${item.time || ''}`}>
-                    <div>
-                      <strong>{item.service}</strong>
-                      <small>{item.artist} / {item.date}</small>
-                    </div>
-                    <StatusPill tone="neutral">{item.status || 'Finalizada'}</StatusPill>
-                  </div>
-                )) : (
-                  <div className="list-row elevated-row">
-                    <div>
-                      <strong>{isClientAppointmentsLoading ? 'Cargando historial...' : 'Sin historial real'}</strong>
-                      <small>{isClientAppointmentsLoading ? 'Estamos consultando tus citas reales.' : 'Aun no tienes reservas anteriores registradas.'}</small>
-                    </div>
-                    <StatusPill tone="neutral">Vacio</StatusPill>
-                  </div>
+              <PanelHeader
+                title="Citas pasadas"
+                eyebrow="Historial"
+                action={(
+                  <Button size="sm" variant="ghost" onClick={() => setShowPastAppointments((current) => !current)}>
+                    {showPastAppointments ? 'Ocultar' : 'Mostrar mis citas pasadas'}
+                  </Button>
                 )}
-              </div>
+              />
+              {showPastAppointments && (
+                <>
+                  <div className="history-actions">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => setShowAppointmentDateFilter((current) => !current)}
+                    >
+                      Filtrar
+                    </Button>
+                    {appointmentHistoryDate && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setAppointmentHistoryDate('')}
+                      >
+                        Limpiar filtro
+                      </Button>
+                    )}
+                  </div>
+                  {showAppointmentDateFilter && (
+                    <label className="input-field history-date-filter">
+                      <span>Fecha</span>
+                      <input
+                        type="date"
+                        value={appointmentHistoryDate}
+                        onChange={(event) => setAppointmentHistoryDate(event.target.value)}
+                      />
+                    </label>
+                  )}
+                  <div className="compact-list">
+                    {visibleHistoricalAppointments.length > 0 ? visibleHistoricalAppointments.map((item) => (
+                      <div className="list-row elevated-row" key={`${item.id || item.service}-${item.date}-${item.time || ''}`}>
+                        <div>
+                          <strong>{item.service}</strong>
+                          <small>{item.artist} / {item.date}</small>
+                        </div>
+                        <StatusPill tone="neutral">{item.status || 'Finalizada'}</StatusPill>
+                      </div>
+                    )) : (
+                      <div className="list-row elevated-row">
+                        <div>
+                          <strong>{isClientAppointmentsLoading ? 'Cargando historial...' : 'Sin citas pasadas'}</strong>
+                          <small>
+                            {appointmentHistoryDate
+                              ? 'No hay citas registradas en la fecha seleccionada.'
+                              : 'Solo se muestra historial del mes en curso.'}
+                          </small>
+                        </div>
+                        <StatusPill tone="neutral">Vacio</StatusPill>
+                      </div>
+                    )}
+                    {hasMoreHistoricalAppointments && (
+                      <Button
+                        className="full-width"
+                        variant="ghost"
+                        onClick={() => setVisibleHistoryCount((current) => current + 5)}
+                      >
+                        Mostrar mas
+                      </Button>
+                    )}
+                  </div>
+                </>
+              )}
             </Card>
           </>
         )}
@@ -1241,6 +1429,38 @@ function ClientDashboard({ view = 'inicio' }) {
         {view === 'explorar' && (
           <Card className="mobile-screen primary-panel">
             <PanelHeader title="Busqueda de artistas" eyebrow="Explorar" />
+            <section className="client-recommendation-panel" aria-label="Recomendaciones de busqueda">
+              <div className="client-recommendation-heading">
+                <span className="eyebrow">Busqueda inteligente</span>
+                <h3>Recomiendame</h3>
+                <small>Elige una prioridad y Studio Flow acomoda los resultados.</small>
+              </div>
+              <div className="client-recommendation-actions">
+                <button
+                  className={`recommendation-choice${recommendationMode === 'nearby' ? ' is-active' : ''}`}
+                  type="button"
+                  onClick={() => selectRecommendationMode('nearby')}
+                >
+                  <strong>Cerca de mi</strong>
+                  {recommendationMode === 'nearby' && <span>Seleccionado</span>}
+                </button>
+                <button
+                  className={`recommendation-choice${recommendationMode === 'today' ? ' is-active' : ''}`}
+                  type="button"
+                  onClick={() => selectRecommendationMode('today')}
+                >
+                  <strong>Citas para hoy</strong>
+                  {recommendationMode === 'today' && <span>Seleccionado</span>}
+                </button>
+              </div>
+              {recommendationMode && (
+                <p className="client-recommendation-status">
+                  {recommendationMode === 'nearby'
+                    ? 'Mostrando primero opciones cercanas.'
+                    : 'Mostrando solo opciones con citas para hoy.'}
+                </p>
+              )}
+            </section>
             <div className="form-stack compact-form">
               <PremiumDropdown
                 label="Buscar por"
@@ -1319,9 +1539,15 @@ function ClientDashboard({ view = 'inicio' }) {
                 const artistPortfolio = publicArtistProfile.portfolio.slice(0, 12)
                 const contactLinks = publicArtistProfile.contactLinks || {}
                 const isProfileOpen = selectedArtistProfile?.id === artist.id
-                const artistPhotoUrl = publicArtistProfile.photoUrl
-                const artistDisplayName = publicArtistProfile.fullName || artist.owner || 'Artista beauty'
-                const artistInitials = getArtistInitials(artistDisplayName)
+                const isStudioListing = artist.profileType === 'studio'
+                const profilePhotoUrl = isStudioListing
+                  ? studioProfile.profile?.logoUrl || publicArtistProfile.photoUrl
+                  : publicArtistProfile.photoUrl
+                const profileDisplayName = isStudioListing
+                  ? studioDisplayName || artist.title || artist.owner || 'Estudio beauty'
+                  : publicArtistProfile.fullName || artist.owner || 'Artista beauty'
+                const profileTypeLabel = isStudioListing ? 'Estudio' : 'Artista'
+                const profileInitials = getArtistInitials(profileDisplayName)
                 const artistBiography = publicArtistProfile.biography?.trim()
                 const hasSocialLinks = contactLinks.whatsapp || contactLinks.instagram || contactLinks.facebook
 
@@ -1329,14 +1555,15 @@ function ClientDashboard({ view = 'inicio' }) {
                   <article className={`artist-result marketplace-result-card${isProfileOpen ? ' is-expanded' : ''}`} key={artist.name}>
                     <div className="marketplace-result-summary">
                       <div className="marketplace-artist-avatar avatar">
-                        {artistPhotoUrl ? (
-                          <img src={artistPhotoUrl} alt={`Foto de ${artistDisplayName}`} />
+                        {profilePhotoUrl ? (
+                          <img src={profilePhotoUrl} alt={`Foto de ${profileDisplayName}`} />
                         ) : (
-                          <span>{artistInitials}</span>
+                          <span>{profileInitials}</span>
                         )}
                       </div>
                       <div className="marketplace-result-copy">
-                        <strong>{artistDisplayName}</strong>
+                        <strong>{profileDisplayName}</strong>
+                        <small>{profileTypeLabel}</small>
                         <small>{artist.marketplaceServices.slice(0, 3).join(' • ')}</small>
                         <span className={`marketplace-availability availability-${artist.badge.level}`}>
                           {artist.badge.label}
@@ -1380,8 +1607,8 @@ function ClientDashboard({ view = 'inicio' }) {
                       <div className="public-profile-panel">
                         <section className="public-profile-hero">
                           <div className="public-profile-hero-copy">
-                            <span className="eyebrow">{publicArtistProfile.primarySpecialty || 'Artista beauty'}</span>
-                            <h3>{artistDisplayName}</h3>
+                            <span className="eyebrow">{publicArtistProfile.primarySpecialty || profileTypeLabel}</span>
+                            <h3>{profileDisplayName}</h3>
                             <span className={`marketplace-availability availability-${artist.badge.level}`}>
                               {artist.badge.label}
                             </span>
@@ -1391,7 +1618,7 @@ function ClientDashboard({ view = 'inicio' }) {
 
                         <section className="public-profile-section">
                           <h4>Sobre mi</h4>
-                          <p>{artistBiography || 'Esta artista aún está completando su perfil profesional.'}</p>
+                          <p>{artistBiography || `${isStudioListing ? 'Este estudio' : 'Esta artista'} aun esta completando su perfil profesional.`}</p>
                         </section>
 
                         {artistPortfolio.length > 0 && (
@@ -1612,9 +1839,15 @@ function ClientDashboard({ view = 'inicio' }) {
                   const artistPortfolio = publicArtistProfile.portfolio.slice(0, 12)
                   const contactLinks = publicArtistProfile.contactLinks || {}
                   const isProfileOpen = selectedArtistProfile?.id === artist.id
-                  const artistPhotoUrl = publicArtistProfile.photoUrl
-                  const artistDisplayName = publicArtistProfile.fullName || artist.owner || 'Artista beauty'
-                  const artistInitials = getArtistInitials(artistDisplayName)
+                  const isStudioListing = artist.profileType === 'studio'
+                  const profilePhotoUrl = isStudioListing
+                    ? studioProfile.profile?.logoUrl || publicArtistProfile.photoUrl
+                    : publicArtistProfile.photoUrl
+                  const profileDisplayName = isStudioListing
+                    ? studioDisplayName || artist.title || artist.owner || 'Estudio beauty'
+                    : publicArtistProfile.fullName || artist.owner || 'Artista beauty'
+                  const profileTypeLabel = isStudioListing ? 'Estudio' : 'Artista'
+                  const profileInitials = getArtistInitials(profileDisplayName)
                   const artistBiography = publicArtistProfile.biography?.trim()
                   const hasSocialLinks = contactLinks.whatsapp || contactLinks.instagram || contactLinks.facebook
 
@@ -1622,14 +1855,15 @@ function ClientDashboard({ view = 'inicio' }) {
                     <article className={`favorite-card marketplace-result-card${isProfileOpen ? ' is-expanded' : ''}`} key={artist.name}>
                       <div className="marketplace-result-summary">
                         <div className="marketplace-artist-avatar avatar">
-                          {artistPhotoUrl ? (
-                            <img src={artistPhotoUrl} alt={`Foto de ${artistDisplayName}`} />
+                          {profilePhotoUrl ? (
+                            <img src={profilePhotoUrl} alt={`Foto de ${profileDisplayName}`} />
                           ) : (
-                            <span>{artistInitials}</span>
+                            <span>{profileInitials}</span>
                           )}
                         </div>
                         <div className="marketplace-result-copy">
-                          <strong>{artistDisplayName}</strong>
+                          <strong>{profileDisplayName}</strong>
+                          <small>{profileTypeLabel}</small>
                           <small>{artist.marketplaceServices.slice(0, 3).join(' • ')}</small>
                           <span className={`marketplace-availability availability-${artist.badge.level}`}>
                             {artist.badge.label}
@@ -1658,6 +1892,13 @@ function ClientDashboard({ view = 'inicio' }) {
                           >
                             📅 Reservar cita
                           </button>
+                          <button
+                            className="marketplace-favorite-button is-saved"
+                            type="button"
+                            onClick={() => toggleFavoriteArtist(artist.id)}
+                          >
+                            Eliminar favorito
+                          </button>
                         </div>
                       </div>
 
@@ -1665,8 +1906,8 @@ function ClientDashboard({ view = 'inicio' }) {
                         <div className="public-profile-panel">
                           <section className="public-profile-hero">
                             <div className="public-profile-hero-copy">
-                              <span className="eyebrow">{publicArtistProfile.primarySpecialty || 'Artista beauty'}</span>
-                              <h3>{artistDisplayName}</h3>
+                              <span className="eyebrow">{publicArtistProfile.primarySpecialty || profileTypeLabel}</span>
+                              <h3>{profileDisplayName}</h3>
                               <span className={`marketplace-availability availability-${artist.badge.level}`}>
                                 {artist.badge.label}
                               </span>
@@ -1676,7 +1917,7 @@ function ClientDashboard({ view = 'inicio' }) {
 
                           <section className="public-profile-section">
                             <h4>Sobre mi</h4>
-                            <p>{artistBiography || 'Esta artista aún está completando su perfil profesional.'}</p>
+                            <p>{artistBiography || `${isStudioListing ? 'Este estudio' : 'Esta artista'} aun esta completando su perfil profesional.`}</p>
                           </section>
 
                           {artistPortfolio.length > 0 && (
@@ -1863,28 +2104,6 @@ function ClientDashboard({ view = 'inicio' }) {
                     </div>
                     <span>Agrega artistas desde Buscar.</span>
                   </article>
-                )}
-              </div>
-            </Card>
-            <Card className="mobile-screen">
-              <PanelHeader title="Historial" eyebrow="Reciente" />
-              <div className="compact-list">
-                {historicalAppointments.length > 0 ? historicalAppointments.map((item) => (
-                  <div className="list-row elevated-row" key={`${item.id || item.service}-${item.date}-${item.time || ''}`}>
-                    <div>
-                      <strong>{item.service}</strong>
-                      <small>{item.artist} / {item.date}</small>
-                    </div>
-                    <StatusPill tone="neutral">{item.status || 'Finalizada'}</StatusPill>
-                  </div>
-                )) : (
-                  <div className="list-row elevated-row">
-                    <div>
-                      <strong>Sin historial real</strong>
-                      <small>Aun no tienes reservas anteriores registradas.</small>
-                    </div>
-                    <StatusPill tone="neutral">Vacio</StatusPill>
-                  </div>
                 )}
               </div>
             </Card>

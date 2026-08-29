@@ -10,7 +10,6 @@ import PanelHeader from '../../components/PanelHeader'
 import StatsCard from '../../components/StatsCard'
 import { useApp } from '../../contexts/appContextCore'
 import { paths } from '../../routes/paths'
-import { artistAppointments as mockArtistAppointments, recurringClients } from '../../services/mockData'
 import { getClientById } from '../../utils/clientHelpers'
 import { formatCurrency } from '../../utils/formatters'
 import { calculateFlowPoints, addPointsToClient, vipTierThresholds } from '../../modules/loyalty/flowPointsEngine'
@@ -94,7 +93,6 @@ function ArtistDashboard({ view = 'agenda' }) {
     artistState,
     artistAppointments: realArtistAppointments,
     appointmentState,
-    artistAppointmentsError,
     session,
     addArtistAppointment,
     addArtistClient,
@@ -108,7 +106,7 @@ function ArtistDashboard({ view = 'agenda' }) {
   const [showDatePicker, setShowDatePicker] = useState(false)
   const [appointmentDraft, setAppointmentDraft] = useState({
     clientId: artistState.clients[0]?.id || '',
-    client: artistState.clients[0]?.name || 'Mariana L.',
+    client: artistState.clients[0]?.name || '',
     phone: artistState.clients[0]?.phone || '',
     service: artistServices.find(s => s.status === 'Activo')?.name || '',
     date: '2026-05-18',
@@ -180,21 +178,6 @@ function ArtistDashboard({ view = 'agenda' }) {
   const artistAppointmentSource = realArtistAppointmentSourceReady
     ? realArtistAppointments
     : artistState.appointments
-  const runtimeAppointmentSource = realArtistAppointmentSourceReady
-    ? 'appointmentState.artistAppointments'
-    : view === 'citas'
-      ? 'mockArtistAppointments'
-      : 'artistState.appointments'
-  const runtimeArtistId = session.artist?.id || session.user?.artistId || ''
-  const runtimeLoaderStatus = session.isMockSession
-    ? 'blocked: mock session'
-    : session.role !== 'artist'
-      ? `blocked: role=${session.role || 'unknown'}`
-      : !runtimeArtistId
-        ? 'blocked: missing artist id'
-        : appointmentState.artistLoaded
-          ? 'loaded'
-          : 'eligible: waiting for load'
   const appointmentsForSelectedDate = artistAppointmentSource.filter(apt => apt.date === selectedDate && apt.type === 'appointment')
   const hasAppointments = appointmentsForSelectedDate.length > 0
   
@@ -214,13 +197,6 @@ function ArtistDashboard({ view = 'agenda' }) {
   const dateObj = new Date(year, month - 1, day)
   const dayOfWeek = dateObj.toLocaleDateString('es-MX', { weekday: 'short', month: 'short', day: 'numeric' })
   const visibleDays = useMemo(() => buildVisibleDays(selectedDate), [selectedDate])
-
-  // Recomendaciones para días vacíos
-  const emptyDayRecommendations = [
-    { icon: '⏰', text: 'Happy Hour recomendado para Lash lifting' },
-    { icon: '🔄', text: 'Reactivar clientas con oferta especial' },
-    { icon: '✨', text: 'Promoción silenciosa a seguidoras' },
-  ]
 
   const filteredClients = artistState.clients.filter(client =>
     client.name.toLowerCase().includes(clientSearch.toLowerCase())
@@ -337,80 +313,6 @@ function ArtistDashboard({ view = 'agenda' }) {
 
   return (
     <main className={`dashboard-grid artist-grid view-${view}`}>
-        {session.role === 'platform_owner' && (
-          <section
-            className="card runtime-appointments-debug"
-            style={{
-              gridColumn: '1 / -1',
-              border: '1px dashed #e11d48',
-              background: '#fff1f2',
-              color: '#3f0f1b',
-            }}
-          >
-            <PanelHeader title="DEBUG runtime appointments" eyebrow="Temporal platform_owner" />
-            <div
-              style={{
-                display: 'grid',
-                gap: '0.75rem',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-                fontSize: '0.85rem',
-              }}
-            >
-              <div>
-                <strong>session.role</strong>
-                <p>{String(session.role || '')}</p>
-              </div>
-              <div>
-                <strong>session.isMockSession</strong>
-                <p>{String(session.isMockSession)}</p>
-              </div>
-              <div>
-                <strong>session.artist?.id</strong>
-                <p>{session.artist?.id || 'null'}</p>
-              </div>
-              <div>
-                <strong>session.user?.artistId</strong>
-                <p>{session.user?.artistId || 'null'}</p>
-              </div>
-              <div>
-                <strong>appointmentState.artistLoaded</strong>
-                <p>{String(appointmentState.artistLoaded)}</p>
-              </div>
-              <div>
-                <strong>appointmentState.artistAppointments.length</strong>
-                <p>{appointmentState.artistAppointments.length}</p>
-              </div>
-              <div>
-                <strong>artistAppointmentsError</strong>
-                <p>{artistAppointmentsError || 'null'}</p>
-              </div>
-              <div>
-                <strong>realArtistAppointmentSourceReady</strong>
-                <p>{String(realArtistAppointmentSourceReady)}</p>
-              </div>
-              <div>
-                <strong>current source</strong>
-                <p>{runtimeAppointmentSource}</p>
-              </div>
-              <div>
-                <strong>loadArtistAppointments</strong>
-                <p>{runtimeLoaderStatus}</p>
-              </div>
-              <div>
-                <strong>appointmentState.artistAppointments</strong>
-                <p>{realArtistAppointments.length} registros</p>
-              </div>
-              <div>
-                <strong>artistState.appointments</strong>
-                <p>{artistState.appointments.length} registros</p>
-              </div>
-              <div>
-                <strong>mockArtistAppointments</strong>
-                <p>{mockArtistAppointments.length} registros</p>
-              </div>
-            </div>
-          </section>
-        )}
         {view === 'agenda' && (
           <>
             <section className="hero-panel studio-hero artist-profile-hero mobile-screen">
@@ -453,13 +355,13 @@ function ArtistDashboard({ view = 'agenda' }) {
               <>
                 <MetricCard label="Citas" value={appointmentCount} trend={appointmentCount === 0 ? 'Agenda libre' : `+${appointmentCount} vs promedio`} className="mobile-compact" />
                 <MetricCard label="Ocupación" value={`${occupancy}%`} trend={occupancy > 80 ? 'Día full' : 'Oportunidad'} tone={occupancy > 80 ? 'sage' : 'rose'} className="mobile-compact" />
-                <MetricCard label="Ingresos estimados" value={canUseEconomy ? formatCurrency(estimatedRevenue) : 'Preparacion'} trend={canUseEconomy ? (estimatedRevenue === 0 ? 'Sin reservas' : '+18%') : 'Modo validacion'} tone="nude" className="mobile-compact" />
+                <MetricCard label="Ingresos estimados" value={canUseEconomy ? formatCurrency(estimatedRevenue) : 'Preparacion'} trend={canUseEconomy ? (estimatedRevenue === 0 ? 'Sin reservas' : 'Con reservas') : 'Modo validacion'} tone="nude" className="mobile-compact" />
               </>
             )}
 
             {showAppointmentForm && (
               <Card className="mobile-screen primary-panel">
-                <PanelHeader title="Nueva cita" eyebrow="Mock" />
+                <PanelHeader title="Nueva cita" eyebrow="Agenda" />
                 <div className="form-stack compact-form">
                   <label className="input-field">
                     <span>Cliente</span>
@@ -659,30 +561,7 @@ function ArtistDashboard({ view = 'agenda' }) {
                     fontSize: '13px',
                     color: 'var(--muted)',
                     margin: '0 0 16px 0',
-                  }}>Es un excelente momento para activar promociones inteligentes y atraer más clientas.</p>
-                  
-                  <div style={{ marginTop: '16px' }}>
-                    <p style={{
-                      fontSize: '12px',
-                      fontWeight: '700',
-                      color: 'var(--text)',
-                      margin: '12px 0 8px 0',
-                      textAlign: 'left',
-                    }}>Recomendaciones:</p>
-                    {emptyDayRecommendations.map((rec, idx) => (
-                      <div key={idx} style={{
-                        display: 'flex',
-                        gap: '8px',
-                        padding: '8px 0',
-                        fontSize: '13px',
-                        color: 'var(--text)',
-                        textAlign: 'left',
-                      }}>
-                        <span>{rec.icon}</span>
-                        <span>{rec.text}</span>
-                      </div>
-                    ))}
-                  </div>
+                  }}>No hay citas registradas para esta fecha.</p>
 
                   <Button 
                     className="full-width" 
@@ -702,7 +581,7 @@ function ArtistDashboard({ view = 'agenda' }) {
             <Card className="mobile-screen primary-panel">
               <PanelHeader title="Proximas citas" eyebrow="Hoy" action={<Button size="sm">Nueva</Button>} />
               <div className="compact-list">
-                {(realArtistAppointmentSourceReady ? realArtistAppointments : mockArtistAppointments).map((item) => (
+                {artistAppointmentSource.length > 0 ? artistAppointmentSource.map((item) => (
                   <div className="list-row elevated-row" key={item.client}>
                     <div>
                       <strong>{item.client}</strong>
@@ -710,7 +589,14 @@ function ArtistDashboard({ view = 'agenda' }) {
                     </div>
                     <span>{item.time}</span>
                   </div>
-                ))}
+                )) : (
+                  <div className="list-row elevated-row">
+                    <div>
+                      <strong>No hay citas registradas.</strong>
+                      <small>Las citas reales apareceran aqui.</small>
+                    </div>
+                  </div>
+                )}
               </div>
             </Card>
             <Card className="modal-preview-card">
@@ -744,7 +630,7 @@ function ArtistDashboard({ view = 'agenda' }) {
               </div>
             </Card>
             {!hideMetrics && (
-              <StatsCard title="Historial" value="$42.6K" caption="Ingresos estimados de los ultimos 30 dias">
+              <StatsCard title="Historial" value={formatCurrency(estimatedRevenue)} caption="Ingresos estimados de las citas cargadas">
                 <div className="history-chart">
                   <span style={{ height: '45%' }}></span>
                   <span style={{ height: '70%' }}></span>
@@ -762,15 +648,22 @@ function ArtistDashboard({ view = 'agenda' }) {
           <Card className="mobile-screen primary-panel">
             <PanelHeader title="Clientes recurrentes" eyebrow="Lealtad" />
             <div className="compact-list">
-              {recurringClients.map((client) => (
+              {artistState.clients.length > 0 ? artistState.clients.map((client) => (
                 <div className="list-row elevated-row" key={client.name}>
                   <div>
                     <strong>{client.name}</strong>
-                    <small>{client.visits} visitas / {client.value}</small>
+                    <small>{client.phone || 'Sin telefono registrado'}</small>
                   </div>
-                  <span>{client.next}</span>
+                  <span>{client.history?.length || 0}</span>
                 </div>
-              ))}
+              )) : (
+                <div className="list-row elevated-row">
+                  <div>
+                    <strong>No hay clientas registradas.</strong>
+                    <small>Las clientas reales apareceran aqui.</small>
+                  </div>
+                </div>
+              )}
             </div>
           </Card>
         )}

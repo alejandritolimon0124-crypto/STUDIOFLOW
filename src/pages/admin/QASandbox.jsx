@@ -1,288 +1,271 @@
-import { useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useMemo, useState } from 'react'
 import Button from '../../components/Button'
 import Card from '../../components/Card'
-import Input from '../../components/Input'
+import MetricCard from '../../components/MetricCard'
 import PanelHeader from '../../components/PanelHeader'
 import StatusPill from '../../components/StatusPill'
 import { useApp } from '../../contexts/appContextCore'
-import { paths } from '../../routes/paths'
-import {
-  deriveMembershipsFromLegacyData,
-  getStudioForArtist,
-} from '../../modules/entities/entitySelectors'
+import { fetchOwnerStudios, reviewOwnerStudio } from '../../services/adminStudioManagementService'
 
-function timeToMinutes(time) {
-  if (!time || !time.includes(':')) return null
-
-  const [hours, minutes] = time.split(':').map(Number)
-  return hours * 60 + minutes
+function getStudioName(studio = {}) {
+  return studio.commercialName || studio.profile?.commercialName || studio.name || 'Estudio'
 }
 
-function minutesToTime(totalMinutes) {
-  const hours = Math.floor(totalMinutes / 60).toString().padStart(2, '0')
-  const minutes = (totalMinutes % 60).toString().padStart(2, '0')
-  return `${hours}:${minutes}`
+function getArtistName(artist = {}) {
+  return artist.name || artist.owner || artist.profile?.displayName || 'Artista'
 }
 
-function getScheduleIndex(dateValue) {
-  const [year, month, day] = dateValue.split('-').map(Number)
-  const date = new Date(year, month - 1, day)
-  const dayIndex = date.getDay()
-  return dayIndex === 0 ? 6 : dayIndex - 1
-}
-
-function overlapsBlock(start, end, blocks) {
-  return blocks.some((block) => {
-    const blockStart = timeToMinutes(block.start)
-    const blockEnd = timeToMinutes(block.end)
-
-    if (blockStart === null || blockEnd === null) return false
-
-    return start < blockEnd && end > blockStart
-  })
-}
-
-function buildDebugSlots(agendaSettings, date, artistId) {
-  const day = agendaSettings.schedule[getScheduleIndex(date)]
-
-  if (!day || !day.active) {
-    return [{ time: 'Todo el dia', status: 'Bloqueado', reason: 'Dia inactivo' }]
+function getProfileRows(item = {}, type = 'artist') {
+  if (type === 'studio') {
+    return [
+      ['Nombre', getStudioName(item)],
+      ['Correo', item.email || item.profile?.email || item.ownerEmail],
+      ['Telefono', item.phone || item.profile?.phone || item.ownerPhone],
+      ['Ciudad', item.city || item.profile?.city],
+      ['Descripcion', item.profile?.description || item.description],
+      ['Estatus', item.studioStatus],
+    ]
   }
 
-  if (agendaSettings.blockedDates.some((blockedDate) => blockedDate.id === date)) {
-    return [{ time: 'Todo el dia', status: 'Bloqueado', reason: 'Fecha bloqueada' }]
-  }
-
-  const start = timeToMinutes(day.start)
-  const end = timeToMinutes(day.end)
-  const interval = Number(agendaSettings.intervalMinutes) || 15
-  const duration = 70
-  const slots = []
-
-  if (start === null || end === null) return slots
-
-  for (let current = start; current + duration <= end; current += interval) {
-    const time = minutesToTime(current)
-    const slotEnd = current + duration
-    const booked = agendaSettings.bookedSlots.some((slot) => (
-      slot.artistId === artistId
-      && slot.date === date
-      && slot.time === time
-    ))
-    const blocked = overlapsBlock(current, slotEnd, day.blocks)
-
-    slots.push({
-      time,
-      end: minutesToTime(slotEnd),
-      status: booked ? 'Ocupado' : blocked ? 'Bloqueado' : 'Disponible',
-      reason: booked ? 'Reserva mock' : blocked ? 'Descanso/bloque' : 'Reservable',
-    })
-  }
-
-  return slots
+  return [
+    ['Nombre artistico', getArtistName(item)],
+    ['Nombre legal', item.owner || item.profile?.display_name || item.profile?.displayName],
+    ['Correo', item.email || item.profile?.email],
+    ['Telefono', item.phone || item.profile?.phone],
+    ['Ciudad', item.city || item.artistProfile?.city],
+    ['Especialidad principal', item.artistProfile?.primary_specialty || item.services],
+    ['Especialidades', Array.isArray(item.specialties) ? item.specialties.join(', ') : item.specialties],
+    ['Biografia', item.description || item.artistProfile?.bio],
+    ['Estatus', item.status],
+  ]
 }
 
 function QASandbox() {
-  const navigate = useNavigate()
   const {
-    session,
-    login,
-    agendaSettings,
     adminState,
-    getAvailableSlots,
-    resetBookedSlots,
-    clearBlockedDates,
-    releaseAgenda,
-    blockTuesdays,
-    setPrimaryArtistStatus,
-    addMockBooking,
+    adminArtistsError,
+    loadAdminArtists,
+    reviewManagedArtist,
   } = useApp()
-  const [debugDate, setDebugDate] = useState('2026-05-18')
+  const [studios, setStudios] = useState([])
+  const [isLoadingStudios, setIsLoadingStudios] = useState(false)
+  const [actionId, setActionId] = useState('')
+  const [profilePreview, setProfilePreview] = useState(null)
+  const [reviewedStudioIds, setReviewedStudioIds] = useState([])
+  const [reviewedArtistIds, setReviewedArtistIds] = useState([])
+  const [systemError, setSystemError] = useState('')
+  const [systemStatus, setSystemStatus] = useState('')
 
-  const artistStudioMemberships = useMemo(
-    () => deriveMembershipsFromLegacyData({ artists: adminState.artists }),
+  const loadStudios = async () => {
+    setIsLoadingStudios(true)
+    setSystemError('')
+
+    try {
+      setStudios(await fetchOwnerStudios())
+    } catch (error) {
+      setStudios(adminState.studios || [])
+      setSystemError(error.message || 'No se pudieron cargar solicitudes de estudios.')
+    } finally {
+      setIsLoadingStudios(false)
+    }
+  }
+
+  useEffect(() => {
+    loadStudios()
+    loadAdminArtists?.().catch(() => null)
+  }, [])
+
+  const pendingStudios = useMemo(
+    () => studios.filter((studio) => studio.studioStatus === 'pending' && !reviewedStudioIds.includes(studio.id)),
+    [reviewedStudioIds, studios],
+  )
+  const pendingArtists = useMemo(
+    () => adminState.artists.filter((artist) => artist.status === 'Pendiente' && !reviewedArtistIds.includes(artist.id)),
+    [adminState.artists, reviewedArtistIds],
+  )
+  const rejectedArtistsCount = useMemo(
+    () => adminState.artists.filter((artist) => artist.status === 'Rechazado').length,
     [adminState.artists],
   )
-  const primaryArtist = adminState.artists.find((artist) => artist.status === 'Activo') || adminState.artists[0]
-  const primaryStudio = getStudioForArtist({
-    artistId: primaryArtist?.id,
-    studios: adminState.studios,
-    artistStudioMemberships,
-  })
-  const availableSlots = getAvailableSlots({
-    artistId: primaryArtist?.id,
-    studioId: primaryStudio?.id || null,
-    date: debugDate,
-    durationMinutes: 70,
-  })
-  const debugSlots = useMemo(
-    () => buildDebugSlots(agendaSettings, debugDate, primaryArtist?.id),
-    [agendaSettings, debugDate, primaryArtist?.id],
-  )
 
-  const quickNavigate = async (role, path) => {
-    await login(role)
-    navigate(path)
+  const runStudioAction = async (studio, action) => {
+    setActionId(`studio-${studio.id}`)
+    setSystemError('')
+    setSystemStatus('')
+
+    try {
+      const nextStudios = await reviewOwnerStudio({
+        studioId: studio.id,
+        action,
+        reason: `${action} ejecutado desde Sistema.`,
+      })
+      setStudios(nextStudios)
+      setReviewedStudioIds((currentIds) => [...new Set([...currentIds, studio.id])])
+      setProfilePreview((currentPreview) => (
+        currentPreview?.type === 'studio' && currentPreview.item?.id === studio.id ? null : currentPreview
+      ))
+      setSystemStatus(`${getStudioName(studio)} ${action === 'approve' ? 'aprobado' : 'rechazado'}.`)
+    } catch (error) {
+      setSystemError(error.message || 'No se pudo revisar el estudio.')
+    } finally {
+      setActionId('')
+    }
+  }
+
+  const runArtistAction = async (artist, decision) => {
+    setActionId(`artist-${artist.id}`)
+    setSystemError('')
+    setSystemStatus('')
+
+    try {
+      const result = await reviewManagedArtist(artist.id, decision)
+      if (result) {
+        setReviewedArtistIds((currentIds) => [...new Set([...currentIds, artist.id])])
+        setProfilePreview((currentPreview) => (
+          currentPreview?.type === 'artist' && currentPreview.item?.id === artist.id ? null : currentPreview
+        ))
+        setSystemStatus(`${getArtistName(artist)} ${decision === 'approve' ? 'aprobada' : 'rechazada'}.`)
+        await loadAdminArtists?.().catch(() => null)
+      } else {
+        setSystemError('No se pudo actualizar la solicitud. Revisa que la ultima migracion de Supabase este aplicada.')
+      }
+    } catch (error) {
+      setSystemError(error.message || 'No se pudo revisar la solicitud de artista.')
+    } finally {
+      setActionId('')
+    }
   }
 
   return (
     <main className="dashboard-grid admin-grid">
-      <Card className="wide-card mobile-screen primary-panel">
-        <PanelHeader title="QA Sandbox" eyebrow="Demo interno" />
-        <div className="compact-list">
-          <div className="list-row elevated-row">
-            <div>
-              <strong>{primaryArtist?.name || 'Artista demo'}</strong>
-              <small>Estado marketplace / Reservas cliente</small>
-            </div>
-            <StatusPill tone={primaryArtist?.status === 'Activo' ? 'success' : 'neutral'}>
-              {primaryArtist?.status || 'Sin estado'}
-            </StatusPill>
+      <MetricCard
+        label="Estudios pendientes"
+        value={pendingStudios.length}
+        trend="Solicitudes por aprobar"
+        tone={pendingStudios.length ? 'warm' : 'success'}
+      />
+      <MetricCard
+        label="Artistas pendientes"
+        value={pendingArtists.length}
+        trend="Solicitudes por aprobar"
+        tone={pendingArtists.length ? 'warm' : 'success'}
+      />
+      <MetricCard
+        label="Artistas rechazadas"
+        value={rejectedArtistsCount}
+        trend="No aparecen en Studio Flow"
+        tone={rejectedArtistsCount ? 'warm' : 'neutral'}
+      />
+
+      <Card className="wide-card executive-card">
+        <PanelHeader title="Panel de aprobacion" eyebrow="Sistema" />
+        {systemError && <small className="form-error">{systemError}</small>}
+        {adminArtistsError && <small className="form-error">{adminArtistsError}</small>}
+        {systemStatus && <small style={{ color: 'var(--success)', fontWeight: 800 }}>{systemStatus}</small>}
+
+        <div className="studio-review-stack">
+          <div className="approval-section-heading">
+            <h3>Estudios nuevos</h3>
+            <StatusPill tone={pendingStudios.length ? 'warm' : 'success'}>{pendingStudios.length} pendientes</StatusPill>
           </div>
-          <div className="list-row elevated-row">
-            <div>
-              <strong>Cliente seleccionado</strong>
-              <small>{session.user?.name || 'Sin sesion activa'} / {session.role || 'sin rol'}</small>
-            </div>
-            <StatusPill tone="rose">Mock</StatusPill>
-          </div>
-        </div>
-      </Card>
 
-      <Card className="mobile-screen">
-        <PanelHeader title="Acciones rapidas QA" eyebrow="Estado mock" />
-        <div className="row-actions">
-          <button type="button" onClick={resetBookedSlots}>Resetear reservas</button>
-          <button type="button" onClick={releaseAgenda}>Liberar agenda</button>
-          <button type="button" onClick={blockTuesdays}>Bloquear todos los martes</button>
-          <button type="button" onClick={() => setPrimaryArtistStatus('Inactivo', primaryArtist?.id)}>Simular artista inactivo</button>
-          <button type="button" onClick={() => setPrimaryArtistStatus('Activo', primaryArtist?.id)}>Activar artista</button>
-          <button type="button" onClick={addMockBooking}>Agregar reserva mock</button>
-          <button type="button" onClick={clearBlockedDates}>Limpiar fechas bloqueadas</button>
-        </div>
-      </Card>
-
-      <Card className="mobile-screen">
-        <PanelHeader title="Navegacion QA" eyebrow="Validacion rapida" />
-        <div className="row-actions">
-          <button type="button" onClick={() => quickNavigate('admin', paths.admin)}>Admin</button>
-          <button type="button" onClick={() => quickNavigate('artist', paths.artist)}>Artista</button>
-          <button type="button" onClick={() => quickNavigate('client', paths.client)}>Cliente</button>
-        </div>
-      </Card>
-
-      <Card className="mobile-screen">
-        <PanelHeader title="Agenda observable" eyebrow="Disponibilidad" />
-        <div className="compact-list">
-          {agendaSettings.schedule.map((day) => (
-            <div className="list-row elevated-row" key={day.day}>
+          {isLoadingStudios && (
+            <div className="studio-review-row">
               <div>
-                <strong>{day.day}</strong>
-                <small>{day.active ? `${day.start} - ${day.end}` : 'Dia inactivo'}</small>
+                <strong>Cargando estudios...</strong>
+                <small>Consultando solicitudes pendientes.</small>
               </div>
-              <StatusPill tone={day.active ? 'success' : 'neutral'}>
-                {day.active ? 'Activo' : 'Bloqueado'}
-              </StatusPill>
-            </div>
-          ))}
-        </div>
-      </Card>
-
-      <Card className="mobile-screen">
-        <PanelHeader title="Bloqueos y descansos" eyebrow="Agenda artista" />
-        <div className="compact-list">
-          {agendaSettings.blockedDates.length > 0 ? (
-            agendaSettings.blockedDates.map((date) => (
-              <div className="list-row elevated-row" key={date.id}>
-                <div>
-                  <strong>{date.id}</strong>
-                  <small>{date.label}</small>
-                </div>
-                <StatusPill tone="neutral">Fecha</StatusPill>
-              </div>
-            ))
-          ) : (
-            <div className="list-row elevated-row">
-              <div>
-                <strong>Sin fechas bloqueadas</strong>
-                <small>Agenda abierta para pruebas.</small>
-              </div>
-              <StatusPill tone="success">Libre</StatusPill>
+              <StatusPill tone="neutral">Cargando</StatusPill>
             </div>
           )}
-          {agendaSettings.schedule.flatMap((day) =>
-            day.blocks.map((block) => (
-              <div className="list-row elevated-row" key={block.id}>
+
+          {!isLoadingStudios && pendingStudios.map((studio) => {
+            const isBusy = actionId === `studio-${studio.id}`
+            return (
+              <div className="studio-review-row" key={studio.id}>
                 <div>
-                  <strong>{day.day}</strong>
-                  <small>{block.start} - {block.end}</small>
+                  <strong>{getStudioName(studio)}</strong>
+                  <small>{studio.email || studio.ownerEmail || studio.phone || studio.ownerPhone || 'Sin contacto'} / {studio.city || 'Sin ciudad'}</small>
                 </div>
-                <StatusPill tone="warm">Descanso</StatusPill>
+                <StatusPill tone="pending">Pendiente</StatusPill>
+                <div className="studio-review-actions">
+                  <Button disabled={isBusy} size="sm" variant="ghost" onClick={() => setProfilePreview({ type: 'studio', item: studio })}>Ver perfil</Button>
+                  <Button disabled={isBusy} size="sm" onClick={() => runStudioAction(studio, 'approve')}>Aprobar</Button>
+                  <Button disabled={isBusy} size="sm" variant="ghost" onClick={() => runStudioAction(studio, 'reject')}>Rechazar</Button>
+                </div>
               </div>
-            )),
+            )
+          })}
+
+          {!isLoadingStudios && pendingStudios.length === 0 && (
+            <div className="studio-review-row">
+              <div>
+                <strong>No hay estudios pendientes.</strong>
+                <small>Las solicitudes aprobadas o rechazadas salen de esta lista.</small>
+              </div>
+              <StatusPill tone="success">Al dia</StatusPill>
+            </div>
           )}
         </div>
       </Card>
 
-      <Card className="mobile-screen">
-        <PanelHeader title="Visual debug slots" eyebrow={debugDate} />
-        <div className="form-stack compact-form">
-          <Input
-            label="Fecha de prueba"
-            type="date"
-            value={debugDate}
-            onChange={(event) => setDebugDate(event.target.value)}
+      <Card className="wide-card executive-card">
+        <PanelHeader title="Artistas nuevas" eyebrow="Filtro Studio Flow" />
+        <div className="studio-review-stack">
+          <div className="approval-section-heading">
+            <h3>Solicitudes de artistas</h3>
+            <StatusPill tone={pendingArtists.length ? 'warm' : 'success'}>{pendingArtists.length} pendientes</StatusPill>
+          </div>
+
+          {pendingArtists.map((artist) => {
+            const isBusy = actionId === `artist-${artist.id}`
+            return (
+              <div className="studio-review-row" key={artist.id}>
+                <div>
+                  <strong>{getArtistName(artist)}</strong>
+                  <small>{artist.email || artist.phone || artist.city || 'Sin contacto'}</small>
+                </div>
+                <StatusPill tone="pending">Pendiente</StatusPill>
+                <div className="studio-review-actions">
+                  <Button disabled={isBusy} size="sm" variant="ghost" onClick={() => setProfilePreview({ type: 'artist', item: artist })}>Ver perfil</Button>
+                  <Button disabled={isBusy} size="sm" onClick={() => runArtistAction(artist, 'approve')}>Aprobar</Button>
+                  <Button disabled={isBusy} size="sm" variant="ghost" onClick={() => runArtistAction(artist, 'reject')}>Rechazar</Button>
+                </div>
+              </div>
+            )
+          })}
+
+          {pendingArtists.length === 0 && (
+            <div className="studio-review-row">
+              <div>
+                <strong>No hay artistas pendientes.</strong>
+                <small>Las artistas aprobadas pasan a activas; las rechazadas quedan congeladas.</small>
+              </div>
+              <StatusPill tone="success">Al dia</StatusPill>
+            </div>
+          )}
+        </div>
+      </Card>
+
+      {profilePreview && (
+        <Card className="wide-card executive-card">
+          <PanelHeader
+            title={profilePreview.type === 'studio' ? 'Perfil del estudio' : 'Perfil de artista'}
+            eyebrow="Revision"
+            action={<Button size="sm" variant="ghost" onClick={() => setProfilePreview(null)}>Cerrar</Button>}
           />
-        </div>
-        <div className="compact-list">
-          <div className="list-row elevated-row">
-            <div>
-              <strong>{availableSlots.length} slots cliente visibles</strong>
-              <small>Resultado real de disponibilidad para booking.</small>
-            </div>
-            <StatusPill tone="rose">Cliente</StatusPill>
-          </div>
-          {debugSlots.map((slot) => (
-            <div className="list-row elevated-row" key={`${slot.time}-${slot.status}`}>
-              <div>
-                <strong>{slot.time}{slot.end ? ` - ${slot.end}` : ''}</strong>
-                <small>{slot.reason}</small>
-              </div>
-              <StatusPill
-                tone={slot.status === 'Disponible' ? 'success' : slot.status === 'Ocupado' ? 'rose' : 'neutral'}
-              >
-                {slot.status}
-              </StatusPill>
-            </div>
-          ))}
-        </div>
-      </Card>
-
-      <Card className="mobile-screen">
-        <PanelHeader title="Reservas activas" eyebrow="Mock local" />
-        <div className="compact-list">
-          {agendaSettings.bookedSlots.length > 0 ? (
-            agendaSettings.bookedSlots.map((slot) => (
-              <div className="list-row elevated-row" key={`${slot.date}-${slot.time}`}>
+          <div className="compact-list">
+            {getProfileRows(profilePreview.item, profilePreview.type).map(([label, value]) => (
+              <div className="list-row elevated-row" key={label}>
                 <div>
-                  <strong>{slot.date} / {slot.time}</strong>
-                  <small>{slot.service || 'Servicio mock'} / {slot.artist || 'Artista mock'}</small>
+                  <strong>{label}</strong>
+                  <small>{value || 'Sin dato capturado'}</small>
                 </div>
-                <StatusPill tone="rose">Ocupado</StatusPill>
               </div>
-            ))
-          ) : (
-            <div className="list-row elevated-row">
-              <div>
-                <strong>Sin reservas activas</strong>
-                <small>Usa Agregar reserva mock para validar bloqueo de slots.</small>
-              </div>
-              <StatusPill tone="neutral">Vacio</StatusPill>
-            </div>
-          )}
-        </div>
-      </Card>
+            ))}
+          </div>
+        </Card>
+      )}
     </main>
   )
 }

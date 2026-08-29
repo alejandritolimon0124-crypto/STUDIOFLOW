@@ -2,7 +2,9 @@ import { useEffect, useMemo, useState } from 'react'
 import Button from '../../components/Button'
 import Card from '../../components/Card'
 import Input from '../../components/Input'
+import MetricCard from '../../components/MetricCard'
 import PanelHeader from '../../components/PanelHeader'
+import StatusPill from '../../components/StatusPill'
 import { useApp } from '../../contexts/appContextCore'
 import { paths } from '../../routes/paths'
 import { filterByStudioAccess, hasPermission, permissions, ROLES } from '../../modules/permissions/rolePermissions'
@@ -18,6 +20,11 @@ import {
 import { useNavigate } from 'react-router-dom'
 
 const uniqueById = (items = []) => Array.from(new Map(items.filter(Boolean).map((item) => [item.id, item])).values())
+const parseMoneyValue = (value) => {
+  const normalized = String(value || '').trim().toLowerCase()
+  const amount = Number(normalized.replace(/[^\d.-]/g, '')) || 0
+  return normalized.includes('k') ? amount * 1000 : amount
+}
 
 function formatAppointmentDate(value = '') {
   if (!value) return 'Fecha por confirmar'
@@ -38,6 +45,8 @@ function AdminClients() {
   const {
     adminState,
     session,
+    adminClientsError,
+    toggleManagedClientStatus,
     updateManagedClientProfile,
   } = useApp()
   const [query, setQuery] = useState('')
@@ -167,10 +176,13 @@ function AdminClients() {
 
     return filterByStudioAccess(adminState.clients, session.user, accessibleClientStudioIds)
         .filter((client) => {
-          const searchable = `${client.name} ${client.email}`.toLowerCase()
+          const searchable = `${client.name} ${client.email} ${client.phone}`.toLowerCase()
           return searchable.includes(query.toLowerCase())
         })
         .sort((firstClient, secondClient) => {
+          const revenueDifference = parseMoneyValue(secondClient.spend) - parseMoneyValue(firstClient.spend)
+          if (revenueDifference !== 0) return revenueDifference
+
           const firstDate = firstClient.lastAppointmentAt || firstClient.lastVisit || firstClient.createdAt || ''
           const secondDate = secondClient.lastAppointmentAt || secondClient.lastVisit || secondClient.createdAt || ''
           return String(secondDate).localeCompare(String(firstDate))
@@ -178,6 +190,8 @@ function AdminClients() {
         .slice(0, 5)
   }, [accessibleClientStudioIds, adminState.clients, isStudioOwnerContext, query, realClientResults, session.user])
   const canSeeStudioRevenue = hasPermission(session.user, permissions.STUDIO_REVENUE)
+  const activeClientsCount = adminState.clients.filter((client) => client.status === 'Activo').length
+  const suspendedClientsCount = adminState.clients.filter((client) => client.status !== 'Activo').length
 
   const openOwnerAppointmentFlow = (client = null) => {
     if (!isStudioOwnerContext) return
@@ -241,18 +255,21 @@ function AdminClients() {
 
   return (
     <main className="dashboard-grid admin-grid">
+        <MetricCard label="Clientas activas" value={activeClientsCount} trend={`${suspendedClientsCount} suspendidas`} tone={suspendedClientsCount ? 'warm' : 'success'} />
+        <MetricCard label="Clientas suspendidas" value={suspendedClientsCount} trend={`${activeClientsCount} activas`} tone={suspendedClientsCount ? 'warm' : 'neutral'} />
+
         <Card className="wide-card mobile-screen primary-panel">
           <PanelHeader
-            title="Gestion de clientes"
-            eyebrow="Estudio"
-            action={<Button disabled={!isStudioOwnerContext} size="sm" onClick={() => openOwnerAppointmentFlow()}>Nueva clienta</Button>}
+            title="Clientes"
+            eyebrow="Suspension y reactivacion"
+            action={isStudioOwnerContext ? <Button disabled={!isStudioOwnerContext} size="sm" onClick={() => openOwnerAppointmentFlow()}>Nueva clienta</Button> : null}
           />
           <div className="admin-search">
             <div className="location-form-grid">
               <Input
                 label="Buscar clienta"
                 type="search"
-                placeholder="Nombre o correo..."
+                placeholder="Nombre, correo o celular..."
                 value={query}
                 onChange={(event) => {
                   setQuery(event.target.value)
@@ -266,6 +283,7 @@ function AdminClients() {
               </div>
             </div>
           </div>
+          {adminClientsError && <small className="form-error">{adminClientsError}</small>}
           <div className="master-list">
             {filteredClients.length === 0 ? (
               <article className="master-row">
@@ -280,7 +298,16 @@ function AdminClients() {
                   <strong>{client.name}</strong>
                   <small>{client.email || client.phone || 'Sin contacto'} / {Number(client.appointments) || 0} citas{canSeeStudioRevenue && client.spend ? ` / ${client.spend}` : ''}</small>
                 </div>
+                <StatusPill tone={client.status === 'Activo' ? 'success' : 'warm'}>
+                  {client.status === 'Activo' ? 'Activo' : 'Suspendido'}
+                </StatusPill>
                 <div className="row-actions">
+                  {!isStudioOwnerContext && (
+                    <>
+                      <button disabled={client.status !== 'Activo'} type="button" onClick={() => toggleManagedClientStatus(client.id)}>Suspender</button>
+                      <button disabled={client.status === 'Activo'} type="button" onClick={() => toggleManagedClientStatus(client.id)}>Reactivar</button>
+                    </>
+                  )}
                   {isStudioOwnerContext && (
                     <button type="button" onClick={() => openOwnerAppointmentFlow(client)}>Generar cita</button>
                   )}

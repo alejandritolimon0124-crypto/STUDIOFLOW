@@ -1,15 +1,23 @@
-export function calculateWeeklyOccupancy() {
+export function calculateWeeklyOccupancy(appointments = []) {
+  if (!appointments.length) {
+    return {
+      weeklyOccupancy: 0,
+      lowSlots: [],
+      busyDays: [],
+    }
+  }
+
   return {
-    weeklyOccupancy: 62,
-    lowSlots: ['Martes 2PM', 'Jueves 11AM'],
-    busyDays: ['Viernes', 'Sábado'],
+    weeklyOccupancy: Math.min(100, Math.round((appointments.length / 40) * 100)),
+    lowSlots: [],
+    busyDays: [],
   }
 }
 
-export function detectLowOccupancySlots() {
-  return calculateWeeklyOccupancy().lowSlots
+export function detectLowOccupancySlots(appointments = []) {
+  return calculateWeeklyOccupancy(appointments).lowSlots
 }
 
-export function detectBusyDays() {
-  return calculateWeeklyOccupancy().busyDays
+export function detectBusyDays(appointments = []) {
+  return calculateWeeklyOccupancy(appointments).busyDays
 }

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import AuthLayout from '../../layouts/AuthLayout'
 import BrandLogo from '../../components/BrandLogo'
@@ -18,14 +18,15 @@ const routeByRole = {
 
 function Login() {
   const navigate = useNavigate()
-  const { authError, isAuthLoading, loginDemo, loginWithPassword } = useApp()
+  const { authError, isAuthLoading, isAuthenticated, loginWithGoogle, loginWithPassword, session } = useApp()
   const [form, setForm] = useState({ email: '', password: '' })
   const [localError, setLocalError] = useState('')
 
-  const handleDemoLogin = async (role, path) => {
-    await loginDemo(role)
-    navigate(path)
-  }
+  useEffect(() => {
+    if (!isAuthenticated) return
+
+    navigate(routeByRole[session.role] || paths.onboarding, { replace: true })
+  }, [isAuthenticated, navigate, session?.role])
 
   const updateForm = (field, value) => {
     setForm((currentForm) => ({ ...currentForm, [field]: value }))
@@ -40,6 +41,16 @@ function Login() {
       navigate(routeByRole[nextSession.role] || paths.onboarding)
     } catch {
       setLocalError('Revisa tu email y contrasena.')
+    }
+  }
+
+  const handleGoogleLogin = async () => {
+    setLocalError('')
+
+    try {
+      await loginWithGoogle()
+    } catch {
+      setLocalError('No se pudo iniciar sesion con Google.')
     }
   }
 
@@ -84,31 +95,12 @@ function Login() {
         </form>
 
         <div className="login-actions">
-          <Button className="full-width" variant="ghost" disabled>
+          <Button className="full-width" variant="ghost" disabled={isAuthLoading} onClick={handleGoogleLogin}>
             Continuar con Google
           </Button>
           <button className="text-link center-link" type="button" onClick={() => navigate(paths.register)}>
             Crear cuenta
           </button>
-        </div>
-
-        <div className="login-actions" style={{ borderTop: '1px solid var(--line)', paddingTop: '16px' }}>
-          <span className="eyebrow" style={{ marginBottom: 0, textAlign: 'center' }}>Accesos demo</span>
-          <Button className="full-width" variant="ghost" onClick={() => handleDemoLogin('artist', paths.artistAgenda)}>
-            Entrar como artista demo
-          </Button>
-          <Button className="full-width" variant="ghost" onClick={() => handleDemoLogin('client', paths.client)}>
-            Entrar como cliente demo
-          </Button>
-          <Button className="full-width" variant="ghost" onClick={() => handleDemoLogin('admin', paths.admin)}>
-            Entrar como admin demo
-          </Button>
-          <Button className="full-width" variant="ghost" onClick={() => handleDemoLogin('studio_owner', paths.admin)}>
-            Entrar como studio owner demo
-          </Button>
-          <Button className="full-width" variant="ghost" onClick={() => handleDemoLogin('studio_manager', paths.admin)}>
-            Entrar como manager demo
-          </Button>
         </div>
       </div>
     </AuthLayout>

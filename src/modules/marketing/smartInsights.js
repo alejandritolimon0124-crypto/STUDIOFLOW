@@ -1,7 +1,11 @@
 export function generateInsights({ weeklyOccupancy, lowSlots, busyDays, inactiveCount, happyHourActive }) {
   const insights = []
 
-  if (weeklyOccupancy < 65) {
+  if (!weeklyOccupancy && !inactiveCount && !lowSlots.length && !busyDays.length) {
+    return insights
+  }
+
+  if (weeklyOccupancy > 0 && weeklyOccupancy < 65 && lowSlots.length > 0) {
     insights.push({
       title: 'Baja ocupación detectada',
       message: `Activa Happy Hour este ${lowSlots[0]}.`,
@@ -25,7 +29,7 @@ export function generateInsights({ weeklyOccupancy, lowSlots, busyDays, inactive
     })
   }
 
-  if (!happyHourActive && weeklyOccupancy < 40) {
+  if (!happyHourActive && weeklyOccupancy > 0 && weeklyOccupancy < 40) {
     insights.push({
       title: 'Oportunidad urgente',
       message: 'Happy Hour se recomienda para mejorar la ocupación.',

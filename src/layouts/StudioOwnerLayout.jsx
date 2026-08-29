@@ -9,7 +9,7 @@ const studioOwnerNavItems = [
   ['Inicio', `${paths.adminStudio}?section=summary`],
   ['Equipo', `${paths.adminStudio}?section=team`],
   ['Agenda', `${paths.adminStudio}?section=schedule`],
-  ['Clientes', paths.adminClients],
+  ['Clientes', paths.adminStudioClients],
   ['Config', `${paths.adminStudio}?section=config`],
 ]
 
@@ -92,7 +92,7 @@ function StudioOwnerLayout() {
     return `${pathname}?section=${section === 'config' ? 'settings' : section || 'summary'}`
   }
   const isActiveItem = (path) => {
-    if (path === paths.adminClients) return location.pathname === paths.adminClients
+    if (path === paths.adminStudioClients) return location.pathname === paths.adminStudioClients
     if (!path.includes('?')) return location.pathname === path
     if (location.pathname !== paths.adminStudio) return false
 

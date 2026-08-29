@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AppContext } from './appContextCore'
-import { artistAppointments, artistClients, artistServices as mockArtistServices, clientHistory, managedArtists, managedClients, studios, systemStatus, users, weeklySchedule } from '../services/mockData'
+import { weeklyScheduleTemplate } from '../services/staticCatalogs'
 import { canUseOperationalFeature, getDefaultStudioStatus } from '../modules/governance/studioGovernance'
 import { ROLES } from '../modules/permissions/rolePermissions'
 import {
@@ -15,6 +15,7 @@ import {
   hasSupabaseAuth,
   onAuthStateChange,
   sendPasswordReset,
+  signInWithGoogle,
   signInWithPassword,
   signOut,
   signUpWithPassword,
@@ -54,7 +55,9 @@ import {
 import {
   activateAdminArtist,
   deactivateAdminArtist,
+  approveAdminArtist,
   fetchAdminArtists,
+  rejectAdminArtist,
   updateAdminArtistProfile,
   updateAdminStudioProfile,
 } from '../services/adminArtistService'
@@ -87,7 +90,6 @@ const initialSession = {
 }
 
 const storageKey = 'studio-flow-session'
-const adminMockStateStorageKey = 'studio-flow-admin-state-mock'
 const adminRealStateStoragePrefix = 'studio-flow-admin-state-real'
 const clientStateStorageKey = 'studio-flow-client-state'
 const legacyArtistStateStorageKey = 'studio-flow-artist-state'
@@ -119,24 +121,16 @@ function getStoredSession() {
 
     const parsedSession = JSON.parse(storedSession)
 
-    return parsedSession.user
+    return parsedSession.user && !parsedSession.isMockSession
       ? {
           ...initialSession,
           ...parsedSession,
-          isMockSession: parsedSession.isMockSession ?? true,
+          isMockSession: false,
         }
       : initialSession
   } catch {
     return initialSession
   }
-}
-
-const mockUsers = {
-  client: users.find((user) => user.role === ROLES.CLIENT) || { id: 'client-demo', name: 'Clienta Demo', role: ROLES.CLIENT, studioId: null },
-  artist: users.find((user) => user.role === ROLES.ARTIST) || { id: 'artist-demo', name: 'Artista Demo', role: ROLES.ARTIST, studioId: null },
-  admin: users.find((user) => user.role === ROLES.PLATFORM_OWNER) || { id: 'admin-demo', name: 'Studio Flow HQ', role: ROLES.PLATFORM_OWNER, studioId: null },
-  studio_owner: users.find((user) => user.role === ROLES.STUDIO_OWNER) || { id: 'studio-owner-demo', name: 'Studio Owner Demo', role: ROLES.STUDIO_OWNER, studioId: null },
-  studio_manager: users.find((user) => user.role === ROLES.STUDIO_MANAGER) || { id: 'studio-manager-demo', name: 'Studio Manager Demo', role: ROLES.STUDIO_MANAGER, studioId: null },
 }
 
 function normalizeRoleCode(role) {
@@ -159,7 +153,34 @@ function getActiveRole(authContext) {
 function createSessionFromAuthContext(authSession, authContext = {}) {
   const profile = authContext.profile
 
-  if (!authSession?.user || !profile) return initialSession
+  if (!authSession?.user) return initialSession
+
+  if (!profile) {
+    const metadata = getAuthMetadata(authSession)
+    const fallbackName = metadata.display_name
+      || metadata.full_name
+      || metadata.name
+      || authSession.user.email
+      || 'Cuenta Studio Flow'
+
+    return {
+      ...initialSession,
+      user: {
+        id: authSession.user.id,
+        profileId: null,
+        name: fallbackName,
+        email: authSession.user.email || '',
+        phone: metadata.phone || '',
+        role: null,
+        studioId: null,
+        artistId: null,
+        clientId: null,
+        membershipId: null,
+      },
+      authUser: authSession.user,
+      isMockSession: false,
+    }
+  }
 
   const role = getActiveRole(authContext)
   const roles = getRoleAssignments(authContext)
@@ -323,14 +344,14 @@ function createArtistProfessionalProfile(overrides = {}) {
     personalInfo: {
       artisticName: '',
       fullName: '',
-      phone: '55 0000 0000',
-      email: 'valeria@studioflow.mx',
+      phone: '',
+      email: '',
       birthday: '',
       ...(overrides.personalInfo || {}),
     },
     professionalProfile: {
-      primarySpecialty: 'Lash lifting y brow design',
-      specialties: 'Lash lifting, Brow design',
+      primarySpecialty: '',
+      specialties: '',
       shortBio: '',
       experienceYears: '',
       ...(overrides.professionalProfile || {}),
@@ -359,10 +380,10 @@ function createArtistProfessionalProfile(overrides = {}) {
 function createStudioProfessionalProfile(studio, overrides = {}) {
   return {
     commercialName: overrides.commercialName || studio.name || '',
-    description: overrides.description || 'Experiencia beauty profesional preparada para perfil publico.',
-    phone: overrides.phone || '55 0000 0000',
-    email: overrides.email || 'contacto@studioflow.mx',
-    hours: overrides.hours || 'Lunes a sabado, 10:00 - 19:00',
+    description: overrides.description || '',
+    phone: overrides.phone || '',
+    email: overrides.email || '',
+    hours: overrides.hours || '',
     logoUrl: overrides.logoUrl || '',
     gallery: Array.isArray(overrides.gallery) ? overrides.gallery.slice(0, 5) : [],
   }
@@ -370,7 +391,7 @@ function createStudioProfessionalProfile(studio, overrides = {}) {
 
 function createInitialAgendaSettings() {
   return {
-    schedule: weeklySchedule.map((day) => ({
+    schedule: weeklyScheduleTemplate.map((day) => ({
       ...day,
       blocks: day.active
         ? [{ id: `${day.day}-break`, start: day.breakStart, end: day.breakEnd }]
@@ -403,7 +424,7 @@ function createEmptyAdminState() {
 
 function createEmptyAgendaSettings() {
   return {
-    schedule: weeklySchedule.map((day) => ({
+    schedule: weeklyScheduleTemplate.map((day) => ({
       ...day,
       active: false,
       start: 'Libre',
@@ -419,76 +440,26 @@ function createEmptyAgendaSettings() {
   }
 }
 
-function createInitialAdminState({ isMockSession = true } = {}) {
-  if (!isMockSession) return createEmptyAdminState()
-
-  const initialStudios = studios.map((studio) => ({
-    ...studio,
-    profile: createStudioProfessionalProfile(studio, studio.profile),
-    professionalLocation: createProfessionalLocation({
-      businessName: studio.name,
-      city: studio.city,
-      ...(studio.professionalLocation || {}),
-    }),
-  }))
-  const initialArtists = managedArtists.map(({ studioId: legacyStudioId, ...artist }, index) => ({
-    ...artist,
-    id: `artist-${index + 1}`,
-    studioId: legacyStudioId || null,
-    studioStatus: artist.studioStatus || getDefaultStudioStatus(),
-    description: artist.description || 'Perfil profesional beauty listo para recibir reservas.',
-    services: artist.services || 'Lashes, brows, makeup',
-    professionalLocation: createArtistLocationSettings(artist.professionalLocation),
-  }))
-  const initialClients = managedClients.map((client, index) => ({
-    ...client,
-    id: `client-${index + 1}`,
-    studioId: client.studioId || null,
-    email: client.email || `${client.name.toLowerCase().replaceAll(' ', '.')}@studioflow.demo`,
-    phone: client.phone || '55 0000 0000',
-    notes: client.notes || 'Perfil mock administrable.',
-    history: clientHistory.map((item, historyIndex) => ({
-      id: `${client.name}-${historyIndex + 1}`,
-      artist: item.artist,
-      date: item.date,
-      service: item.service,
-      status: historyIndex === 0 ? 'Completada' : 'Finalizada',
-    })),
-  }))
-
-  return {
-    dashboard: {
-      source: 'mock',
-      studios: initialStudios,
-      artists: initialArtists,
-      clients: artistClients,
-      appointments: artistAppointments,
-      users,
-      systemStatus,
-    },
-    studios: initialStudios,
-    users,
-    artists: initialArtists,
-    clients: initialClients,
-  }
+function createInitialAdminState() {
+  return createEmptyAdminState()
 }
 
 function createInitialClientState() {
   return {
     profile: {
-      id: 'client-mf',
-      name: 'Clienta Demo',
-      email: 'mariana.lopez@studioflow.demo',
-      phone: '55 0000 0000',
+      id: '',
+      name: '',
+      email: '',
+      phone: '',
       birthday: '',
-      notes: 'Clienta premium Studio Flow.',
-      flowPoints: 98,
-      vipTier: 'Glow',
-      streak: 4,
-      pointsExpirationDate: '2026-12-31',
+      notes: '',
+      flowPoints: 0,
+      vipTier: '',
+      streak: 0,
+      pointsExpirationDate: '',
       photoUrl: '',
     },
-    favoriteArtistIds: ['artist-1', 'artist-3'],
+    favoriteArtistIds: [],
   }
 }
 
@@ -513,14 +484,12 @@ function getStoredClientState() {
 }
 
 function getAdminStateStorageKey(session) {
-  if (session?.isMockSession) return adminMockStateStorageKey
-
   const profileId = session?.profile?.id || session?.user?.id || session?.authUser?.id
   return profileId ? `${adminRealStateStoragePrefix}-${profileId}` : null
 }
 
 function getStoredAdminState(session = initialSession) {
-  const initialAdminState = createInitialAdminState({ isMockSession: Boolean(session?.isMockSession) })
+  const initialAdminState = createInitialAdminState()
   const storageKeyForSession = getAdminStateStorageKey(session)
 
   if (!storageKeyForSession) return initialAdminState
@@ -598,21 +567,9 @@ function createInitialArtistState() {
       photoUrl: '',
       professionalLocation: createArtistLocationSettings(),
     },
-    appointments: artistAppointments.map((appointment, index) => ({
-      ...appointment,
-      id: appointment.id || `artist-appointment-${index + 1}`,
-      studioId: appointment.studioId || null,
-      date: appointment.date || '2026-05-18',
-      status: appointment.status || 'Confirmada',
-    })),
-    clients: artistClients.map((client) => ({
-      ...client,
-      history: client.history || [],
-    })),
-    services: mockArtistServices.map((service, index) => ({
-      ...service,
-      id: service.id || `artist-service-${index + 1}`,
-    })),
+    appointments: [],
+    clients: [],
+    services: [],
   }
 }
 
@@ -758,7 +715,6 @@ export function AppProvider({ children }) {
   const [authError, setAuthError] = useState('')
   const sessionRef = useRef(session)
   const adminStorageKeyRef = useRef(adminStorageKey)
-  const demoLoginInProgressRef = useRef(false)
   const [agendaSettings, setAgendaSettings] = useState(createInitialAgendaSettings)
   const [adminState, setAdminState] = useState(() => getStoredAdminState(session))
   const [clientState, setClientState] = useState(getStoredClientState)
@@ -1031,41 +987,6 @@ export function AppProvider({ children }) {
     }
   }, [hydrateSupabaseSession])
 
-  const loginDemo = useCallback(async (role) => {
-    demoLoginInProgressRef.current = true
-
-    if (hasSupabaseAuth()) {
-      try {
-        await signOut()
-      } catch {
-        // Demo mode must remain available even if the remote auth session is already gone.
-      }
-    }
-
-    const nextSession = {
-      user: mockUsers[role],
-      role,
-      authUser: null,
-      profile: null,
-      roles: [],
-      activeSessionContext: {
-        role,
-        studioId: mockUsers[role]?.studioId || null,
-        artistId: role === ROLES.ARTIST ? mockUsers[role]?.id : null,
-        clientId: role === ROLES.CLIENT ? mockUsers[role]?.id : null,
-        membershipId: null,
-      },
-      isMockSession: true,
-    }
-
-    localStorage.setItem(storageKey, JSON.stringify(nextSession))
-    sessionRef.current = nextSession
-    setSession(nextSession)
-    demoLoginInProgressRef.current = false
-
-    return nextSession
-  }, [])
-
   const loginWithPassword = useCallback(async ({ email, password }) => {
     setAuthError('')
     setIsAuthLoading(true)
@@ -1079,6 +1000,96 @@ export function AppProvider({ children }) {
       throw error
     }
   }, [hydrateSupabaseSession])
+
+  const loginWithGoogle = useCallback(async () => {
+    setAuthError('')
+    setIsAuthLoading(true)
+
+    try {
+      await signInWithGoogle()
+    } catch (error) {
+      setAuthError(error.message || 'No se pudo iniciar sesion con Google.')
+      setIsAuthLoading(false)
+      throw error
+    }
+  }, [])
+
+  const completeGoogleOnboarding = useCallback(async ({
+    accountType,
+    displayName,
+    phone = '',
+    birthday,
+    artisticName = '',
+    city = '',
+  }) => {
+    setAuthError('')
+    setIsAuthLoading(true)
+
+    try {
+      const authSession = await getCurrentAuthSession()
+      if (!authSession?.user) {
+        throw new Error('No se encontro la sesion de Google.')
+      }
+
+      const metadata = getAuthMetadata(authSession)
+      const resolvedDisplayName = displayName
+        || metadata.display_name
+        || metadata.full_name
+        || metadata.name
+        || authSession.user.email
+        || ''
+
+      const authContext = accountType === ROLES.ARTIST
+        ? await bootstrapArtistProfile({
+            displayName: resolvedDisplayName,
+            phone,
+            artisticName: artisticName || resolvedDisplayName,
+            city,
+            birthday,
+          })
+        : await bootstrapClientProfile({
+            displayName: resolvedDisplayName,
+            phone,
+            birthday,
+          })
+
+      const nextSession = createSessionFromAuthContext(authSession, authContext)
+
+      if (authContext.artist) {
+        const artistProfile = await fetchArtistProfile({ artistId: authContext.artist.id })
+        setArtistState((currentState) => ({
+          ...currentState,
+          profile: mapAuthContextToArtistProfile({
+            ...authContext,
+            artistProfile,
+          }),
+        }))
+      }
+
+      if (authContext.client) {
+        const mappedClientProfile = mapAuthContextToClientProfile(authContext)
+        const remoteClientProfile = await fetchOwnClientProfile().catch(() => ({}))
+        setClientState((currentState) => ({
+          ...currentState,
+          profile: {
+            ...currentState.profile,
+            ...mappedClientProfile,
+            ...remoteClientProfile,
+          },
+        }))
+      }
+
+      localStorage.removeItem(storageKey)
+      setSession(nextSession)
+      setIsAuthLoading(false)
+
+      return nextSession
+    } catch (error) {
+      setAuthError(error.message || 'No se pudo completar tu cuenta.')
+      setIsAuthLoading(false)
+      throw error
+    }
+  }, [])
 
   const registerClient = useCallback(async ({ displayName, email, phone, birthday, password }) => {
     setAuthError('')
@@ -1245,7 +1256,7 @@ export function AppProvider({ children }) {
           setAuthError(error.message || 'No se pudo cargar la sesion.')
           setIsAuthLoading(false)
         })
-      } else if (!demoLoginInProgressRef.current && !sessionRef.current.isMockSession) {
+      } else if (!sessionRef.current.isMockSession) {
         setSession(initialSession)
         setIsAuthLoading(false)
       }
@@ -1334,7 +1345,7 @@ export function AppProvider({ children }) {
 
   const saveArtistScheduleSettings = useCallback(async () => {
     if (session.isMockSession || session.role !== ROLES.ARTIST) {
-      setArtistScheduleStatus('Agenda demo actualizada.')
+      setArtistScheduleStatus('Agenda actualizada.')
       return null
     }
 
@@ -2029,6 +2040,44 @@ export function AppProvider({ children }) {
     }
   }, [adminState.artists, session.isMockSession])
 
+  const reviewManagedArtist = useCallback(async (artistId, decision) => {
+    const currentArtist = adminState.artists.find((artist) => artist.id === artistId)
+    if (!currentArtist) return null
+
+    if (session.isMockSession) {
+      const nextStatus = decision === 'approve' ? 'Activo' : 'Rechazado'
+      setAdminState((currentState) => ({
+        ...currentState,
+        artists: currentState.artists.map((artist) =>
+          artist.id === artistId ? { ...artist, status: nextStatus } : artist,
+        ),
+      }))
+      return { ...currentArtist, status: nextStatus }
+    }
+
+    setAdminArtistsError('')
+
+    try {
+      const savedArtist = decision === 'approve'
+        ? await approveAdminArtist(artistId)
+        : await rejectAdminArtist(artistId)
+
+      if (!savedArtist) return null
+
+      setAdminState((currentState) => ({
+        ...currentState,
+        artists: currentState.artists.map((artist) =>
+          artist.id === artistId ? { ...artist, ...savedArtist } : artist,
+        ),
+      }))
+
+      return savedArtist
+    } catch (error) {
+      setAdminArtistsError(error.message || 'No se pudo revisar la solicitud de artista.')
+      return null
+    }
+  }, [adminState.artists, session.isMockSession])
+
   const updateManagedArtistProfile = useCallback(async (artistId, updates) => {
     if (session.isMockSession) {
       setAdminState((currentState) => ({
@@ -2338,31 +2387,6 @@ export function AppProvider({ children }) {
     }))
   }, [])
 
-  const addMockBooking = useCallback(() => {
-    const mockSlot = {
-      date: '2026-05-18',
-      studioId: null,
-      time: '10:00',
-      end: '11:10',
-      artist: 'Artista Demo',
-      service: 'Lash lifting',
-      durationMinutes: 70,
-    }
-
-    setAgendaSettings((currentSettings) => {
-      const alreadyBooked = currentSettings.bookedSlots.some(
-        (bookedSlot) => bookedSlot.date === mockSlot.date && bookedSlot.time === mockSlot.time,
-      )
-
-      if (alreadyBooked) return currentSettings
-
-      return {
-        ...currentSettings,
-        bookedSlots: [...currentSettings.bookedSlots, mockSlot],
-      }
-    })
-  }, [])
-
   const toggleFavoriteArtist = useCallback((artistId) => {
     setClientState((currentState) => {
       const isFavorite = currentState.favoriteArtistIds.includes(artistId)
@@ -2636,8 +2660,9 @@ export function AppProvider({ children }) {
     () => ({
       session,
       setSession,
-      login: loginDemo,
-      loginDemo,
+      login: loginWithPassword,
+      loginWithGoogle,
+      completeGoogleOnboarding,
       loginWithPassword,
       registerClient,
       registerArtist,
@@ -2706,6 +2731,7 @@ export function AppProvider({ children }) {
       removeBlockedDate,
       updateAgendaRule,
       toggleManagedArtistStatus,
+      reviewManagedArtist,
       updateManagedArtistProfile,
       updateManagedStudioProfile,
       toggleManagedClientStatus,
@@ -2717,7 +2743,6 @@ export function AppProvider({ children }) {
       releaseAgenda,
       blockTuesdays,
       setPrimaryArtistStatus,
-      addMockBooking,
       toggleFavoriteArtist,
       updateClientProfile,
       loadAdminDashboard,
@@ -2750,7 +2775,8 @@ export function AppProvider({ children }) {
     }),
     [
       session,
-      loginDemo,
+      loginWithGoogle,
+      completeGoogleOnboarding,
       loginWithPassword,
       registerClient,
       registerArtist,
@@ -2811,6 +2837,7 @@ export function AppProvider({ children }) {
       removeBlockedDate,
       updateAgendaRule,
       toggleManagedArtistStatus,
+      reviewManagedArtist,
       updateManagedArtistProfile,
       updateManagedStudioProfile,
       toggleManagedClientStatus,
@@ -2822,7 +2849,6 @@ export function AppProvider({ children }) {
       releaseAgenda,
       blockTuesdays,
       setPrimaryArtistStatus,
-      addMockBooking,
       toggleFavoriteArtist,
       updateClientProfile,
       loadAdminDashboard,

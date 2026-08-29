@@ -126,7 +126,7 @@ export function generateBusinessInsights(appointments) {
 
 // Calculate artist-specific metrics
 export function calculateArtistMetrics(appointments, artistId) {
-  const artistAppointments = appointments.filter(app => app.artistId === artistId || !app.artistId) // Mock for single artist
+  const artistAppointments = appointments.filter(app => app.artistId === artistId || !app.artistId)
 
   const totalRevenue = calculateTotalRevenue(artistAppointments)
   const platformFees = calculatePlatformRevenue(artistAppointments)

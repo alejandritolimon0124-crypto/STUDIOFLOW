@@ -3,6 +3,14 @@ export function shouldActivateHappyHour(weeklyOccupancy) {
 }
 
 export function generateAutomaticPromotion(weeklyOccupancy) {
+  if (Number(weeklyOccupancy) <= 0) {
+    return {
+      name: 'Sin promocion',
+      status: 'Sin datos',
+      message: 'Las recomendaciones apareceran cuando existan citas reales.',
+    }
+  }
+
   if (weeklyOccupancy < 40) {
     return {
       name: 'Happy Hour',

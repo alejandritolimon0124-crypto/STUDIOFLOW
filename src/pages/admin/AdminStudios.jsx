@@ -1,16 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import Button from '../../components/Button'
 import Card from '../../components/Card'
+import Input from '../../components/Input'
+import MetricCard from '../../components/MetricCard'
 import PanelHeader from '../../components/PanelHeader'
 import StatusPill from '../../components/StatusPill'
 import { fetchOwnerStudios, reviewOwnerStudio } from '../../services/adminStudioManagementService'
-
-const statusTabs = [
-  { label: 'Pendientes', status: 'pending' },
-  { label: 'Aprobados', status: 'approved' },
-  { label: 'Suspendidos', status: 'suspended' },
-  { label: 'Rechazados', status: 'rejected' },
-]
 
 const statusTone = {
   pending: 'pending',
@@ -20,25 +15,16 @@ const statusTone = {
 }
 
 const statusLabel = {
-  pending: 'Pending',
-  approved: 'Approved',
-  suspended: 'Suspended',
-  rejected: 'Rejected',
+  pending: 'Pendiente',
+  approved: 'Activo',
+  suspended: 'Suspendido',
+  rejected: 'Rechazado',
 }
-
-function formatDate(value) {
-  if (!value) return 'Sin fecha'
-
-  return new Date(value).toLocaleDateString('es-MX', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  })
-}
+const parseMoneyValue = (value) => Number(String(value || '').replace(/[^\d.-]/g, '')) || 0
 
 function AdminStudios() {
   const [studios, setStudios] = useState([])
-  const [activeStatus, setActiveStatus] = useState('pending')
+  const [query, setQuery] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [actionStudioId, setActionStudioId] = useState('')
   const [error, setError] = useState('')
@@ -63,12 +49,24 @@ function AdminStudios() {
     loadStudios()
   }, [])
 
-  const studiosByStatus = useMemo(() => statusTabs.reduce((groups, tab) => ({
-    ...groups,
-    [tab.status]: studios.filter((studio) => studio.studioStatus === tab.status),
-  }), {}), [studios])
-
-  const visibleStudios = studiosByStatus[activeStatus] || []
+  const activeStudios = studios.filter((studio) => studio.studioStatus === 'approved')
+  const suspendedStudios = studios.filter((studio) => studio.studioStatus === 'suspended')
+  const normalizedQuery = query.trim().toLowerCase()
+  const visibleStudios = useMemo(() => studios.filter((studio) => {
+    if (!normalizedQuery) return true
+    const searchable = [
+      studio.commercialName,
+      studio.name,
+      studio.email,
+      studio.phone,
+      studio.ownerName,
+      studio.ownerEmail,
+      studio.ownerPhone,
+    ].join(' ').toLowerCase()
+    return searchable.includes(normalizedQuery)
+  })
+    .sort((firstStudio, secondStudio) => parseMoneyValue(secondStudio.revenue) - parseMoneyValue(firstStudio.revenue))
+    .slice(0, 5), [normalizedQuery, studios])
 
   const runReviewAction = async (studio, action) => {
     setActionStudioId(studio.id)
@@ -116,20 +114,19 @@ function AdminStudios() {
 
   return (
     <main className="dashboard-grid admin-grid">
-      <Card className="wide-card executive-card">
-        <PanelHeader title="Estudios" eyebrow="Platform Owner" />
+      <MetricCard label="Estudios activos" value={activeStudios.length} trend={`${suspendedStudios.length} suspendidos`} tone={suspendedStudios.length ? 'warm' : 'success'} />
 
-        <div className="row-actions" style={{ justifyContent: 'flex-start', marginBottom: 16 }}>
-          {statusTabs.map((tab) => (
-            <Button
-              key={tab.status}
-              size="sm"
-              variant={activeStatus === tab.status ? 'primary' : 'ghost'}
-              onClick={() => setActiveStatus(tab.status)}
-            >
-              {tab.label} ({studiosByStatus[tab.status]?.length || 0})
-            </Button>
-          ))}
+      <Card className="wide-card executive-card">
+        <PanelHeader title="Estudios" eyebrow="Suspension y reactivacion" />
+
+        <div className="admin-search">
+          <Input
+            label="Buscar"
+            placeholder="Nombre, correo o celular..."
+            type="search"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+          />
         </div>
 
         {error && <small style={{ color: 'var(--rose-dark)', fontWeight: 800 }}>{error}</small>}
@@ -137,11 +134,9 @@ function AdminStudios() {
 
         <div className="data-table">
           <div className="table-head">
-            <span>Nombre comercial</span>
-            <span>Ciudad</span>
-            <span>Owner</span>
-            <span>Creacion</span>
-            <span>Status</span>
+            <span>Estudio</span>
+            <span>Contacto</span>
+            <span>Estatus actual</span>
             <span>Acciones</span>
           </div>
 
@@ -149,8 +144,6 @@ function AdminStudios() {
             <div className="table-row">
               <strong>Cargando estudios...</strong>
               <span>Consultando Supabase</span>
-              <span></span>
-              <span></span>
               <StatusPill tone="neutral">Cargando</StatusPill>
               <span></span>
             </div>
@@ -159,9 +152,7 @@ function AdminStudios() {
           {!isLoading && visibleStudios.map((studio) => (
             <div className="table-row" key={studio.id}>
               <strong>{studio.commercialName}</strong>
-              <span>{studio.city || 'Sin ciudad'}</span>
-              <span>{studio.ownerName}</span>
-              <span>{formatDate(studio.createdAt)}</span>
+              <span>{studio.email || studio.ownerEmail || studio.phone || studio.ownerPhone || 'Sin contacto'}</span>
               <StatusPill tone={statusTone[studio.studioStatus] || 'neutral'}>
                 {statusLabel[studio.studioStatus] || studio.studioStatus}
               </StatusPill>
@@ -171,10 +162,8 @@ function AdminStudios() {
 
           {!isLoading && visibleStudios.length === 0 && (
             <div className="table-row">
-              <strong>Sin estudios en esta categoria</strong>
-              <span>{statusTabs.find((tab) => tab.status === activeStatus)?.label}</span>
-              <span></span>
-              <span></span>
+              <strong>Sin estudios encontrados</strong>
+              <span>Busca por nombre, correo o celular.</span>
               <StatusPill tone="neutral">0</StatusPill>
               <span></span>
             </div>
