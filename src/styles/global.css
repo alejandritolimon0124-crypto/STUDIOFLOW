@@ -1237,6 +1237,15 @@ select:focus,
   gap: 14px;
 }
 
+.artist-sidebar .sidebar-brand {
+  min-height: 76px;
+}
+
+.artist-sidebar .drawer-brand-logo img {
+  max-height: 86px;
+  width: min(190px, 82%);
+}
+
 .artist-sidebar .sidebar-nav {
   gap: 6px;
 }
@@ -3208,13 +3217,41 @@ select:focus,
     left: 0;
     max-width: 86vw;
     overflow-y: auto;
-    padding: 22px;
+    padding: 18px 22px calc(118px + env(safe-area-inset-bottom));
     position: fixed;
     top: 0;
     transform: translateX(-104%);
     transition: transform 260ms ease;
     width: 320px;
     z-index: 50;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .artist-sidebar {
+    gap: 12px;
+  }
+
+  .artist-sidebar .sidebar-brand {
+    min-height: 58px;
+  }
+
+  .artist-sidebar .drawer-brand-logo img {
+    max-height: 68px;
+    width: min(176px, 78%);
+  }
+
+  .artist-sidebar .sidebar-profile,
+  .artist-sidebar .sidebar-insight {
+    flex-shrink: 0;
+  }
+
+  .artist-sidebar .sidebar-nav button,
+  .artist-sidebar .sidebar-switcher button {
+    min-height: 40px;
+  }
+
+  .artist-sidebar .sidebar-switcher {
+    flex-shrink: 0;
   }
 
   .menu-open .sidebar {
