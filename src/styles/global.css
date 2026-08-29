@@ -1553,10 +1553,13 @@ select:focus,
 }
 
 .day-strip {
-  display: grid;
+  display: flex;
   gap: 10px;
-  grid-template-columns: repeat(5, 1fr);
   margin-bottom: 16px;
+  overflow-x: auto;
+  padding: 2px 2px 8px;
+  scroll-snap-type: x proximity;
+  -webkit-overflow-scrolling: touch;
 }
 
 .day-strip button {
@@ -1565,9 +1568,11 @@ select:focus,
   border-radius: var(--radius);
   color: var(--muted);
   display: grid;
+  flex: 0 0 74px;
   gap: 3px;
   min-height: 66px;
   place-items: center;
+  scroll-snap-align: center;
 }
 
 .day-strip button.active {
@@ -3603,8 +3608,8 @@ select:focus,
   }
 
   .day-strip {
-    grid-template-columns: repeat(5, minmax(58px, 1fr));
-    overflow-x: auto;
+    margin-left: -2px;
+    margin-right: -2px;
   }
 
   .search-box {

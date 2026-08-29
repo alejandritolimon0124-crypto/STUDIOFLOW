@@ -112,9 +112,9 @@ function ArtistLayout() {
         )}
         <nav className="role-bottom-nav" aria-label="Navegacion de artista">
           <NavLink to="/artist">Inicio</NavLink>
-          <NavLink to="/artist/services">Servicios</NavLink>
-          <NavLink to="/artist/schedule">Agenda</NavLink>
           <NavLink to="/artist/appointments">Citas</NavLink>
+          <NavLink to="/artist/schedule">Mis horarios</NavLink>
+          <NavLink to="/artist/services">Servicios</NavLink>
           <NavLink to="/artist/settings">MI PERFIL</NavLink>
         </nav>
       </div>

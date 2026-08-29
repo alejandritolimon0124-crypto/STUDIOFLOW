@@ -52,10 +52,11 @@ const roleNavigation = {
     { label: 'Sistema', path: paths.adminSystem },
   ],
   artist: [
-    { label: 'Agenda', path: paths.artistAgenda },
+    { label: 'Inicio', path: paths.artistAgenda },
     { label: 'Citas', path: paths.artistAppointments },
-    { label: 'Clientes', path: paths.artistClients },
-    { label: 'Impulsa tu negocio', path: paths.artistMarketing },
+    { label: 'Mis horarios', path: paths.artistSchedule },
+    { label: 'Servicios', path: paths.artistServices },
+    { label: 'MI PERFIL', path: paths.artistSettings },
   ],
   client: [
     { label: 'Inicio', path: paths.client },
@@ -74,10 +75,11 @@ const bottomNavigationByRole = {
     { label: 'MI PERFIL', path: paths.clientProfile },
   ],
   artist: [
-    { label: 'Agenda', path: paths.artistAgenda },
+    { label: 'Inicio', path: paths.artistAgenda },
     { label: 'Citas', path: paths.artistAppointments },
-    { label: 'Clientes', path: paths.artistClients },
-    { label: 'Impulsa', path: paths.artistMarketing },
+    { label: 'Mis horarios', path: paths.artistSchedule },
+    { label: 'Servicios', path: paths.artistServices },
+    { label: 'MI PERFIL', path: paths.artistSettings },
   ],
   admin: [
     { label: 'Inicio', path: paths.admin },

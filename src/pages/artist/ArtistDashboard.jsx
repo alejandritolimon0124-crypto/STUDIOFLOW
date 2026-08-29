@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import AgendaCard from '../../components/AgendaCard'
 import Button from '../../components/Button'
@@ -40,9 +40,9 @@ function formatDateValue(date) {
 function buildVisibleDays(selectedDate) {
   const startDate = parseDateValue(selectedDate)
 
-  return Array.from({ length: 5 }, (_, index) => {
+  return Array.from({ length: 31 }, (_, index) => {
     const date = new Date(startDate)
-    date.setDate(startDate.getDate() + index)
+    date.setDate(startDate.getDate() + index - 15)
     return formatDateValue(date)
   })
 }
@@ -102,6 +102,8 @@ function ArtistDashboard({ view = 'agenda' }) {
     setSelectedDate,
   } = useApp()
   const [showAppointmentForm, setShowAppointmentForm] = useState(false)
+  const appointmentFormRef = useRef(null)
+  const dayStripRef = useRef(null)
   const [pointsFeedback, setPointsFeedback] = useState(null)
   const [showDatePicker, setShowDatePicker] = useState(false)
   const [appointmentDraft, setAppointmentDraft] = useState({
@@ -109,7 +111,7 @@ function ArtistDashboard({ view = 'agenda' }) {
     client: artistState.clients[0]?.name || '',
     phone: artistState.clients[0]?.phone || '',
     service: artistServices.find(s => s.status === 'Activo')?.name || '',
-    date: '2026-05-18',
+    date: selectedDate,
     time: '10:00',
   })
   const [clientSearch, setClientSearch] = useState('')
@@ -125,6 +127,26 @@ function ArtistDashboard({ view = 'agenda' }) {
       }
     }
   }, [artistServices, appointmentDraft.service])
+
+  useEffect(() => {
+    setAppointmentDraft((currentDraft) => ({
+      ...currentDraft,
+      date: selectedDate,
+    }))
+  }, [selectedDate])
+
+  useEffect(() => {
+    if (!showAppointmentForm) return
+
+    window.requestAnimationFrame(() => {
+      appointmentFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    })
+  }, [showAppointmentForm])
+
+  useEffect(() => {
+    const activeDay = dayStripRef.current?.querySelector('.active')
+    activeDay?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' })
+  }, [selectedDate])
   const localProfiles = session.user ? [{ ...session.user, id: session.user.id }] : []
   const artistStudioMemberships = deriveMembershipsFromLegacyData({ artists: adminState.artists })
   const selectorArtists = adminState.artists.map((artist) => (
@@ -172,6 +194,17 @@ function ArtistDashboard({ view = 'agenda' }) {
   const studioNameLabel = ''
   const canUseEconomy = canUseOperationalFeature(currentStudio, 'economy')
   const canUsePublicAgenda = canUseOperationalFeature(currentStudio, 'publicAgenda')
+  const artistOperationalStatus = String(session.artist?.status || primaryArtist?.status || 'Activo').toLowerCase()
+  const canManageOwnAppointments = ![
+    'pending',
+    'pendiente',
+    'rejected',
+    'rechazado',
+    'suspended',
+    'suspendido',
+    'inactive',
+    'inactivo',
+  ].includes(artistOperationalStatus)
 
   // Lógica de agenda dinámica
   const realArtistAppointmentSourceReady = !session.isMockSession && appointmentState.artistLoaded
@@ -205,7 +238,7 @@ function ArtistDashboard({ view = 'agenda' }) {
   const showCreateOption = clientSearch.trim() && !hasMatches
 
   const saveAppointment = () => {
-    if (!canUsePublicAgenda) return
+    if (!canManageOwnAppointments) return
 
     let nextClientId = appointmentDraft.clientId
 
@@ -329,7 +362,15 @@ function ArtistDashboard({ view = 'agenda' }) {
                 )}
               </div>
               <div className="hero-actions artist-hero-actions">
-                <Button disabled={!canUsePublicAgenda} onClick={() => setShowAppointmentForm((current) => !current)}>Agregar cita</Button>
+                <Button
+                  disabled={!canManageOwnAppointments}
+                  onClick={() => {
+                    setAppointmentDraft((currentDraft) => ({ ...currentDraft, date: selectedDate }))
+                    setShowAppointmentForm(true)
+                  }}
+                >
+                  Agregar cita
+                </Button>
                 <Button variant="ghost" onClick={() => navigate(paths.artistSchedule)}>Editar horario</Button>
                 <Button variant="ghost" onClick={toggleMetricsPrivacy}>
                   {hideMetrics ? '👁 Mostrar métricas' : '👁 Ocultar métricas'}
@@ -360,7 +401,8 @@ function ArtistDashboard({ view = 'agenda' }) {
             )}
 
             {showAppointmentForm && (
-              <Card className="mobile-screen primary-panel">
+              <div ref={appointmentFormRef}>
+                <Card className="mobile-screen primary-panel">
                 <PanelHeader title="Nueva cita" eyebrow="Agenda" />
                 <div className="form-stack compact-form">
                   <label className="input-field">
@@ -451,9 +493,10 @@ function ArtistDashboard({ view = 'agenda' }) {
                   </label>
                   <Input label="Fecha" type="date" value={appointmentDraft.date} onChange={(event) => setAppointmentDraft({ ...appointmentDraft, date: event.target.value })} />
                   <Input label="Hora" type="time" value={appointmentDraft.time} onChange={(event) => setAppointmentDraft({ ...appointmentDraft, time: event.target.value })} />
-                  <Button className="full-width" disabled={!canUsePublicAgenda} onClick={saveAppointment}>Confirmar cita</Button>
+                  <Button className="full-width" disabled={!canManageOwnAppointments} onClick={saveAppointment}>Confirmar cita</Button>
                 </div>
-              </Card>
+                </Card>
+              </div>
             )}
 
             <Card className="calendar-card mobile-screen primary-panel">
@@ -504,7 +547,7 @@ function ArtistDashboard({ view = 'agenda' }) {
                 <span>Anticipacion minima 2 h</span>
                 <span>Descanso 14:00 - 15:00</span>
               </div>
-              <div className="day-strip">
+              <div className="day-strip" ref={dayStripRef}>
                 {visibleDays.map((dateValue) => {
                   const d = parseDateValue(dateValue)
                   const dayLabel = d.toLocaleDateString('es-MX', { weekday: 'short' }).substring(0, 3)
