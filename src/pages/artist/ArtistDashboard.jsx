@@ -8,6 +8,7 @@ import MetricCard from '../../components/MetricCard'
 import Modal from '../../components/Modal'
 import PanelHeader from '../../components/PanelHeader'
 import StatsCard from '../../components/StatsCard'
+import StatusPill from '../../components/StatusPill'
 import { useApp } from '../../contexts/appContextCore'
 import { paths } from '../../routes/paths'
 import { fetchManualArtistAvailability } from '../../services/appointmentService'
@@ -30,6 +31,16 @@ function parseDateValue(dateValue) {
   if (!year || !month || !day) return new Date()
 
   return new Date(year, month - 1, day)
+}
+
+function getTodayDateValue() {
+  const today = new Date()
+  today.setMinutes(today.getMinutes() - today.getTimezoneOffset())
+  return today.toISOString().slice(0, 10)
+}
+
+function getSafeDateValue(dateValue) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(String(dateValue || '')) ? dateValue : getTodayDateValue()
 }
 
 function formatDateValue(date) {
@@ -115,7 +126,7 @@ function ArtistDashboard({ view = 'agenda' }) {
     client: artistState.clients[0]?.name || '',
     phone: artistState.clients[0]?.phone || '',
     serviceOfferingId: artistServices.find(s => s.status === 'Activo')?.id || '',
-    date: selectedDate,
+    date: getSafeDateValue(selectedDate),
     time: '10:00',
     notes: '',
   })
@@ -130,6 +141,7 @@ function ArtistDashboard({ view = 'agenda' }) {
   const [isCreatingNewClient, setIsCreatingNewClient] = useState(false)
   const [newClient, setNewClient] = useState({ name: '', phone: '', notes: '' })
   const [hideMetrics, setHideMetrics] = useState(getStoredMetricsPrivacy)
+  const safeSelectedDate = getSafeDateValue(selectedDate)
 
   useEffect(() => {
     if (!appointmentDraft.serviceOfferingId) {
@@ -143,10 +155,10 @@ function ArtistDashboard({ view = 'agenda' }) {
   useEffect(() => {
     setAppointmentDraft((currentDraft) => ({
       ...currentDraft,
-      date: selectedDate,
-      time: currentDraft.date === selectedDate ? currentDraft.time : '',
+      date: safeSelectedDate,
+      time: currentDraft.date === safeSelectedDate ? currentDraft.time : '',
     }))
-  }, [selectedDate])
+  }, [safeSelectedDate])
 
   useEffect(() => {
     if (!showAppointmentForm || !appointmentDraft.serviceOfferingId || !appointmentDraft.date) {
@@ -298,7 +310,7 @@ function ArtistDashboard({ view = 'agenda' }) {
   const artistAppointmentSource = realArtistAppointmentSourceReady
     ? realArtistAppointments
     : artistState.appointments
-  const appointmentsForSelectedDate = artistAppointmentSource.filter(apt => apt.date === selectedDate && apt.type === 'appointment')
+  const appointmentsForSelectedDate = artistAppointmentSource.filter(apt => apt.date === safeSelectedDate && apt.type === 'appointment')
   const hasAppointments = appointmentsForSelectedDate.length > 0
   
   const appointmentCount = appointmentsForSelectedDate.length
@@ -313,10 +325,10 @@ function ArtistDashboard({ view = 'agenda' }) {
   }, 0)
 
   // Determinar el día de la semana
-  const [year, month, day] = selectedDate.split('-').map(Number)
+  const [year, month, day] = safeSelectedDate.split('-').map(Number)
   const dateObj = new Date(year, month - 1, day)
   const dayOfWeek = dateObj.toLocaleDateString('es-MX', { weekday: 'short', month: 'short', day: 'numeric' })
-  const visibleDays = useMemo(() => buildVisibleDays(selectedDate), [selectedDate])
+  const visibleDays = useMemo(() => buildVisibleDays(safeSelectedDate), [safeSelectedDate])
 
   const filteredClients = [
     ...remoteClientResults,
@@ -436,7 +448,7 @@ function ArtistDashboard({ view = 'agenda' }) {
                 <Button
                   disabled={!canManageOwnAppointments}
                   onClick={() => {
-                    setAppointmentDraft((currentDraft) => ({ ...currentDraft, date: selectedDate }))
+                    setAppointmentDraft((currentDraft) => ({ ...currentDraft, date: safeSelectedDate }))
                     setShowAppointmentForm(true)
                   }}
                 >
@@ -533,6 +545,15 @@ function ArtistDashboard({ view = 'agenda' }) {
                                 + Crear nueva clienta
                               </button>
                             )}
+                          </div>
+                        )}
+                        {appointmentDraft.clientId && appointmentDraft.client && (
+                          <div className="list-row elevated-row" style={{ marginTop: 10 }}>
+                            <div>
+                              <strong>{appointmentDraft.client}</strong>
+                              <small>{appointmentDraft.phone || 'Sin celular registrado'}</small>
+                            </div>
+                            <StatusPill tone="success">Clienta seleccionada</StatusPill>
                           </div>
                         )}
                       </>
@@ -698,7 +719,7 @@ function ArtistDashboard({ view = 'agenda' }) {
                       }}>
                         <input 
                           type="date" 
-                          value={selectedDate} 
+                          value={safeSelectedDate}
                           onChange={(e) => {
                             setSelectedDate(e.target.value)
                             setShowDatePicker(false)
@@ -730,7 +751,7 @@ function ArtistDashboard({ view = 'agenda' }) {
                   const dayNum = d.getDate()
                   return (
                     <button 
-                      className={selectedDate === dateValue ? 'active' : ''} 
+                      className={safeSelectedDate === dateValue ? 'active' : ''}
                       type="button" 
                       key={dateValue}
                       onClick={() => setSelectedDate(dateValue)}

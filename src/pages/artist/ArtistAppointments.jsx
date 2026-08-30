@@ -26,6 +26,20 @@ const emptyDraft = {
   notes: '',
 }
 
+function splitClientName(name = '') {
+  const [firstName, ...lastNameParts] = String(name || '').trim().split(/\s+/)
+  return {
+    firstName: firstName || '',
+    lastName: lastNameParts.join(' '),
+  }
+}
+
+function getAppointmentContextLabel(appointment = {}) {
+  return appointment.membershipId || appointment.membership_id || appointment.studioId || appointment.studio_id
+    ? 'Estudio'
+    : 'Independiente'
+}
+
 function ArtistAppointments() {
   const location = useLocation()
   const selectedClient = location.state?.selectedClient || null
@@ -53,13 +67,15 @@ function ArtistAppointments() {
   const [clientResults, setClientResults] = useState([])
   const [isClientSearchLoading, setIsClientSearchLoading] = useState(false)
   const [clientSearchError, setClientSearchError] = useState('')
+  const [selectedClientRecord, setSelectedClientRecord] = useState(selectedClient)
 
-  const selectedClientFromSearch = clientResults.find((client) => client.id === draft.clientId) || null
+  const selectedClientFromSearch = selectedClientRecord || clientResults.find((client) => client.id === draft.clientId) || null
 
   useEffect(() => {
     if (!selectedClient?.id) return
 
     setShowForm(true)
+    setSelectedClientRecord(selectedClient)
     setDraft((currentDraft) => ({
       ...currentDraft,
       clientId: selectedClient.id,
@@ -96,14 +112,15 @@ function ArtistAppointments() {
           ))
 
           if (phoneMatch) {
-            const [firstName, ...lastNameParts] = String(phoneMatch.name || '').split(/\s+/)
+            const { firstName, lastName } = splitClientName(phoneMatch.name)
             setDraft((currentDraft) => ({
               ...currentDraft,
               clientId: phoneMatch.id,
               firstName: firstName || currentDraft.firstName,
-              lastName: lastNameParts.join(' ') || currentDraft.lastName,
+              lastName: lastName || currentDraft.lastName,
               phone: phoneMatch.phone || currentDraft.phone,
             }))
+            setSelectedClientRecord(phoneMatch)
             setClientSearch(phoneMatch.name || '')
           }
         }
@@ -173,8 +190,9 @@ function ArtistAppointments() {
 
   const validateDraft = () => {
     const nextErrors = {}
+    const selectedClientId = selectedClient?.id || selectedClientFromSearch?.id || draft.clientId
 
-    if (!selectedClient?.id && !draft.clientId) {
+    if (!selectedClientId) {
       if (!draft.firstName.trim()) nextErrors.firstName = 'Nombre obligatorio.'
       if (!draft.lastName.trim()) nextErrors.lastName = 'Apellido obligatorio.'
       if (!draft.phone.trim()) nextErrors.phone = 'Celular obligatorio.'
@@ -194,15 +212,17 @@ function ArtistAppointments() {
       ...(field === 'phone' ? { clientId: '' } : {}),
       ...(field === 'serviceOfferingId' || field === 'date' ? { time: '' } : {}),
     }))
+    if (field === 'phone') setSelectedClientRecord(null)
     setFormErrors((currentErrors) => ({ ...currentErrors, [field]: '' }))
   }
 
   const saveAppointment = async () => {
     if (!validateDraft()) return
+    const selectedClientId = selectedClient?.id || selectedClientFromSearch?.id || draft.clientId
 
     const appointment = await createManualArtistAppointment({
       ...draft,
-      clientId: selectedClient?.id || draft.clientId,
+      clientId: selectedClientId,
     })
 
     if (appointment) {
@@ -211,6 +231,8 @@ function ArtistAppointments() {
         serviceOfferingId: draft.serviceOfferingId,
         date: draft.date,
       })
+      setSelectedClientRecord(null)
+      setClientSearch('')
       setSelectedDate(draft.date)
       await loadArtistAppointments()
       await loadManualAvailability({
@@ -261,7 +283,10 @@ function ArtistAppointments() {
                 <strong>{appointment.client}</strong>
                 <small>{appointment.service} / {appointment.time}</small>
               </div>
-              <StatusPill tone="success">{appointment.status}</StatusPill>
+              <div className="row-actions" style={{ justifyContent: 'flex-end', gap: 6 }}>
+                <StatusPill tone="neutral">{getAppointmentContextLabel(appointment)}</StatusPill>
+                <StatusPill tone="success">{appointment.status}</StatusPill>
+              </div>
             </div>
           )) : (
             <div className="list-row elevated-row">
@@ -340,14 +365,15 @@ function ArtistAppointments() {
                           type="button"
                           className="suggestion-item"
                           onClick={() => {
-                            const [firstName, ...lastNameParts] = String(client.name || '').split(/\s+/)
+                            const { firstName, lastName } = splitClientName(client.name)
                             setDraft((currentDraft) => ({
                               ...currentDraft,
                               clientId: client.id,
                               firstName: firstName || '',
-                              lastName: lastNameParts.join(' '),
+                              lastName,
                               phone: client.phone || '',
                             }))
+                            setSelectedClientRecord(client)
                             setClientSearch(client.name || '')
                           }}
                         >
@@ -364,8 +390,36 @@ function ArtistAppointments() {
                     </div>
                   )}
                   {isClientSearchLoading && <small>Buscando clientas registradas...</small>}
-                  {selectedClientFromSearch && <small>Clienta existente seleccionada: {selectedClientFromSearch.name}</small>}
                 </label>
+
+                {selectedClientFromSearch && (
+                  <div className="list-row elevated-row">
+                    <div>
+                      <strong>{selectedClientFromSearch.name || 'Clienta'}</strong>
+                      <small>{selectedClientFromSearch.phone || 'Sin celular registrado'}</small>
+                    </div>
+                    <div className="row-actions" style={{ justifyContent: 'flex-end', gap: 6 }}>
+                      <StatusPill tone="success">Seleccionada</StatusPill>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => {
+                          setSelectedClientRecord(null)
+                          setClientSearch('')
+                          setDraft((currentDraft) => ({
+                            ...currentDraft,
+                            clientId: '',
+                            firstName: '',
+                            lastName: '',
+                            phone: '',
+                          }))
+                        }}
+                      >
+                        Cambiar
+                      </Button>
+                    </div>
+                  </div>
+                )}
 
                 <Input
                   label="Nombre"
@@ -516,7 +570,10 @@ function ArtistAppointments() {
                 <strong>{appointment.client}</strong>
                 <small>{appointment.service} / {appointment.time}</small>
               </div>
-              <StatusPill tone="neutral">{appointment.status}</StatusPill>
+              <div className="row-actions" style={{ justifyContent: 'flex-end', gap: 6 }}>
+                <StatusPill tone="neutral">{getAppointmentContextLabel(appointment)}</StatusPill>
+                <StatusPill tone="neutral">{appointment.status}</StatusPill>
+              </div>
             </div>
           )) : (
             <div className="list-row elevated-row">
