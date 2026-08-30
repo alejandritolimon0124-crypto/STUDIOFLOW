@@ -1087,6 +1087,11 @@ function ClientDashboard({ view = 'inicio' }) {
     String(firstAppointment.date || '').localeCompare(String(secondAppointment.date || ''))
     || String(firstAppointment.time || '').localeCompare(String(secondAppointment.time || ''))
   ))[0]
+  const pendingConfirmationCount = upcomingAppointments.filter((appointment) => (
+    appointment.confirmationRequestedAt
+    && !appointment.clientConfirmedAt
+    && !appointment.client_confirmed_at
+  )).length
   const canRespondToAppointment = (appointment = {}) => (
     appointment.id
     && !['completed', 'cancelled', 'no_show'].includes(String(appointment.appointmentStatus || '').toLowerCase())
@@ -1280,26 +1285,26 @@ function ClientDashboard({ view = 'inicio' }) {
                     <p>{nextAppointment.artist || 'Artista'} / {nextAppointment.contextName || nextAppointment.address || 'Ubicacion por confirmar'}</p>
                   </div>
                   <div className="row-actions" style={{ justifyContent: 'flex-end', gap: 6 }}>
-                    <StatusPill tone="success">{nextAppointment.status || 'Agendada'}</StatusPill>
                     {canRespondToAppointment(nextAppointment) && (
                       <>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          disabled={respondingAppointmentId === nextAppointment.id}
-                          onClick={() => respondToAppointment(nextAppointment.id, 'cancel')}
-                        >
-                          Cancelar
-                        </Button>
                         {canConfirmAppointment(nextAppointment) && (
                           <Button
                             size="sm"
+                            variant="success"
                             disabled={respondingAppointmentId === nextAppointment.id}
                             onClick={() => respondToAppointment(nextAppointment.id, 'confirm')}
                           >
                             Confirmar
                           </Button>
                         )}
+                        <Button
+                          size="sm"
+                          variant="danger"
+                          disabled={respondingAppointmentId === nextAppointment.id}
+                          onClick={() => respondToAppointment(nextAppointment.id, 'cancel')}
+                        >
+                          Cancelar
+                        </Button>
                       </>
                     )}
                   </div>
@@ -1369,6 +1374,15 @@ function ClientDashboard({ view = 'inicio' }) {
                   <StatusPill tone="neutral">Cita</StatusPill>
                 </div>
               )}
+              {pendingConfirmationCount > 0 && (
+                <div className="list-row elevated-row">
+                  <div>
+                    <strong>Confirma tu asistencia</strong>
+                    <small>{pendingConfirmationCount === 1 ? 'Tienes una cita esperando respuesta.' : `Tienes ${pendingConfirmationCount} citas esperando respuesta.`}</small>
+                  </div>
+                  <StatusPill tone="warm">Pendiente</StatusPill>
+                </div>
+              )}
               <div className="appointment-stack">
                 {upcomingAppointments.length > 0 ? upcomingAppointments.map((appointment) => (
                   <article className="client-appointment" key={`${appointment.artist}-${appointment.time}-${appointment.date}`}>
@@ -1381,26 +1395,26 @@ function ClientDashboard({ view = 'inicio' }) {
                       <p>{appointment.artist} / {appointment.contextName || appointment.address}</p>
                     </div>
                     <div className="row-actions" style={{ justifyContent: 'flex-end', gap: 6 }}>
-                      <StatusPill tone="success">{appointment.status || 'Lista'}</StatusPill>
                       {canRespondToAppointment(appointment) && (
                         <>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            disabled={respondingAppointmentId === appointment.id}
-                            onClick={() => respondToAppointment(appointment.id, 'cancel')}
-                          >
-                            Cancelar
-                          </Button>
                           {canConfirmAppointment(appointment) && (
                             <Button
                               size="sm"
+                              variant="success"
                               disabled={respondingAppointmentId === appointment.id}
                               onClick={() => respondToAppointment(appointment.id, 'confirm')}
                             >
                               Confirmar
                             </Button>
                           )}
+                          <Button
+                            size="sm"
+                            variant="danger"
+                            disabled={respondingAppointmentId === appointment.id}
+                            onClick={() => respondToAppointment(appointment.id, 'cancel')}
+                          >
+                            Cancelar
+                          </Button>
                         </>
                       )}
                     </div>

@@ -123,6 +123,7 @@ function ArtistDashboard({ view = 'agenda' }) {
     manualArtistAppointmentError,
     manualArtistAppointmentStatus,
     isManualArtistAppointmentSaving,
+    requestArtistAppointmentConfirmations,
     selectedDate,
     setSelectedDate,
   } = useApp()
@@ -776,6 +777,17 @@ function ArtistDashboard({ view = 'agenda' }) {
                   )
                 })}
               </div>
+              {hasAppointments && (
+                <div className="row-actions" style={{ justifyContent: 'flex-start', marginBottom: 14 }}>
+                  <Button
+                    size="sm"
+                    variant="success"
+                    onClick={() => requestArtistAppointmentConfirmations({ date: safeSelectedDate })}
+                  >
+                    Enviar confirmacion
+                  </Button>
+                </div>
+              )}
               {hasAppointments ? (
                 <div className="timeline">
                   {appointmentsForSelectedDate.map((item, index) => {

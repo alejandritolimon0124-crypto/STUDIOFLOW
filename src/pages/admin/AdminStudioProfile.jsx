@@ -4,6 +4,7 @@ import Card from '../../components/Card'
 import Input from '../../components/Input'
 import PanelHeader from '../../components/PanelHeader'
 import StatusPill from '../../components/StatusPill'
+import { supabase } from '../../lib/supabaseClient'
 import { useApp } from '../../contexts/appContextCore'
 import { getCurrentBrowserCoordinates } from '../../utils/browserGeolocation'
 import { buildGoogleMapsUrl, createProfessionalLocation, hasCoordinates, validateProfessionalLocation } from '../../utils/locationHelpers'
@@ -14,6 +15,7 @@ import { publishStudioMarketplace } from '../../services/studioService'
 import {
   createStudioOwnerAppointment,
   fetchStudioOwnerAppointments,
+  requestStudioOwnerAppointmentConfirmations,
   searchStudioOwnerClients,
 } from '../../services/studioOwnerAppointmentService'
 import {
@@ -136,6 +138,7 @@ function StudioSummarySection({
   currentStudio,
   membershipOperationsById,
   navigate,
+  onRequestConfirmations,
   ownerAppointments,
   profileDraft,
 }) {
@@ -249,6 +252,13 @@ function StudioSummarySection({
             {showMetrics ? 'Ocultar metricas' : 'Ver metricas'}
           </Button>
         </div>
+        {selectedDateAppointments.length > 0 && (
+          <div className="studio-review-actions">
+            <Button size="sm" variant="success" onClick={() => onRequestConfirmations(selectedAgendaDate)}>
+              Enviar confirmacion
+            </Button>
+          </div>
+        )}
         <div className="compact-list">
           <div className="list-row elevated-row">
             <div>
@@ -444,6 +454,7 @@ function StudioScheduleSection({
   membershipOperationsById,
   membershipOperationsLoadingId,
   onOpenAppointmentModal,
+  onRequestConfirmations,
   ownerAppointments,
   profileDraft,
   toggleMembershipOperations,
@@ -482,6 +493,13 @@ function StudioScheduleSection({
           setSelectedDate={setSelectedAgendaDate}
           visibleDays={visibleDays}
         />
+        {selectedDateAppointments.length > 0 && (
+          <div className="studio-review-actions">
+            <Button size="sm" variant="success" onClick={() => onRequestConfirmations(selectedAgendaDate)}>
+              Enviar confirmacion
+            </Button>
+          </div>
+        )}
         <div className="compact-list">
           {selectedDateAppointments.map((appointment) => (
             <div className="list-row elevated-row" key={appointment.id || `${getAppointmentDate(appointment)}-${getAppointmentTime(appointment)}-${appointment.client}`}>
@@ -879,6 +897,7 @@ function AdminStudioProfile() {
   const [isOwnerAppointmentOpen, setIsOwnerAppointmentOpen] = useState(false)
   const [isOwnerAppointmentSaving, setIsOwnerAppointmentSaving] = useState(false)
   const [ownerAppointmentFeedback, setOwnerAppointmentFeedback] = useState({ tone: 'neutral', message: '' })
+  const [confirmationFeedback, setConfirmationFeedback] = useState({ tone: 'neutral', message: '' })
   const [ownerClientResults, setOwnerClientResults] = useState([])
   const [isOwnerClientSearchLoading, setIsOwnerClientSearchLoading] = useState(false)
   const [ownerClientSearchStatus, setOwnerClientSearchStatus] = useState({ tone: 'neutral', message: '' })
@@ -982,6 +1001,28 @@ function AdminStudioProfile() {
     }
   }, [activeMembershipIds, currentStudio?.id])
 
+  const sendStudioConfirmationRequests = useCallback(async (date = null) => {
+    if (!currentStudio?.id) return
+
+    setConfirmationFeedback({ tone: 'neutral', message: '' })
+
+    try {
+      const updatedCount = await requestStudioOwnerAppointmentConfirmations({
+        studioId: currentStudio.id,
+        date,
+      })
+      setConfirmationFeedback({
+        tone: 'success',
+        message: updatedCount > 0
+          ? `Aviso enviado a ${updatedCount} clientas.`
+          : 'No hay citas pendientes para avisar.',
+      })
+      await loadStudioOwnerAppointments()
+    } catch (error) {
+      setConfirmationFeedback({ tone: 'warm', message: error.message || 'No se pudo enviar el aviso.' })
+    }
+  }, [currentStudio?.id, loadStudioOwnerAppointments])
+
   const loadStudioMemberships = useCallback(async ({ silent = false, successMessage = '' } = {}) => {
     if (!currentStudio?.id) return null
 
@@ -1049,6 +1090,25 @@ function AdminStudioProfile() {
     if (!currentStudio?.id) return
 
     loadStudioOwnerAppointments()
+  }, [currentStudio?.id, loadStudioOwnerAppointments])
+
+  useEffect(() => {
+    if (!supabase || !currentStudio?.id) return undefined
+
+    const channel = supabase
+      .channel(`studio-flow-owner-appointments-${currentStudio.id}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'appointments', filter: `studio_id=eq.${currentStudio.id}` },
+        () => {
+          loadStudioOwnerAppointments()
+        },
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
   }, [currentStudio?.id, loadStudioOwnerAppointments])
 
   useEffect(() => {
@@ -1507,12 +1567,24 @@ function AdminStudioProfile() {
     <main className="dashboard-grid admin-grid profile-foundation-grid">
       <Card className="wide-card mobile-screen primary-panel">
         <div className="profile-foundation-stack">
+          {confirmationFeedback.message && (
+            <div className="list-row elevated-row">
+              <div>
+                <strong>{confirmationFeedback.tone === 'success' ? 'Confirmaciones enviadas' : 'No se pudo enviar'}</strong>
+                <small>{confirmationFeedback.message}</small>
+              </div>
+              <StatusPill tone={confirmationFeedback.tone === 'success' ? 'success' : 'neutral'}>
+                Aviso
+              </StatusPill>
+            </div>
+          )}
           {selectedSection === 'summary' && (
             <StudioSummarySection
               activeMemberships={activeMemberships}
               currentStudio={currentStudio}
               membershipOperationsById={membershipOperationsById}
               navigate={navigate}
+              onRequestConfirmations={sendStudioConfirmationRequests}
               ownerAppointments={ownerAppointments}
               profileDraft={profileDraft}
             />
@@ -1998,6 +2070,7 @@ function AdminStudioProfile() {
               membershipOperationsById={membershipOperationsById}
               membershipOperationsLoadingId={membershipOperationsLoadingId}
               onOpenAppointmentModal={openOwnerAppointmentModal}
+              onRequestConfirmations={sendStudioConfirmationRequests}
               ownerAppointments={ownerAppointments}
               profileDraft={profileDraft}
               toggleMembershipOperations={toggleMembershipOperations}

@@ -54,6 +54,7 @@ function ArtistAppointments() {
     manualArtistAppointmentStatus,
     createManualArtistAppointment,
     loadArtistAppointments,
+    requestArtistAppointmentConfirmations,
   } = useApp()
   const [draft, setDraft] = useState(emptyDraft)
   const [formErrors, setFormErrors] = useState({})
@@ -268,6 +269,12 @@ function ArtistAppointments() {
         )}
 
         {artistAppointmentsError && <small style={{ color: 'var(--rose-dark)', fontWeight: 800 }}>{artistAppointmentsError}</small>}
+        {manualArtistAppointmentStatus && (
+          <small style={{ color: 'var(--success)', fontWeight: 800 }}>{manualArtistAppointmentStatus}</small>
+        )}
+        {manualArtistAppointmentError && (
+          <small style={{ color: 'var(--rose-dark)', fontWeight: 800 }}>{manualArtistAppointmentError}</small>
+        )}
 
         <div className="compact-list">
           <div className="list-row elevated-row">
@@ -277,6 +284,21 @@ function ArtistAppointments() {
             </div>
             <StatusPill tone="neutral">Dia</StatusPill>
           </div>
+          {upcomingAppointments.length > 0 && (
+            <div className="list-row elevated-row">
+              <div>
+                <strong>Confirmacion de asistencia</strong>
+                <small>Enviar aviso a las clientas de este dia.</small>
+              </div>
+              <Button
+                size="sm"
+                variant="success"
+                onClick={() => requestArtistAppointmentConfirmations({ date: selectedDate })}
+              >
+                Enviar
+              </Button>
+            </div>
+          )}
 
           {upcomingAppointments.length > 0 ? upcomingAppointments.map((appointment) => (
             <div className="list-row elevated-row" key={appointment.id}>

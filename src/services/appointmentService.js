@@ -44,6 +44,7 @@ function normalizeAppointment(appointment = {}) {
     status: appointment.status || 'Confirmada',
     appointmentStatus: appointment.appointmentStatus || appointment.appointment_status || 'scheduled',
     clientConfirmedAt: appointment.clientConfirmedAt || appointment.client_confirmed_at || null,
+    confirmationRequestedAt: appointment.confirmationRequestedAt || appointment.confirmation_requested_at || null,
     contextName,
     bookingSource: appointment.bookingSource || appointment.booking_source || null,
     grossAmount: normalizeNumber(appointment.grossAmount || appointment.gross_amount),
@@ -129,6 +130,18 @@ export async function updateClientAppointmentResponse({ appointmentId, action } 
   if (error) throw error
 
   return normalizeAppointment(data?.appointment)
+}
+
+export async function requestArtistAppointmentConfirmations({ date = null } = {}) {
+  const client = requireSupabase()
+  const { data, error } = await client.rpc('studio_flow_artist_request_appointment_confirmations', {
+    p_scope: 'artist',
+    p_date: date || null,
+  })
+
+  if (error) throw error
+
+  return Number(data?.updatedCount || data?.updated_count || 0)
 }
 
 export async function fetchManualArtistAvailability({

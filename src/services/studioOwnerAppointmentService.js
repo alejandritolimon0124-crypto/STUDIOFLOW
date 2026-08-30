@@ -57,6 +57,7 @@ function normalizeAppointment(appointment = {}) {
     status: appointment.status || 'Confirmada',
     appointmentStatus: appointment.appointmentStatus || appointment.appointment_status || 'scheduled',
     clientConfirmedAt: appointment.clientConfirmedAt || appointment.client_confirmed_at || null,
+    confirmationRequestedAt: appointment.confirmationRequestedAt || appointment.confirmation_requested_at || null,
   }
 }
 
@@ -308,6 +309,20 @@ export async function fetchStudioOwnerClientAppointments({
       appointmentStatus: appointment.status,
     })
   })
+}
+
+export async function requestStudioOwnerAppointmentConfirmations({ studioId, date = null } = {}) {
+  if (!studioId) throw new Error('Estudio requerido.')
+
+  const client = requireSupabase()
+  const { data, error } = await client.rpc('studio_flow_owner_request_appointment_confirmations', {
+    p_studio_id: studioId,
+    p_date: date || null,
+  })
+
+  if (error) throw error
+
+  return Number(data?.updatedCount || data?.updated_count || 0)
 }
 
 export async function createStudioOwnerAppointment({

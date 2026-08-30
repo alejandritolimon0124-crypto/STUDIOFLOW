@@ -92,6 +92,18 @@ p {
   color: var(--text);
 }
 
+.button-success {
+  background: linear-gradient(135deg, #6f7f57, #9aaa91);
+  box-shadow: 0 14px 26px rgba(111, 127, 87, 0.2);
+  color: #fff;
+}
+
+.button-danger {
+  background: linear-gradient(135deg, #8d3f49, #c98791);
+  box-shadow: 0 14px 26px rgba(141, 63, 73, 0.2);
+  color: #fff;
+}
+
 .button-sm {
   min-height: 36px;
   padding: 0 14px;

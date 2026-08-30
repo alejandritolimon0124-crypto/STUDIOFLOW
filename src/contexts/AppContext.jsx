@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AppContext } from './appContextCore'
+import { supabase } from '../lib/supabaseClient'
 import { weeklyScheduleTemplate } from '../services/staticCatalogs'
 import { canUseOperationalFeature, getDefaultStudioStatus } from '../modules/governance/studioGovernance'
 import { ROLES } from '../modules/permissions/rolePermissions'
@@ -44,6 +45,7 @@ import {
   createManualArtistAppointment as createManualArtistAppointmentRecord,
   fetchArtistAppointments,
   fetchClientAppointments,
+  requestArtistAppointmentConfirmations as requestArtistAppointmentConfirmationsRecord,
   updateClientAppointmentResponse as updateClientAppointmentResponseRecord,
 } from '../services/appointmentService'
 import { fetchMarketplaceAvailability } from '../services/availabilityService'
@@ -1625,6 +1627,27 @@ export function AppProvider({ children }) {
     }
   }, [loadClientAppointments, session.isMockSession, session.role])
 
+  const requestArtistAppointmentConfirmations = useCallback(async ({ date = null } = {}) => {
+    if (session.isMockSession || session.role !== ROLES.ARTIST) return 0
+
+    setManualArtistAppointmentError('')
+    setManualArtistAppointmentStatus('')
+
+    try {
+      const updatedCount = await requestArtistAppointmentConfirmationsRecord({ date })
+      setManualArtistAppointmentStatus(
+        updatedCount > 0
+          ? `Aviso enviado a ${updatedCount} clientas.`
+          : 'No hay citas pendientes para avisar.',
+      )
+      await loadArtistAppointments()
+      return updatedCount
+    } catch (error) {
+      setManualArtistAppointmentError(error.message || 'No se pudo enviar el aviso.')
+      return 0
+    }
+  }, [loadArtistAppointments, session.isMockSession, session.role])
+
   const loadIndependentArtistPublicationReadiness = useCallback(async (
     artistId = session.artist?.id || session.user?.artistId,
   ) => {
@@ -1690,6 +1713,28 @@ export function AppProvider({ children }) {
       // marketplaceError already exposes the failure to the UI.
     })
   }, [loadClientAppointments, loadMarketplaceListings, session.isMockSession, session.role])
+
+  useEffect(() => {
+    if (!supabase || session.isMockSession) return undefined
+    if (![ROLES.CLIENT, ROLES.ARTIST].includes(session.role)) return undefined
+
+    const channel = supabase
+      .channel(`studio-flow-appointments-${session.role}-${session.profile?.id || session.user?.id || 'session'}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'appointments' }, () => {
+        if (session.role === ROLES.CLIENT) {
+          loadClientAppointments().catch(() => {})
+        }
+
+        if (session.role === ROLES.ARTIST) {
+          loadArtistAppointments().catch(() => {})
+        }
+      })
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [loadArtistAppointments, loadClientAppointments, session.isMockSession, session.profile?.id, session.role, session.user?.id])
 
   const loadAdminArtists = useCallback(async () => {
     if (session.isMockSession) return null
@@ -2771,6 +2816,7 @@ export function AppProvider({ children }) {
       loadArtistAppointments,
       createManualArtistAppointment,
       updateClientAppointmentResponse,
+      requestArtistAppointmentConfirmations,
       loadMarketplaceListings,
       loadMarketplaceAvailability,
       bookMarketplaceAppointment,
@@ -2878,6 +2924,7 @@ export function AppProvider({ children }) {
       loadArtistAppointments,
       createManualArtistAppointment,
       updateClientAppointmentResponse,
+      requestArtistAppointmentConfirmations,
       loadMarketplaceListings,
       loadMarketplaceAvailability,
       bookMarketplaceAppointment,
