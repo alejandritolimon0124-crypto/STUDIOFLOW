@@ -18,6 +18,47 @@ import {
 import { buildGoogleMapsQuery, buildGoogleMapsUrl } from '../../utils/locationHelpers'
 import { getMaxBirthDateForAdult, validateBirthDate } from '../../utils/birthdayValidation'
 
+const clientConfirmationNoticeKey = 'studio-flow-client-confirmation-notices'
+
+function canUseBrowserNotifications() {
+  return typeof window !== 'undefined' && 'Notification' in window
+}
+
+function getStoredConfirmationNoticeKeys() {
+  try {
+    return JSON.parse(localStorage.getItem(clientConfirmationNoticeKey) || '[]')
+  } catch {
+    return []
+  }
+}
+
+function storeConfirmationNoticeKey(key) {
+  try {
+    const keys = new Set(getStoredConfirmationNoticeKeys())
+    keys.add(key)
+    localStorage.setItem(clientConfirmationNoticeKey, JSON.stringify([...keys].slice(-80)))
+  } catch {
+    // El aviso visual dentro de la app sigue funcionando aunque localStorage falle.
+  }
+}
+
+function getConfirmationNoticeKey(appointment = {}) {
+  return `${appointment.id || ''}:${appointment.confirmationRequestedAt || appointment.confirmation_requested_at || ''}`
+}
+
+function showAppointmentBrowserNotification(appointment = {}) {
+  if (!canUseBrowserNotifications() || Notification.permission !== 'granted') return
+
+  try {
+    new Notification('Confirma tu cita en Studio Flow', {
+      body: `${appointment.service || 'Servicio'} con ${appointment.artist || appointment.contextName || 'tu artista'} el ${appointment.date || ''} a las ${appointment.time || ''}.`,
+      tag: getConfirmationNoticeKey(appointment),
+    })
+  } catch {
+    // La tarjeta dentro de la app queda como respaldo.
+  }
+}
+
 const searchServices = {
   Unas: [
     { name: 'Gelish', durationMinutes: 60 },
@@ -652,6 +693,9 @@ function ClientDashboard({ view = 'inicio' }) {
   const [appointmentHistoryDate, setAppointmentHistoryDate] = useState('')
   const [visibleHistoryCount, setVisibleHistoryCount] = useState(5)
   const [respondingAppointmentId, setRespondingAppointmentId] = useState('')
+  const [notificationPermission, setNotificationPermission] = useState(() => (
+    canUseBrowserNotifications() ? Notification.permission : 'unsupported'
+  ))
   const isRealMarketplace = !session.isMockSession
   const artistStudioMemberships = useMemo(
     () => deriveMembershipsFromLegacyData({ artists: adminState.artists }),
@@ -1087,11 +1131,12 @@ function ClientDashboard({ view = 'inicio' }) {
     String(firstAppointment.date || '').localeCompare(String(secondAppointment.date || ''))
     || String(firstAppointment.time || '').localeCompare(String(secondAppointment.time || ''))
   ))[0]
-  const pendingConfirmationCount = upcomingAppointments.filter((appointment) => (
+  const pendingConfirmationAppointments = useMemo(() => upcomingAppointments.filter((appointment) => (
     appointment.confirmationRequestedAt
     && !appointment.clientConfirmedAt
     && !appointment.client_confirmed_at
-  )).length
+  )), [upcomingAppointments])
+  const pendingConfirmationCount = pendingConfirmationAppointments.length
   const canRespondToAppointment = (appointment = {}) => (
     appointment.id
     && !['completed', 'cancelled', 'no_show'].includes(String(appointment.appointmentStatus || '').toLowerCase())
@@ -1107,10 +1152,42 @@ function ClientDashboard({ view = 'inicio' }) {
     await updateClientAppointmentResponse({ appointmentId, action })
     setRespondingAppointmentId('')
   }
+  const enableAppointmentNotifications = async () => {
+    if (!canUseBrowserNotifications()) return
+
+    const permission = await Notification.requestPermission()
+    setNotificationPermission(permission)
+
+    if (permission === 'granted') {
+      pendingConfirmationAppointments.forEach((appointment) => {
+        showAppointmentBrowserNotification(appointment)
+        storeConfirmationNoticeKey(getConfirmationNoticeKey(appointment))
+      })
+    }
+  }
 
   useEffect(() => {
     setVisibleHistoryCount(5)
   }, [appointmentHistoryDate, showPastAppointments])
+
+  useEffect(() => {
+    if (!canUseBrowserNotifications()) return
+
+    setNotificationPermission(Notification.permission)
+  }, [])
+
+  useEffect(() => {
+    if (!canUseBrowserNotifications() || Notification.permission !== 'granted') return
+
+    const seenKeys = new Set(getStoredConfirmationNoticeKeys())
+    pendingConfirmationAppointments.forEach((appointment) => {
+      const noticeKey = getConfirmationNoticeKey(appointment)
+      if (!noticeKey || seenKeys.has(noticeKey)) return
+
+      showAppointmentBrowserNotification(appointment)
+      storeConfirmationNoticeKey(noticeKey)
+    })
+  }, [pendingConfirmationAppointments])
 
   const reserveSlot = async (slot) => {
     console.error('[BOOKING TRACE]', 'ClientDashboard reserveSlot entry', {
@@ -1272,6 +1349,45 @@ function ClientDashboard({ view = 'inicio' }) {
               </div>
             </section>
 
+            {pendingConfirmationCount > 0 && (
+              <Card className="mobile-screen primary-panel">
+                <PanelHeader title="Confirma tu asistencia" eyebrow="Aviso de cita" />
+                <div className="compact-list">
+                  {pendingConfirmationAppointments.slice(0, 2).map((appointment) => (
+                    <div className="list-row elevated-row" key={appointment.id}>
+                      <div>
+                        <strong>{appointment.service || 'Servicio agendado'}</strong>
+                        <small>{appointment.contextName || appointment.artist || 'Studio Flow'} / {appointment.date} {appointment.time}</small>
+                      </div>
+                      <div className="row-actions" style={{ justifyContent: 'flex-end', gap: 6 }}>
+                        <Button
+                          size="sm"
+                          variant="success"
+                          disabled={respondingAppointmentId === appointment.id}
+                          onClick={() => respondToAppointment(appointment.id, 'confirm')}
+                        >
+                          Confirmar
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="danger"
+                          disabled={respondingAppointmentId === appointment.id}
+                          onClick={() => respondToAppointment(appointment.id, 'cancel')}
+                        >
+                          Cancelar
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                  {notificationPermission === 'default' && (
+                    <Button className="full-width" variant="ghost" onClick={enableAppointmentNotifications}>
+                      Activar notificaciones
+                    </Button>
+                  )}
+                </div>
+              </Card>
+            )}
+
             <Card className="mobile-screen primary-panel client-next-appointment-card">
               <PanelHeader title="Tu próxima cita" eyebrow="Agenda activa" />
               {nextAppointment ? (
@@ -1380,7 +1496,13 @@ function ClientDashboard({ view = 'inicio' }) {
                     <strong>Confirma tu asistencia</strong>
                     <small>{pendingConfirmationCount === 1 ? 'Tienes una cita esperando respuesta.' : `Tienes ${pendingConfirmationCount} citas esperando respuesta.`}</small>
                   </div>
-                  <StatusPill tone="warm">Pendiente</StatusPill>
+                  {notificationPermission === 'default' ? (
+                    <Button size="sm" variant="ghost" onClick={enableAppointmentNotifications}>
+                      Activar notificaciones
+                    </Button>
+                  ) : (
+                    <StatusPill tone="warm">Pendiente</StatusPill>
+                  )}
                 </div>
               )}
               <div className="appointment-stack">
