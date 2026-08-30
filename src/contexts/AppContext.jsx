@@ -715,7 +715,7 @@ export function AppProvider({ children }) {
   const [authError, setAuthError] = useState('')
   const sessionRef = useRef(session)
   const adminStorageKeyRef = useRef(adminStorageKey)
-  const [agendaSettings, setAgendaSettings] = useState(createInitialAgendaSettings)
+  const [agendaSettings, setAgendaSettings] = useState(createEmptyAgendaSettings)
   const [adminState, setAdminState] = useState(() => getStoredAdminState(session))
   const [clientState, setClientState] = useState(getStoredClientState)
   const [artistState, setArtistState] = useState(() => getStoredArtistState(activeProfileId))

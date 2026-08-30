@@ -16,6 +16,7 @@ import { fetchArtistClients } from '../../services/artistClientService'
 import { getClientById } from '../../utils/clientHelpers'
 import { formatCurrency } from '../../utils/formatters'
 import { calculateFlowPoints, addPointsToClient, vipTierThresholds } from '../../modules/loyalty/flowPointsEngine'
+import { calculateAppointmentEconomy } from '../../modules/business/appointmentEconomyEngine'
 import { canUseOperationalFeature } from '../../modules/governance/studioGovernance'
 import {
   deriveMembershipsFromLegacyData,
