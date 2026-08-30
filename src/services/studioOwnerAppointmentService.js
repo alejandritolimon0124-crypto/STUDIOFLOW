@@ -30,6 +30,12 @@ function getAppointmentTimeValue(value) {
 }
 
 function normalizeAppointment(appointment = {}) {
+  const contextName = appointment.contextName
+    || appointment.context_name
+    || (appointment.studioId || appointment.studio_id ? appointment.room : appointment.artist)
+    || appointment.room
+    || 'Agenda'
+
   return {
     ...appointment,
     id: appointment.id,
@@ -47,8 +53,10 @@ function normalizeAppointment(appointment = {}) {
     client: appointment.client || appointment.clientName || 'Clienta',
     service: appointment.service || 'Servicio',
     artist: appointment.artist || 'Artista',
+    contextName,
     status: appointment.status || 'Confirmada',
     appointmentStatus: appointment.appointmentStatus || appointment.appointment_status || 'scheduled',
+    clientConfirmedAt: appointment.clientConfirmedAt || appointment.client_confirmed_at || null,
   }
 }
 

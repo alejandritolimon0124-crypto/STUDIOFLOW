@@ -11,6 +11,12 @@ function normalizeNumber(value, fallback = 0) {
 
 function normalizeAppointment(appointment = {}) {
   const durationMinutes = normalizeNumber(appointment.durationMinutes || appointment.duration_minutes, 60)
+  const studioName = appointment.studioName || appointment.studio_name || ''
+  const contextName = appointment.contextName
+    || appointment.context_name
+    || (appointment.studioId || appointment.studio_id ? appointment.room || studioName : appointment.artist)
+    || appointment.room
+    || 'Agenda'
 
   return {
     ...appointment,
@@ -37,6 +43,8 @@ function normalizeAppointment(appointment = {}) {
     address: appointment.address || 'Agenda Studio Flow',
     status: appointment.status || 'Confirmada',
     appointmentStatus: appointment.appointmentStatus || appointment.appointment_status || 'scheduled',
+    clientConfirmedAt: appointment.clientConfirmedAt || appointment.client_confirmed_at || null,
+    contextName,
     bookingSource: appointment.bookingSource || appointment.booking_source || null,
     grossAmount: normalizeNumber(appointment.grossAmount || appointment.gross_amount),
     platformFee: normalizeNumber(appointment.platformFee || appointment.platform_fee),
@@ -106,6 +114,21 @@ export async function fetchArtistAppointments({ artistId } = {}) {
   if (error) throw error
 
   return mapAppointmentsPayload(data)
+}
+
+export async function updateClientAppointmentResponse({ appointmentId, action } = {}) {
+  if (!appointmentId) throw new Error('Cita requerida.')
+  if (!['confirm', 'cancel'].includes(action)) throw new Error('Accion invalida.')
+
+  const client = requireSupabase()
+  const { data, error } = await client.rpc('studio_flow_client_update_appointment_response', {
+    p_appointment_id: appointmentId,
+    p_action: action,
+  })
+
+  if (error) throw error
+
+  return normalizeAppointment(data?.appointment)
 }
 
 export async function fetchManualArtistAvailability({

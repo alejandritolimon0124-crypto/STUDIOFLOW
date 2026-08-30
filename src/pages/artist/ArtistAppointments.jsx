@@ -35,9 +35,10 @@ function splitClientName(name = '') {
 }
 
 function getAppointmentContextLabel(appointment = {}) {
+  if (appointment.contextName || appointment.context_name) return appointment.contextName || appointment.context_name
   return appointment.membershipId || appointment.membership_id || appointment.studioId || appointment.studio_id
-    ? 'Estudio'
-    : 'Independiente'
+    ? appointment.room || 'Estudio'
+    : appointment.artist || 'Independiente'
 }
 
 function ArtistAppointments() {

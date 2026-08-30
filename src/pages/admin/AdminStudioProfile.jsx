@@ -220,7 +220,7 @@ function StudioSummarySection({
             <div className="list-row elevated-row" key={appointment.id || `${getAppointmentDate(appointment)}-${getAppointmentTime(appointment)}-${appointment.client}`}>
               <div>
                 <strong>{getAppointmentTime(appointment)} / {appointment.client || 'Clienta'}</strong>
-                <small>{appointment.service || 'Servicio'} con {appointment.artist || 'Artista'}</small>
+                <small>{appointment.service || 'Servicio'} / {appointment.contextName || studioName}</small>
               </div>
               <StatusPill tone="success">Confirmada</StatusPill>
             </div>
@@ -439,16 +439,19 @@ function StudioServicesSection({
 
 function StudioScheduleSection({
   activeMemberships,
+  currentStudio,
   expandedMembershipId,
   membershipOperationsById,
   membershipOperationsLoadingId,
   onOpenAppointmentModal,
   ownerAppointments,
+  profileDraft,
   toggleMembershipOperations,
 }) {
   const [showCalendarFilter, setShowCalendarFilter] = useState(false)
   const [selectedAgendaDate, setSelectedAgendaDate] = useState(getTodayDateValue)
   const visibleDays = useMemo(() => buildVisibleDays(selectedAgendaDate), [selectedAgendaDate])
+  const studioName = profileDraft?.commercialName || currentStudio?.profile?.commercialName || currentStudio?.name || 'Estudio'
   const selectedDateAppointments = ownerAppointments
     .filter((appointment) => getAppointmentDate(appointment) === selectedAgendaDate)
     .sort((firstAppointment, secondAppointment) => getAppointmentTimestamp(firstAppointment) - getAppointmentTimestamp(secondAppointment))
@@ -484,7 +487,7 @@ function StudioScheduleSection({
             <div className="list-row elevated-row" key={appointment.id || `${getAppointmentDate(appointment)}-${getAppointmentTime(appointment)}-${appointment.client}`}>
               <div>
                 <strong>{getAppointmentTime(appointment)} / {appointment.client || 'Clienta'}</strong>
-                <small>{appointment.service || 'Servicio'} con {appointment.artist || 'Artista'}</small>
+                <small>{appointment.service || 'Servicio'} / {appointment.contextName || studioName}</small>
               </div>
               <StatusPill tone="success">Confirmada</StatusPill>
             </div>
@@ -1990,11 +1993,13 @@ function AdminStudioProfile() {
           {selectedSection === 'schedule' && (
             <StudioScheduleSection
               activeMemberships={activeMemberships}
+              currentStudio={currentStudio}
               expandedMembershipId={expandedMembershipId}
               membershipOperationsById={membershipOperationsById}
               membershipOperationsLoadingId={membershipOperationsLoadingId}
               onOpenAppointmentModal={openOwnerAppointmentModal}
               ownerAppointments={ownerAppointments}
+              profileDraft={profileDraft}
               toggleMembershipOperations={toggleMembershipOperations}
             />
           )}

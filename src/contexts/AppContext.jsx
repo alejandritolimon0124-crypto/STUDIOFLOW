@@ -44,6 +44,7 @@ import {
   createManualArtistAppointment as createManualArtistAppointmentRecord,
   fetchArtistAppointments,
   fetchClientAppointments,
+  updateClientAppointmentResponse as updateClientAppointmentResponseRecord,
 } from '../services/appointmentService'
 import { fetchMarketplaceAvailability } from '../services/availabilityService'
 import { bookMarketplaceAppointment as bookMarketplaceAppointmentRecord } from '../services/bookingService'
@@ -1609,6 +1610,21 @@ export function AppProvider({ children }) {
     }
   }, [session.isMockSession, session.role])
 
+  const updateClientAppointmentResponse = useCallback(async ({ appointmentId, action } = {}) => {
+    if (session.isMockSession || session.role !== ROLES.CLIENT) return null
+
+    setBookingError('')
+
+    try {
+      const appointment = await updateClientAppointmentResponseRecord({ appointmentId, action })
+      await loadClientAppointments()
+      return appointment
+    } catch (error) {
+      setBookingError(error.message || 'No se pudo actualizar la cita.')
+      return null
+    }
+  }, [loadClientAppointments, session.isMockSession, session.role])
+
   const loadIndependentArtistPublicationReadiness = useCallback(async (
     artistId = session.artist?.id || session.user?.artistId,
   ) => {
@@ -2754,6 +2770,7 @@ export function AppProvider({ children }) {
       loadClientAppointments,
       loadArtistAppointments,
       createManualArtistAppointment,
+      updateClientAppointmentResponse,
       loadMarketplaceListings,
       loadMarketplaceAvailability,
       bookMarketplaceAppointment,
@@ -2860,6 +2877,7 @@ export function AppProvider({ children }) {
       loadClientAppointments,
       loadArtistAppointments,
       createManualArtistAppointment,
+      updateClientAppointmentResponse,
       loadMarketplaceListings,
       loadMarketplaceAvailability,
       bookMarketplaceAppointment,

@@ -632,6 +632,7 @@ function ClientDashboard({ view = 'inicio' }) {
     bookSlot,
     bookMarketplaceAppointment,
     getAvailableSlots,
+    updateClientAppointmentResponse,
     toggleFavoriteArtist,
     updateClientProfile,
   } = useApp()
@@ -650,6 +651,7 @@ function ClientDashboard({ view = 'inicio' }) {
   const [showAppointmentDateFilter, setShowAppointmentDateFilter] = useState(false)
   const [appointmentHistoryDate, setAppointmentHistoryDate] = useState('')
   const [visibleHistoryCount, setVisibleHistoryCount] = useState(5)
+  const [respondingAppointmentId, setRespondingAppointmentId] = useState('')
   const isRealMarketplace = !session.isMockSession
   const artistStudioMemberships = useMemo(
     () => deriveMembershipsFromLegacyData({ artists: adminState.artists }),
@@ -1085,6 +1087,21 @@ function ClientDashboard({ view = 'inicio' }) {
     String(firstAppointment.date || '').localeCompare(String(secondAppointment.date || ''))
     || String(firstAppointment.time || '').localeCompare(String(secondAppointment.time || ''))
   ))[0]
+  const canRespondToAppointment = (appointment = {}) => (
+    appointment.id
+    && !['completed', 'cancelled', 'no_show'].includes(String(appointment.appointmentStatus || '').toLowerCase())
+    && !['Completada', 'Cancelada', 'No show'].includes(appointment.status)
+  )
+  const canConfirmAppointment = (appointment = {}) => (
+    canRespondToAppointment(appointment)
+    && !appointment.clientConfirmedAt
+    && !appointment.client_confirmed_at
+  )
+  const respondToAppointment = async (appointmentId, action) => {
+    setRespondingAppointmentId(appointmentId)
+    await updateClientAppointmentResponse({ appointmentId, action })
+    setRespondingAppointmentId('')
+  }
 
   useEffect(() => {
     setVisibleHistoryCount(5)
@@ -1260,9 +1277,32 @@ function ClientDashboard({ view = 'inicio' }) {
                   </div>
                   <div>
                     <h3>{nextAppointment.service || 'Servicio agendado'}</h3>
-                    <p>{nextAppointment.artist || 'Artista'} / {nextAppointment.address || 'Ubicacion por confirmar'}</p>
+                    <p>{nextAppointment.artist || 'Artista'} / {nextAppointment.contextName || nextAppointment.address || 'Ubicacion por confirmar'}</p>
                   </div>
-                  <StatusPill tone="success">{nextAppointment.status || 'Agendada'}</StatusPill>
+                  <div className="row-actions" style={{ justifyContent: 'flex-end', gap: 6 }}>
+                    <StatusPill tone="success">{nextAppointment.status || 'Agendada'}</StatusPill>
+                    {canRespondToAppointment(nextAppointment) && (
+                      <>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          disabled={respondingAppointmentId === nextAppointment.id}
+                          onClick={() => respondToAppointment(nextAppointment.id, 'cancel')}
+                        >
+                          Cancelar
+                        </Button>
+                        {canConfirmAppointment(nextAppointment) && (
+                          <Button
+                            size="sm"
+                            disabled={respondingAppointmentId === nextAppointment.id}
+                            onClick={() => respondToAppointment(nextAppointment.id, 'confirm')}
+                          >
+                            Confirmar
+                          </Button>
+                        )}
+                      </>
+                    )}
+                  </div>
                 </article>
               ) : (
                 <article className="client-next-appointment">
@@ -1320,6 +1360,15 @@ function ClientDashboard({ view = 'inicio' }) {
                   <StatusPill tone="success">Lista</StatusPill>
                 </div>
               )}
+              {bookingError && (
+                <div className="list-row elevated-row">
+                  <div>
+                    <strong>No se pudo actualizar la cita</strong>
+                    <small>{bookingError}</small>
+                  </div>
+                  <StatusPill tone="neutral">Cita</StatusPill>
+                </div>
+              )}
               <div className="appointment-stack">
                 {upcomingAppointments.length > 0 ? upcomingAppointments.map((appointment) => (
                   <article className="client-appointment" key={`${appointment.artist}-${appointment.time}-${appointment.date}`}>
@@ -1329,9 +1378,32 @@ function ClientDashboard({ view = 'inicio' }) {
                     </div>
                     <div>
                       <h3>{appointment.service}</h3>
-                      <p>{appointment.artist} / {appointment.address}</p>
+                      <p>{appointment.artist} / {appointment.contextName || appointment.address}</p>
                     </div>
-                    <StatusPill tone="success">{appointment.status || 'Lista'}</StatusPill>
+                    <div className="row-actions" style={{ justifyContent: 'flex-end', gap: 6 }}>
+                      <StatusPill tone="success">{appointment.status || 'Lista'}</StatusPill>
+                      {canRespondToAppointment(appointment) && (
+                        <>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            disabled={respondingAppointmentId === appointment.id}
+                            onClick={() => respondToAppointment(appointment.id, 'cancel')}
+                          >
+                            Cancelar
+                          </Button>
+                          {canConfirmAppointment(appointment) && (
+                            <Button
+                              size="sm"
+                              disabled={respondingAppointmentId === appointment.id}
+                              onClick={() => respondToAppointment(appointment.id, 'confirm')}
+                            >
+                              Confirmar
+                            </Button>
+                          )}
+                        </>
+                      )}
+                    </div>
                   </article>
                 )) : (
                   <article className="client-appointment">

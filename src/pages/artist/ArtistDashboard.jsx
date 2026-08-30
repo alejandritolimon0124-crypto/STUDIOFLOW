@@ -788,7 +788,7 @@ function ArtistDashboard({ view = 'agenda' }) {
                         key={`${item.id}-${item.time}`}
                         time={`${item.time} - ${item.end}`}
                         title={client?.name || item.client}
-                        subtitle={`${item.service} / ${item.duration} / ${item.room}`}
+                        subtitle={`${item.service} / ${item.duration} / ${item.contextName || item.room}`}
                         status={item.status}
                         type={item.type}
                         showEconomy={canUseEconomy}
@@ -839,7 +839,7 @@ function ArtistDashboard({ view = 'agenda' }) {
                   <div className="list-row elevated-row" key={item.client}>
                     <div>
                       <strong>{item.client}</strong>
-                      <small>{item.service} / {item.room}</small>
+                      <small>{item.service} / {item.contextName || item.room}</small>
                     </div>
                     <span>{item.time}</span>
                   </div>
