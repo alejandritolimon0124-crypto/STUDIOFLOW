@@ -957,6 +957,16 @@ select:focus,
   font-weight: 600;
 }
 
+.suggestion-item.muted-suggestion {
+  color: var(--muted);
+  cursor: default;
+  font-weight: 800;
+}
+
+.suggestion-item.muted-suggestion:hover {
+  background: transparent;
+}
+
 .new-client-form {
   display: grid;
   gap: 12px;

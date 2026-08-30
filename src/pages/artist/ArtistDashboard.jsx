@@ -10,6 +10,7 @@ import PanelHeader from '../../components/PanelHeader'
 import StatsCard from '../../components/StatsCard'
 import { useApp } from '../../contexts/appContextCore'
 import { paths } from '../../routes/paths'
+import { fetchArtistClients } from '../../services/artistClientService'
 import { getClientById } from '../../utils/clientHelpers'
 import { formatCurrency } from '../../utils/formatters'
 import { calculateFlowPoints, addPointsToClient, vipTierThresholds } from '../../modules/loyalty/flowPointsEngine'
@@ -94,10 +95,13 @@ function ArtistDashboard({ view = 'agenda' }) {
     artistAppointments: realArtistAppointments,
     appointmentState,
     session,
-    addArtistAppointment,
     addArtistClient,
     updateArtistClient,
-    bookSlot,
+    createManualArtistAppointment,
+    loadArtistAppointments,
+    manualArtistAppointmentError,
+    manualArtistAppointmentStatus,
+    isManualArtistAppointmentSaving,
     selectedDate,
     setSelectedDate,
   } = useApp()
@@ -110,23 +114,27 @@ function ArtistDashboard({ view = 'agenda' }) {
     clientId: artistState.clients[0]?.id || '',
     client: artistState.clients[0]?.name || '',
     phone: artistState.clients[0]?.phone || '',
-    service: artistServices.find(s => s.status === 'Activo')?.name || '',
+    serviceOfferingId: artistServices.find(s => s.status === 'Activo')?.id || '',
     date: selectedDate,
     time: '10:00',
+    notes: '',
   })
   const [clientSearch, setClientSearch] = useState('')
+  const [remoteClientResults, setRemoteClientResults] = useState([])
+  const [isClientSearchLoading, setIsClientSearchLoading] = useState(false)
+  const [clientSearchError, setClientSearchError] = useState('')
   const [isCreatingNewClient, setIsCreatingNewClient] = useState(false)
   const [newClient, setNewClient] = useState({ name: '', phone: '', notes: '' })
   const [hideMetrics, setHideMetrics] = useState(getStoredMetricsPrivacy)
 
   useEffect(() => {
-    if (!appointmentDraft.service) {
+    if (!appointmentDraft.serviceOfferingId) {
       const firstActiveService = artistServices.find((service) => service.status === 'Activo')
-      if (firstActiveService?.name) {
-        setAppointmentDraft((currentDraft) => ({ ...currentDraft, service: firstActiveService.name }))
+      if (firstActiveService?.id) {
+        setAppointmentDraft((currentDraft) => ({ ...currentDraft, serviceOfferingId: firstActiveService.id }))
       }
     }
-  }, [artistServices, appointmentDraft.service])
+  }, [artistServices, appointmentDraft.serviceOfferingId])
 
   useEffect(() => {
     setAppointmentDraft((currentDraft) => ({
@@ -134,6 +142,39 @@ function ArtistDashboard({ view = 'agenda' }) {
       date: selectedDate,
     }))
   }, [selectedDate])
+
+  useEffect(() => {
+    const search = clientSearch.trim()
+
+    if (search.length < 2) {
+      setRemoteClientResults([])
+      setIsClientSearchLoading(false)
+      setClientSearchError('')
+      return undefined
+    }
+
+    let isActive = true
+    setIsClientSearchLoading(true)
+    setClientSearchError('')
+
+    fetchArtistClients({ search, limit: 5 })
+      .then((clients) => {
+        if (!isActive) return
+        setRemoteClientResults(clients)
+      })
+      .catch((error) => {
+        if (!isActive) return
+        setRemoteClientResults([])
+        setClientSearchError(error.message || 'No se pudieron buscar clientas registradas.')
+      })
+      .finally(() => {
+        if (isActive) setIsClientSearchLoading(false)
+      })
+
+    return () => {
+      isActive = false
+    }
+  }, [clientSearch])
 
   useEffect(() => {
     if (!showAppointmentForm) return
@@ -231,14 +272,21 @@ function ArtistDashboard({ view = 'agenda' }) {
   const dayOfWeek = dateObj.toLocaleDateString('es-MX', { weekday: 'short', month: 'short', day: 'numeric' })
   const visibleDays = useMemo(() => buildVisibleDays(selectedDate), [selectedDate])
 
-  const filteredClients = artistState.clients.filter(client =>
-    client.name.toLowerCase().includes(clientSearch.toLowerCase())
-  )
+  const filteredClients = [
+    ...remoteClientResults,
+    ...artistState.clients,
+  ].filter((client, index, clients) => (
+    `${client.name} ${client.email || ''} ${client.phone || ''}`.toLowerCase().includes(clientSearch.toLowerCase())
+    && clients.findIndex((item) => item.id === client.id) === index
+  )).slice(0, 5)
   const hasMatches = filteredClients.length > 0
-  const showCreateOption = clientSearch.trim() && !hasMatches
+  const showCreateOption = clientSearch.trim() && !hasMatches && !isClientSearchLoading
+  const selectedService = artistServices.find((item) => item.id === appointmentDraft.serviceOfferingId)
+    || artistServices.find((item) => item.status === 'Activo')
 
-  const saveAppointment = () => {
+  const saveAppointment = async () => {
     if (!canManageOwnAppointments) return
+    if (!selectedService?.id || !appointmentDraft.date || !appointmentDraft.time) return
 
     let nextClientId = appointmentDraft.clientId
 
@@ -255,7 +303,7 @@ function ArtistDashboard({ view = 'agenda' }) {
         streak: 1,
         totalVisits: 1,
         pointsExpirationDate: '2026-12-31',
-        preferredServices: [appointmentDraft.service],
+        preferredServices: [selectedService.name],
         favoriteArtist: artistDisplayName,
         lastVisit: appointmentDraft.date,
         nextRecommendedVisit: appointmentDraft.date,
@@ -264,10 +312,25 @@ function ArtistDashboard({ view = 'agenda' }) {
       addArtistClient(createdClient)
     }
 
-    const service = artistServices.find((item) => item.name === appointmentDraft.service) || artistServices.find(s => s.status === 'Activo')
     const clientName = isCreatingNewClient
       ? newClient.name
       : artistState.clients.find((client) => client.id === nextClientId)?.name || appointmentDraft.client
+
+    const [firstName, ...lastNameParts] = String(isCreatingNewClient ? newClient.name : appointmentDraft.client || clientName || '')
+      .trim()
+      .split(/\s+/)
+    const savedAppointment = await createManualArtistAppointment({
+      clientId: nextClientId || null,
+      firstName: firstName || 'Clienta',
+      lastName: lastNameParts.join(' ') || 'Studio Flow',
+      phone: isCreatingNewClient ? newClient.phone : appointmentDraft.phone,
+      serviceOfferingId: selectedService.id,
+      date: appointmentDraft.date,
+      time: appointmentDraft.time,
+      notes: appointmentDraft.notes,
+    })
+
+    if (!savedAppointment) return
 
     const appointmentPayload = {
       ...appointmentDraft,
@@ -277,39 +340,18 @@ function ArtistDashboard({ view = 'agenda' }) {
       clientId: nextClientId,
       client: clientName,
       end: appointmentDraft.time,
-      duration: service.duration,
+      duration: selectedService.duration,
       room: 'Agenda',
       status: 'Confirmada',
-      serviceTier: service.serviceTier,
+      service: selectedService.name,
+      serviceTier: selectedService.serviceTier,
       rewardApplied: null,
-      pointsGranted: calculateFlowPoints(service.serviceTier),
+      pointsGranted: calculateFlowPoints(selectedService.serviceTier),
       appointmentStatus: 'scheduled',
     }
 
-    const economy = calculateAppointmentEconomy(appointmentPayload, service)
-
-    addArtistAppointment({
-      ...appointmentPayload,
-      grossAmount: economy.grossAmount,
-      platformFee: economy.platformFee,
-      artistRevenue: economy.artistRevenue,
-      riskScore: economy.riskScore,
-    })
-
-    bookSlot({
-      date: appointmentDraft.date,
-      artistId: primaryArtist?.id,
-      studioId: currentStudio?.id || null,
-      membershipId: primaryMembership?.id || null,
-      time: appointmentDraft.time,
-      end: appointmentDraft.time,
-      artist: artistDisplayName,
-      service: appointmentDraft.service,
-      durationMinutes: Number.parseInt(service.duration, 10) || 60,
-    })
-
     // Calculate and add Flow Points
-    const pointsEarned = calculateFlowPoints(service.serviceTier)
+    const pointsEarned = calculateFlowPoints(selectedService.serviceTier)
     const client = artistState.clients.find(c => c.id === nextClientId) || createdClient
     if (client) {
       const updatedClient = addPointsToClient(client, pointsEarned)
@@ -328,6 +370,7 @@ function ArtistDashboard({ view = 'agenda' }) {
     setClientSearch('')
     setIsCreatingNewClient(false)
     setNewClient({ name: '', phone: '', notes: '' })
+    await loadArtistAppointments()
   }
 
   const toggleMetricsPrivacy = () => {
@@ -413,7 +456,14 @@ function ArtistDashboard({ view = 'agenda' }) {
                           type="text"
                           placeholder="Buscar clienta..."
                           value={clientSearch}
-                          onChange={(e) => setClientSearch(e.target.value)}
+                          onChange={(event) => {
+                            setClientSearch(event.target.value)
+                            setAppointmentDraft((currentDraft) => ({
+                              ...currentDraft,
+                              clientId: '',
+                              client: event.target.value,
+                            }))
+                          }}
                           onFocus={() => setClientSearch(appointmentDraft.client)}
                         />
                         {clientSearch && (
@@ -431,6 +481,12 @@ function ArtistDashboard({ view = 'agenda' }) {
                                 {client.name}
                               </button>
                             ))}
+                            {!isClientSearchLoading && !clientSearchError && clientSearch.trim().length >= 2 && !hasMatches && (
+                              <div className="suggestion-item muted-suggestion">Sin coincidencias registradas.</div>
+                            )}
+                            {clientSearchError && (
+                              <div className="suggestion-item muted-suggestion">{clientSearchError}</div>
+                            )}
                             {showCreateOption && (
                               <button
                                 type="button"
@@ -487,13 +543,40 @@ function ArtistDashboard({ view = 'agenda' }) {
                     />
                   )}                  <label className="input-field">
                     <span>Servicio</span>
-                    <select value={appointmentDraft.service} onChange={(event) => setAppointmentDraft({ ...appointmentDraft, service: event.target.value })}>
-                      {artistServices.filter(s => s.status === 'Activo').map((service) => <option key={service.name} value={service.name}>{service.name} · {service.duration}</option>)}
+                    <select
+                      value={appointmentDraft.serviceOfferingId}
+                      onChange={(event) => setAppointmentDraft({ ...appointmentDraft, serviceOfferingId: event.target.value })}
+                    >
+                      {artistServices.filter(s => s.status === 'Activo').length === 0 && <option value="">Sin servicios activos</option>}
+                      {artistServices.filter(s => s.status === 'Activo').map((service) => (
+                        <option key={service.id} value={service.id}>{service.name} · {service.duration}</option>
+                      ))}
                     </select>
                   </label>
                   <Input label="Fecha" type="date" value={appointmentDraft.date} onChange={(event) => setAppointmentDraft({ ...appointmentDraft, date: event.target.value })} />
                   <Input label="Hora" type="time" value={appointmentDraft.time} onChange={(event) => setAppointmentDraft({ ...appointmentDraft, time: event.target.value })} />
-                  <Button className="full-width" disabled={!canManageOwnAppointments} onClick={saveAppointment}>Confirmar cita</Button>
+                  <label className="input-field">
+                    <span>Notas</span>
+                    <textarea
+                      rows="3"
+                      value={appointmentDraft.notes}
+                      onChange={(event) => setAppointmentDraft({ ...appointmentDraft, notes: event.target.value })}
+                    />
+                  </label>
+                  {isClientSearchLoading && <small>Buscando clientas registradas...</small>}
+                  {manualArtistAppointmentError && (
+                    <small style={{ color: 'var(--rose-dark)', fontWeight: 800 }}>{manualArtistAppointmentError}</small>
+                  )}
+                  {manualArtistAppointmentStatus && (
+                    <small style={{ color: 'var(--success)', fontWeight: 800 }}>{manualArtistAppointmentStatus}</small>
+                  )}
+                  <Button
+                    className="full-width"
+                    disabled={!canManageOwnAppointments || isManualArtistAppointmentSaving}
+                    onClick={saveAppointment}
+                  >
+                    {isManualArtistAppointmentSaving ? 'Guardando cita...' : 'Confirmar cita'}
+                  </Button>
                 </div>
                 </Card>
               </div>
