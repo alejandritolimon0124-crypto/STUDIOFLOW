@@ -6,6 +6,7 @@ import Input from '../../components/Input'
 import PanelHeader from '../../components/PanelHeader'
 import StatusPill from '../../components/StatusPill'
 import { useApp } from '../../contexts/appContextCore'
+import { fetchArtistClients } from '../../services/artistClientService'
 import { fetchManualArtistAvailability } from '../../services/appointmentService'
 
 function getTodayDateValue() {
@@ -15,6 +16,7 @@ function getTodayDateValue() {
 }
 
 const emptyDraft = {
+  clientId: '',
   firstName: '',
   lastName: '',
   phone: '',
@@ -47,6 +49,12 @@ function ArtistAppointments() {
   const [availabilityMeta, setAvailabilityMeta] = useState({ durationMinutes: 0 })
   const [isAvailabilityLoading, setIsAvailabilityLoading] = useState(false)
   const [availabilityError, setAvailabilityError] = useState('')
+  const [clientSearch, setClientSearch] = useState('')
+  const [clientResults, setClientResults] = useState([])
+  const [isClientSearchLoading, setIsClientSearchLoading] = useState(false)
+  const [clientSearchError, setClientSearchError] = useState('')
+
+  const selectedClientFromSearch = clientResults.find((client) => client.id === draft.clientId) || null
 
   useEffect(() => {
     if (!selectedClient?.id) return
@@ -61,6 +69,58 @@ function ArtistAppointments() {
     }))
     setFormErrors({})
   }, [selectedClient?.id])
+
+  useEffect(() => {
+    const search = clientSearch.trim() || draft.phone.trim()
+
+    if (search.length < 2) {
+      setClientResults([])
+      setIsClientSearchLoading(false)
+      setClientSearchError('')
+      return undefined
+    }
+
+    let isActive = true
+    setIsClientSearchLoading(true)
+    setClientSearchError('')
+
+    fetchArtistClients({ search, limit: 5 })
+      .then((clients) => {
+        if (!isActive) return
+        setClientResults(clients)
+
+        const typedPhone = draft.phone.replace(/\D/g, '')
+        if (typedPhone.length >= 7) {
+          const phoneMatch = clients.find((client) => (
+            String(client.phone || '').replace(/\D/g, '') === typedPhone
+          ))
+
+          if (phoneMatch) {
+            const [firstName, ...lastNameParts] = String(phoneMatch.name || '').split(/\s+/)
+            setDraft((currentDraft) => ({
+              ...currentDraft,
+              clientId: phoneMatch.id,
+              firstName: firstName || currentDraft.firstName,
+              lastName: lastNameParts.join(' ') || currentDraft.lastName,
+              phone: phoneMatch.phone || currentDraft.phone,
+            }))
+            setClientSearch(phoneMatch.name || '')
+          }
+        }
+      })
+      .catch((error) => {
+        if (!isActive) return
+        setClientResults([])
+        setClientSearchError(error.message || 'No se pudieron buscar clientas registradas.')
+      })
+      .finally(() => {
+        if (isActive) setIsClientSearchLoading(false)
+      })
+
+    return () => {
+      isActive = false
+    }
+  }, [clientSearch, draft.phone])
 
   useEffect(() => {
     if (!draft.serviceOfferingId && artistServices[0]?.id) {
@@ -114,7 +174,7 @@ function ArtistAppointments() {
   const validateDraft = () => {
     const nextErrors = {}
 
-    if (!selectedClient?.id) {
+    if (!selectedClient?.id && !draft.clientId) {
       if (!draft.firstName.trim()) nextErrors.firstName = 'Nombre obligatorio.'
       if (!draft.lastName.trim()) nextErrors.lastName = 'Apellido obligatorio.'
       if (!draft.phone.trim()) nextErrors.phone = 'Celular obligatorio.'
@@ -131,6 +191,7 @@ function ArtistAppointments() {
     setDraft((currentDraft) => ({
       ...currentDraft,
       [field]: value,
+      ...(field === 'phone' ? { clientId: '' } : {}),
       ...(field === 'serviceOfferingId' || field === 'date' ? { time: '' } : {}),
     }))
     setFormErrors((currentErrors) => ({ ...currentErrors, [field]: '' }))
@@ -260,6 +321,52 @@ function ArtistAppointments() {
               </div>
             ) : (
               <>
+                <label className="input-field">
+                  <span>Buscar clienta</span>
+                  <input
+                    type="search"
+                    placeholder="Nombre, correo o celular"
+                    value={clientSearch}
+                    onChange={(event) => {
+                      setClientSearch(event.target.value)
+                      setDraft((currentDraft) => ({ ...currentDraft, clientId: '' }))
+                    }}
+                  />
+                  {(clientSearch || draft.phone) && (
+                    <div className="autocomplete-suggestions">
+                      {clientResults.map((client) => (
+                        <button
+                          key={client.id}
+                          type="button"
+                          className="suggestion-item"
+                          onClick={() => {
+                            const [firstName, ...lastNameParts] = String(client.name || '').split(/\s+/)
+                            setDraft((currentDraft) => ({
+                              ...currentDraft,
+                              clientId: client.id,
+                              firstName: firstName || '',
+                              lastName: lastNameParts.join(' '),
+                              phone: client.phone || '',
+                            }))
+                            setClientSearch(client.name || '')
+                          }}
+                        >
+                          {client.name}
+                          {client.phone && <small>{client.phone}</small>}
+                        </button>
+                      ))}
+                      {!isClientSearchLoading && !clientSearchError && clientSearch.trim().length >= 2 && clientResults.length === 0 && (
+                        <div className="suggestion-item muted-suggestion">Sin coincidencias registradas.</div>
+                      )}
+                      {clientSearchError && (
+                        <div className="suggestion-item muted-suggestion">{clientSearchError}</div>
+                      )}
+                    </div>
+                  )}
+                  {isClientSearchLoading && <small>Buscando clientas registradas...</small>}
+                  {selectedClientFromSearch && <small>Clienta existente seleccionada: {selectedClientFromSearch.name}</small>}
+                </label>
+
                 <Input
                   label="Nombre"
                   value={draft.firstName}

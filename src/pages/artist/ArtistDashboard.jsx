@@ -10,11 +10,11 @@ import PanelHeader from '../../components/PanelHeader'
 import StatsCard from '../../components/StatsCard'
 import { useApp } from '../../contexts/appContextCore'
 import { paths } from '../../routes/paths'
+import { fetchManualArtistAvailability } from '../../services/appointmentService'
 import { fetchArtistClients } from '../../services/artistClientService'
 import { getClientById } from '../../utils/clientHelpers'
 import { formatCurrency } from '../../utils/formatters'
 import { calculateFlowPoints, addPointsToClient, vipTierThresholds } from '../../modules/loyalty/flowPointsEngine'
-import { calculateAppointmentEconomy } from '../../modules/business/appointmentEconomyEngine'
 import { canUseOperationalFeature } from '../../modules/governance/studioGovernance'
 import {
   deriveMembershipsFromLegacyData,
@@ -123,6 +123,10 @@ function ArtistDashboard({ view = 'agenda' }) {
   const [remoteClientResults, setRemoteClientResults] = useState([])
   const [isClientSearchLoading, setIsClientSearchLoading] = useState(false)
   const [clientSearchError, setClientSearchError] = useState('')
+  const [availabilitySlots, setAvailabilitySlots] = useState([])
+  const [availabilityMeta, setAvailabilityMeta] = useState({ durationMinutes: 0 })
+  const [isAvailabilityLoading, setIsAvailabilityLoading] = useState(false)
+  const [availabilityError, setAvailabilityError] = useState('')
   const [isCreatingNewClient, setIsCreatingNewClient] = useState(false)
   const [newClient, setNewClient] = useState({ name: '', phone: '', notes: '' })
   const [hideMetrics, setHideMetrics] = useState(getStoredMetricsPrivacy)
@@ -140,8 +144,50 @@ function ArtistDashboard({ view = 'agenda' }) {
     setAppointmentDraft((currentDraft) => ({
       ...currentDraft,
       date: selectedDate,
+      time: currentDraft.date === selectedDate ? currentDraft.time : '',
     }))
   }, [selectedDate])
+
+  useEffect(() => {
+    if (!showAppointmentForm || !appointmentDraft.serviceOfferingId || !appointmentDraft.date) {
+      setAvailabilitySlots([])
+      setAvailabilityMeta({ durationMinutes: 0 })
+      setAvailabilityError('')
+      return undefined
+    }
+
+    let isActive = true
+    setIsAvailabilityLoading(true)
+    setAvailabilityError('')
+
+    fetchManualArtistAvailability({
+      serviceOfferingId: appointmentDraft.serviceOfferingId,
+      date: appointmentDraft.date,
+    })
+      .then((availability) => {
+        if (!isActive) return
+        setAvailabilitySlots(availability.slots)
+        setAvailabilityMeta({ durationMinutes: availability.durationMinutes })
+        setAppointmentDraft((currentDraft) => (
+          availability.slots.some((slot) => slot.time === currentDraft.time)
+            ? currentDraft
+            : { ...currentDraft, time: '' }
+        ))
+      })
+      .catch((error) => {
+        if (!isActive) return
+        setAvailabilitySlots([])
+        setAvailabilityMeta({ durationMinutes: 0 })
+        setAvailabilityError(error.message || 'No se pudieron cargar horarios disponibles.')
+      })
+      .finally(() => {
+        if (isActive) setIsAvailabilityLoading(false)
+      })
+
+    return () => {
+      isActive = false
+    }
+  }, [appointmentDraft.date, appointmentDraft.serviceOfferingId, showAppointmentForm])
 
   useEffect(() => {
     const search = clientSearch.trim()
@@ -331,24 +377,6 @@ function ArtistDashboard({ view = 'agenda' }) {
     })
 
     if (!savedAppointment) return
-
-    const appointmentPayload = {
-      ...appointmentDraft,
-      artistId: primaryArtist?.id,
-      studioId: currentStudio?.id || null,
-      membershipId: primaryMembership?.id || null,
-      clientId: nextClientId,
-      client: clientName,
-      end: appointmentDraft.time,
-      duration: selectedService.duration,
-      room: 'Agenda',
-      status: 'Confirmada',
-      service: selectedService.name,
-      serviceTier: selectedService.serviceTier,
-      rewardApplied: null,
-      pointsGranted: calculateFlowPoints(selectedService.serviceTier),
-      appointmentStatus: 'scheduled',
-    }
 
     // Calculate and add Flow Points
     const pointsEarned = calculateFlowPoints(selectedService.serviceTier)
@@ -554,7 +582,72 @@ function ArtistDashboard({ view = 'agenda' }) {
                     </select>
                   </label>
                   <Input label="Fecha" type="date" value={appointmentDraft.date} onChange={(event) => setAppointmentDraft({ ...appointmentDraft, date: event.target.value })} />
-                  <Input label="Hora" type="time" value={appointmentDraft.time} onChange={(event) => setAppointmentDraft({ ...appointmentDraft, time: event.target.value })} />
+                  <div className="input-field">
+                    <span>Horarios disponibles</span>
+                    {isAvailabilityLoading && <small>Cargando horarios...</small>}
+                    {!isAvailabilityLoading && availabilityError && (
+                      <small style={{ color: 'var(--rose-dark)', fontWeight: 800 }}>{availabilityError}</small>
+                    )}
+                    {!isAvailabilityLoading && !availabilityError && availabilitySlots.length === 0 && (
+                      <small>Sin horarios disponibles</small>
+                    )}
+                    {!isAvailabilityLoading && availabilitySlots.length > 0 && (
+                      <div className="row-actions" style={{ justifyContent: 'flex-start' }}>
+                        {availabilitySlots.map((slot) => {
+                          const isSelected = appointmentDraft.time === slot.time
+
+                          return (
+                            <Button
+                              key={slot.id}
+                              size="sm"
+                              variant={isSelected ? 'primary' : 'ghost'}
+                              onClick={() => setAppointmentDraft({ ...appointmentDraft, time: slot.time })}
+                              style={isSelected ? {
+                                position: 'relative',
+                                minWidth: 82,
+                                padding: '0 28px 0 18px',
+                                background: '#5e3d43',
+                                border: '2px solid #5e3d43',
+                                borderRadius: 12,
+                                boxShadow: '0 12px 24px rgba(94, 61, 67, 0.24)',
+                                color: '#fff',
+                                fontWeight: 800,
+                                transform: 'scale(1.05)',
+                              } : undefined}
+                            >
+                              {slot.time}
+                              {isSelected && (
+                                <span
+                                  aria-hidden="true"
+                                  style={{
+                                    alignItems: 'center',
+                                    background: '#fff',
+                                    borderRadius: '999px',
+                                    color: '#5e3d43',
+                                    display: 'inline-flex',
+                                    fontSize: 13,
+                                    fontWeight: 900,
+                                    height: 22,
+                                    justifyContent: 'center',
+                                    lineHeight: 1,
+                                    position: 'absolute',
+                                    right: 5,
+                                    top: 4,
+                                    width: 22,
+                                  }}
+                                >
+                                  ✓
+                                </span>
+                              )}
+                            </Button>
+                          )
+                        })}
+                      </div>
+                    )}
+                    {availabilityMeta.durationMinutes > 0 && (
+                      <small>Duracion del servicio: {availabilityMeta.durationMinutes} min</small>
+                    )}
+                  </div>
                   <label className="input-field">
                     <span>Notas</span>
                     <textarea
