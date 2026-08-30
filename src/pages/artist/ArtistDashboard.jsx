@@ -43,6 +43,15 @@ function getSafeDateValue(dateValue) {
   return /^\d{4}-\d{2}-\d{2}$/.test(String(dateValue || '')) ? dateValue : getTodayDateValue()
 }
 
+function getSafeDayLabel(dateValue) {
+  try {
+    const date = parseDateValue(dateValue)
+    return date.toLocaleDateString('es-MX', { weekday: 'short', month: 'short', day: 'numeric' })
+  } catch {
+    return ''
+  }
+}
+
 function formatDateValue(date) {
   const normalizedDate = new Date(date)
   normalizedDate.setMinutes(normalizedDate.getMinutes() - normalizedDate.getTimezoneOffset())
@@ -243,9 +252,13 @@ function ArtistDashboard({ view = 'agenda' }) {
   }, [showAppointmentForm])
 
   useEffect(() => {
-    const activeDay = dayStripRef.current?.querySelector('.active')
-    activeDay?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' })
-  }, [selectedDate])
+    try {
+      const activeDay = dayStripRef.current?.querySelector('.active')
+      activeDay?.scrollIntoView({ block: 'nearest', inline: 'center' })
+    } catch {
+      // La tira sigue funcionando aunque el navegador no soporte scrollIntoView con opciones.
+    }
+  }, [safeSelectedDate])
   const localProfiles = session.user ? [{ ...session.user, id: session.user.id }] : []
   const artistStudioMemberships = deriveMembershipsFromLegacyData({ artists: adminState.artists })
   const selectorArtists = adminState.artists.map((artist) => (
@@ -310,7 +323,7 @@ function ArtistDashboard({ view = 'agenda' }) {
   const artistAppointmentSource = realArtistAppointmentSourceReady
     ? realArtistAppointments
     : artistState.appointments
-  const appointmentsForSelectedDate = artistAppointmentSource.filter(apt => apt.date === safeSelectedDate && apt.type === 'appointment')
+  const appointmentsForSelectedDate = artistAppointmentSource.filter(apt => apt?.date === safeSelectedDate && apt?.type === 'appointment')
   const hasAppointments = appointmentsForSelectedDate.length > 0
   
   const appointmentCount = appointmentsForSelectedDate.length
@@ -325,10 +338,13 @@ function ArtistDashboard({ view = 'agenda' }) {
   }, 0)
 
   // Determinar el día de la semana
-  const [year, month, day] = safeSelectedDate.split('-').map(Number)
-  const dateObj = new Date(year, month - 1, day)
-  const dayOfWeek = dateObj.toLocaleDateString('es-MX', { weekday: 'short', month: 'short', day: 'numeric' })
+  const dayOfWeek = getSafeDayLabel(safeSelectedDate)
   const visibleDays = useMemo(() => buildVisibleDays(safeSelectedDate), [safeSelectedDate])
+  const selectAgendaDate = (dateValue) => {
+    const nextDate = getSafeDateValue(dateValue)
+    setSelectedDate(nextDate)
+    setShowDatePicker(false)
+  }
 
   const filteredClients = [
     ...remoteClientResults,
@@ -718,12 +734,9 @@ function ArtistDashboard({ view = 'agenda' }) {
                         minWidth: '200px'
                       }}>
                         <input 
-                          type="date" 
+                          type="date"
                           value={safeSelectedDate}
-                          onChange={(e) => {
-                            setSelectedDate(e.target.value)
-                            setShowDatePicker(false)
-                          }}
+                          onChange={(e) => selectAgendaDate(e.target.value)}
                           style={{
                             background: '#fff',
                             border: '1px solid var(--line)',
@@ -754,7 +767,7 @@ function ArtistDashboard({ view = 'agenda' }) {
                       className={safeSelectedDate === dateValue ? 'active' : ''}
                       type="button" 
                       key={dateValue}
-                      onClick={() => setSelectedDate(dateValue)}
+                      onClick={() => selectAgendaDate(dateValue)}
                     >
                       <span>{dayLabel}</span>
                       <strong>{dayNum}</strong>
