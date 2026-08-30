@@ -8,6 +8,7 @@ import { supabase } from '../../lib/supabaseClient'
 import { useApp } from '../../contexts/appContextCore'
 import { getCurrentBrowserCoordinates } from '../../utils/browserGeolocation'
 import { buildGoogleMapsUrl, createProfessionalLocation, hasCoordinates, validateProfessionalLocation } from '../../utils/locationHelpers'
+import { getAppointmentStatusTone } from '../../utils/appointmentStatus'
 import { getCurrentProfile, getCurrentStudio } from '../../modules/entities/entitySelectors'
 import { paths } from '../../routes/paths'
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
@@ -225,7 +226,7 @@ function StudioSummarySection({
                 <strong>{getAppointmentTime(appointment)} / {appointment.client || 'Clienta'}</strong>
                 <small>{appointment.service || 'Servicio'} / {appointment.contextName || studioName}</small>
               </div>
-              <StatusPill tone="success">Confirmada</StatusPill>
+              <StatusPill tone={getAppointmentStatusTone(appointment)}>{appointment.status || 'Confirmada'}</StatusPill>
             </div>
           ))}
           {selectedDateAppointments.length === 0 && (
@@ -507,7 +508,7 @@ function StudioScheduleSection({
                 <strong>{getAppointmentTime(appointment)} / {appointment.client || 'Clienta'}</strong>
                 <small>{appointment.service || 'Servicio'} / {appointment.contextName || studioName}</small>
               </div>
-              <StatusPill tone="success">Confirmada</StatusPill>
+              <StatusPill tone={getAppointmentStatusTone(appointment)}>{appointment.status || 'Confirmada'}</StatusPill>
             </div>
           ))}
           {selectedDateAppointments.length === 0 && (

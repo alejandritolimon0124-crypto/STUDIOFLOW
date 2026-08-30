@@ -1460,6 +1460,11 @@ select:focus,
   color: var(--rose-dark);
 }
 
+.status-danger {
+  background: rgba(141, 63, 73, 0.18);
+  color: #8d3f49;
+}
+
 .status-neutral {
   background: rgba(247, 238, 235, 0.9);
   color: var(--muted);

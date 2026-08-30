@@ -8,6 +8,7 @@ import StatusPill from '../../components/StatusPill'
 import { useApp } from '../../contexts/appContextCore'
 import { fetchArtistClients } from '../../services/artistClientService'
 import { fetchManualArtistAvailability } from '../../services/appointmentService'
+import { getAppointmentStatusTone } from '../../utils/appointmentStatus'
 
 function getTodayDateValue() {
   const today = new Date()
@@ -308,7 +309,7 @@ function ArtistAppointments() {
               </div>
               <div className="row-actions" style={{ justifyContent: 'flex-end', gap: 6 }}>
                 <StatusPill tone="neutral">{getAppointmentContextLabel(appointment)}</StatusPill>
-                <StatusPill tone="success">{appointment.status}</StatusPill>
+                <StatusPill tone={getAppointmentStatusTone(appointment)}>{appointment.status}</StatusPill>
               </div>
             </div>
           )) : (
@@ -595,7 +596,7 @@ function ArtistAppointments() {
               </div>
               <div className="row-actions" style={{ justifyContent: 'flex-end', gap: 6 }}>
                 <StatusPill tone="neutral">{getAppointmentContextLabel(appointment)}</StatusPill>
-                <StatusPill tone="neutral">{appointment.status}</StatusPill>
+                <StatusPill tone={getAppointmentStatusTone(appointment)}>{appointment.status}</StatusPill>
               </div>
             </div>
           )) : (
