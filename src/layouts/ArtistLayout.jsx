@@ -18,7 +18,7 @@ const copyByPath = {
   [paths.artistServices]: ['Servicios', 'Crea, edita, activa o suspende servicios de tu menu.'],
   [paths.artistSchedule]: ['Horarios', 'Define disponibilidad, descansos, bloqueos y reglas de agenda.'],
   [paths.artistClients]: ['Clientas', 'Seguimiento de clientas recurrentes y valor historico.'],
-  [paths.artistMarketing]: ['Marketing & Growth', 'Automatiza promociones, fidelización y crecimiento inteligente.'],
+  [paths.artistMarketing]: ['Modulo Marketplace', 'Configura beneficios Flow Points, puntos dobles y Happy Hour.'],
   [paths.artistSettings]: ['MI PERFIL', 'Administra la fuente profesional que alimentara tu Perfil Publico.'],
 }
 

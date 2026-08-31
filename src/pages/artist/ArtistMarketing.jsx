@@ -88,7 +88,7 @@ function ArtistMarketing() {
     artistStudioMemberships,
     preferredStudioId: primaryMembership?.studioId,
   }) || adminState.studios[0]
-  const canUseMarketing = canUseOperationalFeature(currentStudio, 'marketing')
+  const canUseMarketing = !primaryMembership?.studioId || canUseOperationalFeature(currentStudio, 'marketing')
   const loadedClients = Array.isArray(artistState.clients) ? artistState.clients : []
   const loadedAppointments = Array.isArray(artistState.appointments) ? artistState.appointments : []
   const loadedServices = Array.isArray(artistState.services) ? artistState.services : []
@@ -335,9 +335,9 @@ function ArtistMarketing() {
       <main className="dashboard-grid artist-grid">
         <section className="hero-panel studio-hero mobile-screen premium-hero">
           <div>
-            <span className="eyebrow">Studio Flow Curated Access</span>
-            <h2>Growth preparado para tu aprobacion</h2>
-            <p>Tu estudio esta siendo validado para mantener la calidad premium de Studio Flow. Mientras tanto puedes dejar listos servicios, horarios y perfil.</p>
+            <span className="eyebrow">Modulo Marketplace</span>
+            <h2>Marketplace preparado para tu aprobacion</h2>
+            <p>Tu estudio esta siendo validado para mantener la calidad premium de Studio Flow. Mientras tanto puedes dejar listos beneficios, puntos y promociones.</p>
           </div>
           <div className="hero-summary">
             <span>Estado del estudio</span>
@@ -350,7 +350,7 @@ function ArtistMarketing() {
           <PanelHeader title="Herramientas reservadas" eyebrow="Gobernanza premium" />
           <div className="access-guard-grid">
             {[
-              ['Marketing', 'Disponible al completar la validacion del estudio.'],
+              ['Marketplace', 'Disponible al completar la validacion del estudio.'],
               ['Automatizaciones', 'Se activaran cuando la experiencia este aprobada.'],
               ['Economia', 'Revenue y comisiones quedan en modo preparacion.'],
               ['Agenda publica', 'Tu estudio no aparece en busqueda hasta finalizar revision.'],
@@ -374,8 +374,8 @@ function ArtistMarketing() {
       <section className="hero-panel studio-hero mobile-screen premium-hero">
         <div>
           <span className="eyebrow">Studio Flow</span>
-          <h2>Marketing & Growth</h2>
-          <p>Automatiza promociones, fidelización y crecimiento inteligente.</p>
+          <h2>Modulo Marketplace</h2>
+          <p>Configura beneficios Flow Points, puntos dobles y Happy Hour.</p>
         </div>
         <div className="hero-summary">
           <span>{happyHour ? 'Horario activo' : 'Lista para lanzar'}</span>
