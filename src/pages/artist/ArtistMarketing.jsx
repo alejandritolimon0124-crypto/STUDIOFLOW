@@ -206,12 +206,16 @@ function ArtistMarketing() {
   }
 
   const toggleFlowPointsEnabled = async () => {
+    const nextActive = !flowPointsEnabled
+    const previousSettings = marketingSettings
     setIsMarketingSaving(true)
+    setMarketingSettings((current) => ({ ...current, flowPointsEnabled: nextActive }))
     try {
-      const settings = await setArtistFlowPointsEnabled({ active: !flowPointsEnabled })
+      const settings = await setArtistFlowPointsEnabled({ active: nextActive })
       setMarketingSettings(settings)
-      triggerToast(!flowPointsEnabled ? 'Flow Points activos para reservas' : 'Flow Points pausados')
+      triggerToast(nextActive ? 'Flow Points activos para reservas' : 'Flow Points pausados')
     } catch (error) {
+      setMarketingSettings(previousSettings)
       triggerToast(error.message || 'No se pudo actualizar Flow Points')
     } finally {
       setIsMarketingSaving(false)
@@ -219,12 +223,23 @@ function ArtistMarketing() {
   }
 
   const toggleDoublePoints = async () => {
+    const nextActive = !doublePointsActive
+    const previousSettings = marketingSettings
     setIsMarketingSaving(true)
+    setMarketingSettings((current) => ({
+      ...current,
+      doublePoints: {
+        ...current.doublePoints,
+        status: nextActive ? 'active' : 'paused',
+        rules: { ...(current.doublePoints?.rules || {}), multiplier: 2 },
+      },
+    }))
     try {
-      await setArtistDoublePointsPromotion({ active: !doublePointsActive })
-      await loadMarketingSettings()
-      triggerToast(!doublePointsActive ? 'Puntos dobles activados' : 'Puntos dobles desactivados')
+      const promotion = await setArtistDoublePointsPromotion({ active: nextActive })
+      setMarketingSettings((current) => ({ ...current, doublePoints: promotion }))
+      triggerToast(nextActive ? 'Puntos dobles activados' : 'Puntos dobles desactivados')
     } catch (error) {
+      setMarketingSettings(previousSettings)
       triggerToast(error.message || 'No se pudo actualizar puntos dobles')
     } finally {
       setIsMarketingSaving(false)
@@ -241,13 +256,28 @@ function ArtistMarketing() {
   }
 
   const saveHappyHour = async (active = true) => {
+    const previousSettings = marketingSettings
     setIsMarketingSaving(true)
+    setMarketingSettings((current) => ({
+      ...current,
+      happyHour: {
+        ...current.happyHour,
+        status: active ? 'active' : 'paused',
+        rules: {
+          discountPercent: happyHourDraft.discountPercent,
+          weekdays: happyHourDraft.weekdays,
+          startTime: happyHourDraft.startTime,
+          endTime: happyHourDraft.endTime,
+        },
+      },
+    }))
     try {
-      await saveArtistHappyHourPromotion({ ...happyHourDraft, active })
-      await loadMarketingSettings()
+      const promotion = await saveArtistHappyHourPromotion({ ...happyHourDraft, active })
+      setMarketingSettings((current) => ({ ...current, happyHour: promotion }))
       setHappyHour(active)
       triggerToast(active ? 'Happy Hour actualizado' : 'Happy Hour pausado')
     } catch (error) {
+      setMarketingSettings(previousSettings)
       triggerToast(error.message || 'No se pudo guardar Happy Hour')
     } finally {
       setIsMarketingSaving(false)
@@ -468,10 +498,18 @@ function ArtistMarketing() {
           eyebrow="Canje de puntos"
           action={<Button disabled={isMarketingSaving || !rewardDraft.pointsCost} size="sm" onClick={addFlowPointReward}>Agregar beneficio Flow Points</Button>}
         />
-        <label className="toggle-row marketplace-main-toggle">
-          Flow Points activos para clientas
-          <input type="checkbox" checked={flowPointsEnabled} disabled={isMarketingSaving} onChange={toggleFlowPointsEnabled} />
-        </label>
+        <div className={`marketplace-switch-card ${flowPointsEnabled ? 'active' : ''}`}>
+          <label className="toggle-row marketplace-main-toggle">
+            <span>
+              <strong>Flow Points activos para clientas</strong>
+              <small>{flowPointsEnabled ? 'Las clientas pueden ganar y canjear puntos.' : 'Los puntos estan pausados para este perfil.'}</small>
+            </span>
+            <input type="checkbox" checked={flowPointsEnabled} disabled={isMarketingSaving} onChange={toggleFlowPointsEnabled} />
+          </label>
+          <Button disabled={isMarketingSaving} size="sm" variant={flowPointsEnabled ? 'danger' : 'success'} onClick={toggleFlowPointsEnabled}>
+            {flowPointsEnabled ? 'Desactivar Flow Points' : 'Activar Flow Points'}
+          </Button>
+        </div>
         <div className="location-form-grid">
           <label className="input-field">
             <span>Descuento</span>
@@ -556,11 +594,11 @@ function ArtistMarketing() {
           ))}
         </div>
         <div className="row-actions">
-          <Button disabled={isMarketingSaving} size="sm" variant="success" onClick={() => saveHappyHour(true)}>
-            {happyHourActive ? 'Actualizar Happy Hour' : 'Activar Happy Hour'}
+          <Button disabled={isMarketingSaving} size="sm" variant={happyHourActive ? 'danger' : 'success'} onClick={() => saveHappyHour(!happyHourActive)}>
+            {happyHourActive ? 'Desactivar Happy Hour' : 'Activar Happy Hour'}
           </Button>
-          <Button disabled={isMarketingSaving || !happyHourActive} size="sm" variant="ghost" onClick={() => saveHappyHour(false)}>
-            Pausar
+          <Button disabled={isMarketingSaving} size="sm" variant="ghost" onClick={() => saveHappyHour(true)}>
+            Guardar ajustes
           </Button>
         </div>
       </Card>
