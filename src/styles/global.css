@@ -338,38 +338,6 @@ p {
   bottom: 132px;
 }
 
-.app-error-screen {
-  align-items: center;
-  background: linear-gradient(180deg, #fff7f7, #f4e6e3);
-  display: flex;
-  min-height: 100vh;
-  padding: 24px;
-}
-
-.app-error-card {
-  background: rgba(255, 255, 255, 0.9);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
-  display: grid;
-  gap: 12px;
-  margin: 0 auto;
-  max-width: 420px;
-  padding: 22px;
-}
-
-.app-error-card h1 {
-  font-size: 28px;
-  line-height: 1;
-  margin: 0;
-}
-
-.app-error-card p,
-.app-error-card small {
-  color: var(--muted);
-  margin: 0;
-}
-
 .pwa-install-close {
   align-items: center;
   background: rgba(255, 255, 255, 0.72);
