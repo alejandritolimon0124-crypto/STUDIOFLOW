@@ -23,6 +23,7 @@ function normalizeBillingEntity(entity = {}) {
     todayCommission: normalizeNumber(entity.todayCommission ?? entity.today_commission),
     overdueCommission: normalizeNumber(entity.overdueCommission ?? entity.overdue_commission),
     unpaidCommission: normalizeNumber(entity.unpaidCommission ?? entity.unpaid_commission),
+    redeemedPointsYear: normalizeNumber(entity.redeemedPointsYear ?? entity.redeemed_points_year),
     appointmentCount: normalizeNumber(entity.appointmentCount ?? entity.appointment_count),
     status: entity.status || 'current',
   }
@@ -48,6 +49,7 @@ function normalizeHistoryEntity(entity = {}) {
     name: entity.name || 'Cuenta',
     email: entity.email || '',
     phone: entity.phone || '',
+    redeemedPointsYear: normalizeNumber(entity.redeemedPointsYear ?? entity.redeemed_points_year),
     months: asArray(entity.months).map(normalizeHistoryMonth),
   }
 }

@@ -124,6 +124,7 @@ function ArtistDashboard({ view = 'agenda' }) {
     manualArtistAppointmentStatus,
     isManualArtistAppointmentSaving,
     requestArtistAppointmentConfirmations,
+    awardAppointmentFlowPoints,
     selectedDate,
     setSelectedDate,
   } = useApp()
@@ -805,6 +806,17 @@ function ArtistDashboard({ view = 'agenda' }) {
                         type={item.type}
                         showEconomy={canUseEconomy}
                         economyData={economyData}
+                        action={(
+                          <Button
+                            className="flow-points-award-button"
+                            disabled={!item.flowPointsAwarded || item.pointsGranted > 0}
+                            size="sm"
+                            variant="success"
+                            onClick={() => awardAppointmentFlowPoints({ appointmentId: item.id })}
+                          >
+                            {item.pointsGranted > 0 ? `+${item.pointsGranted} otorgados` : `Otorgar ${item.flowPointsAwarded || 0} pts`}
+                          </Button>
+                        )}
                       />
                     )
                   })}
@@ -848,12 +860,23 @@ function ArtistDashboard({ view = 'agenda' }) {
               <PanelHeader title="Proximas citas" eyebrow="Hoy" action={<Button size="sm">Nueva</Button>} />
               <div className="compact-list">
                 {artistAppointmentSource.length > 0 ? artistAppointmentSource.map((item) => (
-                  <div className="list-row elevated-row" key={item.client}>
+                  <div className="list-row elevated-row" key={`${item.id}-${item.client}-${item.time}`}>
                     <div>
                       <strong>{item.client}</strong>
                       <small>{item.service} / {item.contextName || item.room}</small>
                     </div>
-                    <span>{item.time}</span>
+                    <div className="row-actions billing-row-actions">
+                      <span>{item.time}</span>
+                      <Button
+                        className="flow-points-award-button"
+                        disabled={!item.flowPointsAwarded || item.pointsGranted > 0}
+                        size="sm"
+                        variant="success"
+                        onClick={() => awardAppointmentFlowPoints({ appointmentId: item.id })}
+                      >
+                        {item.pointsGranted > 0 ? `+${item.pointsGranted} otorgados` : `Otorgar ${item.flowPointsAwarded || 0} pts`}
+                      </Button>
+                    </div>
                   </div>
                 )) : (
                   <div className="list-row elevated-row">

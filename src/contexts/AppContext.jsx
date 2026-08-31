@@ -43,8 +43,10 @@ import {
 } from '../services/scheduleService'
 import {
   createManualArtistAppointment as createManualArtistAppointmentRecord,
+  awardAppointmentFlowPoints as awardAppointmentFlowPointsRecord,
   fetchArtistAppointments,
   fetchClientAppointments,
+  redeemClientFlowPoints as redeemClientFlowPointsRecord,
   requestArtistAppointmentConfirmations as requestArtistAppointmentConfirmationsRecord,
   updateClientAppointmentResponse as updateClientAppointmentResponseRecord,
 } from '../services/appointmentService'
@@ -1648,6 +1650,38 @@ export function AppProvider({ children }) {
     }
   }, [loadArtistAppointments, session.isMockSession, session.role])
 
+  const awardAppointmentFlowPoints = useCallback(async ({ appointmentId } = {}) => {
+    if (session.isMockSession || session.role !== ROLES.ARTIST) return null
+
+    setManualArtistAppointmentError('')
+    setManualArtistAppointmentStatus('')
+
+    try {
+      const payload = await awardAppointmentFlowPointsRecord({ appointmentId })
+      setManualArtistAppointmentStatus(`Flow Points otorgados: ${payload?.pointsAwarded || payload?.points_awarded || 0}.`)
+      await loadArtistAppointments()
+      return payload
+    } catch (error) {
+      setManualArtistAppointmentError(error.message || 'No se pudieron otorgar Flow Points.')
+      return null
+    }
+  }, [loadArtistAppointments, session.isMockSession, session.role])
+
+  const redeemClientFlowPoints = useCallback(async ({ points, artistId = null, studioId = null } = {}) => {
+    if (session.isMockSession || session.role !== ROLES.CLIENT) return null
+
+    setBookingError('')
+
+    try {
+      const payload = await redeemClientFlowPointsRecord({ points, artistId, studioId })
+      await loadClientAppointments()
+      return payload
+    } catch (error) {
+      setBookingError(error.message || 'No se pudieron canjear Flow Points.')
+      return null
+    }
+  }, [loadClientAppointments, session.isMockSession, session.role])
+
   const loadIndependentArtistPublicationReadiness = useCallback(async (
     artistId = session.artist?.id || session.user?.artistId,
   ) => {
@@ -2815,7 +2849,9 @@ export function AppProvider({ children }) {
       loadClientAppointments,
       loadArtistAppointments,
       createManualArtistAppointment,
+      awardAppointmentFlowPoints,
       updateClientAppointmentResponse,
+      redeemClientFlowPoints,
       requestArtistAppointmentConfirmations,
       loadMarketplaceListings,
       loadMarketplaceAvailability,
@@ -2923,7 +2959,9 @@ export function AppProvider({ children }) {
       loadClientAppointments,
       loadArtistAppointments,
       createManualArtistAppointment,
+      awardAppointmentFlowPoints,
       updateClientAppointmentResponse,
+      redeemClientFlowPoints,
       requestArtistAppointmentConfirmations,
       loadMarketplaceListings,
       loadMarketplaceAvailability,

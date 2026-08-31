@@ -29,6 +29,11 @@ function getAppointmentTimeValue(value) {
   })
 }
 
+function normalizeNumber(value) {
+  const number = Number(value)
+  return Number.isFinite(number) ? number : 0
+}
+
 function normalizeAppointment(appointment = {}) {
   const contextName = appointment.contextName
     || appointment.context_name
@@ -58,6 +63,8 @@ function normalizeAppointment(appointment = {}) {
     appointmentStatus: appointment.appointmentStatus || appointment.appointment_status || 'scheduled',
     clientConfirmedAt: appointment.clientConfirmedAt || appointment.client_confirmed_at || null,
     confirmationRequestedAt: appointment.confirmationRequestedAt || appointment.confirmation_requested_at || null,
+    pointsGranted: normalizeNumber(appointment.pointsGranted || appointment.points_granted),
+    flowPointsAwarded: normalizeNumber(appointment.flowPointsAwarded || appointment.flow_points_awarded),
   }
 }
 

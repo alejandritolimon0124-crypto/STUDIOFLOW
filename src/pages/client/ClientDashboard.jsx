@@ -17,6 +17,7 @@ import {
 } from '../../modules/entities/entitySelectors'
 import { buildGoogleMapsQuery, buildGoogleMapsUrl } from '../../utils/locationHelpers'
 import { getMaxBirthDateForAdult, validateBirthDate } from '../../utils/birthdayValidation'
+import { fetchClientFlowPointsBalance } from '../../services/appointmentService'
 
 const clientConfirmationNoticeKey = 'studio-flow-client-confirmation-notices'
 
@@ -674,6 +675,7 @@ function ClientDashboard({ view = 'inicio' }) {
     bookMarketplaceAppointment,
     getAvailableSlots,
     updateClientAppointmentResponse,
+    redeemClientFlowPoints,
     toggleFavoriteArtist,
     updateClientProfile,
   } = useApp()
@@ -693,6 +695,9 @@ function ClientDashboard({ view = 'inicio' }) {
   const [appointmentHistoryDate, setAppointmentHistoryDate] = useState('')
   const [visibleHistoryCount, setVisibleHistoryCount] = useState(5)
   const [respondingAppointmentId, setRespondingAppointmentId] = useState('')
+  const [clientFlowPoints, setClientFlowPoints] = useState({ monthlyBalance: 0, monthlyEarned: 0, monthlySpent: 0 })
+  const [redeemDraft, setRedeemDraft] = useState({ points: '', targetId: '' })
+  const [redeemStatus, setRedeemStatus] = useState('')
   const [notificationPermission, setNotificationPermission] = useState(() => (
     canUseBrowserNotifications() ? Notification.permission : 'unsupported'
   ))
@@ -1152,6 +1157,72 @@ function ClientDashboard({ view = 'inicio' }) {
     await updateClientAppointmentResponse({ appointmentId, action })
     setRespondingAppointmentId('')
   }
+
+  useEffect(() => {
+    if (!hasRealClientSession) return undefined
+
+    let isActive = true
+    fetchClientFlowPointsBalance()
+      .then((balance) => {
+        if (isActive) setClientFlowPoints(balance)
+      })
+      .catch(() => {
+        if (isActive) setClientFlowPoints({ monthlyBalance: 0, monthlyEarned: 0, monthlySpent: 0 })
+      })
+
+    return () => {
+      isActive = false
+    }
+  }, [hasRealClientSession, realClientAppointments])
+
+  const redeemTargets = useMemo(() => {
+    const targets = new Map()
+    realClientAppointments.forEach((appointment) => {
+      if (appointment.studioId) {
+        targets.set(`studio:${appointment.studioId}`, {
+          id: appointment.studioId,
+          type: 'studio',
+          label: appointment.contextName || appointment.room || 'Estudio',
+        })
+        return
+      }
+
+      if (appointment.artistId) {
+        targets.set(`artist:${appointment.artistId}`, {
+          id: appointment.artistId,
+          type: 'artist',
+          label: appointment.artist || appointment.contextName || 'Artista',
+        })
+      }
+    })
+
+    return [...targets.values()]
+  }, [realClientAppointments])
+
+  const redeemFlowPoints = async () => {
+    const target = redeemTargets.find((item) => `${item.type}:${item.id}` === redeemDraft.targetId)
+    const points = Number(redeemDraft.points)
+
+    if (!target || !Number.isFinite(points) || points <= 0) {
+      setRedeemStatus('Elige cuantos puntos y donde canjearlos.')
+      return
+    }
+
+    const payload = await redeemClientFlowPoints({
+      points,
+      artistId: target.type === 'artist' ? target.id : null,
+      studioId: target.type === 'studio' ? target.id : null,
+    })
+
+    if (payload) {
+      setClientFlowPoints((current) => ({
+        ...current,
+        monthlyBalance: Number(payload.monthlyBalance || payload.monthly_balance || 0),
+      }))
+      setRedeemDraft({ points: '', targetId: '' })
+      setRedeemStatus('Flow Points canjeados.')
+    }
+  }
   const enableAppointmentNotifications = async () => {
     if (!canUseBrowserNotifications()) return
 
@@ -1348,6 +1419,46 @@ function ClientDashboard({ view = 'inicio' }) {
                 <strong>{upcomingAppointments.length} citas próximas</strong>
               </div>
             </section>
+
+            <Card className="mobile-screen flow-points-client-card">
+              <PanelHeader title="Flow Points" eyebrow="Este mes" />
+              <div className="flow-points-client-balance">
+                <span>Puntos disponibles</span>
+                <strong>{clientFlowPoints.monthlyBalance}</strong>
+              </div>
+              <div className="location-form-grid">
+                <Input
+                  label="Puntos a usar"
+                  min="1"
+                  max={clientFlowPoints.monthlyBalance || 1}
+                  type="number"
+                  value={redeemDraft.points}
+                  onChange={(event) => setRedeemDraft((draft) => ({ ...draft, points: event.target.value }))}
+                />
+                <label className="input-field">
+                  <span>Canjear con</span>
+                  <select
+                    value={redeemDraft.targetId}
+                    onChange={(event) => setRedeemDraft((draft) => ({ ...draft, targetId: event.target.value }))}
+                  >
+                    <option value="">Selecciona artista o estudio</option>
+                    {redeemTargets.map((target) => (
+                      <option value={`${target.type}:${target.id}`} key={`${target.type}:${target.id}`}>
+                        {target.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+              <Button
+                className="full-width"
+                disabled={!clientFlowPoints.monthlyBalance || !redeemTargets.length}
+                onClick={redeemFlowPoints}
+              >
+                Canjear puntos
+              </Button>
+              {redeemStatus && <small>{redeemStatus}</small>}
+            </Card>
 
             {pendingConfirmationCount > 0 && (
               <Card className="mobile-screen primary-panel">

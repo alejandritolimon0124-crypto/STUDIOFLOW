@@ -277,8 +277,14 @@ function AdminBilling() {
             <div className="table-row" key={`${entity.type}-${entity.id}`}>
               <strong>{entity.name}</strong>
               <span>{entity.type === 'studio' ? 'Estudio' : 'Artista'}</span>
-              <span>{formatCurrency(entity.currentMonthCommission)}</span>
-              <span>{formatCurrency(entity.unpaidCommission || entity.currentMonthUnpaid)}</span>
+              <span className="billing-amount-label">
+                <small>Comision del mes</small>
+                {formatCurrency(entity.currentMonthCommission)}
+              </span>
+              <span className="billing-amount-label">
+                <small>Adeudo</small>
+                {formatCurrency(entity.unpaidCommission || entity.currentMonthUnpaid)}
+              </span>
               <StatusPill tone={entity.status === 'overdue' ? 'warm' : 'success'}>
                 {entity.status === 'overdue' ? 'Con atraso' : 'Al corriente'}
               </StatusPill>
@@ -330,6 +336,7 @@ function AdminBilling() {
             <div className="billing-history-title">
               <strong>{entity.name}</strong>
               <small>{entity.type === 'studio' ? 'Estudio' : 'Artista'} / {entity.email || entity.phone || 'Sin contacto'} / {history.year}</small>
+              <small>Flow Points canjeados este año: {entity.redeemedPointsYear || 0}</small>
             </div>
             <div className="data-table executive-table">
               <div className="table-head">

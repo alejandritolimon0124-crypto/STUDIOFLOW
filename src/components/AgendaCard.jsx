@@ -1,7 +1,7 @@
 import StatusPill from './StatusPill'
 import { getAppointmentStatusTone } from '../utils/appointmentStatus'
 
-function AgendaCard({ time, title, subtitle, status, accent = 'rose', type = 'appointment', showEconomy = false, economyData = null }) {
+function AgendaCard({ time, title, subtitle, status, accent = 'rose', type = 'appointment', showEconomy = false, economyData = null, action = null }) {
   const tone = type === 'break' || status === 'Por llegar' || status === 'Anticipo'
     ? 'warm'
     : getAppointmentStatusTone(status)
@@ -31,7 +31,10 @@ function AgendaCard({ time, title, subtitle, status, accent = 'rose', type = 'ap
           </div>
         )}
       </div>
-      <StatusPill tone={tone}>{status}</StatusPill>
+      <div className="agenda-card-actions">
+        <StatusPill tone={tone}>{status}</StatusPill>
+        {action}
+      </div>
     </article>
   )
 }

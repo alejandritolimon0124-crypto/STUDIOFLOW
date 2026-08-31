@@ -53,6 +53,7 @@ function ArtistAppointments() {
     isManualArtistAppointmentSaving,
     manualArtistAppointmentError,
     manualArtistAppointmentStatus,
+    awardAppointmentFlowPoints,
     createManualArtistAppointment,
     loadArtistAppointments,
     requestArtistAppointmentConfirmations,
@@ -310,6 +311,15 @@ function ArtistAppointments() {
               <div className="row-actions" style={{ justifyContent: 'flex-end', gap: 6 }}>
                 <StatusPill tone="neutral">{getAppointmentContextLabel(appointment)}</StatusPill>
                 <StatusPill tone={getAppointmentStatusTone(appointment)}>{appointment.status}</StatusPill>
+                <Button
+                  className="flow-points-award-button"
+                  disabled={!appointment.flowPointsAwarded || appointment.pointsGranted > 0}
+                  size="sm"
+                  variant="success"
+                  onClick={() => awardAppointmentFlowPoints({ appointmentId: appointment.id })}
+                >
+                  {appointment.pointsGranted > 0 ? `+${appointment.pointsGranted} otorgados` : `Otorgar ${appointment.flowPointsAwarded || 0} pts`}
+                </Button>
               </div>
             </div>
           )) : (
@@ -597,6 +607,15 @@ function ArtistAppointments() {
               <div className="row-actions" style={{ justifyContent: 'flex-end', gap: 6 }}>
                 <StatusPill tone="neutral">{getAppointmentContextLabel(appointment)}</StatusPill>
                 <StatusPill tone={getAppointmentStatusTone(appointment)}>{appointment.status}</StatusPill>
+                <Button
+                  className="flow-points-award-button"
+                  disabled={!appointment.flowPointsAwarded || appointment.pointsGranted > 0}
+                  size="sm"
+                  variant="success"
+                  onClick={() => awardAppointmentFlowPoints({ appointmentId: appointment.id })}
+                >
+                  {appointment.pointsGranted > 0 ? `+${appointment.pointsGranted} otorgados` : `Otorgar ${appointment.flowPointsAwarded || 0} pts`}
+                </Button>
               </div>
             </div>
           )) : (

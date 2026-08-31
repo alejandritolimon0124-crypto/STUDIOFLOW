@@ -51,6 +51,7 @@ function normalizeAppointment(appointment = {}) {
     platformFee: normalizeNumber(appointment.platformFee || appointment.platform_fee),
     artistRevenue: normalizeNumber(appointment.artistRevenue || appointment.artist_revenue),
     pointsGranted: normalizeNumber(appointment.pointsGranted || appointment.points_granted),
+    flowPointsAwarded: normalizeNumber(appointment.flowPointsAwarded || appointment.flow_points_awarded),
     riskScore: appointment.riskScore || appointment.risk_score || 'low',
   }
 }
@@ -130,6 +131,45 @@ export async function updateClientAppointmentResponse({ appointmentId, action } 
   if (error) throw error
 
   return normalizeAppointment(data?.appointment)
+}
+
+export async function awardAppointmentFlowPoints({ appointmentId } = {}) {
+  if (!appointmentId) throw new Error('Cita requerida.')
+
+  const client = requireSupabase()
+  const { data, error } = await client.rpc('studio_flow_artist_award_appointment_points', {
+    p_appointment_id: appointmentId,
+  })
+
+  if (error) throw error
+
+  return data
+}
+
+export async function redeemClientFlowPoints({ points, artistId = null, studioId = null } = {}) {
+  const client = requireSupabase()
+  const { data, error } = await client.rpc('studio_flow_client_redeem_flow_points', {
+    p_points: Number(points) || 0,
+    p_artist_id: artistId,
+    p_studio_id: studioId,
+  })
+
+  if (error) throw error
+
+  return data
+}
+
+export async function fetchClientFlowPointsBalance() {
+  const client = requireSupabase()
+  const { data, error } = await client.rpc('studio_flow_client_get_flow_points_balance')
+
+  if (error) throw error
+
+  return {
+    monthlyBalance: normalizeNumber(data?.monthlyBalance ?? data?.monthly_balance),
+    monthlyEarned: normalizeNumber(data?.monthlyEarned ?? data?.monthly_earned),
+    monthlySpent: normalizeNumber(data?.monthlySpent ?? data?.monthly_spent),
+  }
 }
 
 export async function requestArtistAppointmentConfirmations({ date = null } = {}) {

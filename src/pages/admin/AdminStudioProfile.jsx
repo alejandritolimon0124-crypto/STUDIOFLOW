@@ -19,6 +19,7 @@ import {
   requestStudioOwnerAppointmentConfirmations,
   searchStudioOwnerClients,
 } from '../../services/studioOwnerAppointmentService'
+import { awardAppointmentFlowPoints } from '../../services/appointmentService'
 import {
   cancelStudioArtistInvitation,
   fetchStudioMembershipOperations,
@@ -139,6 +140,7 @@ function StudioSummarySection({
   currentStudio,
   membershipOperationsById,
   navigate,
+  onAwardFlowPoints,
   onRequestConfirmations,
   ownerAppointments,
   profileDraft,
@@ -226,7 +228,18 @@ function StudioSummarySection({
                 <strong>{getAppointmentTime(appointment)} / {appointment.client || 'Clienta'}</strong>
                 <small>{appointment.service || 'Servicio'} / {appointment.contextName || studioName}</small>
               </div>
-              <StatusPill tone={getAppointmentStatusTone(appointment)}>{appointment.status || 'Confirmada'}</StatusPill>
+              <div className="agenda-card-actions">
+                <StatusPill tone={getAppointmentStatusTone(appointment)}>{appointment.status || 'Confirmada'}</StatusPill>
+                <Button
+                  className="flow-points-award-button"
+                  disabled={!appointment.flowPointsAwarded || appointment.pointsGranted > 0}
+                  size="sm"
+                  variant="success"
+                  onClick={() => onAwardFlowPoints(appointment)}
+                >
+                  {appointment.pointsGranted > 0 ? `+${appointment.pointsGranted} otorgados` : `Otorgar ${appointment.flowPointsAwarded || 0} pts`}
+                </Button>
+              </div>
             </div>
           ))}
           {selectedDateAppointments.length === 0 && (
@@ -455,6 +468,7 @@ function StudioScheduleSection({
   membershipOperationsById,
   membershipOperationsLoadingId,
   onOpenAppointmentModal,
+  onAwardFlowPoints,
   onRequestConfirmations,
   ownerAppointments,
   profileDraft,
@@ -508,7 +522,18 @@ function StudioScheduleSection({
                 <strong>{getAppointmentTime(appointment)} / {appointment.client || 'Clienta'}</strong>
                 <small>{appointment.service || 'Servicio'} / {appointment.contextName || studioName}</small>
               </div>
-              <StatusPill tone={getAppointmentStatusTone(appointment)}>{appointment.status || 'Confirmada'}</StatusPill>
+              <div className="agenda-card-actions">
+                <StatusPill tone={getAppointmentStatusTone(appointment)}>{appointment.status || 'Confirmada'}</StatusPill>
+                <Button
+                  className="flow-points-award-button"
+                  disabled={!appointment.flowPointsAwarded || appointment.pointsGranted > 0}
+                  size="sm"
+                  variant="success"
+                  onClick={() => onAwardFlowPoints(appointment)}
+                >
+                  {appointment.pointsGranted > 0 ? `+${appointment.pointsGranted} otorgados` : `Otorgar ${appointment.flowPointsAwarded || 0} pts`}
+                </Button>
+              </div>
             </div>
           ))}
           {selectedDateAppointments.length === 0 && (
@@ -1023,6 +1048,23 @@ function AdminStudioProfile() {
       setConfirmationFeedback({ tone: 'warm', message: error.message || 'No se pudo enviar el aviso.' })
     }
   }, [currentStudio?.id, loadStudioOwnerAppointments])
+
+  const awardStudioAppointmentPoints = useCallback(async (appointment = {}) => {
+    if (!appointment.id) return
+
+    setConfirmationFeedback({ tone: 'neutral', message: '' })
+
+    try {
+      const payload = await awardAppointmentFlowPoints({ appointmentId: appointment.id })
+      setConfirmationFeedback({
+        tone: 'success',
+        message: `Flow Points otorgados: ${payload?.pointsAwarded || payload?.points_awarded || 0}.`,
+      })
+      await loadStudioOwnerAppointments()
+    } catch (error) {
+      setConfirmationFeedback({ tone: 'warm', message: error.message || 'No se pudieron otorgar Flow Points.' })
+    }
+  }, [loadStudioOwnerAppointments])
 
   const loadStudioMemberships = useCallback(async ({ silent = false, successMessage = '' } = {}) => {
     if (!currentStudio?.id) return null
@@ -1585,6 +1627,7 @@ function AdminStudioProfile() {
               currentStudio={currentStudio}
               membershipOperationsById={membershipOperationsById}
               navigate={navigate}
+              onAwardFlowPoints={awardStudioAppointmentPoints}
               onRequestConfirmations={sendStudioConfirmationRequests}
               ownerAppointments={ownerAppointments}
               profileDraft={profileDraft}
@@ -2071,6 +2114,7 @@ function AdminStudioProfile() {
               membershipOperationsById={membershipOperationsById}
               membershipOperationsLoadingId={membershipOperationsLoadingId}
               onOpenAppointmentModal={openOwnerAppointmentModal}
+              onAwardFlowPoints={awardStudioAppointmentPoints}
               onRequestConfirmations={sendStudioConfirmationRequests}
               ownerAppointments={ownerAppointments}
               profileDraft={profileDraft}

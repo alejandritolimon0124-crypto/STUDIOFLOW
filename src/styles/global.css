@@ -1658,6 +1658,25 @@ select:focus,
   margin-top: 4px;
 }
 
+.agenda-card-actions {
+  align-items: flex-end;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.flow-points-award-button {
+  background: linear-gradient(135deg, #8a6f36, #b4934d);
+  border-color: rgba(138, 111, 54, 0.4);
+  box-shadow: 0 10px 24px rgba(138, 111, 54, 0.22);
+  color: #fff;
+  font-weight: 950;
+}
+
+.flow-points-award-button:disabled {
+  box-shadow: none;
+}
+
 .agenda-rules-strip {
   display: flex;
   flex-wrap: wrap;
@@ -2503,6 +2522,18 @@ select:focus,
   display: block;
   font-weight: 800;
   margin-top: 4px;
+}
+
+.billing-amount-label {
+  display: grid;
+  gap: 2px;
+}
+
+.billing-amount-label small {
+  color: var(--soft);
+  font-size: 10px;
+  font-weight: 900;
+  text-transform: uppercase;
 }
 
 .billing-history-result {
@@ -4186,6 +4217,34 @@ select:focus,
   display: block;
   font-size: 2rem;
   margin-bottom: 6px;
+}
+
+.flow-points-client-card {
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(247, 226, 221, 0.72)),
+    linear-gradient(315deg, rgba(180, 147, 77, 0.18), transparent 58%);
+}
+
+.flow-points-client-balance {
+  align-items: center;
+  border: 1px solid rgba(214, 186, 177, 0.75);
+  border-radius: var(--radius);
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 14px;
+  padding: 14px;
+}
+
+.flow-points-client-balance span {
+  color: var(--soft);
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.flow-points-client-balance strong {
+  color: #8a6f36;
+  font-size: 34px;
+  line-height: 1;
 }
 
 .client-photo-editor,
