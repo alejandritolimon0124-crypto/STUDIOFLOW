@@ -28,57 +28,60 @@ import ProtectedRoute from './routes/ProtectedRoute'
 import PWAInstallPrompt from './components/PWAInstallPrompt'
 import PWAResumeGuard from './components/PWAResumeGuard'
 import PWAUpdatePrompt from './components/PWAUpdatePrompt'
+import AppErrorBoundary from './components/AppErrorBoundary'
 import './styles/global.css'
 
 function App() {
   return (
-    <AppProvider>
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Navigate to="/login" replace />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/forgot-password" element={<ForgotPassword />} />
-          <Route path="/reset-password" element={<ResetPassword />} />
-          <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
+    <AppErrorBoundary>
+      <AppProvider>
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<Navigate to="/login" replace />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
 
-          <Route path="/client" element={<ProtectedRoute allowedRole="client"><ClientLayout /></ProtectedRoute>}>
-            <Route index element={<ClientDashboard view="inicio" />} />
-            <Route path="search" element={<ClientDashboard view="explorar" />} />
-            <Route path="appointments" element={<ClientDashboard view="citas" />} />
-            <Route path="favorites" element={<ClientDashboard view="favoritos" />} />
-            <Route path="profile" element={<ClientDashboard view="perfil" />} />
-          </Route>
+            <Route path="/client" element={<ProtectedRoute allowedRole="client"><ClientLayout /></ProtectedRoute>}>
+              <Route index element={<ClientDashboard view="inicio" />} />
+              <Route path="search" element={<ClientDashboard view="explorar" />} />
+              <Route path="appointments" element={<ClientDashboard view="citas" />} />
+              <Route path="favorites" element={<ClientDashboard view="favoritos" />} />
+              <Route path="profile" element={<ClientDashboard view="perfil" />} />
+            </Route>
 
-          <Route path="/artist" element={<ProtectedRoute allowedRole="artist"><ArtistLayout /></ProtectedRoute>}>
-            <Route index element={<ArtistDashboard view="agenda" />} />
-            <Route path="services" element={<ArtistServices />} />
-            <Route path="schedule" element={<ArtistScheduleSettings />} />
-            <Route path="appointments" element={<ArtistAppointments />} />
-            <Route path="clients" element={<ArtistClients />} />
-            <Route path="marketing" element={<ArtistMarketing />} />
-            <Route path="settings" element={<ArtistProfileSettings />} />
-          </Route>
+            <Route path="/artist" element={<ProtectedRoute allowedRole="artist"><ArtistLayout /></ProtectedRoute>}>
+              <Route index element={<ArtistDashboard view="agenda" />} />
+              <Route path="services" element={<ArtistServices />} />
+              <Route path="schedule" element={<ArtistScheduleSettings />} />
+              <Route path="appointments" element={<ArtistAppointments />} />
+              <Route path="clients" element={<ArtistClients />} />
+              <Route path="marketing" element={<ArtistMarketing />} />
+              <Route path="settings" element={<ArtistProfileSettings />} />
+            </Route>
 
-          <Route path="/admin" element={<ProtectedRoute allowedRole="admin"><AdminLayout /></ProtectedRoute>}>
-            <Route index element={<AdminDashboard />} />
-            <Route path="artists" element={<AdminArtists />} />
-            <Route path="studios" element={<AdminStudios />} />
-            <Route path="billing" element={<AdminBilling />} />
-            <Route path="clients" element={<AdminClients />} />
-            <Route path="system" element={<QASandbox />} />
-          </Route>
+            <Route path="/admin" element={<ProtectedRoute allowedRole="admin"><AdminLayout /></ProtectedRoute>}>
+              <Route index element={<AdminDashboard />} />
+              <Route path="artists" element={<AdminArtists />} />
+              <Route path="studios" element={<AdminStudios />} />
+              <Route path="billing" element={<AdminBilling />} />
+              <Route path="clients" element={<AdminClients />} />
+              <Route path="system" element={<QASandbox />} />
+            </Route>
 
-          <Route element={<ProtectedRoute allowedRole="admin"><StudioOwnerLayout /></ProtectedRoute>}>
-            <Route path="/admin/studio" element={<AdminStudioProfile />} />
-            <Route path="/admin/studio/clients" element={<AdminClients />} />
-          </Route>
-        </Routes>
-        <PWAResumeGuard />
-        <PWAInstallPrompt />
-        <PWAUpdatePrompt />
-      </BrowserRouter>
-    </AppProvider>
+            <Route element={<ProtectedRoute allowedRole="admin"><StudioOwnerLayout /></ProtectedRoute>}>
+              <Route path="/admin/studio" element={<AdminStudioProfile />} />
+              <Route path="/admin/studio/clients" element={<AdminClients />} />
+            </Route>
+          </Routes>
+          <PWAResumeGuard />
+          <PWAInstallPrompt />
+          <PWAUpdatePrompt />
+        </BrowserRouter>
+      </AppProvider>
+    </AppErrorBoundary>
   )
 }
 
