@@ -6,7 +6,11 @@ import MetricCard from '../../components/MetricCard'
 import PanelHeader from '../../components/PanelHeader'
 import StatusPill from '../../components/StatusPill'
 import { useApp } from '../../contexts/appContextCore'
-import { fetchAdminBillingSummary } from '../../services/adminBillingService'
+import {
+  fetchAdminBillingHistory,
+  fetchAdminBillingSummary,
+  markAdminCommissionPaid,
+} from '../../services/adminBillingService'
 
 const formatCurrency = (value) => `$${Math.round(Number(value) || 0).toLocaleString('es-MX')}`
 
@@ -108,6 +112,7 @@ function buildFallbackBilling(adminState, query = '') {
 function AdminBilling() {
   const { adminState } = useApp()
   const [query, setQuery] = useState('')
+  const [historyQuery, setHistoryQuery] = useState('')
   const [billing, setBilling] = useState({
     month: '',
     currentMonthGross: 0,
@@ -119,7 +124,11 @@ function AdminBilling() {
     entities: [],
   })
   const [isLoading, setIsLoading] = useState(false)
+  const [isMarkingPaid, setIsMarkingPaid] = useState('')
+  const [isHistoryLoading, setIsHistoryLoading] = useState(false)
   const [error, setError] = useState('')
+  const [historyStatus, setHistoryStatus] = useState('')
+  const [history, setHistory] = useState({ year: new Date().getFullYear(), entities: [] })
 
   const loadBilling = async (nextQuery = query) => {
     setIsLoading(true)
@@ -141,6 +150,49 @@ function AdminBilling() {
   }, [])
 
   const visibleEntities = useMemo(() => billing.entities.slice(0, 5), [billing.entities])
+
+  const markAsPaid = async (entity) => {
+    const actionId = `${entity.type}-${entity.id}`
+    setIsMarkingPaid(actionId)
+    setError('')
+
+    try {
+      await markAdminCommissionPaid({
+        entityType: entity.type,
+        entityId: entity.id,
+        month: billing.month ? `${billing.month}-01` : null,
+      })
+      await loadBilling(query)
+      setHistoryStatus(`${entity.name} marcado como pagado.`)
+    } catch (requestError) {
+      setError(requestError.message || 'No se pudo marcar como pagado.')
+    } finally {
+      setIsMarkingPaid('')
+    }
+  }
+
+  const loadHistory = async () => {
+    const nextQuery = historyQuery.trim()
+    if (!nextQuery) {
+      setHistory({ year: new Date().getFullYear(), entities: [] })
+      setHistoryStatus('Escribe nombre, correo o celular para consultar historial.')
+      return
+    }
+
+    setIsHistoryLoading(true)
+    setHistoryStatus('')
+
+    try {
+      const payload = await fetchAdminBillingHistory({ query: nextQuery })
+      setHistory(payload)
+      setHistoryStatus(payload.entities.length ? '' : 'Sin resultados para esta busqueda.')
+    } catch (requestError) {
+      setHistory({ year: new Date().getFullYear(), entities: [] })
+      setHistoryStatus(requestError.message || 'No se pudo cargar el historial.')
+    } finally {
+      setIsHistoryLoading(false)
+    }
+  }
 
   return (
     <main className="dashboard-grid admin-grid">
@@ -197,16 +249,27 @@ function AdminBilling() {
             <span>Cuenta</span>
             <span>Tipo</span>
             <span>Comision del mes</span>
+            <span>Adeudo</span>
             <span>Estatus</span>
+            <span>Accion</span>
           </div>
           {visibleEntities.map((entity) => (
             <div className="table-row" key={`${entity.type}-${entity.id}`}>
               <strong>{entity.name}</strong>
               <span>{entity.type === 'studio' ? 'Estudio' : 'Artista'}</span>
               <span>{formatCurrency(entity.currentMonthCommission)}</span>
+              <span>{formatCurrency(entity.unpaidCommission || entity.currentMonthUnpaid)}</span>
               <StatusPill tone={entity.status === 'overdue' ? 'warm' : 'success'}>
                 {entity.status === 'overdue' ? 'Con atraso' : 'Al corriente'}
               </StatusPill>
+              <Button
+                disabled={isMarkingPaid === `${entity.type}-${entity.id}` || !entity.currentMonthCommission}
+                size="sm"
+                variant="ghost"
+                onClick={() => markAsPaid(entity)}
+              >
+                {isMarkingPaid === `${entity.type}-${entity.id}` ? 'Guardando...' : 'Pagado'}
+              </Button>
             </div>
           ))}
           {!isLoading && visibleEntities.length === 0 && (
@@ -217,6 +280,57 @@ function AdminBilling() {
             </div>
           )}
         </div>
+      </Card>
+
+      <Card className="wide-card executive-card">
+        <PanelHeader title="Historial" eyebrow="Consulta anual" />
+        <div className="admin-search">
+          <div className="location-form-grid">
+            <Input
+              label="Buscar historial"
+              placeholder="Nombre, correo o celular..."
+              type="search"
+              value={historyQuery}
+              onChange={(event) => {
+                setHistoryQuery(event.target.value)
+                setHistoryStatus('')
+              }}
+            />
+            <div style={{ alignSelf: 'end' }}>
+              <Button disabled={isHistoryLoading} size="sm" onClick={loadHistory}>
+                {isHistoryLoading ? 'Consultando...' : 'Consultar'}
+              </Button>
+            </div>
+          </div>
+          {historyStatus && <small>{historyStatus}</small>}
+        </div>
+
+        {history.entities.map((entity) => (
+          <div className="data-table executive-table" key={`${entity.type}-${entity.id}`}>
+            <div className="table-head">
+              <span>{entity.name}</span>
+              <span>{entity.type === 'studio' ? 'Estudio' : 'Artista'}</span>
+              <span>{history.year}</span>
+              <span>Estado</span>
+            </div>
+            {entity.months.length ? entity.months.map((month) => (
+              <div className="table-row" key={`${entity.id}-${month.month}`}>
+                <strong>{month.month}</strong>
+                <span>{formatCurrency(month.grossAmount)} servicios</span>
+                <span>{formatCurrency(month.commissionAmount)} comision</span>
+                <StatusPill tone={month.status === 'paid' ? 'success' : 'warm'}>
+                  {month.status === 'paid' ? 'Pagado' : `${formatCurrency(month.unpaidAmount)} pendiente`}
+                </StatusPill>
+              </div>
+            )) : (
+              <div className="table-row">
+                <strong>Sin movimientos</strong>
+                <span>No hay citas agendadas en el año actual.</span>
+                <StatusPill tone="neutral">0</StatusPill>
+              </div>
+            )}
+          </div>
+        ))}
       </Card>
     </main>
   )
