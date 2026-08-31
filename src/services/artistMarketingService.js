@@ -28,6 +28,12 @@ function normalizeMarketingPayload(data = {}) {
   return {
     rewards: asArray(data.rewards).map(normalizeReward),
     flowPointsEnabled: Boolean(data.flowPointsEnabled ?? data.flow_points_enabled),
+    lowOccupancy: {
+      active: Boolean(data.lowOccupancy?.active ?? data.low_occupancy?.active),
+      period: data.lowOccupancy?.period || data.low_occupancy?.period || 'week',
+      threshold: Number(data.lowOccupancy?.threshold || data.low_occupancy?.threshold || 40),
+    },
+    maintenanceReminderDays: Number(data.maintenanceReminderDays || data.maintenance_reminder_days || 14),
     doublePoints: normalizePromotion(data.doublePoints || data.double_points),
     happyHour: normalizePromotion(data.happyHour || data.happy_hour),
   }
@@ -89,4 +95,31 @@ export async function saveArtistHappyHourPromotion({ active, discountPercent, we
   if (error) throw error
 
   return normalizePromotion(data?.promotion)
+}
+
+export async function setArtistLowOccupancyAutomation({ active, period, threshold } = {}) {
+  const client = requireSupabase()
+  const { data, error } = await client.rpc('studio_flow_artist_set_low_occupancy_automation', {
+    p_active: Boolean(active),
+    p_period: period || 'week',
+    p_threshold: Number(threshold) || 40,
+  })
+
+  if (error) throw error
+
+  return normalizeMarketingPayload(data)
+}
+
+export async function sendArtistMarketingNotification({ type, maintenanceDays } = {}) {
+  const client = requireSupabase()
+  const { data, error } = await client.rpc('studio_flow_artist_send_marketing_notification', {
+    p_type: type,
+    p_maintenance_days: Number(maintenanceDays) || 14,
+  })
+
+  if (error) throw error
+
+  return {
+    insertedCount: Number(data?.insertedCount || data?.inserted_count || 0),
+  }
 }

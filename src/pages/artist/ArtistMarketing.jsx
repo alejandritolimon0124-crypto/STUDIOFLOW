@@ -26,6 +26,8 @@ import {
   saveArtistHappyHourPromotion,
   setArtistFlowPointsEnabled,
   setArtistDoublePointsPromotion,
+  setArtistLowOccupancyAutomation,
+  sendArtistMarketingNotification,
 } from '../../services/artistMarketingService'
 
 const automations = [
@@ -110,6 +112,18 @@ function ArtistMarketing() {
   ].filter(Boolean).length
 
   const { weeklyOccupancy, lowSlots, busyDays } = calculateWeeklyOccupancy(loadedAppointments)
+  const monthlyOccupancy = useMemo(() => {
+    const now = new Date()
+    const monthAppointments = loadedAppointments.filter((appointment) => {
+      const dateValue = appointment.startsAt || appointment.starts_at || appointment.date
+      if (!dateValue) return false
+      const appointmentDate = new Date(dateValue)
+      return appointmentDate.getMonth() === now.getMonth() && appointmentDate.getFullYear() === now.getFullYear()
+    })
+
+    return Math.min(Math.round((monthAppointments.length / 80) * 100), 100)
+  }, [loadedAppointments])
+  const lowOccupancyRate = lowOccupancyDraft.period === 'month' ? monthlyOccupancy : weeklyOccupancy
   const promotionSummary = generateAutomaticPromotion(weeklyOccupancy)
   const inactiveClients = detectInactiveClients(loadedClients)
   const loyaltyTier = calculateClientTier(premiumClients[0]?.visits || 0)
@@ -155,6 +169,12 @@ function ArtistMarketing() {
       const settings = await fetchArtistMarketingSettings()
       const rules = settings.happyHour?.rules || {}
       setMarketingSettings(settings)
+      setLowOccupancyDraft({
+        active: Boolean(settings.lowOccupancy?.active),
+        period: settings.lowOccupancy?.period || 'week',
+        threshold: Math.min(Number(settings.lowOccupancy?.threshold || 40), 40),
+      })
+      setMaintenanceDays(Number(settings.maintenanceReminderDays || 14))
       setHappyHour(settings.happyHour?.status === 'active')
       setHappyHourDraft({
         discountPercent: Number(rules.discountPercent || 10),
@@ -201,8 +221,8 @@ function ArtistMarketing() {
   const toggleDoublePoints = async () => {
     setIsMarketingSaving(true)
     try {
-      const promotion = await setArtistDoublePointsPromotion({ active: !doublePointsActive })
-      setMarketingSettings((current) => ({ ...current, doublePoints: promotion }))
+      await setArtistDoublePointsPromotion({ active: !doublePointsActive })
+      await loadMarketingSettings()
       triggerToast(!doublePointsActive ? 'Puntos dobles activados' : 'Puntos dobles desactivados')
     } catch (error) {
       triggerToast(error.message || 'No se pudo actualizar puntos dobles')
@@ -223,8 +243,8 @@ function ArtistMarketing() {
   const saveHappyHour = async (active = true) => {
     setIsMarketingSaving(true)
     try {
-      const promotion = await saveArtistHappyHourPromotion({ ...happyHourDraft, active })
-      setMarketingSettings((current) => ({ ...current, happyHour: promotion }))
+      await saveArtistHappyHourPromotion({ ...happyHourDraft, active })
+      await loadMarketingSettings()
       setHappyHour(active)
       triggerToast(active ? 'Happy Hour actualizado' : 'Happy Hour pausado')
     } catch (error) {
@@ -238,20 +258,28 @@ function ArtistMarketing() {
     const nextActive = !lowOccupancyDraft.active
     setIsMarketingSaving(true)
     try {
-      const [doublePointsPromotion, happyHourPromotion] = await Promise.all([
-        setArtistDoublePointsPromotion({ active: nextActive }),
-        saveArtistHappyHourPromotion({ ...happyHourDraft, active: nextActive }),
-      ])
-      setMarketingSettings((current) => ({
-        ...current,
-        doublePoints: doublePointsPromotion,
-        happyHour: happyHourPromotion,
-      }))
-      setLowOccupancyDraft((draft) => ({ ...draft, active: nextActive }))
-      setHappyHour(nextActive)
-      triggerToast(nextActive ? 'Baja ocupacion activa promociones' : 'Baja ocupacion pausada')
+      const settings = await setArtistLowOccupancyAutomation({ ...lowOccupancyDraft, active: nextActive })
+      setMarketingSettings(settings)
+      setLowOccupancyDraft({
+        active: Boolean(settings.lowOccupancy?.active),
+        period: settings.lowOccupancy?.period || lowOccupancyDraft.period,
+        threshold: Math.min(Number(settings.lowOccupancy?.threshold || lowOccupancyDraft.threshold), 40),
+      })
+      triggerToast(nextActive ? 'Baja ocupacion lista para automatizar' : 'Baja ocupacion pausada')
     } catch (error) {
       triggerToast(error.message || 'No se pudo actualizar baja ocupacion')
+    } finally {
+      setIsMarketingSaving(false)
+    }
+  }
+
+  const sendMarketingNotification = async (type) => {
+    setIsMarketingSaving(true)
+    try {
+      const result = await sendArtistMarketingNotification({ type, maintenanceDays })
+      triggerToast(result.insertedCount > 0 ? `Aviso enviado a ${result.insertedCount} clientas` : 'No hay clientas elegibles para este aviso')
+    } catch (error) {
+      triggerToast(error.message || 'No se pudo enviar el aviso')
     } finally {
       setIsMarketingSaving(false)
     }
@@ -442,7 +470,7 @@ function ArtistMarketing() {
         />
         <label className="toggle-row marketplace-main-toggle">
           Flow Points activos para clientas
-          <input type="checkbox" checked={flowPointsEnabled} onChange={toggleFlowPointsEnabled} />
+          <input type="checkbox" checked={flowPointsEnabled} disabled={isMarketingSaving} onChange={toggleFlowPointsEnabled} />
         </label>
         <div className="location-form-grid">
           <label className="input-field">
@@ -492,7 +520,7 @@ function ArtistMarketing() {
             <strong>{doublePointsActive ? 'Puntos dobles activos' : 'Puntos dobles pausados'}</strong>
             <small>Cuando se activa, las citas acreditan el doble al presionar Otorgar puntos.</small>
           </div>
-          <Button disabled={isMarketingSaving} size="sm" variant={doublePointsActive ? 'ghost' : 'success'} onClick={toggleDoublePoints}>
+          <Button disabled={isMarketingSaving} size="sm" variant={doublePointsActive ? 'danger' : 'success'} onClick={toggleDoublePoints}>
             {doublePointsActive ? 'Desactivar' : 'Activar'}
           </Button>
         </div>
@@ -562,9 +590,11 @@ function ArtistMarketing() {
         <div className="list-row elevated-row">
           <div>
             <strong>{lowOccupancyDraft.active ? 'Automatizacion activa' : 'Automatizacion pausada'}</strong>
-            <small>Al activarse enciende Happy Hour y Puntos Dobles. Al pausarse todo vuelve a normal.</small>
+            <small>
+              Ocupacion actual: {lowOccupancyRate}%. Se aplica solo si baja de {lowOccupancyDraft.threshold}% sin duplicar promociones manuales.
+            </small>
           </div>
-          <Button disabled={isMarketingSaving} size="sm" variant={lowOccupancyDraft.active ? 'ghost' : 'success'} onClick={toggleLowOccupancyAutomation}>
+          <Button disabled={isMarketingSaving} size="sm" variant={lowOccupancyDraft.active ? 'danger' : 'success'} onClick={toggleLowOccupancyAutomation}>
             {lowOccupancyDraft.active ? 'Desactivar' : 'Activar'}
           </Button>
         </div>
@@ -581,6 +611,9 @@ function ArtistMarketing() {
             <label className="toggle-row">
               <input type="checkbox" checked={automationStates['Recordatorio cumpleaños']} onChange={() => toggleAutomation('Recordatorio cumpleaños')} />
             </label>
+            <Button disabled={isMarketingSaving || !automationStates['Recordatorio cumpleaños']} size="sm" variant="ghost" onClick={() => sendMarketingNotification('birthday')}>
+              Enviar ahora
+            </Button>
           </div>
           <div className="list-row elevated-row">
             <div>
@@ -590,6 +623,9 @@ function ArtistMarketing() {
             <label className="toggle-row">
               <input type="checkbox" checked={automationStates['Reactivación 30 días']} onChange={() => toggleAutomation('Reactivación 30 días')} />
             </label>
+            <Button disabled={isMarketingSaving || !automationStates['Reactivación 30 días']} size="sm" variant="ghost" onClick={() => sendMarketingNotification('reactivation')}>
+              Enviar ahora
+            </Button>
           </div>
           <div className="list-row elevated-row">
             <div>
@@ -604,6 +640,9 @@ function ArtistMarketing() {
                 <option value={30}>30</option>
               </select>
             </label>
+            <Button disabled={isMarketingSaving} size="sm" variant="ghost" onClick={() => sendMarketingNotification('maintenance')}>
+              Enviar ahora
+            </Button>
           </div>
         </div>
       </Card>
