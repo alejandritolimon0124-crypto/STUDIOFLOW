@@ -113,6 +113,7 @@ function AdminBilling() {
   const { adminState } = useApp()
   const [query, setQuery] = useState('')
   const [historyQuery, setHistoryQuery] = useState('')
+  const [showOverdueOnly, setShowOverdueOnly] = useState(false)
   const [billing, setBilling] = useState({
     month: '',
     currentMonthGross: 0,
@@ -149,7 +150,13 @@ function AdminBilling() {
     loadBilling('')
   }, [])
 
-  const visibleEntities = useMemo(() => billing.entities.slice(0, 5), [billing.entities])
+  const visibleEntities = useMemo(() => {
+    const entities = showOverdueOnly
+      ? billing.entities.filter((entity) => entity.status === 'overdue')
+      : billing.entities
+
+    return entities.slice(0, showOverdueOnly ? 50 : 5)
+  }, [billing.entities, showOverdueOnly])
 
   const markAsPaid = async (entity) => {
     const actionId = `${entity.type}-${entity.id}`
@@ -222,6 +229,19 @@ function AdminBilling() {
       />
 
       <Card className="wide-card executive-card">
+        <div className="billing-filter-strip">
+          <div>
+            <span className="eyebrow">Revision de atrasos</span>
+            <strong>{showOverdueOnly ? 'Mostrando cuentas con atraso' : 'Vista general de cobranza'}</strong>
+            <small>Consulta rapidamente a quien falta marcar como pagado.</small>
+          </div>
+          <Button size="sm" variant={showOverdueOnly ? 'primary' : 'ghost'} onClick={() => setShowOverdueOnly((value) => !value)}>
+            {showOverdueOnly ? 'Ver todos' : 'Ver atrasados'}
+          </Button>
+        </div>
+      </Card>
+
+      <Card className="wide-card executive-card">
         <PanelHeader title="Cobranza" eyebrow="Comisiones Studio Flow" />
         <div className="admin-search">
           <div className="location-form-grid">
@@ -274,8 +294,8 @@ function AdminBilling() {
           ))}
           {!isLoading && visibleEntities.length === 0 && (
             <div className="table-row">
-              <strong>Sin resultados</strong>
-              <span>Busca por nombre, correo o celular.</span>
+              <strong>{showOverdueOnly ? 'Sin atrasos' : 'Sin resultados'}</strong>
+              <span>{showOverdueOnly ? 'No hay estudios ni artistas con atraso.' : 'Busca por nombre, correo o celular.'}</span>
               <StatusPill tone="neutral">0</StatusPill>
             </div>
           )}
@@ -306,13 +326,18 @@ function AdminBilling() {
         </div>
 
         {history.entities.map((entity) => (
-          <div className="data-table executive-table" key={`${entity.type}-${entity.id}`}>
-            <div className="table-head">
-              <span>{entity.name}</span>
-              <span>{entity.type === 'studio' ? 'Estudio' : 'Artista'}</span>
-              <span>{history.year}</span>
-              <span>Estado</span>
+          <section className="billing-history-result" key={`${entity.type}-${entity.id}`}>
+            <div className="billing-history-title">
+              <strong>{entity.name}</strong>
+              <small>{entity.type === 'studio' ? 'Estudio' : 'Artista'} / {entity.email || entity.phone || 'Sin contacto'} / {history.year}</small>
             </div>
+            <div className="data-table executive-table">
+              <div className="table-head">
+                <span>Mes</span>
+                <span>Servicios</span>
+                <span>Comision</span>
+                <span>Estado</span>
+              </div>
             {entity.months.length ? entity.months.map((month) => (
               <div className="table-row" key={`${entity.id}-${month.month}`}>
                 <strong>{month.month}</strong>
@@ -330,6 +355,7 @@ function AdminBilling() {
               </div>
             )}
           </div>
+          </section>
         ))}
       </Card>
     </main>

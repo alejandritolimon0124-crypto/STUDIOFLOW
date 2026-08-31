@@ -2477,6 +2477,40 @@ select:focus,
   background: rgba(255, 255, 255, 0.88);
 }
 
+.billing-filter-strip,
+.billing-history-title {
+  align-items: center;
+  display: flex;
+  gap: 14px;
+  justify-content: space-between;
+}
+
+.billing-filter-strip > div,
+.billing-history-title {
+  min-width: 0;
+}
+
+.billing-filter-strip strong,
+.billing-history-title strong {
+  color: var(--ink);
+  display: block;
+  font-size: 18px;
+}
+
+.billing-filter-strip small,
+.billing-history-title small {
+  color: var(--soft);
+  display: block;
+  font-weight: 800;
+  margin-top: 4px;
+}
+
+.billing-history-result {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+}
+
 .executive-alert-stack,
 .flow-economy-grid,
 .tier-strip {
