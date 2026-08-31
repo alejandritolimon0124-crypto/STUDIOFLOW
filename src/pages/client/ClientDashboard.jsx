@@ -185,6 +185,8 @@ function normalizeMarketplaceServiceOption(service) {
 }
 
 function getArtistServiceOptions(artist = {}) {
+  if (!artist) return []
+
   const source = Array.isArray(artist.marketplaceServiceOptions) && artist.marketplaceServiceOptions.length > 0
     ? artist.marketplaceServiceOptions
     : Array.isArray(artist.marketplaceServices) && artist.marketplaceServices.length > 0
@@ -764,7 +766,7 @@ function ClientDashboard({ view = 'inicio' }) {
   const selectedMarketplaceServiceName = selectedMarketplaceService?.name || effectiveMarketplaceService.name || secondaryService
   const selectedServiceOfferingId = selectedMarketplaceService?.id || effectiveMarketplaceService.id || null
   const selectedArtistServiceGroups = useMemo(
-    () => buildServiceGroupsForArtist(selectedArtistProfile),
+    () => selectedArtistProfile ? buildServiceGroupsForArtist(selectedArtistProfile) : {},
     [selectedArtistProfile],
   )
   const selectedArtistPrimaryOptions = Object.keys(selectedArtistServiceGroups)
@@ -1400,10 +1402,12 @@ function ClientDashboard({ view = 'inicio' }) {
     return Number(service?.flowPointsAwarded || service?.flow_points_awarded || 0)
   }
 
-  const selectedArtistFlowPointsActive = selectedArtistProfile?.activePromotions?.some((promotion) => (
+  const selectedArtistFlowPointsActive = Boolean(selectedArtistProfile) && (
+    selectedArtistProfile?.activePromotions?.some((promotion) => (
     (promotion.type || promotion.promotion_type) === 'private_promo'
     && (promotion.name || '').toLowerCase().includes('flow points')
   )) || selectedArtistProfile?.rewards?.some((reward) => reward.status === 'active')
+  )
 
   const openArtistProfile = (artist, { mode = 'profile' } = {}) => {
     const nextService = getInitialServiceForArtistProfile(artist)
