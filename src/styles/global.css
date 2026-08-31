@@ -2490,6 +2490,23 @@ select:focus,
   color: inherit;
 }
 
+.favorite-directions-panel {
+  padding-top: 12px;
+}
+
+.favorite-directions-panel .public-profile-section {
+  align-items: flex-start;
+  display: grid;
+  gap: 10px;
+}
+
+.favorite-directions-panel p {
+  color: var(--text);
+  font-weight: 800;
+  line-height: 1.35;
+  margin: 0;
+}
+
 .empty-state {
   align-items: center;
   color: var(--muted);

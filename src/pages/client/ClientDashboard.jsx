@@ -1538,6 +1538,20 @@ function ClientDashboard({ view = 'inicio' }) {
     </div>
   )
 
+  const renderFavoriteDirectionsPanel = ({ address, location, source, directionsUrl }) => (
+    <div className="public-profile-panel favorite-directions-panel">
+      <section className="public-profile-section">
+        <h4>Direccion</h4>
+        <p>{address || 'Direccion pendiente por confirmar.'}</p>
+        {directionsUrl && (
+          <Button variant="primary" onClick={() => openDirections(location, source)}>
+            Abrir en Maps
+          </Button>
+        )}
+      </section>
+    </div>
+  )
+
   return (
     <main className={`dashboard-grid client-grid view-${view}`}>
         {view === 'inicio' && (
@@ -2391,6 +2405,7 @@ function ClientDashboard({ view = 'inicio' }) {
                   const isSelectedArtist = selectedArtistProfile?.id === artist.id
                   const isProfileOpen = isSelectedArtist && selectedArtistPanelMode === 'profile'
                   const isBookingOpen = isSelectedArtist && selectedArtistPanelMode === 'booking'
+                  const isDirectionsOpen = isSelectedArtist && selectedArtistPanelMode === 'directions'
                   const isStudioListing = artist.profileType === 'studio'
                   const profilePhotoUrl = isStudioListing
                     ? studioProfile.profile?.logoUrl || publicArtistProfile.photoUrl
@@ -2452,6 +2467,20 @@ function ClientDashboard({ view = 'inicio' }) {
                             {isBookingOpen ? 'Ocultar agenda' : 'Reservar cita'}
                           </button>
                           <button
+                            className="marketplace-profile-button"
+                            type="button"
+                            onClick={() => {
+                              if (isDirectionsOpen) {
+                                closeArtistProfile()
+                                return
+                              }
+
+                              openArtistProfile(artist, { mode: 'directions' })
+                            }}
+                          >
+                            {isDirectionsOpen ? 'Ocultar direccion' : 'Como llegar'}
+                          </button>
+                          <button
                             className="marketplace-favorite-button is-saved"
                             type="button"
                             onClick={() => toggleFavoriteArtist(artist.id)}
@@ -2462,6 +2491,12 @@ function ClientDashboard({ view = 'inicio' }) {
                       </div>
 
                       {isBookingOpen && renderMarketplaceBookingPanel(artist, 'favoriteBooking')}
+                      {isDirectionsOpen && renderFavoriteDirectionsPanel({
+                        address: professionalAddress,
+                        location: effectiveLocation,
+                        source: effectiveLocationResult.source,
+                        directionsUrl,
+                      })}
 
                       {isProfileOpen && (
                         <div className="public-profile-panel">
