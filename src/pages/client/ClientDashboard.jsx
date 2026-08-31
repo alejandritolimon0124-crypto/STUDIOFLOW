@@ -690,6 +690,7 @@ function ClientDashboard({ view = 'inicio' }) {
   const [selectedMarketplaceServiceId, setSelectedMarketplaceServiceId] = useState('')
   const [openDropdown, setOpenDropdown] = useState(null)
   const [recommendationMode, setRecommendationMode] = useState('')
+  const [happyHourOnly, setHappyHourOnly] = useState(false)
   const [showPastAppointments, setShowPastAppointments] = useState(false)
   const [showAppointmentDateFilter, setShowAppointmentDateFilter] = useState(false)
   const [appointmentHistoryDate, setAppointmentHistoryDate] = useState('')
@@ -1044,6 +1045,7 @@ function ClientDashboard({ view = 'inicio' }) {
           return !secondaryService || artist.marketplaceServices.includes(secondaryService)
         })
         .filter((artist) => recommendationMode !== 'today' || getTodayAvailabilityCount(artist) > 0)
+        .filter((artist) => !happyHourOnly || artist.activePromotions?.some((promotion) => promotion.type === 'happy_hour' || promotion.promotion_type === 'happy_hour'))
         .sort((firstArtist, secondArtist) => {
           if (recommendationMode === 'nearby') {
             const firstProfile = getArtistPublicProfile(artistState, firstArtist)
@@ -1104,6 +1106,7 @@ function ClientDashboard({ view = 'inicio' }) {
       searchMode,
       secondaryService,
       studioQuery,
+      happyHourOnly,
     ],
   )
   const bookedAppointments = realAppointmentSourceReady ? [] : agendaSettings.bookedSlots.map((slot) => ({
@@ -1835,6 +1838,14 @@ function ClientDashboard({ view = 'inicio' }) {
                     : 'Mostrando solo opciones con citas para hoy.'}
                 </p>
               )}
+              <Button
+                className="happy-hour-filter-button"
+                size="sm"
+                variant={happyHourOnly ? 'success' : 'ghost'}
+                onClick={() => setHappyHourOnly((current) => !current)}
+              >
+                {happyHourOnly ? 'Mostrando Happy Hours' : 'Filtrar Happy Hours'}
+              </Button>
             </section>
             <div className="form-stack compact-form">
               <PremiumDropdown
@@ -1943,6 +1954,9 @@ function ClientDashboard({ view = 'inicio' }) {
                         <span className={`marketplace-availability availability-${artist.badge.level}`}>
                           {artist.badge.label}
                         </span>
+                        {artist.activePromotions?.some((promotion) => promotion.type === 'happy_hour' || promotion.promotion_type === 'happy_hour') && (
+                          <span className="happy-hour-badge">Happy Hour activo</span>
+                        )}
                       </div>
                       <div className="marketplace-result-actions">
                         <button
@@ -2098,7 +2112,7 @@ function ClientDashboard({ view = 'inicio' }) {
                         <div className="compact-list public-slot-list" id={`marketplace-slots-${artist.id}`}>
                           {availableSlots.length > 0 ? (
                             availableSlots.map((slot) => (
-                              <div className="list-row elevated-row" key={`${artist.id}-${slot.date}-${slot.time}`}>
+                              <div className={`list-row elevated-row${slot.isHappyHour ? ' happy-hour-slot' : ''}`} key={`${artist.id}-${slot.date}-${slot.time}`}>
                                 <div>
                                   <strong>{slot.time} - {slot.end}</strong>
                                   <small>{getSlotServiceName(slot)}</small>
@@ -2106,7 +2120,7 @@ function ClientDashboard({ view = 'inicio' }) {
                                 </div>
                                 <Button
                                   size="sm"
-                                  variant={slot.available ? 'primary' : 'ghost'}
+                                  variant={slot.isHappyHour ? 'success' : slot.available ? 'primary' : 'ghost'}
                                   disabled={!slot.available || isBookingLoading}
                                   onClick={() => {
                                     console.error('[BOOKING TRACE]', 'ClientDashboard reserve button onClick', {
@@ -2117,7 +2131,7 @@ function ClientDashboard({ view = 'inicio' }) {
                                     reserveSlot(slot)
                                   }}
                                 >
-                                  {isBookingLoading ? 'Reservando...' : slot.available ? 'Reservar' : 'Ocupado'}
+                                  {isBookingLoading ? 'Reservando...' : slot.available ? (slot.isHappyHour ? `${slot.happyHourDiscountPercent}% Reservar` : 'Reservar') : 'Ocupado'}
                                 </Button>
                               </div>
                             ))
@@ -2398,7 +2412,7 @@ function ClientDashboard({ view = 'inicio' }) {
                           <div className="compact-list public-slot-list" id={`marketplace-slots-${artist.id}`}>
                             {availableSlots.length > 0 ? (
                               availableSlots.map((slot) => (
-                                <div className="list-row elevated-row" key={`${artist.id}-${slot.date}-${slot.time}`}>
+                                <div className={`list-row elevated-row${slot.isHappyHour ? ' happy-hour-slot' : ''}`} key={`${artist.id}-${slot.date}-${slot.time}`}>
                                   <div>
                                     <strong>{slot.time} - {slot.end}</strong>
                                     <small>{getSlotServiceName(slot)}</small>
@@ -2406,7 +2420,7 @@ function ClientDashboard({ view = 'inicio' }) {
                                   </div>
                                   <Button
                                     size="sm"
-                                    variant={slot.available ? 'primary' : 'ghost'}
+                                    variant={slot.isHappyHour ? 'success' : slot.available ? 'primary' : 'ghost'}
                                     disabled={!slot.available || isBookingLoading}
                                     onClick={() => {
                                       console.error('[BOOKING TRACE]', 'ClientDashboard reserve button onClick', {
@@ -2417,7 +2431,7 @@ function ClientDashboard({ view = 'inicio' }) {
                                       reserveSlot(slot)
                                     }}
                                   >
-                                    {isBookingLoading ? 'Reservando...' : slot.available ? 'Reservar' : 'Ocupado'}
+                                    {isBookingLoading ? 'Reservando...' : slot.available ? (slot.isHappyHour ? `${slot.happyHourDiscountPercent}% Reservar` : 'Reservar') : 'Ocupado'}
                                   </Button>
                                 </div>
                               ))

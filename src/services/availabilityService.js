@@ -26,6 +26,8 @@ function normalizeSlot(slot = {}) {
     time: slot.time || '',
     end: slot.end || '',
     durationMinutes: Number(slot.durationMinutes || slot.duration_minutes || 0),
+    isHappyHour: Boolean(slot.isHappyHour ?? slot.is_happy_hour),
+    happyHourDiscountPercent: Number(slot.happyHourDiscountPercent || slot.happy_hour_discount_percent || 0),
     available: slot.available !== false,
     status: slot.status || 'available',
   }

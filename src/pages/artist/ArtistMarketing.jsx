@@ -1,7 +1,8 @@
-﻿import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Button from '../../components/Button'
 import { useRef } from 'react'
 import Card from '../../components/Card'
+import Input from '../../components/Input'
 import MetricCard from '../../components/MetricCard'
 import PanelHeader from '../../components/PanelHeader'
 import StatusPill from '../../components/StatusPill'
@@ -19,6 +20,12 @@ import {
   getMembershipForArtist,
   getStudioForArtist,
 } from '../../modules/entities/entitySelectors'
+import {
+  fetchArtistMarketingSettings,
+  saveArtistFlowPointReward,
+  saveArtistHappyHourPromotion,
+  setArtistDoublePointsPromotion,
+} from '../../services/artistMarketingService'
 
 const automations = [
   { name: 'Recordatorio cumpleaños', active: true },
@@ -54,6 +61,10 @@ function ArtistMarketing() {
   const [preferentialSupport, setPreferentialSupport] = useState(true)
   const [toasts, setToasts] = useState([])
   const [isPremiumModalOpen, setIsPremiumModalOpen] = useState(false)
+  const [marketingSettings, setMarketingSettings] = useState({ rewards: [], doublePoints: { status: 'paused', rules: {} }, happyHour: { status: 'paused', rules: {} } })
+  const [rewardDraft, setRewardDraft] = useState({ discountPercent: 10, pointsCost: '' })
+  const [happyHourDraft, setHappyHourDraft] = useState({ discountPercent: 10, weekdays: [1, 2, 3, 4, 5], startTime: '14:00', endTime: '17:00' })
+  const [isMarketingSaving, setIsMarketingSaving] = useState(false)
   const toastIdRef = useRef(0)
   const localProfiles = session.user ? [{ ...session.user, id: session.user.id }] : []
   const artistStudioMemberships = deriveMembershipsFromLegacyData({ artists: adminState.artists })
@@ -104,6 +115,17 @@ function ArtistMarketing() {
   const artistAutomations = generateArtistAutomations(artistState, selectedDate)
 
   const loyaltyPreview = `${visitsRequired} visitas = ${discountPercent}% OFF por ${validityDays} días`
+  const doublePointsActive = marketingSettings.doublePoints?.status === 'active'
+  const happyHourActive = marketingSettings.happyHour?.status === 'active'
+  const weekdayOptions = [
+    { value: 1, label: 'Lun' },
+    { value: 2, label: 'Mar' },
+    { value: 3, label: 'Mie' },
+    { value: 4, label: 'Jue' },
+    { value: 5, label: 'Vie' },
+    { value: 6, label: 'Sab' },
+    { value: 0, label: 'Dom' },
+  ]
 
   const triggerToast = (message) => {
     toastIdRef.current += 1
@@ -117,6 +139,77 @@ function ArtistMarketing() {
   const handleToggle = (key, setter, nextValue) => {
     setter(nextValue)
     triggerToast(toastLabels[key])
+  }
+
+  const loadMarketingSettings = async () => {
+    try {
+      const settings = await fetchArtistMarketingSettings()
+      const rules = settings.happyHour?.rules || {}
+      setMarketingSettings(settings)
+      setHappyHour(settings.happyHour?.status === 'active')
+      setHappyHourDraft({
+        discountPercent: Number(rules.discountPercent || 10),
+        weekdays: Array.isArray(rules.weekdays) ? rules.weekdays.map(Number) : [1, 2, 3, 4, 5],
+        startTime: rules.startTime || '14:00',
+        endTime: rules.endTime || '17:00',
+      })
+    } catch (error) {
+      triggerToast(error.message || 'No se pudo cargar marketing.')
+    }
+  }
+
+  useEffect(() => {
+    loadMarketingSettings()
+  }, [])
+
+  const addFlowPointReward = async () => {
+    setIsMarketingSaving(true)
+    try {
+      const reward = await saveArtistFlowPointReward(rewardDraft)
+      setMarketingSettings((current) => ({ ...current, rewards: [...current.rewards, reward].sort((a, b) => a.pointsCost - b.pointsCost) }))
+      setRewardDraft({ discountPercent: 10, pointsCost: '' })
+      triggerToast('Beneficio Flow Points agregado')
+    } catch (error) {
+      triggerToast(error.message || 'No se pudo agregar el beneficio')
+    } finally {
+      setIsMarketingSaving(false)
+    }
+  }
+
+  const toggleDoublePoints = async () => {
+    setIsMarketingSaving(true)
+    try {
+      const promotion = await setArtistDoublePointsPromotion({ active: !doublePointsActive })
+      setMarketingSettings((current) => ({ ...current, doublePoints: promotion }))
+      triggerToast(!doublePointsActive ? 'Puntos dobles activados' : 'Puntos dobles desactivados')
+    } catch (error) {
+      triggerToast(error.message || 'No se pudo actualizar puntos dobles')
+    } finally {
+      setIsMarketingSaving(false)
+    }
+  }
+
+  const toggleHappyHourDay = (weekday) => {
+    setHappyHourDraft((draft) => ({
+      ...draft,
+      weekdays: draft.weekdays.includes(weekday)
+        ? draft.weekdays.filter((day) => day !== weekday)
+        : [...draft.weekdays, weekday].sort((first, second) => first - second),
+    }))
+  }
+
+  const saveHappyHour = async (active = true) => {
+    setIsMarketingSaving(true)
+    try {
+      const promotion = await saveArtistHappyHourPromotion({ ...happyHourDraft, active })
+      setMarketingSettings((current) => ({ ...current, happyHour: promotion }))
+      setHappyHour(active)
+      triggerToast(active ? 'Happy Hour actualizado' : 'Happy Hour pausado')
+    } catch (error) {
+      triggerToast(error.message || 'No se pudo guardar Happy Hour')
+    } finally {
+      setIsMarketingSaving(false)
+    }
   }
 
   const toggleAutomation = (name) => {
@@ -295,6 +388,105 @@ function ArtistMarketing() {
       <MetricCard label="Citas cargadas" value={loadedAppointments.length} trend={loadedAppointments.length > 0 ? 'Con agenda' : 'Sin citas'} tone="nude" className="mobile-compact" />
       <MetricCard label="Promociones activas" value={activePromotionsCount} trend={silentPromo ? 'Silenciosa' : 'Configuradas'} tone="sage" className="mobile-compact" />
       <MetricCard label="Servicios activos" value={loadedServices.filter((service) => service.status === 'Activo').length} trend="Catalogo real" tone="rose" className="mobile-compact" />
+
+      <Card className="wide-card mobile-screen primary-panel flow-points-benefits-panel">
+        <PanelHeader
+          title="Beneficios Flow Points"
+          eyebrow="Canje de puntos"
+          action={<Button disabled={isMarketingSaving || !rewardDraft.pointsCost} size="sm" onClick={addFlowPointReward}>Agregar beneficio Flow Points</Button>}
+        />
+        <div className="location-form-grid">
+          <label className="input-field">
+            <span>Descuento</span>
+            <select
+              value={rewardDraft.discountPercent}
+              onChange={(event) => setRewardDraft((draft) => ({ ...draft, discountPercent: Number(event.target.value) }))}
+            >
+              {[5, 10, 15, 20, 25, 30].map((percent) => (
+                <option value={percent} key={percent}>{percent}%</option>
+              ))}
+            </select>
+          </label>
+          <Input
+            label="Puntos necesarios"
+            min="1"
+            type="number"
+            value={rewardDraft.pointsCost}
+            onChange={(event) => setRewardDraft((draft) => ({ ...draft, pointsCost: event.target.value }))}
+          />
+        </div>
+        <div className="compact-list">
+          {marketingSettings.rewards.length > 0 ? marketingSettings.rewards.map((reward) => (
+            <div className="list-row elevated-row" key={reward.id}>
+              <div>
+                <strong>{reward.discountPercent}% de descuento</strong>
+                <small>Disponible con {reward.pointsCost} Flow Points</small>
+              </div>
+              <StatusPill tone="success">Activo</StatusPill>
+            </div>
+          )) : (
+            <div className="list-row elevated-row">
+              <div>
+                <strong>Sin beneficios activos.</strong>
+                <small>Agrega el primer beneficio para que tus clientas puedan canjear puntos.</small>
+              </div>
+              <StatusPill tone="neutral">Vacio</StatusPill>
+            </div>
+          )}
+        </div>
+      </Card>
+
+      <Card className="mobile-screen primary-panel double-points-panel">
+        <PanelHeader title="PUNTOS DOBLES!" eyebrow="Promocion inmediata" />
+        <div className="list-row elevated-row">
+          <div>
+            <strong>{doublePointsActive ? 'Puntos dobles activos' : 'Puntos dobles pausados'}</strong>
+            <small>Cuando se activa, las citas acreditan el doble al presionar Otorgar puntos.</small>
+          </div>
+          <Button disabled={isMarketingSaving} size="sm" variant={doublePointsActive ? 'ghost' : 'success'} onClick={toggleDoublePoints}>
+            {doublePointsActive ? 'Desactivar' : 'Activar'}
+          </Button>
+        </div>
+      </Card>
+
+      <Card className="wide-card mobile-screen primary-panel happy-hour-panel">
+        <PanelHeader title="Happy Hour" eyebrow="Horarios con descuento" />
+        <div className="location-form-grid">
+          <label className="input-field">
+            <span>Descuento</span>
+            <select
+              value={happyHourDraft.discountPercent}
+              onChange={(event) => setHappyHourDraft((draft) => ({ ...draft, discountPercent: Number(event.target.value) }))}
+            >
+              {[5, 10, 15, 20, 25, 30].map((percent) => (
+                <option value={percent} key={percent}>{percent}%</option>
+              ))}
+            </select>
+          </label>
+          <Input label="Desde" type="time" value={happyHourDraft.startTime} onChange={(event) => setHappyHourDraft((draft) => ({ ...draft, startTime: event.target.value }))} />
+          <Input label="Hasta" type="time" value={happyHourDraft.endTime} onChange={(event) => setHappyHourDraft((draft) => ({ ...draft, endTime: event.target.value }))} />
+        </div>
+        <div className="weekday-toggle-row">
+          {weekdayOptions.map((day) => (
+            <button
+              className={happyHourDraft.weekdays.includes(day.value) ? 'active' : ''}
+              key={day.value}
+              type="button"
+              onClick={() => toggleHappyHourDay(day.value)}
+            >
+              {day.label}
+            </button>
+          ))}
+        </div>
+        <div className="row-actions">
+          <Button disabled={isMarketingSaving} size="sm" variant="success" onClick={() => saveHappyHour(true)}>
+            {happyHourActive ? 'Actualizar Happy Hour' : 'Activar Happy Hour'}
+          </Button>
+          <Button disabled={isMarketingSaving || !happyHourActive} size="sm" variant="ghost" onClick={() => saveHappyHour(false)}>
+            Pausar
+          </Button>
+        </div>
+      </Card>
 
       {artistAutomations.length > 0 && (
         <Card className="wide-card mobile-screen primary-panel automations-panel">
@@ -632,3 +824,4 @@ function ArtistMarketing() {
 }
 
 export default ArtistMarketing
+

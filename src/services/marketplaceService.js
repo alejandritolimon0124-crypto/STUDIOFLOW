@@ -135,6 +135,7 @@ function normalizeListing(listing = {}) {
     services: marketplaceServices.join(', '),
     marketplaceServices,
     marketplaceServiceOptions: services,
+    activePromotions: asArray(listing.activePromotions || listing.active_promotions),
     specialties: asArray(profile.specialties || listing.specialties),
     photoUrl: profile.photoUrl || profile.photo_path || listing.photoUrl || listing.photo_path || '',
     portfolio,
