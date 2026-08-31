@@ -696,7 +696,7 @@ function ClientDashboard({ view = 'inicio' }) {
   const [visibleHistoryCount, setVisibleHistoryCount] = useState(5)
   const [respondingAppointmentId, setRespondingAppointmentId] = useState('')
   const [clientFlowPoints, setClientFlowPoints] = useState({ monthlyBalance: 0, monthlyEarned: 0, monthlySpent: 0 })
-  const [redeemDraft, setRedeemDraft] = useState({ points: '', targetId: '' })
+  const [redeemDraft, setRedeemDraft] = useState({ points: '', targetId: '', targetQuery: '' })
   const [redeemStatus, setRedeemStatus] = useState('')
   const [notificationPermission, setNotificationPermission] = useState(() => (
     canUseBrowserNotifications() ? Notification.permission : 'unsupported'
@@ -1020,6 +1020,8 @@ function ClientDashboard({ view = 'inicio' }) {
 
   const marketplaceArtists = useMemo(
     () => {
+      const directSearchQuery = studioQuery.trim().toLowerCase()
+
       return activeArtists
         .map((artist) => {
           if (isRealMarketplace) return artist
@@ -1028,13 +1030,15 @@ function ClientDashboard({ view = 'inicio' }) {
         })
         .filter((artist) => {
           if (searchMode === 'Nombre estudio') {
+            if (directSearchQuery.length < 2) return false
+
             const artistStudio = getStudioPublicProfile({
               artist,
               studios: adminState.studios,
               artistStudioMemberships,
             })
             const searchable = `${artist.name} ${artist.owner} ${artist.city} ${artistStudio.profile?.commercialName || ''}`.toLowerCase()
-            return searchable.includes(studioQuery.toLowerCase())
+            return searchable.includes(directSearchQuery)
           }
 
           return !secondaryService || artist.marketplaceServices.includes(secondaryService)
@@ -1198,6 +1202,14 @@ function ClientDashboard({ view = 'inicio' }) {
 
     return [...targets.values()]
   }, [realClientAppointments])
+  const redeemTargetMatches = useMemo(() => {
+    const query = redeemDraft.targetQuery.trim().toLowerCase()
+    if (query.length < 2) return []
+
+    return redeemTargets
+      .filter((target) => target.label.toLowerCase().includes(query))
+      .slice(0, 5)
+  }, [redeemDraft.targetQuery, redeemTargets])
 
   const redeemFlowPoints = async () => {
     const target = redeemTargets.find((item) => `${item.type}:${item.id}` === redeemDraft.targetId)
@@ -1219,7 +1231,7 @@ function ClientDashboard({ view = 'inicio' }) {
         ...current,
         monthlyBalance: Number(payload.monthlyBalance || payload.monthly_balance || 0),
       }))
-      setRedeemDraft({ points: '', targetId: '' })
+      setRedeemDraft({ points: '', targetId: '', targetQuery: '' })
       setRedeemStatus('Flow Points canjeados.')
     }
   }
@@ -1354,6 +1366,15 @@ function ClientDashboard({ view = 'inicio' }) {
     return service?.name || selectedMarketplaceServiceName || effectiveMarketplaceService.name
   }
 
+  const getSlotFlowPoints = (slot) => {
+    const services = selectedArtistProfile?.marketplaceServiceOptions || []
+    const service = services.find((item) => item.id === (slot.serviceOfferingId || slot.service_offering_id))
+      || selectedMarketplaceService
+      || effectiveMarketplaceService
+
+    return Number(service?.flowPointsAwarded || service?.flow_points_awarded || 0)
+  }
+
   const openArtistProfile = (artist, { scrollToBooking = false } = {}) => {
     const nextService = getInitialServiceForArtistProfile(artist)
 
@@ -1435,24 +1456,49 @@ function ClientDashboard({ view = 'inicio' }) {
                   value={redeemDraft.points}
                   onChange={(event) => setRedeemDraft((draft) => ({ ...draft, points: event.target.value }))}
                 />
-                <label className="input-field">
-                  <span>Canjear con</span>
-                  <select
-                    value={redeemDraft.targetId}
-                    onChange={(event) => setRedeemDraft((draft) => ({ ...draft, targetId: event.target.value }))}
-                  >
-                    <option value="">Selecciona artista o estudio</option>
-                    {redeemTargets.map((target) => (
-                      <option value={`${target.type}:${target.id}`} key={`${target.type}:${target.id}`}>
-                        {target.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                <Input
+                  label="Buscar artista o estudio"
+                  placeholder="Escribe el nombre..."
+                  type="search"
+                  value={redeemDraft.targetQuery}
+                  onChange={(event) => setRedeemDraft((draft) => ({
+                    ...draft,
+                    targetId: '',
+                    targetQuery: event.target.value,
+                  }))}
+                />
               </div>
+              {redeemDraft.targetId && (
+                <div className="selected-client-result">
+                  <strong>{redeemTargets.find((target) => `${target.type}:${target.id}` === redeemDraft.targetId)?.label}</strong>
+                  <small>Seleccionado para canje</small>
+                </div>
+              )}
+              {!redeemDraft.targetId && redeemTargetMatches.length > 0 && (
+                <div className="compact-list flow-points-target-results">
+                  {redeemTargetMatches.map((target) => (
+                    <button
+                      className="list-row elevated-row"
+                      key={`${target.type}:${target.id}`}
+                      type="button"
+                      onClick={() => setRedeemDraft((draft) => ({
+                        ...draft,
+                        targetId: `${target.type}:${target.id}`,
+                        targetQuery: target.label,
+                      }))}
+                    >
+                      <div>
+                        <strong>{target.label}</strong>
+                        <small>{target.type === 'studio' ? 'Estudio' : 'Artista'}</small>
+                      </div>
+                      <StatusPill tone="success">Elegir</StatusPill>
+                    </button>
+                  ))}
+                </div>
+              )}
               <Button
                 className="full-width"
-                disabled={!clientFlowPoints.monthlyBalance || !redeemTargets.length}
+                disabled={!clientFlowPoints.monthlyBalance || !redeemDraft.targetId}
                 onClick={redeemFlowPoints}
               >
                 Canjear puntos
@@ -1510,6 +1556,11 @@ function ClientDashboard({ view = 'inicio' }) {
                   <div>
                     <h3>{nextAppointment.service || 'Servicio agendado'}</h3>
                     <p>{nextAppointment.artist || 'Artista'} / {nextAppointment.contextName || nextAppointment.address || 'Ubicacion por confirmar'}</p>
+                    <small className="flow-points-slot-note">
+                      {nextAppointment.pointsGranted > 0
+                        ? `${nextAppointment.pointsGranted} Flow Points otorgados`
+                        : `Otorga ${nextAppointment.flowPointsAwarded || 0} Flow Points al finalizar`}
+                    </small>
                   </div>
                   <div className="row-actions" style={{ justifyContent: 'flex-end', gap: 6 }}>
                     {canRespondToAppointment(nextAppointment) && (
@@ -1626,6 +1677,11 @@ function ClientDashboard({ view = 'inicio' }) {
                     <div>
                       <h3>{appointment.service}</h3>
                       <p>{appointment.artist} / {appointment.contextName || appointment.address}</p>
+                      <small className="flow-points-slot-note">
+                        {appointment.pointsGranted > 0
+                          ? `${appointment.pointsGranted} Flow Points otorgados`
+                          : `Otorga ${appointment.flowPointsAwarded || 0} Flow Points al finalizar`}
+                      </small>
                     </div>
                     <div className="row-actions" style={{ justifyContent: 'flex-end', gap: 6 }}>
                       {canRespondToAppointment(appointment) && (
@@ -2046,6 +2102,7 @@ function ClientDashboard({ view = 'inicio' }) {
                                 <div>
                                   <strong>{slot.time} - {slot.end}</strong>
                                   <small>{getSlotServiceName(slot)}</small>
+                                  <small className="flow-points-slot-note">Otorga {getSlotFlowPoints(slot)} Flow Points</small>
                                 </div>
                                 <Button
                                   size="sm"
@@ -2345,6 +2402,7 @@ function ClientDashboard({ view = 'inicio' }) {
                                   <div>
                                     <strong>{slot.time} - {slot.end}</strong>
                                     <small>{getSlotServiceName(slot)}</small>
+                                    <small className="flow-points-slot-note">Otorga {getSlotFlowPoints(slot)} Flow Points</small>
                                   </div>
                                   <Button
                                     size="sm"

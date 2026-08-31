@@ -25,6 +25,7 @@ function normalizeService(service = {}) {
     durationMinutes,
     duration: service.duration || `${durationMinutes} min`,
     serviceTier: service.serviceTier || service.service_tier || 'basic',
+    flowPointsAwarded: normalizeNumber(service.flowPointsAwarded || service.flow_points_awarded),
     status: service.status || 'active',
   }
 }

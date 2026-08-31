@@ -4247,6 +4247,23 @@ select:focus,
   line-height: 1;
 }
 
+.flow-points-target-results {
+  margin: 0 0 12px;
+}
+
+.flow-points-target-results .list-row {
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+}
+
+.flow-points-slot-note {
+  color: #8a6f36;
+  display: block;
+  font-weight: 950;
+  margin-top: 4px;
+}
+
 .client-photo-editor,
 .artist-photo-editor {
   align-items: center;
