@@ -94,6 +94,7 @@ function ArtistMarketing() {
     preferredStudioId: primaryMembership?.studioId,
   }) || adminState.studios[0]
   const canUseMarketing = !primaryMembership?.studioId || canUseOperationalFeature(currentStudio, 'marketing')
+  const marketingArtistId = primaryArtist?.id || session.artist?.id || session.user?.artistId || null
   const loadedClients = Array.isArray(artistState.clients) ? artistState.clients : []
   const loadedAppointments = Array.isArray(artistState.appointments) ? artistState.appointments : []
   const loadedServices = Array.isArray(artistState.services) ? artistState.services : []
@@ -166,7 +167,7 @@ function ArtistMarketing() {
 
   const loadMarketingSettings = async () => {
     try {
-      const settings = await fetchArtistMarketingSettings()
+      const settings = await fetchArtistMarketingSettings({ artistId: marketingArtistId })
       const rules = settings.happyHour?.rules || {}
       setMarketingSettings(settings)
       setLowOccupancyDraft({
@@ -189,7 +190,7 @@ function ArtistMarketing() {
 
   useEffect(() => {
     loadMarketingSettings()
-  }, [])
+  }, [marketingArtistId])
 
   const addFlowPointReward = async () => {
     setIsMarketingSaving(true)
@@ -211,7 +212,7 @@ function ArtistMarketing() {
     setIsMarketingSaving(true)
     setMarketingSettings((current) => ({ ...current, flowPointsEnabled: nextActive }))
     try {
-      const settings = await setArtistFlowPointsEnabled({ active: nextActive })
+      const settings = await setArtistFlowPointsEnabled({ active: nextActive, artistId: marketingArtistId })
       setMarketingSettings(settings)
       triggerToast(nextActive ? 'Flow Points activos para reservas' : 'Flow Points pausados')
     } catch (error) {
@@ -235,7 +236,7 @@ function ArtistMarketing() {
       },
     }))
     try {
-      const settings = await setArtistDoublePointsPromotion({ active: nextActive })
+      const settings = await setArtistDoublePointsPromotion({ active: nextActive, artistId: marketingArtistId })
       setMarketingSettings(settings)
       triggerToast(nextActive ? 'Puntos dobles activados' : 'Puntos dobles desactivados')
     } catch (error) {
@@ -272,7 +273,7 @@ function ArtistMarketing() {
       },
     }))
     try {
-      const settings = await saveArtistHappyHourPromotion({ ...happyHourDraft, active })
+      const settings = await saveArtistHappyHourPromotion({ ...happyHourDraft, active, artistId: marketingArtistId })
       setMarketingSettings(settings)
       setHappyHour(active)
       triggerToast(active ? 'Happy Hour actualizado' : 'Happy Hour pausado')
@@ -288,7 +289,7 @@ function ArtistMarketing() {
     const nextActive = !lowOccupancyDraft.active
     setIsMarketingSaving(true)
     try {
-      const settings = await setArtistLowOccupancyAutomation({ ...lowOccupancyDraft, active: nextActive })
+      const settings = await setArtistLowOccupancyAutomation({ ...lowOccupancyDraft, active: nextActive, artistId: marketingArtistId })
       setMarketingSettings(settings)
       setLowOccupancyDraft({
         active: Boolean(settings.lowOccupancy?.active),
@@ -306,7 +307,7 @@ function ArtistMarketing() {
   const sendMarketingNotification = async (type) => {
     setIsMarketingSaving(true)
     try {
-      const result = await sendArtistMarketingNotification({ type, maintenanceDays })
+      const result = await sendArtistMarketingNotification({ type, maintenanceDays, artistId: marketingArtistId })
       triggerToast(result.insertedCount > 0 ? `Aviso enviado a ${result.insertedCount} clientas` : 'No hay clientas elegibles para este aviso')
     } catch (error) {
       triggerToast(error.message || 'No se pudo enviar el aviso')
