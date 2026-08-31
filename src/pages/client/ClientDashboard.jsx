@@ -275,6 +275,14 @@ function buildServiceGroupsFromListings(listings = []) {
   }, {})
 }
 
+function buildServiceGroupsForArtist(artist = {}) {
+  return getArtistServiceOptions(artist).reduce((groups, service) => {
+    const category = service.category || 'Servicios'
+    groups[category] = [...(groups[category] || []), service]
+    return groups
+  }, {})
+}
+
 function getServiceOptionsForArtist(artist = {}) {
   const serviceOptions = getArtistServiceOptions(artist)
 
@@ -687,6 +695,7 @@ function ClientDashboard({ view = 'inicio' }) {
   const [secondaryService, setSecondaryService] = useState(searchServices.Pestanas[0].name)
   const [studioQuery, setStudioQuery] = useState('')
   const [selectedArtistProfile, setSelectedArtistProfile] = useState(null)
+  const [selectedArtistPanelMode, setSelectedArtistPanelMode] = useState('')
   const [selectedMarketplaceServiceId, setSelectedMarketplaceServiceId] = useState('')
   const [selectedMarketplaceRewardId, setSelectedMarketplaceRewardId] = useState('')
   const [openDropdown, setOpenDropdown] = useState(null)
@@ -754,6 +763,16 @@ function ClientDashboard({ view = 'inicio' }) {
   const effectiveMarketplaceService = selectedMarketplaceService || marketplaceService
   const selectedMarketplaceServiceName = selectedMarketplaceService?.name || effectiveMarketplaceService.name || secondaryService
   const selectedServiceOfferingId = selectedMarketplaceService?.id || effectiveMarketplaceService.id || null
+  const selectedArtistServiceGroups = useMemo(
+    () => buildServiceGroupsForArtist(selectedArtistProfile),
+    [selectedArtistProfile],
+  )
+  const selectedArtistPrimaryOptions = Object.keys(selectedArtistServiceGroups)
+  const selectedArtistPrimaryService = selectedMarketplaceService?.category
+    || selectedArtistPrimaryOptions.find((category) => selectedArtistServiceGroups[category]?.some((service) => service.name === secondaryService))
+    || selectedArtistPrimaryOptions[0]
+    || 'Servicios'
+  const selectedArtistSecondaryGroup = selectedArtistServiceGroups[selectedArtistPrimaryService] || []
   const currentAvailabilityRequestKey = selectedArtistProfile?.listingId && bookingDate
     ? [selectedArtistProfile.listingId, selectedServiceOfferingId || '', bookingDate].join('|')
     : ''
@@ -1386,23 +1405,19 @@ function ClientDashboard({ view = 'inicio' }) {
     && (promotion.name || '').toLowerCase().includes('flow points')
   )) || selectedArtistProfile?.rewards?.some((reward) => reward.status === 'active')
 
-  const openArtistProfile = (artist, { scrollToBooking = false } = {}) => {
+  const openArtistProfile = (artist, { mode = 'profile' } = {}) => {
     const nextService = getInitialServiceForArtistProfile(artist)
 
     setSelectedArtistProfile(artist)
+    setSelectedArtistPanelMode(mode)
     setSelectedMarketplaceServiceId(nextService.id || '')
     setSecondaryService(nextService.name || getNextServiceForArtist(artist))
     setOpenDropdown(null)
-
-    if (scrollToBooking) {
-      setTimeout(() => {
-        document.getElementById(`marketplace-slots-${artist.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-      }, 120)
-    }
   }
 
   const closeArtistProfile = () => {
     setSelectedArtistProfile(null)
+    setSelectedArtistPanelMode('')
     setSelectedMarketplaceServiceId('')
     setSelectedMarketplaceRewardId('')
     setOpenDropdown(null)
@@ -1425,7 +1440,103 @@ function ClientDashboard({ view = 'inicio' }) {
 
     setSelectedMarketplaceServiceId(nextService?.id || '')
     setSecondaryService(nextService?.name || nextServiceName)
+    setSelectedMarketplaceRewardId('')
   }
+
+  const changeSelectedArtistPrimaryService = (nextPrimaryService) => {
+    const nextService = selectedArtistServiceGroups[nextPrimaryService]?.[0]
+    setSelectedMarketplaceServiceId(nextService?.id || '')
+    setSecondaryService(nextService?.name || '')
+    setSelectedMarketplaceRewardId('')
+    setOpenDropdown(null)
+  }
+
+  const renderMarketplaceBookingPanel = (artist, dropdownPrefix = 'marketplace') => (
+    <div className="public-profile-panel booking-only-panel">
+      <div className="form-stack compact-form public-booking-flow">
+        <PremiumDropdown
+          label="Servicio primario"
+          value={selectedArtistPrimaryService}
+          open={openDropdown === `${dropdownPrefix}PrimaryService`}
+          onToggle={() => setOpenDropdown(openDropdown === `${dropdownPrefix}PrimaryService` ? null : `${dropdownPrefix}PrimaryService`)}
+          onChange={changeSelectedArtistPrimaryService}
+          options={selectedArtistPrimaryOptions.map((category) => ({
+            value: category,
+            label: category,
+            meta: `${selectedArtistServiceGroups[category]?.length || 0} opciones`,
+          }))}
+        />
+        <PremiumDropdown
+          label="Servicio secundario"
+          value={selectedMarketplaceServiceName}
+          open={openDropdown === `${dropdownPrefix}SecondaryService`}
+          onToggle={() => setOpenDropdown(openDropdown === `${dropdownPrefix}SecondaryService` ? null : `${dropdownPrefix}SecondaryService`)}
+          onChange={changeSelectedMarketplaceService}
+          options={selectedArtistSecondaryGroup.map((service) => ({
+            value: service.name,
+            label: service.name,
+            meta: `${service.durationMinutes || 60} min`,
+          }))}
+        />
+        <label className="input-field">
+          <span>Fecha</span>
+          <input type="date" min={getTodayDateValue()} value={bookingDate} onChange={(event) => setBookingDate(event.target.value)} />
+        </label>
+        {selectedArtistFlowPointsActive && artist.rewards?.length > 0 && (
+          <label className="input-field">
+            <span>Usar Flow Points</span>
+            <select value={selectedMarketplaceRewardId} onChange={(event) => setSelectedMarketplaceRewardId(event.target.value)}>
+              <option value="">No usar puntos en esta cita</option>
+              {artist.rewards.map((reward) => (
+                <option value={reward.id} key={reward.id}>
+                  {reward.discountPercent}% descuento / {reward.pointsCost} puntos
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+      </div>
+
+      <div className="compact-list public-slot-list" id={`marketplace-slots-${artist.id}`}>
+        {availableSlots.length > 0 ? (
+          availableSlots.map((slot) => (
+            <div className={`list-row elevated-row${slot.isHappyHour ? ' happy-hour-slot' : ''}`} key={`${artist.id}-${slot.date}-${slot.time}`}>
+              <div>
+                <strong>{slot.time} - {slot.end}</strong>
+                <small>{getSlotServiceName(slot)}</small>
+                <small className="flow-points-slot-note">Otorga {getSlotFlowPoints(slot)} Flow Points</small>
+              </div>
+              <Button
+                size="sm"
+                variant={slot.isHappyHour ? 'success' : slot.available ? 'primary' : 'ghost'}
+                disabled={!slot.available || isBookingLoading}
+                onClick={() => reserveSlot(slot)}
+              >
+                {isBookingLoading ? 'Reservando...' : slot.available ? (slot.isHappyHour ? `${slot.happyHourDiscountPercent}% Reservar` : 'Reservar') : 'Ocupado'}
+              </Button>
+            </div>
+          ))
+        ) : (
+          <div className="list-row elevated-row">
+            <div>
+              <strong>{isAvailabilityLoading ? 'Cargando horarios...' : 'Sin horarios disponibles'}</strong>
+              <small>{availabilityError || 'La agenda del artista no permite reservas en esta fecha.'}</small>
+            </div>
+            <StatusPill tone="neutral">No disponible</StatusPill>
+          </div>
+        )}
+      </div>
+      {bookingError && (
+        <div className="list-row elevated-row">
+          <div>
+            <strong>No se pudo reservar</strong>
+            <small>{bookingError}</small>
+          </div>
+          <StatusPill tone="neutral">Reserva</StatusPill>
+        </div>
+      )}
+    </div>
+  )
 
   return (
     <main className={`dashboard-grid client-grid view-${view}`}>
@@ -1933,7 +2044,9 @@ function ClientDashboard({ view = 'inicio' }) {
                 const studioContactItems = getStudioContactItems(studioProfile)
                 const artistPortfolio = publicArtistProfile.portfolio.slice(0, 12)
                 const contactLinks = publicArtistProfile.contactLinks || {}
-                const isProfileOpen = selectedArtistProfile?.id === artist.id
+                const isSelectedArtist = selectedArtistProfile?.id === artist.id
+                const isProfileOpen = isSelectedArtist && selectedArtistPanelMode === 'profile'
+                const isBookingOpen = isSelectedArtist && selectedArtistPanelMode === 'booking'
                 const isStudioListing = artist.profileType === 'studio'
                 const profilePhotoUrl = isStudioListing
                   ? studioProfile.profile?.logoUrl || publicArtistProfile.photoUrl
@@ -1947,7 +2060,7 @@ function ClientDashboard({ view = 'inicio' }) {
                 const hasSocialLinks = contactLinks.whatsapp || contactLinks.instagram || contactLinks.facebook
 
                 return (
-                  <article className={`artist-result marketplace-result-card${isProfileOpen ? ' is-expanded' : ''}`} key={artist.name}>
+                  <article className={`artist-result marketplace-result-card${isSelectedArtist ? ' is-expanded' : ''}`} key={artist.name}>
                     <div className="marketplace-result-summary">
                       <div className="marketplace-artist-avatar avatar">
                         {profilePhotoUrl ? (
@@ -1978,7 +2091,7 @@ function ClientDashboard({ view = 'inicio' }) {
                               return
                             }
 
-                            openArtistProfile(artist)
+                            openArtistProfile(artist, { mode: 'profile' })
                           }}
                         >
                           {isProfileOpen ? 'Ocultar perfil' : 'Ver perfil'}
@@ -1986,9 +2099,16 @@ function ClientDashboard({ view = 'inicio' }) {
                         <button
                           className="marketplace-profile-button"
                           type="button"
-                          onClick={() => openArtistProfile(artist, { scrollToBooking: true })}
+                          onClick={() => {
+                            if (isBookingOpen) {
+                              closeArtistProfile()
+                              return
+                            }
+
+                            openArtistProfile(artist, { mode: 'booking' })
+                          }}
                         >
-                          Agendar ahora
+                          {isBookingOpen ? 'Ocultar agenda' : 'Agendar ahora'}
                         </button>
                         <button
                           className={`marketplace-favorite-button${isFavorite ? ' is-saved' : ''}`}
@@ -2000,6 +2120,8 @@ function ClientDashboard({ view = 'inicio' }) {
                         </button>
                       </div>
                     </div>
+
+                    {isBookingOpen && renderMarketplaceBookingPanel(artist, 'searchBooking')}
 
                     {isProfileOpen && (
                       <div className="public-profile-panel">
@@ -2105,12 +2227,28 @@ function ClientDashboard({ view = 'inicio' }) {
 
                         <div className="form-stack compact-form public-booking-flow">
                           <PremiumDropdown
-                            label="Servicio"
+                            label="Servicio primario"
+                            value={selectedArtistPrimaryService}
+                            open={openDropdown === 'profilePrimaryService'}
+                            onToggle={() => setOpenDropdown(openDropdown === 'profilePrimaryService' ? null : 'profilePrimaryService')}
+                            onChange={changeSelectedArtistPrimaryService}
+                            options={selectedArtistPrimaryOptions.map((category) => ({
+                              value: category,
+                              label: category,
+                              meta: `${selectedArtistServiceGroups[category]?.length || 0} opciones`,
+                            }))}
+                          />
+                          <PremiumDropdown
+                            label="Servicio secundario"
                             value={selectedMarketplaceServiceName}
-                            open={openDropdown === 'profileService'}
-                            onToggle={() => setOpenDropdown(openDropdown === 'profileService' ? null : 'profileService')}
+                            open={openDropdown === 'profileSecondaryService'}
+                            onToggle={() => setOpenDropdown(openDropdown === 'profileSecondaryService' ? null : 'profileSecondaryService')}
                             onChange={changeSelectedMarketplaceService}
-                            options={getServiceOptionsForArtist(artist)}
+                            options={selectedArtistSecondaryGroup.map((service) => ({
+                              value: service.name,
+                              label: service.name,
+                              meta: `${service.durationMinutes || 60} min`,
+                            }))}
                           />
                           <label className="input-field">
                             <span>Fecha</span>
@@ -2250,7 +2388,9 @@ function ClientDashboard({ view = 'inicio' }) {
                   const studioContactItems = getStudioContactItems(studioProfile)
                   const artistPortfolio = publicArtistProfile.portfolio.slice(0, 12)
                   const contactLinks = publicArtistProfile.contactLinks || {}
-                  const isProfileOpen = selectedArtistProfile?.id === artist.id
+                  const isSelectedArtist = selectedArtistProfile?.id === artist.id
+                  const isProfileOpen = isSelectedArtist && selectedArtistPanelMode === 'profile'
+                  const isBookingOpen = isSelectedArtist && selectedArtistPanelMode === 'booking'
                   const isStudioListing = artist.profileType === 'studio'
                   const profilePhotoUrl = isStudioListing
                     ? studioProfile.profile?.logoUrl || publicArtistProfile.photoUrl
@@ -2264,7 +2404,7 @@ function ClientDashboard({ view = 'inicio' }) {
                   const hasSocialLinks = contactLinks.whatsapp || contactLinks.instagram || contactLinks.facebook
 
                   return (
-                    <article className={`favorite-card marketplace-result-card${isProfileOpen ? ' is-expanded' : ''}`} key={artist.name}>
+                    <article className={`favorite-card marketplace-result-card${isSelectedArtist ? ' is-expanded' : ''}`} key={artist.name}>
                       <div className="marketplace-result-summary">
                         <div className="marketplace-artist-avatar avatar">
                           {profilePhotoUrl ? (
@@ -2292,7 +2432,7 @@ function ClientDashboard({ view = 'inicio' }) {
                                 return
                               }
 
-                              openArtistProfile(artist)
+                              openArtistProfile(artist, { mode: 'profile' })
                             }}
                           >
                             👤 {isProfileOpen ? 'Ocultar perfil' : 'Ver perfil'}
@@ -2300,9 +2440,16 @@ function ClientDashboard({ view = 'inicio' }) {
                           <button
                             className="marketplace-profile-button"
                             type="button"
-                            onClick={() => openArtistProfile(artist, { scrollToBooking: true })}
+                            onClick={() => {
+                              if (isBookingOpen) {
+                                closeArtistProfile()
+                                return
+                              }
+
+                              openArtistProfile(artist, { mode: 'booking' })
+                            }}
                           >
-                            📅 Reservar cita
+                            {isBookingOpen ? 'Ocultar agenda' : 'Reservar cita'}
                           </button>
                           <button
                             className="marketplace-favorite-button is-saved"
@@ -2313,6 +2460,8 @@ function ClientDashboard({ view = 'inicio' }) {
                           </button>
                         </div>
                       </div>
+
+                      {isBookingOpen && renderMarketplaceBookingPanel(artist, 'favoriteBooking')}
 
                       {isProfileOpen && (
                         <div className="public-profile-panel">
@@ -2418,12 +2567,28 @@ function ClientDashboard({ view = 'inicio' }) {
 
                           <div className="form-stack compact-form public-booking-flow">
                             <PremiumDropdown
-                              label="Servicio"
+                              label="Servicio primario"
+                              value={selectedArtistPrimaryService}
+                              open={openDropdown === 'favoriteProfilePrimaryService'}
+                              onToggle={() => setOpenDropdown(openDropdown === 'favoriteProfilePrimaryService' ? null : 'favoriteProfilePrimaryService')}
+                              onChange={changeSelectedArtistPrimaryService}
+                              options={selectedArtistPrimaryOptions.map((category) => ({
+                                value: category,
+                                label: category,
+                                meta: `${selectedArtistServiceGroups[category]?.length || 0} opciones`,
+                              }))}
+                            />
+                            <PremiumDropdown
+                              label="Servicio secundario"
                               value={selectedMarketplaceServiceName}
-                              open={openDropdown === 'favoriteProfileService'}
-                              onToggle={() => setOpenDropdown(openDropdown === 'favoriteProfileService' ? null : 'favoriteProfileService')}
+                              open={openDropdown === 'favoriteProfileSecondaryService'}
+                              onToggle={() => setOpenDropdown(openDropdown === 'favoriteProfileSecondaryService' ? null : 'favoriteProfileSecondaryService')}
                               onChange={changeSelectedMarketplaceService}
-                              options={getServiceOptionsForArtist(artist)}
+                              options={selectedArtistSecondaryGroup.map((service) => ({
+                                value: service.name,
+                                label: service.name,
+                                meta: `${service.durationMinutes || 60} min`,
+                              }))}
                             />
                             <label className="input-field">
                               <span>Fecha</span>
