@@ -73,18 +73,18 @@ export async function saveArtistFlowPointReward({ discountPercent, pointsCost } 
 
 export async function setArtistDoublePointsPromotion({ active } = {}) {
   const client = requireSupabase()
-  const { data, error } = await client.rpc('studio_flow_artist_set_double_points_promotion', {
+  const { error } = await client.rpc('studio_flow_artist_set_double_points_promotion', {
     p_active: Boolean(active),
   })
 
   if (error) throw error
 
-  return normalizePromotion(data?.promotion)
+  return fetchArtistMarketingSettings()
 }
 
 export async function saveArtistHappyHourPromotion({ active, discountPercent, weekdays, startTime, endTime } = {}) {
   const client = requireSupabase()
-  const { data, error } = await client.rpc('studio_flow_artist_save_happy_hour_promotion', {
+  const { error } = await client.rpc('studio_flow_artist_save_happy_hour_promotion', {
     p_active: Boolean(active),
     p_discount_percent: Number(discountPercent) || 0,
     p_weekdays: weekdays,
@@ -94,7 +94,7 @@ export async function saveArtistHappyHourPromotion({ active, discountPercent, we
 
   if (error) throw error
 
-  return normalizePromotion(data?.promotion)
+  return fetchArtistMarketingSettings()
 }
 
 export async function setArtistLowOccupancyAutomation({ active, period, threshold } = {}) {

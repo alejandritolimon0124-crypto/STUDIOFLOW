@@ -235,8 +235,8 @@ function ArtistMarketing() {
       },
     }))
     try {
-      const promotion = await setArtistDoublePointsPromotion({ active: nextActive })
-      setMarketingSettings((current) => ({ ...current, doublePoints: promotion }))
+      const settings = await setArtistDoublePointsPromotion({ active: nextActive })
+      setMarketingSettings(settings)
       triggerToast(nextActive ? 'Puntos dobles activados' : 'Puntos dobles desactivados')
     } catch (error) {
       setMarketingSettings(previousSettings)
@@ -272,8 +272,8 @@ function ArtistMarketing() {
       },
     }))
     try {
-      const promotion = await saveArtistHappyHourPromotion({ ...happyHourDraft, active })
-      setMarketingSettings((current) => ({ ...current, happyHour: promotion }))
+      const settings = await saveArtistHappyHourPromotion({ ...happyHourDraft, active })
+      setMarketingSettings(settings)
       setHappyHour(active)
       triggerToast(active ? 'Happy Hour actualizado' : 'Happy Hour pausado')
     } catch (error) {
@@ -499,13 +499,13 @@ function ArtistMarketing() {
           action={<Button disabled={isMarketingSaving || !rewardDraft.pointsCost} size="sm" onClick={addFlowPointReward}>Agregar beneficio Flow Points</Button>}
         />
         <div className={`marketplace-switch-card ${flowPointsEnabled ? 'active' : ''}`}>
-          <label className="toggle-row marketplace-main-toggle">
+          <div className="toggle-row marketplace-main-toggle">
             <span>
               <strong>Flow Points activos para clientas</strong>
               <small>{flowPointsEnabled ? 'Las clientas pueden ganar y canjear puntos.' : 'Los puntos estan pausados para este perfil.'}</small>
             </span>
-            <input type="checkbox" checked={flowPointsEnabled} disabled={isMarketingSaving} onChange={toggleFlowPointsEnabled} />
-          </label>
+            <StatusPill tone={flowPointsEnabled ? 'success' : 'neutral'}>{flowPointsEnabled ? 'Activo' : 'Pausado'}</StatusPill>
+          </div>
           <Button disabled={isMarketingSaving} size="sm" variant={flowPointsEnabled ? 'danger' : 'success'} onClick={toggleFlowPointsEnabled}>
             {flowPointsEnabled ? 'Desactivar Flow Points' : 'Activar Flow Points'}
           </Button>
