@@ -688,6 +688,7 @@ function ClientDashboard({ view = 'inicio' }) {
   const [studioQuery, setStudioQuery] = useState('')
   const [selectedArtistProfile, setSelectedArtistProfile] = useState(null)
   const [selectedMarketplaceServiceId, setSelectedMarketplaceServiceId] = useState('')
+  const [selectedMarketplaceRewardId, setSelectedMarketplaceRewardId] = useState('')
   const [openDropdown, setOpenDropdown] = useState(null)
   const [recommendationMode, setRecommendationMode] = useState('')
   const [happyHourOnly, setHappyHourOnly] = useState(false)
@@ -1308,11 +1309,13 @@ function ClientDashboard({ view = 'inicio' }) {
       console.error('[BOOKING TRACE]', 'ClientDashboard calling bookMarketplaceAppointment', {
         availabilitySlotIds,
         serviceOfferingId,
+        rewardId: selectedMarketplaceRewardId || null,
       })
 
       const booking = await bookMarketplaceAppointment({
         availabilitySlotIds,
         serviceOfferingId,
+        rewardId: selectedMarketplaceRewardId || null,
       })
 
       console.error('[BOOKING TRACE]', 'ClientDashboard bookMarketplaceAppointment returned', {
@@ -1378,6 +1381,11 @@ function ClientDashboard({ view = 'inicio' }) {
     return Number(service?.flowPointsAwarded || service?.flow_points_awarded || 0)
   }
 
+  const selectedArtistFlowPointsActive = selectedArtistProfile?.activePromotions?.some((promotion) => (
+    (promotion.type || promotion.promotion_type) === 'private_promo'
+    && (promotion.name || '').toLowerCase().includes('flow points')
+  )) || selectedArtistProfile?.rewards?.some((reward) => reward.status === 'active')
+
   const openArtistProfile = (artist, { scrollToBooking = false } = {}) => {
     const nextService = getInitialServiceForArtistProfile(artist)
 
@@ -1396,6 +1404,7 @@ function ClientDashboard({ view = 'inicio' }) {
   const closeArtistProfile = () => {
     setSelectedArtistProfile(null)
     setSelectedMarketplaceServiceId('')
+    setSelectedMarketplaceRewardId('')
     setOpenDropdown(null)
   }
 
@@ -2107,6 +2116,19 @@ function ClientDashboard({ view = 'inicio' }) {
                             <span>Fecha</span>
                             <input type="date" min={getTodayDateValue()} value={bookingDate} onChange={(event) => setBookingDate(event.target.value)} />
                           </label>
+                          {selectedArtistFlowPointsActive && artist.rewards?.length > 0 && (
+                            <label className="input-field">
+                              <span>Usar Flow Points</span>
+                              <select value={selectedMarketplaceRewardId} onChange={(event) => setSelectedMarketplaceRewardId(event.target.value)}>
+                                <option value="">No usar puntos en esta cita</option>
+                                {artist.rewards.map((reward) => (
+                                  <option value={reward.id} key={reward.id}>
+                                    {reward.discountPercent}% descuento / {reward.pointsCost} puntos
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+                          )}
                         </div>
 
                         <div className="compact-list public-slot-list" id={`marketplace-slots-${artist.id}`}>
@@ -2407,6 +2429,19 @@ function ClientDashboard({ view = 'inicio' }) {
                               <span>Fecha</span>
                               <input type="date" min={getTodayDateValue()} value={bookingDate} onChange={(event) => setBookingDate(event.target.value)} />
                             </label>
+                            {selectedArtistFlowPointsActive && artist.rewards?.length > 0 && (
+                              <label className="input-field">
+                                <span>Usar Flow Points</span>
+                                <select value={selectedMarketplaceRewardId} onChange={(event) => setSelectedMarketplaceRewardId(event.target.value)}>
+                                  <option value="">No usar puntos en esta cita</option>
+                                  {artist.rewards.map((reward) => (
+                                    <option value={reward.id} key={reward.id}>
+                                      {reward.discountPercent}% descuento / {reward.pointsCost} puntos
+                                    </option>
+                                  ))}
+                                </select>
+                              </label>
+                            )}
                           </div>
 
                           <div className="compact-list public-slot-list" id={`marketplace-slots-${artist.id}`}>

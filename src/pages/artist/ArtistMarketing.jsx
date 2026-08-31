@@ -24,6 +24,7 @@ import {
   fetchArtistMarketingSettings,
   saveArtistFlowPointReward,
   saveArtistHappyHourPromotion,
+  setArtistFlowPointsEnabled,
   setArtistDoublePointsPromotion,
 } from '../../services/artistMarketingService'
 
@@ -64,6 +65,8 @@ function ArtistMarketing() {
   const [marketingSettings, setMarketingSettings] = useState({ rewards: [], doublePoints: { status: 'paused', rules: {} }, happyHour: { status: 'paused', rules: {} } })
   const [rewardDraft, setRewardDraft] = useState({ discountPercent: 10, pointsCost: '' })
   const [happyHourDraft, setHappyHourDraft] = useState({ discountPercent: 10, weekdays: [1, 2, 3, 4, 5], startTime: '14:00', endTime: '17:00' })
+  const [lowOccupancyDraft, setLowOccupancyDraft] = useState({ active: false, period: 'week', threshold: 40 })
+  const [maintenanceDays, setMaintenanceDays] = useState(14)
   const [isMarketingSaving, setIsMarketingSaving] = useState(false)
   const toastIdRef = useRef(0)
   const localProfiles = session.user ? [{ ...session.user, id: session.user.id }] : []
@@ -99,7 +102,12 @@ function ArtistMarketing() {
       tier: calculateClientTier(Number(client.visits || client.history?.length || 0)),
     }))
     .filter((client) => client.visits >= visitsRequired)
-  const activePromotionsCount = [happyHour, lowOccupancy, silentPromo, loyaltyActive].filter(Boolean).length
+  const activePromotionsCount = [
+    marketingSettings.flowPointsEnabled,
+    marketingSettings.doublePoints?.status === 'active',
+    marketingSettings.happyHour?.status === 'active',
+    lowOccupancyDraft.active,
+  ].filter(Boolean).length
 
   const { weeklyOccupancy, lowSlots, busyDays } = calculateWeeklyOccupancy(loadedAppointments)
   const promotionSummary = generateAutomaticPromotion(weeklyOccupancy)
@@ -117,6 +125,7 @@ function ArtistMarketing() {
   const loyaltyPreview = `${visitsRequired} visitas = ${discountPercent}% OFF por ${validityDays} días`
   const doublePointsActive = marketingSettings.doublePoints?.status === 'active'
   const happyHourActive = marketingSettings.happyHour?.status === 'active'
+  const flowPointsEnabled = Boolean(marketingSettings.flowPointsEnabled)
   const weekdayOptions = [
     { value: 1, label: 'Lun' },
     { value: 2, label: 'Mar' },
@@ -176,6 +185,19 @@ function ArtistMarketing() {
     }
   }
 
+  const toggleFlowPointsEnabled = async () => {
+    setIsMarketingSaving(true)
+    try {
+      const settings = await setArtistFlowPointsEnabled({ active: !flowPointsEnabled })
+      setMarketingSettings(settings)
+      triggerToast(!flowPointsEnabled ? 'Flow Points activos para reservas' : 'Flow Points pausados')
+    } catch (error) {
+      triggerToast(error.message || 'No se pudo actualizar Flow Points')
+    } finally {
+      setIsMarketingSaving(false)
+    }
+  }
+
   const toggleDoublePoints = async () => {
     setIsMarketingSaving(true)
     try {
@@ -207,6 +229,29 @@ function ArtistMarketing() {
       triggerToast(active ? 'Happy Hour actualizado' : 'Happy Hour pausado')
     } catch (error) {
       triggerToast(error.message || 'No se pudo guardar Happy Hour')
+    } finally {
+      setIsMarketingSaving(false)
+    }
+  }
+
+  const toggleLowOccupancyAutomation = async () => {
+    const nextActive = !lowOccupancyDraft.active
+    setIsMarketingSaving(true)
+    try {
+      const [doublePointsPromotion, happyHourPromotion] = await Promise.all([
+        setArtistDoublePointsPromotion({ active: nextActive }),
+        saveArtistHappyHourPromotion({ ...happyHourDraft, active: nextActive }),
+      ])
+      setMarketingSettings((current) => ({
+        ...current,
+        doublePoints: doublePointsPromotion,
+        happyHour: happyHourPromotion,
+      }))
+      setLowOccupancyDraft((draft) => ({ ...draft, active: nextActive }))
+      setHappyHour(nextActive)
+      triggerToast(nextActive ? 'Baja ocupacion activa promociones' : 'Baja ocupacion pausada')
+    } catch (error) {
+      triggerToast(error.message || 'No se pudo actualizar baja ocupacion')
     } finally {
       setIsMarketingSaving(false)
     }
@@ -380,7 +425,7 @@ function ArtistMarketing() {
         <div className="hero-summary">
           <span>{happyHour ? 'Horario activo' : 'Lista para lanzar'}</span>
           <strong>Premium</strong>
-          <small>{silentPromo ? 'Promoción confidencial' : 'Performance estratégica'}</small>
+          <small>{flowPointsEnabled ? 'Flow Points activo' : 'Configura tus beneficios'}</small>
         </div>
       </section>
 
@@ -395,6 +440,10 @@ function ArtistMarketing() {
           eyebrow="Canje de puntos"
           action={<Button disabled={isMarketingSaving || !rewardDraft.pointsCost} size="sm" onClick={addFlowPointReward}>Agregar beneficio Flow Points</Button>}
         />
+        <label className="toggle-row marketplace-main-toggle">
+          Flow Points activos para clientas
+          <input type="checkbox" checked={flowPointsEnabled} onChange={toggleFlowPointsEnabled} />
+        </label>
         <div className="location-form-grid">
           <label className="input-field">
             <span>Descuento</span>
@@ -488,208 +537,82 @@ function ArtistMarketing() {
         </div>
       </Card>
 
-      {artistAutomations.length > 0 && (
-        <Card className="wide-card mobile-screen primary-panel automations-panel">
-          <PanelHeader title="Automatizaciones inteligentes" eyebrow="Insights en tiempo real" />
-          <div className="automations-artist-stack">
-            {artistAutomations.map((automation) => (
-              <div key={automation.type} className="automation-insight">
-                <div className="insight-header">
-                  <h4>{automation.title}</h4>
-                  <span className={`insight-badge priority-${automation.priority}`}>
-                    {automation.priority === 'critical' && '🔴'}
-                    {automation.priority === 'high' && '🟠'}
-                    {automation.priority === 'medium' && '🟡'}
-                    {automation.priority === 'low' && '🟢'}
-                  </span>
-                </div>
-                <p>{automation.message}</p>
-                {automation.ctaText && (
-                  <Button variant="text" onClick={() => {}}>{automation.ctaText}</Button>
-                )}
-              </div>
-            ))}
-          </div>
-        </Card>
-      )}
-
       <Card className="wide-card mobile-screen primary-panel">
-        <PanelHeader title="Promociones inteligentes" eyebrow="Automatización" />
-        <div className="compact-list">
-          <div className="list-row elevated-row">
-            <div>
-              <strong>Happy Hour</strong>
-              <small>Descuentos automáticos en horarios de baja ocupación.</small>
-            </div>
-            <div className="toggle-meta">
-              <StatusPill tone={happyHour ? 'success' : 'nude'}>{happyHour ? 'Activo' : 'Inactivo'}</StatusPill>
-              <label className="toggle-row">
-                <input type="checkbox" checked={happyHour} onChange={() => handleToggle('happyHour', setHappyHour, !happyHour)} />
-              </label>
-            </div>
-          </div>
-          <div className="list-row elevated-row">
-            <div>
-              <strong>Baja ocupación</strong>
-              <small>Activar promoción cuando ocupación sea menor a 40%.</small>
-            </div>
-            <div className="toggle-meta">
-              <StatusPill tone={lowOccupancy ? 'warm' : 'nude'}>{lowOccupancy ? 'Monitoreo' : 'Desactivado'}</StatusPill>
-              <label className="toggle-row">
-                <input type="checkbox" checked={lowOccupancy} onChange={() => handleToggle('lowOccupancy', setLowOccupancy, !lowOccupancy)} />
-              </label>
-            </div>
-          </div>
-          <div className="list-row elevated-row">
-            <div>
-              <strong>Promoción silenciosa</strong>
-              <small>Visible solo para clientes frecuentes.</small>
-            </div>
-            <div className="toggle-meta">
-              <StatusPill tone={silentPromo ? 'sage' : 'nude'}>{silentPromo ? 'Exclusivo' : 'Off'}</StatusPill>
-              <label className="toggle-row">
-                <input type="checkbox" checked={silentPromo} onChange={() => handleToggle('silentPromo', setSilentPromo, !silentPromo)} />
-              </label>
-            </div>
-          </div>
-          <div className="list-row elevated-row">
-            <div>
-              <strong>Servicio destacado</strong>
-              <small>Impulsar un servicio específico semanalmente.</small>
-            </div>
-            <Button size="sm">Configurar</Button>
-          </div>
-          <div className="list-row elevated-row">
-            <div>
-              <strong>{promotionSummary.name}</strong>
-              <small>{promotionSummary.message}</small>
-            </div>
-            <StatusPill tone={promotionSummary.status === 'Activo' ? 'success' : 'neutral'}>{promotionSummary.status}</StatusPill>
-          </div>
-        </div>
-      </Card>
-
-      <Card className="mobile-screen primary-panel">
-        <PanelHeader title="Sistema de lealtad" eyebrow="Recompensas" />
-        <div className="form-stack compact-form">
+        <PanelHeader title="Baja ocupacion" eyebrow="Automatizacion" />
+        <div className="location-form-grid">
           <label className="input-field">
-            <span>Visitas requeridas</span>
-            <select value={visitsRequired} onChange={(e) => setVisitsRequired(Number(e.target.value))}>
-              <option value={3}>3</option>
-              <option value={5}>5</option>
-              <option value={10}>10</option>
+            <span>Medir por</span>
+            <select
+              value={lowOccupancyDraft.period}
+              onChange={(event) => setLowOccupancyDraft((draft) => ({ ...draft, period: event.target.value }))}
+            >
+              <option value="week">Semana</option>
+              <option value="month">Mes</option>
             </select>
           </label>
-          <label className="input-field">
-            <span>Porcentaje descuento</span>
-            <select value={discountPercent} onChange={(e) => setDiscountPercent(Number(e.target.value))}>
-              <option value={5}>5%</option>
-              <option value={10}>10%</option>
-              <option value={15}>15%</option>
-              <option value={20}>20%</option>
-              <option value={25}>25%</option>
-              <option value={35}>35%</option>
-            </select>
-          </label>
-          <label className="input-field">
-            <span>Vigencia</span>
-            <select value={validityDays} onChange={(e) => setValidityDays(Number(e.target.value))}>
-              <option value={30}>30 días</option>
-              <option value={45}>45 días</option>
-              <option value={60}>60 días</option>
-              <option value={90}>90 días</option>
-            </select>
-          </label>
-          <div className="list-row elevated-row">
-            <div>
-              <strong>Preview</strong>
-              <small>{loyaltyPreview}</small>
-            </div>
-          </div>
-          <div className="list-row elevated-row">
-            <div>
-              <strong>Nivel actual</strong>
-              <small>{loyaltyTier}</small>
-            </div>
-          </div>
-          <label className="toggle-row">
-            Programa activo
-            <input type="checkbox" checked={loyaltyActive} onChange={() => handleToggle('loyaltyActive', setLoyaltyActive, !loyaltyActive)} />
-          </label>
+          <Input
+            label="Activar con menos de"
+            max="40"
+            min="1"
+            type="number"
+            value={lowOccupancyDraft.threshold}
+            onChange={(event) => setLowOccupancyDraft((draft) => ({ ...draft, threshold: Math.min(Number(event.target.value) || 40, 40) }))}
+          />
         </div>
-      </Card>
-
-      <Card className="mobile-screen primary-panel">
-        <PanelHeader title="Clientes VIP" eyebrow="Beneficios premium" />
-        <div className="compact-list">
-          {premiumClients.length > 0 ? premiumClients.map((client) => (
-            <div className="list-row elevated-row" key={client.name}>
-              <div>
-                <strong>{client.name}</strong>
-                <small>{client.visits} visitas registradas</small>
-              </div>
-              <StatusPill tone="rose">{client.tier}</StatusPill>
-            </div>
-          )) : (
-            <div className="list-row elevated-row">
-              <div>
-                <strong>No hay clientas recurrentes.</strong>
-                <small>Se mostraran cuando exista historial real.</small>
-              </div>
-            </div>
-          )}
-        </div>
-        <Button className="full-width" variant="ghost" onClick={() => setIsPremiumModalOpen(true)}>
-          Gestionar beneficios
-        </Button>
-      </Card>
-
-      <Card className="mobile-screen primary-panel">
-        <PanelHeader title="Automatizaciones" eyebrow="Marketing inteligente" />
-        <div className="compact-list">
-          {automations.map((auto) => (
-            <div className="list-row elevated-row" key={auto.name}>
-              <div>
-                <strong>{auto.name}</strong>
-                <small>Automatización de comunicación.</small>
-              </div>
-              <label className="toggle-row">
-                <input type="checkbox" checked={automationStates[auto.name]} onChange={() => toggleAutomation(auto.name)} />
-              </label>
-            </div>
-          ))}
+        <div className="list-row elevated-row">
+          <div>
+            <strong>{lowOccupancyDraft.active ? 'Automatizacion activa' : 'Automatizacion pausada'}</strong>
+            <small>Al activarse enciende Happy Hour y Puntos Dobles. Al pausarse todo vuelve a normal.</small>
+          </div>
+          <Button disabled={isMarketingSaving} size="sm" variant={lowOccupancyDraft.active ? 'ghost' : 'success'} onClick={toggleLowOccupancyAutomation}>
+            {lowOccupancyDraft.active ? 'Desactivar' : 'Activar'}
+          </Button>
         </div>
       </Card>
 
       <Card className="wide-card mobile-screen primary-panel">
-        <PanelHeader title="Studio Flow te recomienda" eyebrow="Insights inteligentes" />
+        <PanelHeader title="Marketing inteligente" eyebrow="Solo clientas atendidas" />
         <div className="compact-list">
-          {dynamicInsights.map((insight) => (
-            <div className="list-row elevated-row" key={insight.title}>
-              <div>
-                <strong>{insight.title}</strong>
-                <small>{insight.message}</small>
-              </div>
-              <StatusPill tone={insight.tone}>{insight.tone === 'success' ? 'OK' : insight.tone === 'rose' ? 'Alerta' : 'Aviso'}</StatusPill>
+          <div className="list-row elevated-row">
+            <div>
+              <strong>Recordatorio de cumpleaños</strong>
+              <small>Envia una felicitacion firmada por la artista o estudio solo a clientas que ya asistieron.</small>
             </div>
-          ))}
+            <label className="toggle-row">
+              <input type="checkbox" checked={automationStates['Recordatorio cumpleaños']} onChange={() => toggleAutomation('Recordatorio cumpleaños')} />
+            </label>
+          </div>
+          <div className="list-row elevated-row">
+            <div>
+              <strong>Reactivacion 30 dias</strong>
+              <small>Invita a regresar a clientas sin cita nueva despues de 30 dias.</small>
+            </div>
+            <label className="toggle-row">
+              <input type="checkbox" checked={automationStates['Reactivación 30 días']} onChange={() => toggleAutomation('Reactivación 30 días')} />
+            </label>
+          </div>
+          <div className="list-row elevated-row">
+            <div>
+              <strong>Recordatorio de mantenimiento</strong>
+              <small>Se envia despues de la ultima cita, solo si la clienta ya asistio.</small>
+            </div>
+            <label className="input-field inline-select">
+              <span>Dias</span>
+              <select value={maintenanceDays} onChange={(event) => setMaintenanceDays(Number(event.target.value))}>
+                <option value={7}>7</option>
+                <option value={14}>14</option>
+                <option value={30}>30</option>
+              </select>
+            </label>
+          </div>
         </div>
       </Card>
 
-      <Card className="mobile-screen primary-panel">
-        <PanelHeader title="Analytics rápidos" eyebrow="Métricas clave" />
-        <div className="compact-list">
-          {analyticsRows.map((row) => (
-            <div className="list-row elevated-row" key={row.title}>
-              <div>
-                <strong>{row.title}</strong>
-                <small>{row.description}</small>
-              </div>
-              <StatusPill tone={row.tone}>{row.label}</StatusPill>
-            </div>
-          ))}
-        </div>
-      </Card>
+
+
+
+
+
 
       {isPremiumModalOpen && (
         <div className="marketing-modal-overlay">
@@ -824,4 +747,5 @@ function ArtistMarketing() {
 }
 
 export default ArtistMarketing
+
 

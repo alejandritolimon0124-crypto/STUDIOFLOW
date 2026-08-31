@@ -1485,11 +1485,13 @@ export function AppProvider({ children }) {
   const bookMarketplaceAppointment = useCallback(async ({
     availabilitySlotIds,
     serviceOfferingId,
+    rewardId = null,
     notes = null,
   } = {}) => {
     console.error('[BOOKING TRACE]', 'AppContext bookMarketplaceAppointment entry', {
       availabilitySlotIds,
       serviceOfferingId,
+      rewardId,
       notes,
       sessionRole: session.role,
       isMockSession: session.isMockSession,
@@ -1522,6 +1524,7 @@ export function AppProvider({ children }) {
       const payload = {
         availabilitySlotIds,
         serviceOfferingId,
+        rewardId,
         notes,
       }
 

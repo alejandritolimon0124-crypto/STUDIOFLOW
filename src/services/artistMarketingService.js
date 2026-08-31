@@ -27,9 +27,21 @@ function normalizePromotion(promotion = {}) {
 function normalizeMarketingPayload(data = {}) {
   return {
     rewards: asArray(data.rewards).map(normalizeReward),
+    flowPointsEnabled: Boolean(data.flowPointsEnabled ?? data.flow_points_enabled),
     doublePoints: normalizePromotion(data.doublePoints || data.double_points),
     happyHour: normalizePromotion(data.happyHour || data.happy_hour),
   }
+}
+
+export async function setArtistFlowPointsEnabled({ active } = {}) {
+  const client = requireSupabase()
+  const { data, error } = await client.rpc('studio_flow_artist_set_flow_points_enabled', {
+    p_active: Boolean(active),
+  })
+
+  if (error) throw error
+
+  return normalizeMarketingPayload(data)
 }
 
 export async function fetchArtistMarketingSettings() {

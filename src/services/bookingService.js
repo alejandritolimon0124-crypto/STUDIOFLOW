@@ -41,6 +41,7 @@ function normalizeBookingPayload(data = {}) {
 export async function bookMarketplaceAppointment({
   availabilitySlotIds,
   serviceOfferingId,
+  rewardId = null,
   notes = null,
 } = {}) {
   console.error('[BOOKING TRACE]', 'bookingService entry', {
@@ -94,8 +95,20 @@ export async function bookMarketplaceAppointment({
     throw error
   }
 
-  console.log('[BOOKING] RPC response', data)
-  console.error('[BOOKING TRACE]', 'bookingService supabase.rpc returned data', data)
+  let bookingPayload = data
 
-  return normalizeBookingPayload(data)
+  if (rewardId && data?.appointment?.id) {
+    const { data: rewardData, error: rewardError } = await client.rpc('studio_flow_client_apply_appointment_reward', {
+      p_appointment_id: data.appointment.id,
+      p_reward_id: rewardId,
+    })
+
+    if (rewardError) throw rewardError
+    bookingPayload = rewardData || data
+  }
+
+  console.log('[BOOKING] RPC response', bookingPayload)
+  console.error('[BOOKING TRACE]', 'bookingService supabase.rpc returned data', bookingPayload)
+
+  return normalizeBookingPayload(bookingPayload)
 }

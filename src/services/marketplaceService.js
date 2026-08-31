@@ -136,6 +136,13 @@ function normalizeListing(listing = {}) {
     marketplaceServices,
     marketplaceServiceOptions: services,
     activePromotions: asArray(listing.activePromotions || listing.active_promotions),
+    rewards: asArray(listing.rewards).map((reward) => ({
+      id: reward.id,
+      name: reward.name || 'Beneficio Flow Points',
+      discountPercent: normalizeNumber(reward.discountPercent || reward.discount_percent || reward.metadata?.discountPercent),
+      pointsCost: normalizeNumber(reward.pointsCost || reward.points_cost),
+      status: reward.status || 'active',
+    })),
     specialties: asArray(profile.specialties || listing.specialties),
     photoUrl: profile.photoUrl || profile.photo_path || listing.photoUrl || listing.photo_path || '',
     portfolio,
