@@ -7,7 +7,7 @@ import PanelHeader from '../../components/PanelHeader'
 import StatusPill from '../../components/StatusPill'
 import { useApp } from '../../contexts/appContextCore'
 import { paths } from '../../routes/paths'
-import { filterByStudioAccess, hasPermission, permissions, ROLES } from '../../modules/permissions/rolePermissions'
+import { filterByStudioAccess, ROLES } from '../../modules/permissions/rolePermissions'
 import {
   deriveMembershipsFromLegacyData,
   getArtistsForStudio,
@@ -20,12 +20,6 @@ import {
 import { useNavigate } from 'react-router-dom'
 
 const uniqueById = (items = []) => Array.from(new Map(items.filter(Boolean).map((item) => [item.id, item])).values())
-const parseMoneyValue = (value) => {
-  const normalized = String(value || '').trim().toLowerCase()
-  const amount = Number(normalized.replace(/[^\d.-]/g, '')) || 0
-  return normalized.includes('k') ? amount * 1000 : amount
-}
-
 function formatAppointmentDate(value = '') {
   if (!value) return 'Fecha por confirmar'
   const date = new Date(value)
@@ -180,16 +174,12 @@ function AdminClients() {
           return searchable.includes(query.toLowerCase())
         })
         .sort((firstClient, secondClient) => {
-          const revenueDifference = parseMoneyValue(secondClient.spend) - parseMoneyValue(firstClient.spend)
-          if (revenueDifference !== 0) return revenueDifference
-
           const firstDate = firstClient.lastAppointmentAt || firstClient.lastVisit || firstClient.createdAt || ''
           const secondDate = secondClient.lastAppointmentAt || secondClient.lastVisit || secondClient.createdAt || ''
           return String(secondDate).localeCompare(String(firstDate))
         })
         .slice(0, 5)
   }, [accessibleClientStudioIds, adminState.clients, isStudioOwnerContext, query, realClientResults, session.user])
-  const canSeeStudioRevenue = hasPermission(session.user, permissions.STUDIO_REVENUE)
   const activeClientsCount = adminState.clients.filter((client) => client.status === 'Activo').length
   const suspendedClientsCount = adminState.clients.filter((client) => client.status !== 'Activo').length
 
@@ -296,7 +286,7 @@ function AdminClients() {
               <article className="master-row" key={client.id || client.name}>
                 <div>
                   <strong>{client.name}</strong>
-                  <small>{client.email || client.phone || 'Sin contacto'} / {Number(client.appointments) || 0} citas{canSeeStudioRevenue && client.spend ? ` / ${client.spend}` : ''}</small>
+                  <small>{client.email || client.phone || 'Sin contacto'} / {Number(client.appointments) || 0} citas</small>
                 </div>
                 <StatusPill tone={client.status === 'Activo' ? 'success' : 'warm'}>
                   {client.status === 'Activo' ? 'Activo' : 'Suspendido'}

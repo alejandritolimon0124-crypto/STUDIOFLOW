@@ -196,14 +196,14 @@ function AdminBilling() {
           <div className="table-head">
             <span>Cuenta</span>
             <span>Tipo</span>
-            <span>Comision al dia</span>
+            <span>Comision del mes</span>
             <span>Estatus</span>
           </div>
           {visibleEntities.map((entity) => (
             <div className="table-row" key={`${entity.type}-${entity.id}`}>
               <strong>{entity.name}</strong>
               <span>{entity.type === 'studio' ? 'Estudio' : 'Artista'}</span>
-              <span>{formatCurrency(entity.todayCommission)}</span>
+              <span>{formatCurrency(entity.currentMonthCommission)}</span>
               <StatusPill tone={entity.status === 'overdue' ? 'warm' : 'success'}>
                 {entity.status === 'overdue' ? 'Con atraso' : 'Al corriente'}
               </StatusPill>
