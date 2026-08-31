@@ -28,6 +28,7 @@ function ArtistServices() {
   const [secondary, setSecondary] = useState(serviceCatalog[primaryServices[0]][0])
   const [duration, setDuration] = useState('60 min')
   const [price, setPrice] = useState('')
+  const [flowPointsAwarded, setFlowPointsAwarded] = useState('')
   const [editingId, setEditingId] = useState(null)
   const [feedback, setFeedback] = useState('')
   const [isSaving, setIsSaving] = useState(false)
@@ -46,6 +47,7 @@ function ArtistServices() {
     setSecondary(serviceCatalog[primaryServices[0]][0])
     setDuration('60 min')
     setPrice('')
+    setFlowPointsAwarded('')
     setEditingId(null)
   }
 
@@ -61,6 +63,7 @@ function ArtistServices() {
     setSecondary(service.name)
     setDuration(service.duration)
     setPrice(String(service.price))
+    setFlowPointsAwarded(String(service.flowPointsAwarded || 0))
     setEditingId(service.id)
   }
 
@@ -79,6 +82,7 @@ function ArtistServices() {
       category: primary,
       price: Number(price),
       duration,
+      flowPointsAwarded: Math.max(0, Number.parseInt(String(flowPointsAwarded || 0), 10) || 0),
       bookings: existingService?.bookings || 0,
       demand: existingService?.demand || 'Nueva',
       status: existingService?.status || 'Activo',
@@ -169,6 +173,14 @@ function ArtistServices() {
 
             <Input label="Precio en pesos" type="number" placeholder="850" value={price} onChange={(event) => setPrice(event.target.value)} />
 
+            <Input
+              label="Flow Points por visita"
+              type="number"
+              placeholder="20"
+              value={flowPointsAwarded}
+              onChange={(event) => setFlowPointsAwarded(event.target.value)}
+            />
+
             {feedback && <StatusPill tone={feedback.includes('No se pudo') || feedback.includes('Completa') ? 'warm' : 'success'}>{feedback}</StatusPill>}
             {isArtistServicesLoading && <StatusPill tone="neutral">Cargando servicios</StatusPill>}
             <Button className="full-width" type="submit" disabled={isSaving || isArtistServicesLoading}>
@@ -184,7 +196,7 @@ function ArtistServices() {
               <div className="service-row management-row" key={service.id}>
                 <div>
                   <strong>{service.name}</strong>
-                  <small>{service.category} / {service.duration} / {service.bookings} reservas</small>
+                  <small>{service.category} / {service.duration} / {service.bookings} reservas / {service.flowPointsAwarded || 0} Flow Points</small>
                 </div>
                 <div className="row-actions">
                   <span>{formatCurrency(service.price)}</span>
@@ -204,7 +216,7 @@ function ArtistServices() {
               <div className="service-row management-row" key={service.id}>
                 <div>
                   <strong>{service.name}</strong>
-                  <small>{service.category} / {service.duration}</small>
+                  <small>{service.category} / {service.duration} / {service.flowPointsAwarded || 0} Flow Points</small>
                 </div>
                 <div className="row-actions">
                   <StatusPill tone="warm">Suspendido</StatusPill>

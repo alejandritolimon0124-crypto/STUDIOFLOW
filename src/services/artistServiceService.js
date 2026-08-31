@@ -46,6 +46,7 @@ function mapServiceOffering(row, catalogs = {}) {
     name: row.name,
     price: Number(row.price_amount ?? row.price) || 0,
     duration: row.duration || formatDuration(row.duration_minutes),
+    flowPointsAwarded: Number(row.flowPointsAwarded ?? row.flow_points_awarded) || 0,
     bookings: row.bookings || 0,
     demand: row.demand || 'Nueva',
     status: STATUS_FROM_DB[row.status] || row.status || 'Borrador',
@@ -77,6 +78,7 @@ export async function saveArtistServiceOffering({ artistId, service, workContext
     name: String(service.name || '').trim(),
     price_amount: Number(service.price) || 0,
     duration_minutes: parseDurationMinutes(service.duration),
+    flow_points_awarded: Math.max(0, Number.parseInt(String(service.flowPointsAwarded || 0), 10) || 0),
     status: STATUS_TO_DB[service.status] || 'active',
   }
 
