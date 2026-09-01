@@ -179,6 +179,28 @@ function getHappyHourWeekdays(artist = {}) {
   return [...weekdays]
 }
 
+function isSlotWithinHappyHour(artist = {}, slot = {}) {
+  const slotDate = slot.date || ''
+  const slotTime = slot.time || ''
+  if (!slotDate || !slotTime) return Boolean(slot.isHappyHour)
+
+  const slotWeekday = new Date(`${slotDate}T00:00:00`).getDay()
+  const activeHappyHours = (artist.activePromotions || []).filter((promotion) => (
+    promotion.type === 'happy_hour' || promotion.promotion_type === 'happy_hour'
+  ))
+
+  return activeHappyHours.some((promotion) => {
+    const rules = promotion.rules || {}
+    const rawWeekdays = rules.weekdays || rules.weekDays || rules.week_days
+    const weekdays = Array.isArray(rawWeekdays) ? rawWeekdays.map(Number) : []
+    const startTime = String(rules.startTime || rules.start_time || '00:00').slice(0, 5)
+    const endTime = String(rules.endTime || rules.end_time || '23:59').slice(0, 5)
+    const weekdayMatches = weekdays.length === 0 || weekdays.includes(slotWeekday)
+
+    return weekdayMatches && slotTime >= startTime && slotTime < endTime
+  })
+}
+
 function getKnownServiceCategory(serviceName = '') {
   const normalizedName = String(serviceName || '').trim().toLowerCase()
   const entry = Object.entries(searchServices).find(([, services]) => (
@@ -911,6 +933,10 @@ function ClientDashboard({ view = 'inicio' }) {
 
         return slots
           .filter(Boolean)
+          .map((slot) => ({
+            ...slot,
+            isHappyHour: Boolean(slot.isHappyHour || isSlotWithinHappyHour(selectedArtistProfile, slot)),
+          }))
           .filter(slotBelongsToSelectedTarget)
           .filter((slot) => !happyHourOnly || slot.isHappyHour)
           .filter((slot) => {
