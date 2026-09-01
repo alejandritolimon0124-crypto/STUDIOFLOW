@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Button from '../../components/Button'
 import Card from '../../components/Card'
 import Input from '../../components/Input'
@@ -32,6 +32,7 @@ function ArtistServices() {
   const [editingId, setEditingId] = useState(null)
   const [feedback, setFeedback] = useState('')
   const [isSaving, setIsSaving] = useState(false)
+  const formCardRef = useRef(null)
 
   useEffect(() => {
     if (artistServicesError) showFeedback(artistServicesError)
@@ -65,6 +66,10 @@ function ArtistServices() {
     setPrice(String(service.price))
     setFlowPointsAwarded(String(service.flowPointsAwarded || 0))
     setEditingId(service.id)
+    showFeedback('Editando servicio')
+    window.setTimeout(() => {
+      formCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, 50)
   }
 
   const saveService = async (event) => {
@@ -125,8 +130,8 @@ function ArtistServices() {
 
   return (
     <main className="dashboard-grid artist-grid services-master">
-        <Card className="wide-card mobile-screen primary-panel">
-          <PanelHeader title="Agregar servicio" eyebrow="Formulario" />
+        <Card className="wide-card mobile-screen primary-panel" ref={formCardRef}>
+          <PanelHeader title={editingId ? 'Editar servicio' : 'Agregar servicio'} eyebrow="Formulario" />
 
           <div className="list-row elevated-row" style={{ marginBottom: '14px' }}>
             <div>

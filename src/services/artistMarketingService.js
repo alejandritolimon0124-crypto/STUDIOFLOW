@@ -66,11 +66,12 @@ export async function fetchArtistMarketingSettings({ artistId } = {}) {
   return normalizeMarketingPayload(data)
 }
 
-export async function saveArtistFlowPointReward({ discountPercent, pointsCost } = {}) {
+export async function saveArtistFlowPointReward({ discountPercent, pointsCost, artistId } = {}) {
   const client = requireSupabase()
   const { data, error } = await client.rpc('studio_flow_artist_save_flow_point_reward', {
     p_discount_percent: Number(discountPercent) || 0,
     p_points_cost: Number(pointsCost) || 0,
+    ...artistParams(artistId),
   })
 
   if (error) throw error

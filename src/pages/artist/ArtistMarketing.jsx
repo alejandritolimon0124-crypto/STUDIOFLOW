@@ -195,7 +195,7 @@ function ArtistMarketing() {
   const addFlowPointReward = async () => {
     setIsMarketingSaving(true)
     try {
-      const reward = await saveArtistFlowPointReward(rewardDraft)
+      const reward = await saveArtistFlowPointReward({ ...rewardDraft, artistId: marketingArtistId })
       setMarketingSettings((current) => ({ ...current, rewards: [...current.rewards, reward].sort((a, b) => a.pointsCost - b.pointsCost) }))
       setRewardDraft({ discountPercent: 10, pointsCost: '' })
       triggerToast('Beneficio Flow Points agregado')
@@ -287,7 +287,9 @@ function ArtistMarketing() {
 
   const toggleLowOccupancyAutomation = async () => {
     const nextActive = !lowOccupancyDraft.active
+    const previousDraft = lowOccupancyDraft
     setIsMarketingSaving(true)
+    setLowOccupancyDraft((draft) => ({ ...draft, active: nextActive }))
     try {
       const settings = await setArtistLowOccupancyAutomation({ ...lowOccupancyDraft, active: nextActive, artistId: marketingArtistId })
       setMarketingSettings(settings)
@@ -298,6 +300,7 @@ function ArtistMarketing() {
       })
       triggerToast(nextActive ? 'Baja ocupacion lista para automatizar' : 'Baja ocupacion pausada')
     } catch (error) {
+      setLowOccupancyDraft(previousDraft)
       triggerToast(error.message || 'No se pudo actualizar baja ocupacion')
     } finally {
       setIsMarketingSaving(false)
