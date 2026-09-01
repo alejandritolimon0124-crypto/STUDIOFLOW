@@ -880,14 +880,6 @@ function ClientDashboard({ view = 'inicio' }) {
   ])
 
   useEffect(() => {
-    if (!isRealMarketplace) return
-    if (!availabilityState.date || availabilityState.slots.length === 0) return
-    if (availabilityState.date === bookingDate) return
-
-    setBookingDate(availabilityState.date)
-  }, [availabilityState.date, availabilityState.slots.length, bookingDate, isRealMarketplace])
-
-  useEffect(() => {
     if (searchMode !== 'Servicio') return
     if (primaryServiceOptions.length === 0) return
     if (selectedArtistProfile && selectedMarketplaceServiceId) return
