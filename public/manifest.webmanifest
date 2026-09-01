@@ -1,0 +1,7 @@
+{
+  "name": "Studio Flow",
+  "short_name": "Studio Flow",
+  "display": "browser",
+  "start_url": "/login",
+  "scope": "/"
+}
