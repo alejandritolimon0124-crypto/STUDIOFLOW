@@ -288,16 +288,27 @@ function ArtistMarketing() {
   const toggleLowOccupancyAutomation = async () => {
     const nextActive = !lowOccupancyDraft.active
     const previousDraft = lowOccupancyDraft
+    const nextDraft = { ...lowOccupancyDraft, active: nextActive }
     setIsMarketingSaving(true)
-    setLowOccupancyDraft((draft) => ({ ...draft, active: nextActive }))
+    setLowOccupancyDraft(nextDraft)
     try {
-      const settings = await setArtistLowOccupancyAutomation({ ...lowOccupancyDraft, active: nextActive, artistId: marketingArtistId })
-      setMarketingSettings(settings)
-      setLowOccupancyDraft({
-        active: Boolean(settings.lowOccupancy?.active),
-        period: settings.lowOccupancy?.period || lowOccupancyDraft.period,
-        threshold: Math.min(Number(settings.lowOccupancy?.threshold || lowOccupancyDraft.threshold), 40),
-      })
+      const settings = await setArtistLowOccupancyAutomation({ ...nextDraft, artistId: marketingArtistId })
+      setMarketingSettings((current) => ({
+        ...current,
+        ...settings,
+        lowOccupancy: {
+          ...(settings.lowOccupancy || {}),
+          active: nextActive,
+          period: settings.lowOccupancy?.period || nextDraft.period,
+          threshold: Math.min(Number(settings.lowOccupancy?.threshold || nextDraft.threshold), 40),
+        },
+      }))
+      setLowOccupancyDraft((draft) => ({
+        ...draft,
+        active: nextActive,
+        period: settings.lowOccupancy?.period || nextDraft.period,
+        threshold: Math.min(Number(settings.lowOccupancy?.threshold || nextDraft.threshold), 40),
+      }))
       triggerToast(nextActive ? 'Baja ocupacion lista para automatizar' : 'Baja ocupacion pausada')
     } catch (error) {
       setLowOccupancyDraft(previousDraft)

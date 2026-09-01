@@ -30,6 +30,7 @@ function ArtistServices() {
   const [price, setPrice] = useState('')
   const [flowPointsAwarded, setFlowPointsAwarded] = useState('')
   const [editingId, setEditingId] = useState(null)
+  const [editingName, setEditingName] = useState('')
   const [feedback, setFeedback] = useState('')
   const [isSaving, setIsSaving] = useState(false)
   const formCardRef = useRef(null)
@@ -50,6 +51,7 @@ function ArtistServices() {
     setPrice('')
     setFlowPointsAwarded('')
     setEditingId(null)
+    setEditingName('')
   }
 
   const showFeedback = (message) => {
@@ -66,9 +68,12 @@ function ArtistServices() {
     setPrice(String(service.price))
     setFlowPointsAwarded(String(service.flowPointsAwarded || 0))
     setEditingId(service.id)
+    setEditingName(service.name)
     showFeedback('Editando servicio')
     window.setTimeout(() => {
       formCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      document.documentElement.scrollTo({ top: formCardRef.current?.offsetTop || 0, behavior: 'smooth' })
+      document.body.scrollTo?.({ top: formCardRef.current?.offsetTop || 0, behavior: 'smooth' })
     }, 50)
   }
 
@@ -132,6 +137,16 @@ function ArtistServices() {
     <main className="dashboard-grid artist-grid services-master">
         <Card className="wide-card mobile-screen primary-panel" ref={formCardRef}>
           <PanelHeader title={editingId ? 'Editar servicio' : 'Agregar servicio'} eyebrow="Formulario" />
+
+          {editingId && (
+            <div className="list-row elevated-row editing-service-banner">
+              <div>
+                <strong>Editando: {editingName}</strong>
+                <small>Actualiza los campos y presiona Actualizar servicio.</small>
+              </div>
+              <Button size="sm" variant="ghost" type="button" onClick={resetForm}>Cancelar</Button>
+            </div>
+          )}
 
           <div className="list-row elevated-row" style={{ marginBottom: '14px' }}>
             <div>

@@ -1770,6 +1770,16 @@ select:focus,
   max-width: 430px;
 }
 
+.editing-service-banner {
+  background: rgba(151, 84, 104, 0.12);
+  border-color: rgba(151, 84, 104, 0.28);
+  margin-bottom: 14px;
+}
+
+.editing-service-banner strong {
+  color: var(--rose-dark);
+}
+
 .form-row-2,
 .schedule-controls {
   display: grid;
