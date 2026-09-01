@@ -22,6 +22,7 @@ import {
 } from '../../modules/entities/entitySelectors'
 import {
   fetchArtistMarketingSettings,
+  deleteArtistFlowPointReward,
   saveArtistFlowPointReward,
   saveArtistHappyHourPromotion,
   setArtistFlowPointsEnabled,
@@ -226,22 +227,50 @@ function ArtistMarketing() {
   const toggleDoublePoints = async () => {
     const nextActive = !doublePointsActive
     const previousSettings = marketingSettings
+    const nextDoublePoints = {
+      ...(marketingSettings.doublePoints || {}),
+      status: nextActive ? 'active' : 'paused',
+      rules: { ...(marketingSettings.doublePoints?.rules || {}), multiplier: 2 },
+    }
     setIsMarketingSaving(true)
-    setMarketingSettings((current) => ({
-      ...current,
-      doublePoints: {
-        ...current.doublePoints,
-        status: nextActive ? 'active' : 'paused',
-        rules: { ...(current.doublePoints?.rules || {}), multiplier: 2 },
-      },
-    }))
+    setMarketingSettings((current) => ({ ...current, doublePoints: nextDoublePoints }))
     try {
       const settings = await setArtistDoublePointsPromotion({ active: nextActive, artistId: marketingArtistId })
-      setMarketingSettings(settings)
+      setMarketingSettings((current) => ({
+        ...current,
+        ...settings,
+        doublePoints: {
+          ...(settings.doublePoints || {}),
+          status: nextActive ? 'active' : 'paused',
+          rules: { ...(settings.doublePoints?.rules || {}), multiplier: 2 },
+        },
+      }))
       triggerToast(nextActive ? 'Puntos dobles activados' : 'Puntos dobles desactivados')
     } catch (error) {
       setMarketingSettings(previousSettings)
       triggerToast(error.message || 'No se pudo actualizar puntos dobles')
+    } finally {
+      setIsMarketingSaving(false)
+    }
+  }
+
+  const deleteFlowPointReward = async (rewardId) => {
+    if (!window.confirm('Eliminar este beneficio Flow Points?')) return
+
+    const previousSettings = marketingSettings
+    setIsMarketingSaving(true)
+    setMarketingSettings((current) => ({
+      ...current,
+      rewards: current.rewards.filter((reward) => reward.id !== rewardId),
+    }))
+
+    try {
+      const settings = await deleteArtistFlowPointReward({ rewardId, artistId: marketingArtistId })
+      setMarketingSettings(settings)
+      triggerToast('Beneficio eliminado')
+    } catch (error) {
+      setMarketingSettings(previousSettings)
+      triggerToast(error.message || 'No se pudo eliminar el beneficio')
     } finally {
       setIsMarketingSaving(false)
     }
@@ -519,7 +548,6 @@ function ArtistMarketing() {
               <strong>Flow Points activos para clientas</strong>
               <small>{flowPointsEnabled ? 'Las clientas pueden ganar y canjear puntos.' : 'Los puntos estan pausados para este perfil.'}</small>
             </span>
-            <StatusPill tone={flowPointsEnabled ? 'success' : 'neutral'}>{flowPointsEnabled ? 'Activo' : 'Pausado'}</StatusPill>
           </div>
           <Button disabled={isMarketingSaving} size="sm" variant={flowPointsEnabled ? 'danger' : 'success'} onClick={toggleFlowPointsEnabled}>
             {flowPointsEnabled ? 'Desactivar Flow Points' : 'Activar Flow Points'}
@@ -552,7 +580,9 @@ function ArtistMarketing() {
                 <strong>{reward.discountPercent}% de descuento</strong>
                 <small>Disponible con {reward.pointsCost} Flow Points</small>
               </div>
-              <StatusPill tone="success">Activo</StatusPill>
+              <Button disabled={isMarketingSaving} size="sm" variant="danger" onClick={() => deleteFlowPointReward(reward.id)}>
+                Eliminar
+              </Button>
             </div>
           )) : (
             <div className="list-row elevated-row">

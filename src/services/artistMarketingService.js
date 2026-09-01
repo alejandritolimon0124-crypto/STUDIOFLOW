@@ -79,6 +79,18 @@ export async function saveArtistFlowPointReward({ discountPercent, pointsCost, a
   return normalizeReward(data?.reward)
 }
 
+export async function deleteArtistFlowPointReward({ rewardId, artistId } = {}) {
+  const client = requireSupabase()
+  const { data, error } = await client.rpc('studio_flow_artist_delete_flow_point_reward', {
+    p_reward_id: rewardId,
+    ...artistParams(artistId),
+  })
+
+  if (error) throw error
+
+  return normalizeMarketingPayload(data)
+}
+
 export async function setArtistDoublePointsPromotion({ active, artistId } = {}) {
   const client = requireSupabase()
   const { error } = await client.rpc('studio_flow_artist_set_double_points_promotion', {
