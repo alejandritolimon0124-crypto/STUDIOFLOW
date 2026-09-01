@@ -869,18 +869,31 @@ function ClientDashboard({ view = 'inicio' }) {
     () => {
       const normalizeSlots = (slots = []) => {
         const seenSlots = new Set()
+        const selectedArtistId = selectedArtistProfile?.artistId || selectedArtistProfile?.id || ''
+        const selectedStudioId = selectedArtistProfile?.studioId || selectedArtistStudio?.id || ''
+        const selectedMembershipId = selectedArtistProfile?.membershipId || selectedArtistMembership?.id || ''
+        const slotBelongsToSelectedTarget = (slot = {}) => {
+          const slotArtistId = slot.artistId || slot.artist_id || ''
+          const slotStudioId = slot.studioId || slot.studio_id || ''
+          const slotMembershipId = slot.membershipId || slot.membership_id || ''
+
+          if (selectedMembershipId) return slotMembershipId === selectedMembershipId
+          if (selectedStudioId) return slotStudioId === selectedStudioId && (!selectedArtistId || slotArtistId === selectedArtistId)
+          return (!selectedArtistId || slotArtistId === selectedArtistId) && !slotStudioId && !slotMembershipId
+        }
 
         return slots
           .filter(Boolean)
+          .filter(slotBelongsToSelectedTarget)
           .filter((slot) => {
             const slotKey = [
               slot.date,
               slot.time,
               slot.end,
               slot.serviceOfferingId || selectedServiceOfferingId || selectedMarketplaceService?.id || '',
-              slot.artistId || selectedArtistProfile?.id || '',
-              slot.studioId || selectedArtistStudio?.id || '',
-              slot.membershipId || selectedArtistMembership?.id || '',
+              slot.artistId || slot.artist_id || '',
+              slot.studioId || slot.studio_id || '',
+              slot.membershipId || slot.membership_id || '',
             ].join('|')
 
             if (seenSlots.has(slotKey)) return false
@@ -1359,7 +1372,7 @@ function ClientDashboard({ view = 'inicio' }) {
         selectedArtistProfile,
       })
 
-      const serviceOfferingId = selectedServiceOfferingId || slot.serviceOfferingId
+      const serviceOfferingId = slot.serviceOfferingId || selectedServiceOfferingId
       const availabilitySlotIds = slot.availabilitySlotIds?.length
         ? slot.availabilitySlotIds
         : [slot.availabilitySlotId || slot.id]
