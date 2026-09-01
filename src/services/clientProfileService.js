@@ -12,6 +12,11 @@ function normalizeClientProfilePayload(data = {}) {
     phone: client.phone || '',
     birthday: clientProfile.birthday || clientProfile.birthDate || client.birthday || '',
     photoUrl: clientProfile.photo_path || clientProfile.photoPath || client.photoUrl || client.photo_url || '',
+    latitude: clientProfile.latitude ?? clientProfile.geo_lat ?? '',
+    longitude: clientProfile.longitude ?? clientProfile.geo_lng ?? '',
+    city: clientProfile.city || '',
+    state: clientProfile.state || '',
+    postalCode: clientProfile.postal_code || clientProfile.postalCode || '',
   }
 }
 

@@ -127,3 +127,27 @@ export async function saveArtistScheduleSettings(agendaSettings, workContext = n
 
   return normalizeSchedulePayload(data)
 }
+
+export async function blockArtistScheduleDate(dateValue, workContext = null) {
+  const client = requireSupabase()
+  const { data, error } = await client.rpc('studio_flow_artist_block_context_date', {
+    p_date: dateValue,
+    ...getContextRpcParams(workContext),
+  })
+
+  if (error) throw error
+
+  return normalizeSchedulePayload(data)
+}
+
+export async function unblockArtistScheduleDate(dateValue, workContext = null) {
+  const client = requireSupabase()
+  const { data, error } = await client.rpc('studio_flow_artist_unblock_context_date', {
+    p_date: dateValue,
+    ...getContextRpcParams(workContext),
+  })
+
+  if (error) throw error
+
+  return normalizeSchedulePayload(data)
+}

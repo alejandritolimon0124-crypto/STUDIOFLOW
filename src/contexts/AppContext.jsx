@@ -38,7 +38,9 @@ import {
   fetchArtistWorkContexts,
 } from '../services/artistWorkContextService'
 import {
+  blockArtistScheduleDate,
   fetchArtistScheduleSettings,
+  unblockArtistScheduleDate,
   saveArtistScheduleSettings as saveArtistScheduleSettingsRecord,
 } from '../services/scheduleService'
 import {
@@ -2067,30 +2069,87 @@ export function AppProvider({ children }) {
     }))
   }, [])
 
-  const addBlockedDate = useCallback((dateValue) => {
+  const addBlockedDate = useCallback(async (dateValue) => {
     if (!dateValue) return
+
+    let nextSettings = null
 
     setAgendaSettings((currentSettings) => {
       if (currentSettings.blockedDates.some((date) => date.id === dateValue)) {
+        nextSettings = currentSettings
         return currentSettings
       }
 
-      return {
+      nextSettings = {
         ...currentSettings,
         blockedDates: [
           ...currentSettings.blockedDates,
           { id: dateValue, label: formatBlockedDate(dateValue) },
         ],
       }
-    })
-  }, [])
 
-  const removeBlockedDate = useCallback((dateId) => {
-    setAgendaSettings((currentSettings) => ({
-      ...currentSettings,
-      blockedDates: currentSettings.blockedDates.filter((date) => date.id !== dateId),
-    }))
-  }, [])
+      return nextSettings
+    })
+
+    if (session.isMockSession || session.role !== ROLES.ARTIST) return nextSettings
+
+    setIsArtistScheduleLoading(true)
+    setArtistScheduleError('')
+    setArtistScheduleStatus('')
+
+    try {
+      const savedSettings = await blockArtistScheduleDate(dateValue, activeArtistWorkContext)
+      setAgendaSettings((currentSettings) => ({
+        ...currentSettings,
+        ...savedSettings,
+        bookedSlots: currentSettings.bookedSlots,
+      }))
+      setArtistScheduleStatus('Fecha bloqueada guardada.')
+      return savedSettings
+    } catch (error) {
+      setArtistScheduleError(error.message || 'No se pudo bloquear la fecha.')
+      await loadArtistScheduleSettings(activeArtistWorkContext)
+      return null
+    } finally {
+      setIsArtistScheduleLoading(false)
+    }
+  }, [activeArtistWorkContext, loadArtistScheduleSettings, session.isMockSession, session.role])
+
+  const removeBlockedDate = useCallback(async (dateId) => {
+    let nextSettings = null
+
+    setAgendaSettings((currentSettings) => {
+      nextSettings = {
+        ...currentSettings,
+        blockedDates: currentSettings.blockedDates.filter((date) => date.id !== dateId),
+      }
+
+      return nextSettings
+    })
+
+    if (session.isMockSession || session.role !== ROLES.ARTIST) return nextSettings
+
+    setIsArtistScheduleLoading(true)
+    setArtistScheduleError('')
+    setArtistScheduleStatus('')
+
+    try {
+      const savedSettings = await unblockArtistScheduleDate(dateId, activeArtistWorkContext)
+      setAgendaSettings((currentSettings) => ({
+        ...currentSettings,
+        ...savedSettings,
+        bookedSlots: currentSettings.bookedSlots,
+      }))
+      setArtistScheduleStatus('Fecha bloqueada eliminada.')
+      return savedSettings
+    } catch (error) {
+      setArtistScheduleError(error.message || 'No se pudo eliminar la fecha bloqueada.')
+      await loadArtistScheduleSettings(activeArtistWorkContext)
+      return null
+    } finally {
+      setIsArtistScheduleLoading(false)
+    }
+  }, [activeArtistWorkContext, loadArtistScheduleSettings, session.isMockSession, session.role])
 
   const updateAgendaRule = useCallback((field, value) => {
     setAgendaSettings((currentSettings) => ({

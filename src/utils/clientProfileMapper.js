@@ -17,5 +17,10 @@ export function mapAuthContextToClientProfile(authContext = {}, currentProfile =
     email: hasSupabaseIdentity ? firstText(client.email, profile.email) : firstText(currentProfile.email, client.email, profile.email),
     phone: hasSupabaseIdentity ? firstText(client.phone, profile.phone) : firstText(currentProfile.phone, client.phone, profile.phone),
     birthday: firstText(currentProfile.birthday, authContext.clientProfile?.birthday, authContext.client_profile?.birthday),
+    latitude: firstText(currentProfile.latitude, authContext.clientProfile?.latitude, authContext.client_profile?.latitude),
+    longitude: firstText(currentProfile.longitude, authContext.clientProfile?.longitude, authContext.client_profile?.longitude),
+    city: firstText(currentProfile.city, authContext.clientProfile?.city, authContext.client_profile?.city),
+    state: firstText(currentProfile.state, authContext.clientProfile?.state, authContext.client_profile?.state),
+    postalCode: firstText(currentProfile.postalCode, authContext.clientProfile?.postal_code, authContext.client_profile?.postal_code),
   }
 }

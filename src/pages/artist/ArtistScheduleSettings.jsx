@@ -29,10 +29,10 @@ function ArtistScheduleSettings() {
   const [showDatePicker, setShowDatePicker] = useState(false)
   const [selectedDate, setSelectedDate] = useState('')
 
-  const saveBlockedDate = () => {
+  const saveBlockedDate = async () => {
     if (!selectedDate) return
 
-    addBlockedDate(selectedDate)
+    await addBlockedDate(selectedDate)
     setSelectedDate('')
     setShowDatePicker(false)
   }
@@ -188,6 +188,7 @@ function ArtistScheduleSettings() {
                   {date.label}
                   <button
                     type="button"
+                    disabled={isArtistScheduleLoading}
                     onClick={() => removeBlockedDate(date.id)}
                     style={{
                       background: '#fff',
@@ -215,10 +216,12 @@ function ArtistScheduleSettings() {
                 <span>Seleccionar fecha</span>
                 <input type="date" value={selectedDate} onChange={(event) => setSelectedDate(event.target.value)} />
               </label>
-              <Button variant="ghost" className="full-width" onClick={saveBlockedDate}>Agregar fecha</Button>
+                <Button variant="ghost" className="full-width" disabled={isArtistScheduleLoading} onClick={saveBlockedDate}>
+                  {isArtistScheduleLoading ? 'Guardando...' : 'Agregar fecha'}
+                </Button>
             </div>
           )}
-          <Button variant="ghost" className="full-width" onClick={() => setShowDatePicker((current) => !current)}>
+          <Button variant="ghost" className="full-width" disabled={isArtistScheduleLoading} onClick={() => setShowDatePicker((current) => !current)}>
             Bloquear fecha
           </Button>
         </Card>

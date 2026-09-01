@@ -17,6 +17,7 @@ import {
 } from '../../modules/entities/entitySelectors'
 import { buildGoogleMapsQuery, buildGoogleMapsUrl } from '../../utils/locationHelpers'
 import { getAppointmentStatusTone } from '../../utils/appointmentStatus'
+import { getCurrentBrowserCoordinates } from '../../utils/browserGeolocation'
 import { getMaxBirthDateForAdult, validateBirthDate } from '../../utils/birthdayValidation'
 import { fetchClientFlowPointsBalance } from '../../services/appointmentService'
 
@@ -713,6 +714,7 @@ function ClientDashboard({ view = 'inicio' }) {
   const [clientFlowPoints, setClientFlowPoints] = useState({ monthlyBalance: 0, monthlyEarned: 0, monthlySpent: 0 })
   const [redeemDraft, setRedeemDraft] = useState({ points: '', targetId: '', targetQuery: '' })
   const [redeemStatus, setRedeemStatus] = useState('')
+  const [locationDetection, setLocationDetection] = useState({ status: 'idle', message: '' })
   const [notificationPermission, setNotificationPermission] = useState(() => (
     canUseBrowserNotifications() ? Notification.permission : 'unsupported'
   ))
@@ -885,6 +887,7 @@ function ClientDashboard({ view = 'inicio' }) {
         return slots
           .filter(Boolean)
           .filter(slotBelongsToSelectedTarget)
+          .filter((slot) => !happyHourOnly || slot.isHappyHour)
           .filter((slot) => {
             const slotKey = [
               slot.date,
@@ -930,6 +933,7 @@ function ClientDashboard({ view = 'inicio' }) {
       currentAvailabilityRequestKey,
       selectedMarketplaceService?.id,
       selectedServiceOfferingId,
+      happyHourOnly,
       selectedArtistMembership?.id,
       selectedArtistProfile?.id,
       selectedArtistStudio?.id,
@@ -1015,6 +1019,11 @@ function ClientDashboard({ view = 'inicio' }) {
     birthday: clientState.profile?.birthday || '',
     notes: clientState.profile?.notes || artistClientProfile?.notes,
     photoUrl: clientState.profile?.photoUrl || '',
+    latitude: clientState.profile?.latitude || '',
+    longitude: clientState.profile?.longitude || '',
+    city: clientState.profile?.city || '',
+    state: clientState.profile?.state || '',
+    postalCode: clientState.profile?.postalCode || '',
     flowPoints: hasRealClientSession ? null : clientState.profile?.flowPoints || 0,
     vipTier: hasRealClientSession ? null : clientState.profile?.vipTier || 'Glow',
     streak: hasRealClientSession ? null : clientState.profile?.streak || 0,
@@ -1040,6 +1049,11 @@ function ClientDashboard({ view = 'inicio' }) {
       email: currentClient.email,
       phone: currentClient.phone,
       birthday: currentClient.birthday,
+      latitude: currentClient.latitude || '',
+      longitude: currentClient.longitude || '',
+      city: currentClient.city || '',
+      state: currentClient.state || '',
+      postalCode: currentClient.postalCode || '',
     }))
   }, [
     hasRealClientSession,
@@ -1049,6 +1063,11 @@ function ClientDashboard({ view = 'inicio' }) {
     currentClient.email,
     currentClient.phone,
     currentClient.birthday,
+    currentClient.latitude,
+    currentClient.longitude,
+    currentClient.city,
+    currentClient.state,
+    currentClient.postalCode,
   ])
   const handleClientPhotoChange = (event) => {
     const file = event.target.files?.[0]
@@ -1077,7 +1096,31 @@ function ClientDashboard({ view = 'inicio' }) {
     }
 
     setProfileError('')
-    await updateClientProfile(profileDraft)
+    const savedProfile = await updateClientProfile(profileDraft)
+    setProfileDraft((currentDraft) => ({ ...currentDraft, ...savedProfile }))
+    setProfileError('Perfil guardado.')
+  }
+
+  const detectClientLocation = async () => {
+    setLocationDetection({ status: 'loading', message: 'Detectando ubicacion actual...' })
+
+    try {
+      const coordinates = await getCurrentBrowserCoordinates()
+      setProfileDraft((currentDraft) => ({
+        ...currentDraft,
+        latitude: coordinates.latitude,
+        longitude: coordinates.longitude,
+      }))
+      setLocationDetection({
+        status: 'success',
+        message: `Ubicacion detectada: ${coordinates.latitude}, ${coordinates.longitude}. Presiona Guardar perfil para actualizar recomendaciones.`,
+      })
+    } catch (error) {
+      setLocationDetection({
+        status: 'error',
+        message: error.message || 'No se pudo usar la ubicacion actual.',
+      })
+    }
   }
 
   const realAppointmentSourceReady = !session.isMockSession && appointmentState.clientLoaded
@@ -2897,6 +2940,51 @@ function ClientDashboard({ view = 'inicio' }) {
                   onChange={(event) => setProfileDraft({ ...profileDraft, birthday: event.target.value })}
                   required
                 />
+                <div className="location-foundation-card">
+                  <div>
+                    <h3>Ubicacion para recomendaciones</h3>
+                    <small>Permite encontrar artistas y estudios cerca de ti.</small>
+                  </div>
+                  <div className="location-form-grid">
+                    <Input
+                      label="Ciudad"
+                      value={profileDraft.city || ''}
+                      onChange={(event) => setProfileDraft({ ...profileDraft, city: event.target.value })}
+                    />
+                    <Input
+                      label="Estado"
+                      value={profileDraft.state || ''}
+                      onChange={(event) => setProfileDraft({ ...profileDraft, state: event.target.value })}
+                    />
+                  </div>
+                  <div className="location-form-grid">
+                    <Input
+                      label="Latitud"
+                      value={profileDraft.latitude || ''}
+                      onChange={(event) => setProfileDraft({ ...profileDraft, latitude: event.target.value })}
+                    />
+                    <Input
+                      label="Longitud"
+                      value={profileDraft.longitude || ''}
+                      onChange={(event) => setProfileDraft({ ...profileDraft, longitude: event.target.value })}
+                    />
+                  </div>
+                  <div className="location-detection-row">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      disabled={locationDetection.status === 'loading'}
+                      onClick={detectClientLocation}
+                    >
+                      {locationDetection.status === 'loading' ? 'Detectando...' : 'Usar mi ubicacion actual'}
+                    </Button>
+                  </div>
+                  {locationDetection.message && (
+                    <small className={`location-detection-message location-detection-${locationDetection.status}`}>
+                      {locationDetection.message}
+                    </small>
+                  )}
+                </div>
                 <label className="input-field">
                   <span>Notas</span>
                   <textarea
@@ -2905,7 +2993,11 @@ function ClientDashboard({ view = 'inicio' }) {
                     rows="3"
                   />
                 </label>
-                {profileError && <small style={{ color: 'var(--rose-dark)', fontWeight: 800 }}>{profileError}</small>}
+                {profileError && (
+                  <small style={{ color: profileError.includes('guardado') ? 'var(--success)' : 'var(--rose-dark)', fontWeight: 800 }}>
+                    {profileError}
+                  </small>
+                )}
                 <Button className="full-width" onClick={saveClientProfile}>Guardar perfil</Button>
               </div>
             </Card>
