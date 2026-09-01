@@ -34,6 +34,29 @@ function ArtistServices() {
   const [feedback, setFeedback] = useState('')
   const [isSaving, setIsSaving] = useState(false)
   const formCardRef = useRef(null)
+  const saveButtonRef = useRef(null)
+
+  const scrollToEditor = () => {
+    const target = formCardRef.current
+    if (!target) return
+
+    const scrollParents = [
+      target.closest('.main-shell'),
+      target.closest('.role-layout-shell'),
+      document.scrollingElement,
+      document.documentElement,
+      document.body,
+    ].filter(Boolean)
+
+    const top = Math.max(target.getBoundingClientRect().top + window.scrollY - 16, 0)
+    scrollParents.forEach((parent) => {
+      if (typeof parent.scrollTo === 'function') {
+        parent.scrollTo({ top, behavior: 'smooth' })
+      }
+    })
+    target.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    saveButtonRef.current?.focus({ preventScroll: true })
+  }
 
   useEffect(() => {
     if (artistServicesError) showFeedback(artistServicesError)
@@ -70,11 +93,7 @@ function ArtistServices() {
     setEditingId(service.id)
     setEditingName(service.name)
     showFeedback('Editando servicio')
-    window.setTimeout(() => {
-      formCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-      document.documentElement.scrollTo({ top: formCardRef.current?.offsetTop || 0, behavior: 'smooth' })
-      document.body.scrollTo?.({ top: formCardRef.current?.offsetTop || 0, behavior: 'smooth' })
-    }, 50)
+    window.setTimeout(scrollToEditor, 80)
   }
 
   const saveService = async (event) => {
@@ -203,7 +222,7 @@ function ArtistServices() {
 
             {feedback && <StatusPill tone={feedback.includes('No se pudo') || feedback.includes('Completa') ? 'warm' : 'success'}>{feedback}</StatusPill>}
             {isArtistServicesLoading && <StatusPill tone="neutral">Cargando servicios</StatusPill>}
-            <Button className="full-width" type="submit" disabled={isSaving || isArtistServicesLoading}>
+            <Button ref={saveButtonRef} className="full-width" type="submit" disabled={isSaving || isArtistServicesLoading}>
               {isSaving ? 'Guardando...' : editingId ? 'Actualizar servicio' : 'Guardar servicio'}
             </Button>
           </form>
