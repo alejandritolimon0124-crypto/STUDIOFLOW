@@ -1561,24 +1561,21 @@ function ClientDashboard({ view = 'inicio' }) {
         )}
       </div>
 
-      <div className="compact-list public-slot-list" id={`marketplace-slots-${artist.id}`}>
+      <div className="public-slot-list public-slot-grid" id={`marketplace-slots-${artist.id}`}>
         {availableSlots.length > 0 ? (
           availableSlots.map((slot) => (
-            <div className={`list-row elevated-row${slot.isHappyHour ? ' happy-hour-slot' : ''}`} key={`${artist.id}-${slot.date}-${slot.time}`}>
-              <div>
-                <strong>{slot.time} - {slot.end}</strong>
-                <small>{getSlotServiceName(slot)}</small>
-                <small className="flow-points-slot-note">Otorga {getSlotFlowPoints(slot)} Flow Points</small>
-              </div>
-              <Button
-                size="sm"
-                variant={slot.isHappyHour ? 'success' : slot.available ? 'primary' : 'ghost'}
-                disabled={!slot.available || isBookingLoading}
-                onClick={() => reserveSlot(slot)}
-              >
-                {isBookingLoading ? 'Reservando...' : slot.available ? (slot.isHappyHour ? `${slot.happyHourDiscountPercent}% Reservar` : 'Reservar') : 'Ocupado'}
-              </Button>
-            </div>
+            <button
+              className={`public-slot-button${slot.isHappyHour ? ' happy-hour-slot' : ''}`}
+              disabled={!slot.available || isBookingLoading}
+              key={`${artist.id}-${slot.date}-${slot.time}-${slot.end}`}
+              onClick={() => reserveSlot(slot)}
+              type="button"
+            >
+              <strong>{slot.time}</strong>
+              <span>{slot.end}</span>
+              {slot.isHappyHour && <small>{slot.happyHourDiscountPercent}% off</small>}
+              <small>{getSlotFlowPoints(slot)} pts</small>
+            </button>
           ))
         ) : (
           <div className="list-row elevated-row">
