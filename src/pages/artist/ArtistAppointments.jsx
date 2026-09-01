@@ -188,7 +188,13 @@ function ArtistAppointments() {
     ['Completada', 'Cancelada', 'No show'].includes(appointment.status)
     || ['completed', 'cancelled', 'no_show'].includes(appointment.appointmentStatus)
   )
-  const appointmentsForSelectedDate = artistAppointments.filter((appointment) => appointment.date === selectedDate)
+  const sortAppointmentsByTimeDescending = (appointments = []) => [...appointments].sort((firstAppointment, secondAppointment) => (
+    String(secondAppointment.time || '').localeCompare(String(firstAppointment.time || ''))
+    || String(secondAppointment.id || '').localeCompare(String(firstAppointment.id || ''))
+  ))
+  const appointmentsForSelectedDate = sortAppointmentsByTimeDescending(
+    artistAppointments.filter((appointment) => appointment.date === selectedDate),
+  )
   const upcomingAppointments = appointmentsForSelectedDate.filter((appointment) => !isHistoryAppointment(appointment))
   const pastAppointments = appointmentsForSelectedDate.filter(isHistoryAppointment)
 
@@ -303,12 +309,12 @@ function ArtistAppointments() {
           )}
 
           {upcomingAppointments.length > 0 ? upcomingAppointments.map((appointment) => (
-            <div className="list-row elevated-row" key={appointment.id}>
+            <div className={`list-row elevated-row appointment-status-row appointment-status-${getAppointmentStatusTone(appointment)}`} key={appointment.id}>
               <div>
                 <strong>{appointment.client}</strong>
                 <small>{appointment.service} / {appointment.time}</small>
               </div>
-              <div className="row-actions" style={{ justifyContent: 'flex-end', gap: 6 }}>
+              <div className="row-actions appointment-result-actions" style={{ justifyContent: 'flex-end', gap: 6 }}>
                 <StatusPill tone="neutral">{getAppointmentContextLabel(appointment)}</StatusPill>
                 <StatusPill tone={getAppointmentStatusTone(appointment)}>{appointment.status}</StatusPill>
                 <Button
@@ -599,12 +605,12 @@ function ArtistAppointments() {
         <PanelHeader title="Historial" eyebrow={selectedDate} />
         <div className="compact-list">
           {pastAppointments.length > 0 ? pastAppointments.map((appointment) => (
-            <div className="list-row elevated-row" key={appointment.id}>
+            <div className={`list-row elevated-row appointment-status-row appointment-status-${getAppointmentStatusTone(appointment)}`} key={appointment.id}>
               <div>
                 <strong>{appointment.client}</strong>
                 <small>{appointment.service} / {appointment.time}</small>
               </div>
-              <div className="row-actions" style={{ justifyContent: 'flex-end', gap: 6 }}>
+              <div className="row-actions appointment-result-actions" style={{ justifyContent: 'flex-end', gap: 6 }}>
                 <StatusPill tone="neutral">{getAppointmentContextLabel(appointment)}</StatusPill>
                 <StatusPill tone={getAppointmentStatusTone(appointment)}>{appointment.status}</StatusPill>
                 <Button

@@ -16,6 +16,7 @@ import {
   getStudioForArtist,
 } from '../../modules/entities/entitySelectors'
 import { buildGoogleMapsQuery, buildGoogleMapsUrl } from '../../utils/locationHelpers'
+import { getAppointmentStatusTone } from '../../utils/appointmentStatus'
 import { getMaxBirthDateForAdult, validateBirthDate } from '../../utils/birthdayValidation'
 import { fetchClientFlowPointsBalance } from '../../services/appointmentService'
 
@@ -1698,12 +1699,12 @@ function ClientDashboard({ view = 'inicio' }) {
                 <PanelHeader title="Confirma tu asistencia" eyebrow="Aviso de cita" />
                 <div className="compact-list">
                   {pendingConfirmationAppointments.slice(0, 2).map((appointment) => (
-                    <div className="list-row elevated-row" key={appointment.id}>
+                    <div className={`list-row elevated-row appointment-status-row appointment-status-${getAppointmentStatusTone(appointment)}`} key={appointment.id}>
                       <div>
                         <strong>{appointment.service || 'Servicio agendado'}</strong>
                         <small>{appointment.contextName || appointment.artist || 'Studio Flow'} / {appointment.date} {appointment.time}</small>
                       </div>
-                      <div className="row-actions" style={{ justifyContent: 'flex-end', gap: 6 }}>
+                      <div className="row-actions appointment-result-actions" style={{ justifyContent: 'flex-end', gap: 6 }}>
                         <Button
                           size="sm"
                           variant="success"
@@ -1856,7 +1857,7 @@ function ClientDashboard({ view = 'inicio' }) {
               )}
               <div className="appointment-stack">
                 {upcomingAppointments.length > 0 ? upcomingAppointments.map((appointment) => (
-                  <article className="client-appointment" key={`${appointment.artist}-${appointment.time}-${appointment.date}`}>
+                  <article className={`client-appointment appointment-status-row appointment-status-${getAppointmentStatusTone(appointment)}`} key={`${appointment.artist}-${appointment.time}-${appointment.date}`}>
                     <div className="date-block">
                       <strong>{appointment.date}</strong>
                       <span>{appointment.time}</span>
@@ -1870,7 +1871,7 @@ function ClientDashboard({ view = 'inicio' }) {
                           : `Otorga ${appointment.flowPointsAwarded || 0} Flow Points al finalizar`}
                       </small>
                     </div>
-                    <div className="row-actions" style={{ justifyContent: 'flex-end', gap: 6 }}>
+                    <div className="row-actions appointment-result-actions" style={{ justifyContent: 'flex-end', gap: 6 }}>
                       {canRespondToAppointment(appointment) && (
                         <>
                           {canConfirmAppointment(appointment) && (
