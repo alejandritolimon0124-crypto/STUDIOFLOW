@@ -157,7 +157,8 @@ function getTodayAvailabilityCount(artist = {}) {
 
 function getHappyHourWeekdays(artist = {}) {
   const activeHappyHours = (artist.activePromotions || []).filter((promotion) => (
-    promotion.type === 'happy_hour' || promotion.promotion_type === 'happy_hour'
+    (promotion.type === 'happy_hour' || promotion.promotion_type === 'happy_hour')
+    && promotion.status !== 'paused'
   ))
   const weekdays = new Set()
 
@@ -186,7 +187,8 @@ function isSlotWithinHappyHour(artist = {}, slot = {}) {
 
   const slotWeekday = new Date(`${slotDate}T00:00:00`).getDay()
   const activeHappyHours = (artist.activePromotions || []).filter((promotion) => (
-    promotion.type === 'happy_hour' || promotion.promotion_type === 'happy_hour'
+    (promotion.type === 'happy_hour' || promotion.promotion_type === 'happy_hour')
+    && promotion.status !== 'paused'
   ))
 
   return activeHappyHours.some((promotion) => {
