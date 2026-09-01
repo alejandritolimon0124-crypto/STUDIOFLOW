@@ -4553,11 +4553,16 @@ select:focus,
 
 .weekday-toggle-row button,
 .happy-hour-filter-button,
+.double-points-filter-button,
 .happy-hour-badge {
   border: 1px solid rgba(138, 111, 54, 0.24);
   border-radius: 999px;
   font-size: 12px;
   font-weight: 950;
+}
+
+.double-points-filter-button {
+  border-color: rgba(199, 116, 142, 0.28);
 }
 
 .weekday-toggle-row button {

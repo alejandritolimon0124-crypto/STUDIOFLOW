@@ -211,6 +211,17 @@ function getActiveDoublePointsMultiplier(artist = {}) {
   return Number.isFinite(multiplier) && multiplier > 1 ? multiplier : 1
 }
 
+function hasActiveDoublePoints(artist = {}) {
+  return getActiveDoublePointsMultiplier(artist) > 1
+}
+
+function hasActiveHappyHour(artist = {}) {
+  return (artist.activePromotions || []).some((promotion) => (
+    (promotion.type === 'happy_hour' || promotion.promotion_type === 'happy_hour')
+    && promotion.status !== 'paused'
+  ))
+}
+
 function getKnownServiceCategory(serviceName = '') {
   const normalizedName = String(serviceName || '').trim().toLowerCase()
   const entry = Object.entries(searchServices).find(([, services]) => (
@@ -763,6 +774,7 @@ function ClientDashboard({ view = 'inicio' }) {
   const [openDropdown, setOpenDropdown] = useState(null)
   const [recommendationMode, setRecommendationMode] = useState('')
   const [happyHourOnly, setHappyHourOnly] = useState(false)
+  const [doublePointsOnly, setDoublePointsOnly] = useState(false)
   const [showPastAppointments, setShowPastAppointments] = useState(false)
   const [showAppointmentDateFilter, setShowAppointmentDateFilter] = useState(false)
   const [appointmentHistoryDate, setAppointmentHistoryDate] = useState('')
@@ -1208,7 +1220,8 @@ function ClientDashboard({ view = 'inicio' }) {
           return !secondaryService || artist.marketplaceServices.includes(secondaryService)
         })
         .filter((artist) => recommendationMode !== 'today' || getTodayAvailabilityCount(artist) > 0)
-        .filter((artist) => !happyHourOnly || artist.activePromotions?.some((promotion) => promotion.type === 'happy_hour' || promotion.promotion_type === 'happy_hour'))
+        .filter((artist) => !happyHourOnly || hasActiveHappyHour(artist))
+        .filter((artist) => !doublePointsOnly || hasActiveDoublePoints(artist))
         .sort((firstArtist, secondArtist) => {
           if (recommendationMode === 'nearby') {
             const firstProfile = getArtistPublicProfile(artistState, firstArtist)
@@ -1270,6 +1283,7 @@ function ClientDashboard({ view = 'inicio' }) {
       secondaryService,
       studioQuery,
       happyHourOnly,
+      doublePointsOnly,
     ],
   )
   const bookedAppointments = realAppointmentSourceReady ? [] : agendaSettings.bookedSlots.map((slot) => ({
@@ -2169,6 +2183,14 @@ function ClientDashboard({ view = 'inicio' }) {
                 onClick={() => setHappyHourOnly((current) => !current)}
               >
                 {happyHourOnly ? 'Mostrando Happy Hours' : 'Filtrar Happy Hours'}
+              </Button>
+              <Button
+                className="double-points-filter-button"
+                size="sm"
+                variant={doublePointsOnly ? 'success' : 'ghost'}
+                onClick={() => setDoublePointsOnly((current) => !current)}
+              >
+                {doublePointsOnly ? 'Mostrando Puntos Dobles' : 'Filtrar Puntos Dobles'}
               </Button>
             </section>
             <div className="form-stack compact-form">
