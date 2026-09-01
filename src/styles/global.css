@@ -4604,6 +4604,20 @@ select:focus,
   color: #a34864;
 }
 
+.double-points-badge {
+  align-self: flex-start;
+  background: linear-gradient(135deg, rgba(199, 116, 142, 0.2), rgba(189, 151, 52, 0.18));
+  border-radius: 999px;
+  color: #9c3f60;
+  display: inline-flex;
+  font-size: 11px;
+  font-weight: 950;
+  letter-spacing: 0;
+  margin-top: 7px;
+  padding: 5px 9px;
+  width: fit-content;
+}
+
 .flow-points-scope-options {
   display: grid;
   gap: 10px;

@@ -201,6 +201,16 @@ function isSlotWithinHappyHour(artist = {}, slot = {}) {
   })
 }
 
+function getActiveDoublePointsMultiplier(artist = {}) {
+  const activeDoublePoints = (artist.activePromotions || []).find((promotion) => (
+    (promotion.type === 'double_points' || promotion.promotion_type === 'double_points')
+    && promotion.status !== 'paused'
+  ))
+
+  const multiplier = Number(activeDoublePoints?.rules?.multiplier || 1)
+  return Number.isFinite(multiplier) && multiplier > 1 ? multiplier : 1
+}
+
 function getKnownServiceCategory(serviceName = '') {
   const normalizedName = String(serviceName || '').trim().toLowerCase()
   const entry = Object.entries(searchServices).find(([, services]) => (
@@ -1543,8 +1553,9 @@ function ClientDashboard({ view = 'inicio' }) {
     const service = services.find((item) => item.id === (slot.serviceOfferingId || slot.service_offering_id))
       || selectedMarketplaceService
       || effectiveMarketplaceService
+    const multiplier = getActiveDoublePointsMultiplier(selectedArtistProfile)
 
-    return Number(service?.flowPointsAwarded || service?.flow_points_awarded || 0)
+    return Number(service?.flowPointsAwarded || service?.flow_points_awarded || 0) * multiplier
   }
 
   const selectedArtistFlowPointsActive = Boolean(selectedArtistProfile) && (
@@ -2283,6 +2294,9 @@ function ClientDashboard({ view = 'inicio' }) {
                         {artist.activePromotions?.some((promotion) => promotion.type === 'happy_hour' || promotion.promotion_type === 'happy_hour') && (
                           <span className="happy-hour-badge">Happy Hour activo</span>
                         )}
+                        {getActiveDoublePointsMultiplier(artist) > 1 && (
+                          <span className="double-points-badge">Puntos dobles</span>
+                        )}
                         {artist.rewards?.length > 0 && (
                           <span className={`flow-points-scope-badge ${artist.flowPointRedemptionScope === 'open' ? 'open' : 'exclusive'}`}>
                             ★ {artist.flowPointRedemptionScope === 'open' ? 'Puntos libres' : 'Puntos exclusivos'}
@@ -2645,6 +2659,9 @@ function ClientDashboard({ view = 'inicio' }) {
                             <span className={`flow-points-scope-badge ${artist.flowPointRedemptionScope === 'open' ? 'open' : 'exclusive'}`}>
                               ★ {artist.flowPointRedemptionScope === 'open' ? 'Puntos libres' : 'Puntos exclusivos'}
                             </span>
+                          )}
+                          {getActiveDoublePointsMultiplier(artist) > 1 && (
+                            <span className="double-points-badge">Puntos dobles</span>
                           )}
                         </div>
                         <div className="marketplace-result-actions">
