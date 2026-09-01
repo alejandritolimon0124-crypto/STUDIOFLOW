@@ -2573,6 +2573,17 @@ select:focus,
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.booking-only-panel .public-slot-grid > .list-row {
+  grid-column: 1 / -1;
+  grid-template-columns: minmax(0, 1fr) auto;
+  width: 100%;
+}
+
+.booking-only-panel .public-slot-grid > .list-row strong,
+.booking-only-panel .public-slot-grid > .list-row small {
+  max-width: none;
+}
+
 .public-slot-button {
   align-items: center;
   appearance: none;
@@ -4442,12 +4453,15 @@ select:focus,
 }
 
 .client-hero-summary {
+  align-items: center;
   align-self: center;
   background: rgba(255, 255, 255, 0.8);
   border: 1px solid rgba(214, 186, 177, 0.85);
   border-radius: 22px;
+  display: flex;
+  justify-content: center;
   padding: 24px;
-  text-align: right;
+  text-align: center;
 }
 
 .client-hero-summary span {
@@ -4461,7 +4475,10 @@ select:focus,
 .client-hero-summary strong {
   display: block;
   font-size: 2rem;
+  margin-left: auto;
+  margin-right: auto;
   margin-bottom: 6px;
+  text-align: center;
 }
 
 .flow-points-client-card {
