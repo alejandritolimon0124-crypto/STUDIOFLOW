@@ -149,9 +149,34 @@ const searchServices = {
 }
 
 const allSearchServices = Object.values(searchServices).flat()
+const weekdayLabels = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado']
 
 function getTodayAvailabilityCount(artist = {}) {
   return Number(artist.availability?.availableTodayCount || artist.availability?.available_today_count || 0)
+}
+
+function getHappyHourWeekdays(artist = {}) {
+  const activeHappyHours = (artist.activePromotions || []).filter((promotion) => (
+    promotion.type === 'happy_hour' || promotion.promotion_type === 'happy_hour'
+  ))
+  const weekdays = new Set()
+
+  activeHappyHours.forEach((promotion) => {
+    const rules = promotion.rules || {}
+    const rawWeekdays = rules.weekdays || rules.weekDays || rules.week_days
+
+    if (Array.isArray(rawWeekdays) && rawWeekdays.length > 0) {
+      rawWeekdays.forEach((weekday) => {
+        const index = Number(weekday)
+        if (Number.isInteger(index) && weekdayLabels[index]) weekdays.add(weekdayLabels[index])
+      })
+      return
+    }
+
+    weekdayLabels.forEach((weekday) => weekdays.add(weekday))
+  })
+
+  return [...weekdays]
 }
 
 function getKnownServiceCategory(serviceName = '') {
@@ -1561,6 +1586,20 @@ function ClientDashboard({ view = 'inicio' }) {
   const renderMarketplaceBookingPanel = (artist, dropdownPrefix = 'marketplace') => (
     <div className="public-profile-panel booking-only-panel">
       <div className="form-stack compact-form public-booking-flow">
+        {happyHourOnly && (
+          <div className="happy-hour-calendar-hint">
+            <span>Happy Hour disponible</span>
+            <div>
+              {getHappyHourWeekdays(artist).length > 0 ? (
+                getHappyHourWeekdays(artist).map((weekday) => (
+                  <strong key={weekday}>{weekday}</strong>
+                ))
+              ) : (
+                <small>Esta promocion no tiene dias configurados.</small>
+              )}
+            </div>
+          </div>
+        )}
         <PremiumDropdown
           label="Servicio primario"
           value={selectedArtistPrimaryService}
@@ -1623,8 +1662,8 @@ function ClientDashboard({ view = 'inicio' }) {
         ) : (
           <div className="list-row elevated-row">
             <div>
-              <strong>{isAvailabilityLoading ? 'Cargando horarios...' : 'Sin horarios disponibles'}</strong>
-              <small>{availabilityError || 'La agenda del artista no permite reservas en esta fecha.'}</small>
+              <strong>{isAvailabilityLoading ? 'Cargando horarios...' : happyHourOnly ? 'Sin horarios disponibles para Happy Hour' : 'Sin horarios disponibles'}</strong>
+              <small>{availabilityError || (happyHourOnly ? 'El filtro Happy Hour esta activo. Prueba uno de los dias marcados para esta promocion.' : 'La agenda del artista no permite reservas en esta fecha.')}</small>
             </div>
             <StatusPill tone="neutral">No disponible</StatusPill>
           </div>
