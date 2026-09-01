@@ -1780,6 +1780,30 @@ select:focus,
   color: var(--rose-dark);
 }
 
+.service-row.is-editing,
+.inline-service-editor {
+  border: 1px solid rgba(151, 84, 104, 0.38);
+  box-shadow: 0 14px 28px rgba(105, 74, 72, 0.12);
+}
+
+.inline-service-editor {
+  background: linear-gradient(135deg, rgba(255, 246, 247, 0.98), rgba(247, 238, 235, 0.9));
+  border-radius: var(--radius);
+  display: grid;
+  gap: 10px;
+  margin: -4px 0 14px;
+  padding: 14px;
+}
+
+.inline-service-editor strong {
+  color: var(--rose-dark);
+}
+
+.inline-service-editor small {
+  color: var(--muted);
+  font-weight: 800;
+}
+
 .form-row-2,
 .schedule-controls {
   display: grid;

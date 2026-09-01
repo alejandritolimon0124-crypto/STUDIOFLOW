@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { Fragment, useEffect, useRef, useState } from 'react'
 import Button from '../../components/Button'
 import Card from '../../components/Card'
 import Input from '../../components/Input'
@@ -232,18 +232,30 @@ function ArtistServices() {
           <PanelHeader title="Servicios activos" eyebrow="Disponibles" />
           <div className="service-list">
             {artistServices.filter((service) => service.status === 'Activo').map((service) => (
-              <div className="service-row management-row" key={service.id}>
-                <div>
-                  <strong>{service.name}</strong>
-                  <small>{service.category} / {service.duration} / {service.bookings} reservas / {service.flowPointsAwarded || 0} Flow Points</small>
+              <Fragment key={service.id}>
+                <div className={`service-row management-row${editingId === service.id ? ' is-editing' : ''}`}>
+                  <div>
+                    <strong>{service.name}</strong>
+                    <small>{service.category} / {service.duration} / {service.bookings} reservas / {service.flowPointsAwarded || 0} Flow Points</small>
+                  </div>
+                  <div className="row-actions">
+                    <span>{formatCurrency(service.price)}</span>
+                    <button type="button" onClick={() => editService(service)}>Editar</button>
+                    <button type="button" onClick={() => updateServiceStatus(service.id, 'Suspendido')}>Suspender</button>
+                    <button type="button" onClick={() => deleteService(service.id)}>Eliminar</button>
+                  </div>
                 </div>
-                <div className="row-actions">
-                  <span>{formatCurrency(service.price)}</span>
-                  <button type="button" onClick={() => editService(service)}>Editar</button>
-                  <button type="button" onClick={() => updateServiceStatus(service.id, 'Suspendido')}>Suspender</button>
-                  <button type="button" onClick={() => deleteService(service.id)}>Eliminar</button>
-                </div>
-              </div>
+                {editingId === service.id && (
+                  <div className="inline-service-editor">
+                    <strong>Estas editando este servicio</strong>
+                    <small>El formulario de arriba ya tiene los datos cargados. Cambia lo necesario y presiona Actualizar servicio.</small>
+                    <div className="row-actions">
+                      <Button size="sm" type="button" onClick={scrollToEditor}>Ir al formulario</Button>
+                      <Button size="sm" variant="ghost" type="button" onClick={resetForm}>Cancelar</Button>
+                    </div>
+                  </div>
+                )}
+              </Fragment>
             ))}
           </div>
         </Card>
@@ -252,18 +264,30 @@ function ArtistServices() {
           <PanelHeader title="Servicios suspendidos" eyebrow="Pausados" />
           <div className="service-list">
             {artistServices.filter((service) => service.status === 'Suspendido').map((service) => (
-              <div className="service-row management-row" key={service.id}>
-                <div>
-                  <strong>{service.name}</strong>
-                  <small>{service.category} / {service.duration} / {service.flowPointsAwarded || 0} Flow Points</small>
+              <Fragment key={service.id}>
+                <div className={`service-row management-row${editingId === service.id ? ' is-editing' : ''}`}>
+                  <div>
+                    <strong>{service.name}</strong>
+                    <small>{service.category} / {service.duration} / {service.flowPointsAwarded || 0} Flow Points</small>
+                  </div>
+                  <div className="row-actions">
+                    <StatusPill tone="warm">Suspendido</StatusPill>
+                    <button type="button" onClick={() => updateServiceStatus(service.id, 'Activo')}>Activar</button>
+                    <button type="button" onClick={() => editService(service)}>Editar</button>
+                    <button type="button" onClick={() => deleteService(service.id)}>Eliminar</button>
+                  </div>
                 </div>
-                <div className="row-actions">
-                  <StatusPill tone="warm">Suspendido</StatusPill>
-                  <button type="button" onClick={() => updateServiceStatus(service.id, 'Activo')}>Activar</button>
-                  <button type="button" onClick={() => editService(service)}>Editar</button>
-                  <button type="button" onClick={() => deleteService(service.id)}>Eliminar</button>
-                </div>
-              </div>
+                {editingId === service.id && (
+                  <div className="inline-service-editor">
+                    <strong>Estas editando este servicio</strong>
+                    <small>El formulario de arriba ya tiene los datos cargados. Cambia lo necesario y presiona Actualizar servicio.</small>
+                    <div className="row-actions">
+                      <Button size="sm" type="button" onClick={scrollToEditor}>Ir al formulario</Button>
+                      <Button size="sm" variant="ghost" type="button" onClick={resetForm}>Cancelar</Button>
+                    </div>
+                  </div>
+                )}
+              </Fragment>
             ))}
           </div>
         </Card>
