@@ -199,6 +199,12 @@ function ArtistAppointments() {
     ['Completada', 'Cancelada', 'No show'].includes(appointment.status)
     || ['completed', 'cancelled', 'no_show'].includes(appointment.appointmentStatus)
   )
+  const canAwardFlowPoints = (appointment) => (
+    !['Cancelada', 'No show'].includes(appointment.status)
+    && !['cancelled', 'no_show'].includes(String(appointment.appointmentStatus || '').toLowerCase())
+    && appointment.flowPointsAwarded > 0
+    && appointment.pointsGranted <= 0
+  )
   const sortAppointmentsByTimeDescending = (appointments = []) => [...appointments].sort((firstAppointment, secondAppointment) => (
     String(secondAppointment.time || '').localeCompare(String(firstAppointment.time || ''))
     || String(secondAppointment.id || '').localeCompare(String(firstAppointment.id || ''))
@@ -334,7 +340,7 @@ function ArtistAppointments() {
                 <StatusPill tone={getAppointmentStatusTone(appointment)}>{appointment.status}</StatusPill>
                 <Button
                   className="flow-points-award-button"
-                  disabled={!appointment.flowPointsAwarded || appointment.pointsGranted > 0}
+                  disabled={!canAwardFlowPoints(appointment)}
                   size="sm"
                   variant="success"
                   onClick={() => awardAppointmentFlowPoints({ appointmentId: appointment.id })}
@@ -630,7 +636,7 @@ function ArtistAppointments() {
                 <StatusPill tone={getAppointmentStatusTone(appointment)}>{appointment.status}</StatusPill>
                 <Button
                   className="flow-points-award-button"
-                  disabled={!appointment.flowPointsAwarded || appointment.pointsGranted > 0}
+                  disabled={!canAwardFlowPoints(appointment)}
                   size="sm"
                   variant="success"
                   onClick={() => awardAppointmentFlowPoints({ appointmentId: appointment.id })}

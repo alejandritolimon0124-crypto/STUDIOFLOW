@@ -13,6 +13,16 @@ function normalizeNumber(value, fallback = 0) {
 function normalizeAppointment(appointment = {}) {
   const durationMinutes = normalizeNumber(appointment.durationMinutes || appointment.duration_minutes, 60)
   const studioName = appointment.studioName || appointment.studio_name || ''
+  const appointmentStatus = appointment.appointmentStatus || appointment.appointment_status || 'scheduled'
+  const clientConfirmedAt = appointment.clientConfirmedAt || appointment.client_confirmed_at || null
+  const confirmationRequestedAt = appointment.confirmationRequestedAt || appointment.confirmation_requested_at || null
+  const displayStatus = appointmentStatus === 'scheduled'
+    ? clientConfirmedAt
+      ? 'Confirmada'
+      : confirmationRequestedAt
+        ? 'Pendiente de confirmar'
+        : 'Agendada'
+    : appointment.status || 'Confirmada'
   const contextName = appointment.contextName
     || appointment.context_name
     || (appointment.studioId || appointment.studio_id ? appointment.room || studioName : appointment.artist)
@@ -42,10 +52,10 @@ function normalizeAppointment(appointment = {}) {
     duration: appointment.duration || `${durationMinutes} min`,
     room: appointment.room || 'Agenda',
     address: appointment.address || 'Agenda Studio Flow',
-    status: appointment.status || 'Confirmada',
-    appointmentStatus: appointment.appointmentStatus || appointment.appointment_status || 'scheduled',
-    clientConfirmedAt: appointment.clientConfirmedAt || appointment.client_confirmed_at || null,
-    confirmationRequestedAt: appointment.confirmationRequestedAt || appointment.confirmation_requested_at || null,
+    status: displayStatus,
+    appointmentStatus,
+    clientConfirmedAt,
+    confirmationRequestedAt,
     contextName,
     bookingSource: appointment.bookingSource || appointment.booking_source || null,
     grossAmount: normalizeNumber(appointment.grossAmount || appointment.gross_amount),
@@ -179,11 +189,12 @@ export async function fetchClientFlowPointsBalance() {
   }
 }
 
-export async function requestArtistAppointmentConfirmations({ date = null } = {}) {
+export async function requestArtistAppointmentConfirmations({ date = null, workContext = null } = {}) {
   const client = requireSupabase()
   const { data, error } = await client.rpc('studio_flow_artist_request_appointment_confirmations', {
     p_scope: 'artist',
     p_date: date || null,
+    ...getContextRpcParams(workContext),
   })
 
   if (error) throw error

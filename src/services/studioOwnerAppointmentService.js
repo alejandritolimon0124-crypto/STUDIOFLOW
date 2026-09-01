@@ -35,6 +35,16 @@ function normalizeNumber(value) {
 }
 
 function normalizeAppointment(appointment = {}) {
+  const appointmentStatus = appointment.appointmentStatus || appointment.appointment_status || 'scheduled'
+  const clientConfirmedAt = appointment.clientConfirmedAt || appointment.client_confirmed_at || null
+  const confirmationRequestedAt = appointment.confirmationRequestedAt || appointment.confirmation_requested_at || null
+  const displayStatus = appointmentStatus === 'scheduled'
+    ? clientConfirmedAt
+      ? 'Confirmada'
+      : confirmationRequestedAt
+        ? 'Pendiente de confirmar'
+        : 'Agendada'
+    : appointment.status || 'Confirmada'
   const contextName = appointment.contextName
     || appointment.context_name
     || (appointment.studioId || appointment.studio_id ? appointment.room : appointment.artist)
@@ -59,10 +69,10 @@ function normalizeAppointment(appointment = {}) {
     service: appointment.service || 'Servicio',
     artist: appointment.artist || 'Artista',
     contextName,
-    status: appointment.status || 'Confirmada',
-    appointmentStatus: appointment.appointmentStatus || appointment.appointment_status || 'scheduled',
-    clientConfirmedAt: appointment.clientConfirmedAt || appointment.client_confirmed_at || null,
-    confirmationRequestedAt: appointment.confirmationRequestedAt || appointment.confirmation_requested_at || null,
+    status: displayStatus,
+    appointmentStatus,
+    clientConfirmedAt,
+    confirmationRequestedAt,
     pointsGranted: normalizeNumber(appointment.pointsGranted || appointment.points_granted),
     flowPointsAwarded: normalizeNumber(appointment.flowPointsAwarded || appointment.flow_points_awarded),
   }
@@ -70,7 +80,7 @@ function normalizeAppointment(appointment = {}) {
 
 function mapAppointmentStatus(status = '') {
   const normalizedStatus = String(status || '').toLowerCase()
-  if (normalizedStatus === 'scheduled') return 'Confirmada'
+  if (normalizedStatus === 'scheduled') return 'Agendada'
   if (normalizedStatus === 'completed') return 'Completada'
   if (normalizedStatus === 'cancelled') return 'Cancelada'
   if (normalizedStatus === 'disputed') return 'En revision'

@@ -89,6 +89,13 @@ function isConfirmedAppointment(appointment = {}) {
   return !blockedStatuses.some((blockedStatus) => status.includes(blockedStatus))
 }
 
+function canAwardFlowPoints(appointment = {}) {
+  const status = String(appointment.appointmentStatus || appointment.appointment_status || appointment.status || '').toLowerCase()
+  return appointment.flowPointsAwarded > 0
+    && appointment.pointsGranted <= 0
+    && !['cancelled', 'canceled', 'cancelada', 'cancelado', 'no_show', 'no show'].some((blockedStatus) => status.includes(blockedStatus))
+}
+
 function countAppointmentsBetween(appointments, startDate, endDate) {
   const start = parseDateValue(startDate)
   const end = parseDateValue(endDate)
@@ -232,7 +239,7 @@ function StudioSummarySection({
                 <StatusPill tone={getAppointmentStatusTone(appointment)}>{appointment.status || 'Confirmada'}</StatusPill>
                 <Button
                   className="flow-points-award-button"
-                  disabled={!appointment.flowPointsAwarded || appointment.pointsGranted > 0}
+                  disabled={!canAwardFlowPoints(appointment)}
                   size="sm"
                   variant="success"
                   onClick={() => onAwardFlowPoints(appointment)}
@@ -526,7 +533,7 @@ function StudioScheduleSection({
                 <StatusPill tone={getAppointmentStatusTone(appointment)}>{appointment.status || 'Confirmada'}</StatusPill>
                 <Button
                   className="flow-points-award-button"
-                  disabled={!appointment.flowPointsAwarded || appointment.pointsGranted > 0}
+                  disabled={!canAwardFlowPoints(appointment)}
                   size="sm"
                   variant="success"
                   onClick={() => onAwardFlowPoints(appointment)}

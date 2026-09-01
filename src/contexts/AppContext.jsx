@@ -1644,7 +1644,10 @@ export function AppProvider({ children }) {
     setManualArtistAppointmentStatus('')
 
     try {
-      const updatedCount = await requestArtistAppointmentConfirmationsRecord({ date })
+      const updatedCount = await requestArtistAppointmentConfirmationsRecord({
+        date,
+        workContext: activeArtistWorkContext,
+      })
       setManualArtistAppointmentStatus(
         updatedCount > 0
           ? `Aviso enviado a ${updatedCount} clientas.`
@@ -1656,7 +1659,7 @@ export function AppProvider({ children }) {
       setManualArtistAppointmentError(error.message || 'No se pudo enviar el aviso.')
       return 0
     }
-  }, [loadArtistAppointments, session.isMockSession, session.role])
+  }, [activeArtistWorkContext, loadArtistAppointments, session.isMockSession, session.role])
 
   const awardAppointmentFlowPoints = useCallback(async ({ appointmentId } = {}) => {
     if (session.isMockSession || session.role !== ROLES.ARTIST) return null

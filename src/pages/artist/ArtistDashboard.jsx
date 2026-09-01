@@ -378,6 +378,12 @@ function ArtistDashboard({ view = 'agenda' }) {
     setSelectedDate(nextDate)
     setShowDatePicker(false)
   }
+  const canAwardFlowPoints = (appointment) => (
+    !['Cancelada', 'No show'].includes(appointment.status)
+    && !['cancelled', 'no_show'].includes(String(appointment.appointmentStatus || '').toLowerCase())
+    && appointment.flowPointsAwarded > 0
+    && appointment.pointsGranted <= 0
+  )
 
   const filteredClients = [
     ...remoteClientResults,
@@ -840,7 +846,7 @@ function ArtistDashboard({ view = 'agenda' }) {
                         action={(
                           <Button
                             className="flow-points-award-button"
-                            disabled={!item.flowPointsAwarded || item.pointsGranted > 0}
+                            disabled={!canAwardFlowPoints(item)}
                             size="sm"
                             variant="success"
                             onClick={() => awardAppointmentFlowPoints({ appointmentId: item.id })}
@@ -900,7 +906,7 @@ function ArtistDashboard({ view = 'agenda' }) {
                       <span>{item.time}</span>
                       <Button
                         className="flow-points-award-button"
-                        disabled={!item.flowPointsAwarded || item.pointsGranted > 0}
+                        disabled={!canAwardFlowPoints(item)}
                         size="sm"
                         variant="success"
                         onClick={() => awardAppointmentFlowPoints({ appointmentId: item.id })}
