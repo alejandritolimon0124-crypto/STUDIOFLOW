@@ -199,7 +199,7 @@ function isSlotWithinHappyHour(artist = {}, slot = {}) {
     const endTime = String(rules.endTime || rules.end_time || '23:59').slice(0, 5)
     const weekdayMatches = weekdays.length === 0 || weekdays.includes(slotWeekday)
 
-    return weekdayMatches && slotTime >= startTime && slotTime < endTime
+    return weekdayMatches && slotTime >= startTime && String(slot.end || slotTime) <= endTime
   })
 }
 
@@ -1007,6 +1007,9 @@ function ClientDashboard({ view = 'inicio' }) {
       selectedArtistStudio?.id,
     ],
   )
+  const noAvailabilityMessage = happyHourOnly
+    ? `No hay espacio suficiente dentro de Happy Hour para ${selectedMarketplaceServiceName || 'este servicio'} en esta fecha. Prueba otro dia marcado o un servicio de menor duracion.`
+    : 'La agenda del artista no permite reservas en esta fecha.'
   const getVisibleSlotCountForArtist = (artist) => {
     if (isRealMarketplace) return artist?.availability?.availableCount || 0
 
@@ -1709,7 +1712,7 @@ function ClientDashboard({ view = 'inicio' }) {
           <div className="list-row elevated-row">
             <div>
               <strong>{isAvailabilityLoading ? 'Cargando horarios...' : happyHourOnly ? 'Sin horarios disponibles para Happy Hour' : 'Sin horarios disponibles'}</strong>
-              <small>{availabilityError || (happyHourOnly ? 'El filtro Happy Hour esta activo. Prueba uno de los dias marcados para esta promocion.' : 'La agenda del artista no permite reservas en esta fecha.')}</small>
+              <small>{availabilityError || noAvailabilityMessage}</small>
             </div>
             <StatusPill tone="neutral">No disponible</StatusPill>
           </div>
@@ -2557,8 +2560,8 @@ function ClientDashboard({ view = 'inicio' }) {
                           ) : (
                             <div className="list-row elevated-row">
                               <div>
-                                <strong>{isAvailabilityLoading ? 'Cargando horarios...' : 'Sin horarios disponibles'}</strong>
-                                <small>{availabilityError || 'La agenda del artista no permite reservas en esta fecha.'}</small>
+                                <strong>{isAvailabilityLoading ? 'Cargando horarios...' : happyHourOnly ? 'Sin horarios disponibles para Happy Hour' : 'Sin horarios disponibles'}</strong>
+                                <small>{availabilityError || noAvailabilityMessage}</small>
                               </div>
                               <StatusPill tone="neutral">No disponible</StatusPill>
                             </div>
@@ -2937,8 +2940,8 @@ function ClientDashboard({ view = 'inicio' }) {
                             ) : (
                               <div className="list-row elevated-row">
                                 <div>
-                                  <strong>{isAvailabilityLoading ? 'Cargando horarios...' : 'Sin horarios disponibles'}</strong>
-                                  <small>{availabilityError || 'La agenda del artista no permite reservas en esta fecha.'}</small>
+                                  <strong>{isAvailabilityLoading ? 'Cargando horarios...' : happyHourOnly ? 'Sin horarios disponibles para Happy Hour' : 'Sin horarios disponibles'}</strong>
+                                  <small>{availabilityError || noAvailabilityMessage}</small>
                                 </div>
                                 <StatusPill tone="neutral">No disponible</StatusPill>
                               </div>
