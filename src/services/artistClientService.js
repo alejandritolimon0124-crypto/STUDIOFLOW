@@ -1,4 +1,5 @@
 import { requireSupabase } from '../lib/supabaseClient'
+import { getContextRpcParams } from './artistWorkContextService'
 
 function asArray(value) {
   return Array.isArray(value) ? value : []
@@ -20,11 +21,12 @@ function normalizeArtistClient(client = {}) {
   }
 }
 
-export async function fetchArtistClients({ search = '', limit = 5 } = {}) {
+export async function fetchArtistClients({ search = '', limit = 5, workContext = null } = {}) {
   const client = requireSupabase()
   const { data, error } = await client.rpc('studio_flow_artist_get_clients', {
     p_search: search || null,
     p_limit: limit,
+    ...getContextRpcParams(workContext),
   })
 
   if (error) throw error

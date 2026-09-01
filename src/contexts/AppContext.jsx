@@ -1600,7 +1600,10 @@ export function AppProvider({ children }) {
     setManualArtistAppointmentStatus('')
 
     try {
-      const appointment = await createManualArtistAppointmentRecord(payload)
+      const appointment = await createManualArtistAppointmentRecord({
+        ...payload,
+        workContext: payload.workContext || activeArtistWorkContext,
+      })
       setAppointmentState((currentState) => ({
         ...currentState,
         artistAppointments: [
@@ -1617,7 +1620,7 @@ export function AppProvider({ children }) {
     } finally {
       setIsManualArtistAppointmentSaving(false)
     }
-  }, [session.isMockSession, session.role])
+  }, [activeArtistWorkContext, session.isMockSession, session.role])
 
   const updateClientAppointmentResponse = useCallback(async ({ appointmentId, action } = {}) => {
     if (session.isMockSession || session.role !== ROLES.CLIENT) return null

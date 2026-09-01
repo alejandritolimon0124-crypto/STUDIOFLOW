@@ -404,8 +404,8 @@ function DashboardLayout({ children, role, title, subtitle, showMobileAppbar = t
   ]
   const allArtistWorkspaceItems = [
     ...artistIndependentWorkspaceItems,
-    ...studioOwnerWorkspaceItems,
     ...artistMembershipWorkspaceItems,
+    ...studioOwnerWorkspaceItems,
   ]
     .filter((workspace, index, items) => (
       workspace.label

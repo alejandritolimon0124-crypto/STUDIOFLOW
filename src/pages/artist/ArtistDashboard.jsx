@@ -107,6 +107,15 @@ function getInitials(name = '') {
     .toUpperCase()
 }
 
+function appointmentMatchesWorkContext(appointment = {}, workContext = {}) {
+  if (workContext?.contextType === 'membership') {
+    return appointment.membershipId === workContext.membershipId
+      || appointment.membership_id === workContext.membershipId
+  }
+
+  return !(appointment.studioId || appointment.studio_id || appointment.membershipId || appointment.membership_id)
+}
+
 function ArtistDashboard({ view = 'agenda' }) {
   const navigate = useNavigate()
   const {
@@ -127,6 +136,7 @@ function ArtistDashboard({ view = 'agenda' }) {
     awardAppointmentFlowPoints,
     selectedDate,
     setSelectedDate,
+    artistWorkContext,
   } = useApp()
   const [showAppointmentForm, setShowAppointmentForm] = useState(false)
   const appointmentFormRef = useRef(null)
@@ -187,6 +197,7 @@ function ArtistDashboard({ view = 'agenda' }) {
     fetchManualArtistAvailability({
       serviceOfferingId: appointmentDraft.serviceOfferingId,
       date: appointmentDraft.date,
+      workContext: artistWorkContext,
     })
       .then((availability) => {
         if (!isActive) return
@@ -211,7 +222,7 @@ function ArtistDashboard({ view = 'agenda' }) {
     return () => {
       isActive = false
     }
-  }, [appointmentDraft.date, appointmentDraft.serviceOfferingId, showAppointmentForm])
+  }, [appointmentDraft.date, appointmentDraft.serviceOfferingId, artistWorkContext, showAppointmentForm])
 
   useEffect(() => {
     const search = clientSearch.trim()
@@ -227,7 +238,7 @@ function ArtistDashboard({ view = 'agenda' }) {
     setIsClientSearchLoading(true)
     setClientSearchError('')
 
-    fetchArtistClients({ search, limit: 5 })
+    fetchArtistClients({ search, limit: 5, workContext: artistWorkContext })
       .then((clients) => {
         if (!isActive) return
         setRemoteClientResults(clients)
@@ -244,7 +255,7 @@ function ArtistDashboard({ view = 'agenda' }) {
     return () => {
       isActive = false
     }
-  }, [clientSearch])
+  }, [artistWorkContext, clientSearch])
 
   useEffect(() => {
     if (!showAppointmentForm) return
@@ -286,7 +297,12 @@ function ArtistDashboard({ view = 'agenda' }) {
     artistId: primaryArtist?.id,
     artistStudioMemberships,
   })
-  const currentStudio = getStudioForArtist({
+  const activeWorkContextStudioId = artistWorkContext?.contextType === 'membership'
+    ? artistWorkContext.studioId
+    : null
+  const currentStudio = activeWorkContextStudioId
+    ? adminState.studios.find((studio) => studio.id === activeWorkContextStudioId)
+    : getStudioForArtist({
     artistId: primaryArtist?.id,
     studios: adminState.studios,
     artistStudioMemberships,
@@ -300,8 +316,14 @@ function ArtistDashboard({ view = 'agenda' }) {
     || session.profile?.displayName
     || ''
   const profileName = artistPersonalInfo.artisticName || authenticatedArtistName
-  const artistDisplayName = profileName || 'Artista profesional'
-  const profilePhoto = authenticatedArtistProfile.photoUrl || ''
+  const studioProfile = currentStudio?.profile || {}
+  const activeContextIsMembership = artistWorkContext?.contextType === 'membership'
+  const artistDisplayName = activeContextIsMembership
+    ? artistWorkContext?.studioName || studioProfile.commercialName || currentStudio?.name || 'Estudio'
+    : profileName || 'Artista profesional'
+  const profilePhoto = activeContextIsMembership
+    ? studioProfile.logoUrl || studioProfile.logo_path || currentStudio?.logoUrl || currentStudio?.logo_path || ''
+    : authenticatedArtistProfile.photoUrl || ''
   const customProfileLocation = authenticatedArtistProfile.professionalLocation?.customLocation || {}
   const heroLocation = hasProfessionalLocationContent(customProfileLocation)
     ? formatProfessionalLocation(customProfileLocation)
@@ -326,7 +348,10 @@ function ArtistDashboard({ view = 'agenda' }) {
   const artistAppointmentSource = realArtistAppointmentSourceReady
     ? realArtistAppointments
     : artistState.appointments
-  const appointmentsForSelectedDate = artistAppointmentSource
+  const activeContextAppointments = artistAppointmentSource.filter((appointment) => (
+    appointmentMatchesWorkContext(appointment, artistWorkContext)
+  ))
+  const appointmentsForSelectedDate = activeContextAppointments
     .filter(apt => apt?.date === safeSelectedDate && apt?.type === 'appointment')
     .sort((firstAppointment, secondAppointment) => (
       String(secondAppointment.time || '').localeCompare(String(firstAppointment.time || ''))
@@ -410,6 +435,7 @@ function ArtistDashboard({ view = 'agenda' }) {
       date: appointmentDraft.date,
       time: appointmentDraft.time,
       notes: appointmentDraft.notes,
+      workContext: artistWorkContext,
     })
 
     if (!savedAppointment) return
@@ -864,7 +890,7 @@ function ArtistDashboard({ view = 'agenda' }) {
             <Card className="mobile-screen primary-panel">
               <PanelHeader title="Proximas citas" eyebrow="Hoy" action={<Button size="sm">Nueva</Button>} />
               <div className="compact-list">
-                {artistAppointmentSource.length > 0 ? artistAppointmentSource.map((item) => (
+                {activeContextAppointments.length > 0 ? activeContextAppointments.map((item) => (
                   <div className="list-row elevated-row" key={`${item.id}-${item.client}-${item.time}`}>
                     <div>
                       <strong>{item.client}</strong>

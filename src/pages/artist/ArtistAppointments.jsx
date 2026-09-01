@@ -42,6 +42,15 @@ function getAppointmentContextLabel(appointment = {}) {
     : appointment.artist || 'Independiente'
 }
 
+function appointmentMatchesWorkContext(appointment = {}, workContext = {}) {
+  if (workContext?.contextType === 'membership') {
+    return appointment.membershipId === workContext.membershipId
+      || appointment.membership_id === workContext.membershipId
+  }
+
+  return !(appointment.studioId || appointment.studio_id || appointment.membershipId || appointment.membership_id)
+}
+
 function ArtistAppointments() {
   const location = useLocation()
   const selectedClient = location.state?.selectedClient || null
@@ -57,6 +66,7 @@ function ArtistAppointments() {
     createManualArtistAppointment,
     loadArtistAppointments,
     requestArtistAppointmentConfirmations,
+    artistWorkContext,
   } = useApp()
   const [draft, setDraft] = useState(emptyDraft)
   const [formErrors, setFormErrors] = useState({})
@@ -104,7 +114,7 @@ function ArtistAppointments() {
     setIsClientSearchLoading(true)
     setClientSearchError('')
 
-    fetchArtistClients({ search, limit: 5 })
+    fetchArtistClients({ search, limit: 5, workContext: artistWorkContext })
       .then((clients) => {
         if (!isActive) return
         setClientResults(clients)
@@ -141,7 +151,7 @@ function ArtistAppointments() {
     return () => {
       isActive = false
     }
-  }, [clientSearch, draft.phone])
+  }, [artistWorkContext, clientSearch, draft.phone])
 
   useEffect(() => {
     if (!draft.serviceOfferingId && artistServices[0]?.id) {
@@ -166,6 +176,7 @@ function ArtistAppointments() {
       const availability = await fetchManualArtistAvailability({
         serviceOfferingId,
         date,
+        workContext: artistWorkContext,
       })
       setAvailabilitySlots(availability.slots)
       setAvailabilityMeta({ durationMinutes: availability.durationMinutes })
@@ -178,7 +189,7 @@ function ArtistAppointments() {
     } finally {
       setIsAvailabilityLoading(false)
     }
-  }, [draft.date, draft.serviceOfferingId, showForm])
+  }, [artistWorkContext, draft.date, draft.serviceOfferingId, showForm])
 
   useEffect(() => {
     loadManualAvailability()
@@ -193,7 +204,10 @@ function ArtistAppointments() {
     || String(secondAppointment.id || '').localeCompare(String(firstAppointment.id || ''))
   ))
   const appointmentsForSelectedDate = sortAppointmentsByTimeDescending(
-    artistAppointments.filter((appointment) => appointment.date === selectedDate),
+    artistAppointments.filter((appointment) => (
+      appointment.date === selectedDate
+      && appointmentMatchesWorkContext(appointment, artistWorkContext)
+    )),
   )
   const upcomingAppointments = appointmentsForSelectedDate.filter((appointment) => !isHistoryAppointment(appointment))
   const pastAppointments = appointmentsForSelectedDate.filter(isHistoryAppointment)
@@ -233,6 +247,7 @@ function ArtistAppointments() {
     const appointment = await createManualArtistAppointment({
       ...draft,
       clientId: selectedClientId,
+      workContext: artistWorkContext,
     })
 
     if (appointment) {

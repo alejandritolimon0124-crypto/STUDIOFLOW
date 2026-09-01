@@ -1,4 +1,5 @@
 import { requireSupabase } from '../lib/supabaseClient'
+import { getContextRpcParams } from './artistWorkContextService'
 
 function asArray(value) {
   return Array.isArray(value) ? value : []
@@ -193,6 +194,7 @@ export async function requestArtistAppointmentConfirmations({ date = null } = {}
 export async function fetchManualArtistAvailability({
   serviceOfferingId,
   date,
+  workContext = null,
 } = {}) {
   if (!serviceOfferingId) throw new Error('Selecciona un servicio.')
   if (!date) throw new Error('Selecciona una fecha.')
@@ -201,6 +203,7 @@ export async function fetchManualArtistAvailability({
   const { data, error } = await client.rpc('studio_flow_artist_get_manual_availability', {
     p_service_offering_id: serviceOfferingId,
     p_date: date,
+    ...getContextRpcParams(workContext),
   })
 
   if (error) throw error
@@ -217,6 +220,7 @@ export async function createManualArtistAppointment({
   date,
   time,
   notes = '',
+  workContext = null,
 } = {}) {
   const client = requireSupabase()
   const rpcName = clientId
@@ -229,6 +233,7 @@ export async function createManualArtistAppointment({
       p_date: date,
       p_time: time,
       p_notes: notes || null,
+      ...getContextRpcParams(workContext),
     }
     : {
       p_client_first_name: firstName,
@@ -238,6 +243,7 @@ export async function createManualArtistAppointment({
       p_date: date,
       p_time: time,
       p_notes: notes || null,
+      ...getContextRpcParams(workContext),
     }
 
   const { data, error } = await client.rpc(rpcName, params)
