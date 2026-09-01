@@ -929,6 +929,7 @@ function ClientDashboard({ view = 'inicio' }) {
             ...slot,
             isHappyHour: Boolean(slot.isHappyHour || isSlotWithinHappyHour(selectedArtistProfile, slot)),
           }))
+          .filter((slot) => !slot.date || slot.date === bookingDate)
           .filter(slotBelongsToSelectedTarget)
           .filter((slot) => !happyHourOnly || slot.isHappyHour)
           .filter((slot) => {
