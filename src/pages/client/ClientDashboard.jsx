@@ -2176,22 +2176,34 @@ function ClientDashboard({ view = 'inicio' }) {
                     : 'Mostrando solo opciones con citas para hoy.'}
                 </p>
               )}
-              <Button
-                className="happy-hour-filter-button"
-                size="sm"
-                variant={happyHourOnly ? 'success' : 'ghost'}
-                onClick={() => setHappyHourOnly((current) => !current)}
-              >
-                {happyHourOnly ? 'Mostrando Happy Hours' : 'Filtrar Happy Hours'}
-              </Button>
-              <Button
-                className="double-points-filter-button"
-                size="sm"
-                variant={doublePointsOnly ? 'success' : 'ghost'}
-                onClick={() => setDoublePointsOnly((current) => !current)}
-              >
-                {doublePointsOnly ? 'Mostrando Puntos Dobles' : 'Filtrar Puntos Dobles'}
-              </Button>
+              <div className="client-promo-filter-grid">
+                <button
+                  className={`client-promo-filter happy-hour${happyHourOnly ? ' is-active' : ''}`}
+                  type="button"
+                  aria-pressed={happyHourOnly}
+                  onClick={() => {
+                    setHappyHourOnly((current) => !current)
+                    closeArtistProfile()
+                  }}
+                >
+                  <span>Happy Hour</span>
+                  <strong>{happyHourOnly ? 'Activo' : 'Filtrar'}</strong>
+                  <small>Descuentos por horario</small>
+                </button>
+                <button
+                  className={`client-promo-filter double-points${doublePointsOnly ? ' is-active' : ''}`}
+                  type="button"
+                  aria-pressed={doublePointsOnly}
+                  onClick={() => {
+                    setDoublePointsOnly((current) => !current)
+                    closeArtistProfile()
+                  }}
+                >
+                  <span>Puntos dobles</span>
+                  <strong>{doublePointsOnly ? 'Activo' : 'Filtrar'}</strong>
+                  <small>Más Flow Points por cita</small>
+                </button>
+              </div>
             </section>
             <div className="form-stack compact-form">
               <PremiumDropdown

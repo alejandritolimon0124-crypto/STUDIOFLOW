@@ -2180,6 +2180,84 @@ select:focus,
   padding: 8px 11px;
 }
 
+.client-promo-filter-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.client-promo-filter {
+  border: 1px solid rgba(151, 107, 111, 0.26);
+  border-radius: 18px;
+  box-shadow: 0 16px 32px rgba(91, 59, 65, 0.12);
+  color: var(--text);
+  cursor: pointer;
+  display: grid;
+  gap: 5px;
+  min-height: 92px;
+  padding: 14px;
+  text-align: left;
+  transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
+}
+
+.client-promo-filter:hover,
+.client-promo-filter.is-active {
+  border-color: rgba(91, 59, 65, 0.74);
+  box-shadow: 0 20px 42px rgba(91, 59, 65, 0.18);
+  transform: translateY(-1px);
+}
+
+.client-promo-filter span {
+  font-size: 11px;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.client-promo-filter strong {
+  font-size: 22px;
+  line-height: 1;
+}
+
+.client-promo-filter small {
+  color: rgba(55, 45, 48, 0.72);
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.18;
+}
+
+.client-promo-filter.happy-hour {
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.92), rgba(250, 239, 225, 0.92)),
+    linear-gradient(315deg, rgba(138, 111, 54, 0.18), transparent);
+}
+
+.client-promo-filter.double-points {
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.92), rgba(255, 235, 242, 0.92)),
+    linear-gradient(315deg, rgba(199, 116, 142, 0.2), transparent);
+}
+
+.client-promo-filter.happy-hour span,
+.client-promo-filter.happy-hour strong {
+  color: #7f6426;
+}
+
+.client-promo-filter.double-points span,
+.client-promo-filter.double-points strong {
+  color: #9c3f60;
+}
+
+.client-promo-filter.is-active {
+  background: linear-gradient(145deg, #2d2527, #764c58);
+}
+
+.client-promo-filter.is-active span,
+.client-promo-filter.is-active strong,
+.client-promo-filter.is-active small {
+  color: #fff;
+}
+
 .history-actions {
   display: flex;
   flex-wrap: wrap;
@@ -2213,6 +2291,10 @@ select:focus,
   }
 
   .client-recommendation-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .client-promo-filter-grid {
     grid-template-columns: 1fr;
   }
 
