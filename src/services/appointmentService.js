@@ -169,6 +169,12 @@ export async function fetchClientFlowPointsBalance() {
     monthlyBalance: normalizeNumber(data?.monthlyBalance ?? data?.monthly_balance),
     monthlyEarned: normalizeNumber(data?.monthlyEarned ?? data?.monthly_earned),
     monthlySpent: normalizeNumber(data?.monthlySpent ?? data?.monthly_spent),
+    activeBalance: normalizeNumber(data?.activeBalance ?? data?.active_balance ?? data?.monthlyBalance ?? data?.monthly_balance),
+    activeEarned: normalizeNumber(data?.activeEarned ?? data?.active_earned ?? data?.monthlyEarned ?? data?.monthly_earned),
+    activeSpent: normalizeNumber(data?.activeSpent ?? data?.active_spent ?? data?.monthlySpent ?? data?.monthly_spent),
+    validityDays: normalizeNumber(data?.validityDays ?? data?.validity_days, 90),
+    expiringSoonPoints: normalizeNumber(data?.expiringSoonPoints ?? data?.expiring_soon_points),
+    nextExpirationAt: data?.nextExpirationAt ?? data?.next_expiration_at ?? null,
   }
 }
 

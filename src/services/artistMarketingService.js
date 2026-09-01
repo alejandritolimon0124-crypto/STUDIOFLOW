@@ -28,6 +28,7 @@ function normalizeMarketingPayload(data = {}) {
   return {
     rewards: asArray(data.rewards).map(normalizeReward),
     flowPointsEnabled: Boolean(data.flowPointsEnabled ?? data.flow_points_enabled),
+    flowPointRedemptionScope: data.flowPointRedemptionScope || data.flow_point_redemption_scope || 'exclusive',
     lowOccupancy: {
       active: Boolean(data.lowOccupancy?.active ?? data.low_occupancy?.active),
       period: data.lowOccupancy?.period || data.low_occupancy?.period || 'week',
@@ -47,6 +48,18 @@ export async function setArtistFlowPointsEnabled({ active, artistId } = {}) {
   const client = requireSupabase()
   const { data, error } = await client.rpc('studio_flow_artist_set_flow_points_enabled', {
     p_active: Boolean(active),
+    ...artistParams(artistId),
+  })
+
+  if (error) throw error
+
+  return normalizeMarketingPayload(data)
+}
+
+export async function setArtistFlowPointRedemptionScope({ scope, artistId } = {}) {
+  const client = requireSupabase()
+  const { data, error } = await client.rpc('studio_flow_artist_set_flow_points_redemption_scope', {
+    p_scope: scope === 'open' ? 'open' : 'exclusive',
     ...artistParams(artistId),
   })
 

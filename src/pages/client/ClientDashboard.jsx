@@ -758,7 +758,7 @@ function ClientDashboard({ view = 'inicio' }) {
   const [appointmentHistoryDate, setAppointmentHistoryDate] = useState('')
   const [visibleHistoryCount, setVisibleHistoryCount] = useState(5)
   const [respondingAppointmentId, setRespondingAppointmentId] = useState('')
-  const [clientFlowPoints, setClientFlowPoints] = useState({ monthlyBalance: 0, monthlyEarned: 0, monthlySpent: 0 })
+  const [clientFlowPoints, setClientFlowPoints] = useState({ monthlyBalance: 0, monthlyEarned: 0, monthlySpent: 0, activeBalance: 0, expiringSoonPoints: 0, nextExpirationAt: null, validityDays: 90 })
   const [redeemDraft, setRedeemDraft] = useState({ points: '', targetId: '', targetQuery: '' })
   const [redeemStatus, setRedeemStatus] = useState('')
   const [locationDetection, setLocationDetection] = useState({ status: 'idle', message: '' })
@@ -1332,7 +1332,7 @@ function ClientDashboard({ view = 'inicio' }) {
         if (isActive) setClientFlowPoints(balance)
       })
       .catch(() => {
-        if (isActive) setClientFlowPoints({ monthlyBalance: 0, monthlyEarned: 0, monthlySpent: 0 })
+        if (isActive) setClientFlowPoints({ monthlyBalance: 0, monthlyEarned: 0, monthlySpent: 0, activeBalance: 0, expiringSoonPoints: 0, nextExpirationAt: null, validityDays: 90 })
       })
 
     return () => {
@@ -1752,16 +1752,22 @@ function ClientDashboard({ view = 'inicio' }) {
             </section>
 
             <Card className="mobile-screen flow-points-client-card">
-              <PanelHeader title="Flow Points" eyebrow="Este mes" />
+              <PanelHeader title="Flow Points" eyebrow={`Vigencia ${clientFlowPoints.validityDays || 90} dias`} />
               <div className="flow-points-client-balance">
                 <span>Puntos disponibles</span>
-                <strong>{clientFlowPoints.monthlyBalance}</strong>
+                <strong>{clientFlowPoints.activeBalance ?? clientFlowPoints.monthlyBalance}</strong>
               </div>
+              {clientFlowPoints.expiringSoonPoints > 0 && (
+                <div className="points-expiring-warning">
+                  <strong>{clientFlowPoints.expiringSoonPoints} puntos por caducar</strong>
+                  <small>Usalos pronto para aprovechar tus beneficios antes de que venza su vigencia.</small>
+                </div>
+              )}
               <div className="location-form-grid">
                 <Input
                   label="Puntos a usar"
                   min="1"
-                  max={clientFlowPoints.monthlyBalance || 1}
+                  max={(clientFlowPoints.activeBalance ?? clientFlowPoints.monthlyBalance) || 1}
                   type="number"
                   value={redeemDraft.points}
                   onChange={(event) => setRedeemDraft((draft) => ({ ...draft, points: event.target.value }))}
@@ -1808,7 +1814,7 @@ function ClientDashboard({ view = 'inicio' }) {
               )}
               <Button
                 className="full-width"
-                disabled={!clientFlowPoints.monthlyBalance || !redeemDraft.targetId}
+                disabled={!(clientFlowPoints.activeBalance ?? clientFlowPoints.monthlyBalance) || !redeemDraft.targetId}
                 onClick={redeemFlowPoints}
               >
                 Canjear puntos
@@ -2277,6 +2283,11 @@ function ClientDashboard({ view = 'inicio' }) {
                         {artist.activePromotions?.some((promotion) => promotion.type === 'happy_hour' || promotion.promotion_type === 'happy_hour') && (
                           <span className="happy-hour-badge">Happy Hour activo</span>
                         )}
+                        {artist.rewards?.length > 0 && (
+                          <span className={`flow-points-scope-badge ${artist.flowPointRedemptionScope === 'open' ? 'open' : 'exclusive'}`}>
+                            ★ {artist.flowPointRedemptionScope === 'open' ? 'Puntos libres' : 'Puntos exclusivos'}
+                          </span>
+                        )}
                       </div>
                       <div className="marketplace-result-actions">
                         <button
@@ -2630,6 +2641,11 @@ function ClientDashboard({ view = 'inicio' }) {
                           <span className={`marketplace-availability availability-${artist.badge.level}`}>
                             {artist.badge.label}
                           </span>
+                          {artist.rewards?.length > 0 && (
+                            <span className={`flow-points-scope-badge ${artist.flowPointRedemptionScope === 'open' ? 'open' : 'exclusive'}`}>
+                              ★ {artist.flowPointRedemptionScope === 'open' ? 'Puntos libres' : 'Puntos exclusivos'}
+                            </span>
+                          )}
                         </div>
                         <div className="marketplace-result-actions">
                           <button

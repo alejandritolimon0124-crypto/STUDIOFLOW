@@ -26,6 +26,7 @@ import {
   saveArtistFlowPointReward,
   saveArtistHappyHourPromotion,
   setArtistFlowPointsEnabled,
+  setArtistFlowPointRedemptionScope,
   setArtistDoublePointsPromotion,
   setArtistLowOccupancyAutomation,
   sendArtistMarketingNotification,
@@ -142,6 +143,7 @@ function ArtistMarketing() {
   const doublePointsActive = marketingSettings.doublePoints?.status === 'active'
   const happyHourActive = marketingSettings.happyHour?.status === 'active'
   const flowPointsEnabled = Boolean(marketingSettings.flowPointsEnabled)
+  const flowPointRedemptionScope = marketingSettings.flowPointRedemptionScope || 'exclusive'
   const weekdayOptions = [
     { value: 1, label: 'Lun' },
     { value: 2, label: 'Mar' },
@@ -219,6 +221,22 @@ function ArtistMarketing() {
     } catch (error) {
       setMarketingSettings(previousSettings)
       triggerToast(error.message || 'No se pudo actualizar Flow Points')
+    } finally {
+      setIsMarketingSaving(false)
+    }
+  }
+
+  const changeFlowPointRedemptionScope = async (scope) => {
+    const previousSettings = marketingSettings
+    setIsMarketingSaving(true)
+    setMarketingSettings((current) => ({ ...current, flowPointRedemptionScope: scope }))
+    try {
+      const settings = await setArtistFlowPointRedemptionScope({ scope, artistId: marketingArtistId })
+      setMarketingSettings(settings)
+      triggerToast(scope === 'open' ? 'Acepta puntos libres' : 'Acepta solo puntos exclusivos')
+    } catch (error) {
+      setMarketingSettings(previousSettings)
+      triggerToast(error.message || 'No se pudo actualizar el tipo de puntos')
     } finally {
       setIsMarketingSaving(false)
     }
@@ -552,6 +570,26 @@ function ArtistMarketing() {
           <Button disabled={isMarketingSaving} size="sm" variant={flowPointsEnabled ? 'danger' : 'success'} onClick={toggleFlowPointsEnabled}>
             {flowPointsEnabled ? 'Desactivar Flow Points' : 'Activar Flow Points'}
           </Button>
+        </div>
+        <div className="flow-points-scope-options">
+          <button
+            className={flowPointRedemptionScope === 'exclusive' ? 'is-active exclusive' : 'exclusive'}
+            disabled={isMarketingSaving}
+            onClick={() => changeFlowPointRedemptionScope('exclusive')}
+            type="button"
+          >
+            <strong>★ Puntos exclusivos</strong>
+            <small>Solo acepta puntos generados contigo.</small>
+          </button>
+          <button
+            className={flowPointRedemptionScope === 'open' ? 'is-active open' : 'open'}
+            disabled={isMarketingSaving}
+            onClick={() => changeFlowPointRedemptionScope('open')}
+            type="button"
+          >
+            <strong>★ Puntos libres</strong>
+            <small>Acepta puntos de otros perfiles.</small>
+          </button>
         </div>
         <div className="location-form-grid">
           <label className="input-field">

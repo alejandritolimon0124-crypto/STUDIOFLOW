@@ -4581,6 +4581,79 @@ select:focus,
   width: fit-content;
 }
 
+.flow-points-scope-badge {
+  align-self: flex-start;
+  border-radius: 999px;
+  box-shadow: 0 10px 24px rgba(83, 60, 63, 0.08);
+  display: inline-flex;
+  font-size: 11px;
+  font-weight: 950;
+  letter-spacing: 0;
+  margin-top: 7px;
+  padding: 5px 9px;
+  width: fit-content;
+}
+
+.flow-points-scope-badge.exclusive {
+  background: rgba(189, 151, 52, 0.18);
+  color: #8a6716;
+}
+
+.flow-points-scope-badge.open {
+  background: rgba(199, 116, 142, 0.18);
+  color: #a34864;
+}
+
+.flow-points-scope-options {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.flow-points-scope-options button {
+  background: rgba(255, 255, 255, 0.86);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  color: var(--text);
+  display: grid;
+  font: inherit;
+  gap: 4px;
+  min-height: 86px;
+  padding: 12px;
+  text-align: left;
+}
+
+.flow-points-scope-options button small {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.flow-points-scope-options button.is-active.exclusive {
+  background: linear-gradient(135deg, rgba(189, 151, 52, 0.22), rgba(255, 255, 255, 0.92));
+  border-color: rgba(189, 151, 52, 0.4);
+}
+
+.flow-points-scope-options button.is-active.open {
+  background: linear-gradient(135deg, rgba(199, 116, 142, 0.2), rgba(255, 255, 255, 0.92));
+  border-color: rgba(199, 116, 142, 0.38);
+}
+
+.points-expiring-warning {
+  background: rgba(189, 151, 52, 0.12);
+  border: 1px solid rgba(189, 151, 52, 0.24);
+  border-radius: 16px;
+  color: #8a6716;
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+}
+
+.points-expiring-warning small {
+  color: #7a6840;
+  font-weight: 800;
+}
+
 .happy-hour-slot {
   background:
     linear-gradient(135deg, rgba(255, 249, 235, 0.96), rgba(238, 226, 189, 0.72));
