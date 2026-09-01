@@ -1795,6 +1795,10 @@ select:focus,
   padding: 14px;
 }
 
+.inline-service-form {
+  max-width: none;
+}
+
 .inline-service-editor strong {
   color: var(--rose-dark);
 }

@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useRef, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import Button from '../../components/Button'
 import Card from '../../components/Card'
 import Input from '../../components/Input'
@@ -30,33 +30,9 @@ function ArtistServices() {
   const [price, setPrice] = useState('')
   const [flowPointsAwarded, setFlowPointsAwarded] = useState('')
   const [editingId, setEditingId] = useState(null)
-  const [editingName, setEditingName] = useState('')
+  const [editingDraft, setEditingDraft] = useState(null)
   const [feedback, setFeedback] = useState('')
   const [isSaving, setIsSaving] = useState(false)
-  const formCardRef = useRef(null)
-  const saveButtonRef = useRef(null)
-
-  const scrollToEditor = () => {
-    const target = formCardRef.current
-    if (!target) return
-
-    const scrollParents = [
-      target.closest('.main-shell'),
-      target.closest('.role-layout-shell'),
-      document.scrollingElement,
-      document.documentElement,
-      document.body,
-    ].filter(Boolean)
-
-    const top = Math.max(target.getBoundingClientRect().top + window.scrollY - 16, 0)
-    scrollParents.forEach((parent) => {
-      if (typeof parent.scrollTo === 'function') {
-        parent.scrollTo({ top, behavior: 'smooth' })
-      }
-    })
-    target.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    saveButtonRef.current?.focus({ preventScroll: true })
-  }
 
   useEffect(() => {
     if (artistServicesError) showFeedback(artistServicesError)
@@ -74,7 +50,7 @@ function ArtistServices() {
     setPrice('')
     setFlowPointsAwarded('')
     setEditingId(null)
-    setEditingName('')
+    setEditingDraft(null)
   }
 
   const showFeedback = (message) => {
@@ -85,15 +61,20 @@ function ArtistServices() {
   const editService = (service) => {
     const nextPrimary = service.category && serviceCatalog[service.category] ? service.category : primaryServices[0]
 
-    setPrimary(nextPrimary)
-    setSecondary(service.name)
-    setDuration(service.duration)
-    setPrice(String(service.price))
-    setFlowPointsAwarded(String(service.flowPointsAwarded || 0))
     setEditingId(service.id)
-    setEditingName(service.name)
+    setEditingDraft({
+      id: service.id,
+      primary: nextPrimary,
+      secondary: service.name,
+      duration: service.duration,
+      price: String(service.price),
+      flowPointsAwarded: String(service.flowPointsAwarded || 0),
+      bookings: service.bookings || 0,
+      demand: service.demand || 'Nueva',
+      status: service.status || 'Activo',
+      serviceTier: service.serviceTier || 'basic',
+    })
     showFeedback('Editando servicio')
-    window.setTimeout(scrollToEditor, 80)
   }
 
   const saveService = async (event) => {
@@ -104,18 +85,17 @@ function ArtistServices() {
       return
     }
 
-    const existingService = editingId ? artistServices.find((service) => service.id === editingId) : null
     const nextService = {
-      id: editingId,
+      id: null,
       name: secondary,
       category: primary,
       price: Number(price),
       duration,
       flowPointsAwarded: Math.max(0, Number.parseInt(String(flowPointsAwarded || 0), 10) || 0),
-      bookings: existingService?.bookings || 0,
-      demand: existingService?.demand || 'Nueva',
-      status: existingService?.status || 'Activo',
-      serviceTier: existingService?.serviceTier || 'basic',
+      bookings: 0,
+      demand: 'Nueva',
+      status: 'Activo',
+      serviceTier: 'basic',
     }
 
     setIsSaving(true)
@@ -126,6 +106,47 @@ function ArtistServices() {
       showFeedback('Servicio guardado')
     } catch (error) {
       showFeedback(error.message || 'No se pudo guardar el servicio')
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const updateEditingDraft = (field, value) => {
+    setEditingDraft((draft) => {
+      if (field === 'primary') {
+        return { ...draft, primary: value, secondary: serviceCatalog[value]?.[0] || '' }
+      }
+
+      return { ...draft, [field]: value }
+    })
+  }
+
+  const saveEditedService = async (event) => {
+    event.preventDefault()
+    if (!editingDraft?.primary || !editingDraft?.secondary || !editingDraft?.duration || !editingDraft?.price) {
+      showFeedback('Completa todos los campos')
+      return
+    }
+
+    setIsSaving(true)
+
+    try {
+      await saveArtistService({
+        id: editingDraft.id,
+        name: editingDraft.secondary,
+        category: editingDraft.primary,
+        price: Number(editingDraft.price),
+        duration: editingDraft.duration,
+        flowPointsAwarded: Math.max(0, Number.parseInt(String(editingDraft.flowPointsAwarded || 0), 10) || 0),
+        bookings: editingDraft.bookings,
+        demand: editingDraft.demand,
+        status: editingDraft.status,
+        serviceTier: editingDraft.serviceTier,
+      })
+      resetForm()
+      showFeedback('Servicio actualizado')
+    } catch (error) {
+      showFeedback(error.message || 'No se pudo actualizar el servicio')
     } finally {
       setIsSaving(false)
     }
@@ -154,18 +175,8 @@ function ArtistServices() {
 
   return (
     <main className="dashboard-grid artist-grid services-master">
-        <Card className="wide-card mobile-screen primary-panel" ref={formCardRef}>
-          <PanelHeader title={editingId ? 'Editar servicio' : 'Agregar servicio'} eyebrow="Formulario" />
-
-          {editingId && (
-            <div className="list-row elevated-row editing-service-banner">
-              <div>
-                <strong>Editando: {editingName}</strong>
-                <small>Actualiza los campos y presiona Actualizar servicio.</small>
-              </div>
-              <Button size="sm" variant="ghost" type="button" onClick={resetForm}>Cancelar</Button>
-            </div>
-          )}
+        <Card className="wide-card mobile-screen primary-panel">
+          <PanelHeader title="Agregar servicio" eyebrow="Formulario" />
 
           <div className="list-row elevated-row" style={{ marginBottom: '14px' }}>
             <div>
@@ -222,8 +233,8 @@ function ArtistServices() {
 
             {feedback && <StatusPill tone={feedback.includes('No se pudo') || feedback.includes('Completa') ? 'warm' : 'success'}>{feedback}</StatusPill>}
             {isArtistServicesLoading && <StatusPill tone="neutral">Cargando servicios</StatusPill>}
-            <Button ref={saveButtonRef} className="full-width" type="submit" disabled={isSaving || isArtistServicesLoading}>
-              {isSaving ? 'Guardando...' : editingId ? 'Actualizar servicio' : 'Guardar servicio'}
+            <Button className="full-width" type="submit" disabled={isSaving || isArtistServicesLoading}>
+              {isSaving ? 'Guardando...' : 'Guardar servicio'}
             </Button>
           </form>
         </Card>
@@ -247,12 +258,41 @@ function ArtistServices() {
                 </div>
                 {editingId === service.id && (
                   <div className="inline-service-editor">
-                    <strong>Estas editando este servicio</strong>
-                    <small>El formulario de arriba ya tiene los datos cargados. Cambia lo necesario y presiona Actualizar servicio.</small>
-                    <div className="row-actions">
-                      <Button size="sm" type="button" onClick={scrollToEditor}>Ir al formulario</Button>
-                      <Button size="sm" variant="ghost" type="button" onClick={resetForm}>Cancelar</Button>
-                    </div>
+                    <strong>Editar servicio</strong>
+                    <form className="service-builder inline-service-form" onSubmit={saveEditedService}>
+                      <label className="input-field">
+                        <span>Servicio primario</span>
+                        <select value={editingDraft?.primary || primaryServices[0]} onChange={(event) => updateEditingDraft('primary', event.target.value)}>
+                          {primaryServices.map((serviceName) => (
+                            <option key={serviceName} value={serviceName}>{serviceName}</option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className="input-field">
+                        <span>Servicio secundario</span>
+                        <select value={editingDraft?.secondary || ''} onChange={(event) => updateEditingDraft('secondary', event.target.value)}>
+                          {(serviceCatalog[editingDraft?.primary] || []).map((serviceName) => (
+                            <option key={serviceName} value={serviceName}>{serviceName}</option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className="input-field">
+                        <span>Duracion</span>
+                        <select value={editingDraft?.duration || '60 min'} onChange={(event) => updateEditingDraft('duration', event.target.value)}>
+                          {durations.map((durationValue) => (
+                            <option key={durationValue}>{durationValue}</option>
+                          ))}
+                        </select>
+                      </label>
+                      <Input label="Precio en pesos" type="number" value={editingDraft?.price || ''} onChange={(event) => updateEditingDraft('price', event.target.value)} />
+                      <Input label="Flow Points por visita" type="number" value={editingDraft?.flowPointsAwarded || ''} onChange={(event) => updateEditingDraft('flowPointsAwarded', event.target.value)} />
+                      <div className="row-actions">
+                        <Button size="sm" type="submit" disabled={isSaving || isArtistServicesLoading}>
+                          {isSaving ? 'Actualizando...' : 'Actualizar servicio'}
+                        </Button>
+                        <Button size="sm" variant="ghost" type="button" onClick={resetForm}>Cancelar</Button>
+                      </div>
+                    </form>
                   </div>
                 )}
               </Fragment>
@@ -279,12 +319,41 @@ function ArtistServices() {
                 </div>
                 {editingId === service.id && (
                   <div className="inline-service-editor">
-                    <strong>Estas editando este servicio</strong>
-                    <small>El formulario de arriba ya tiene los datos cargados. Cambia lo necesario y presiona Actualizar servicio.</small>
-                    <div className="row-actions">
-                      <Button size="sm" type="button" onClick={scrollToEditor}>Ir al formulario</Button>
-                      <Button size="sm" variant="ghost" type="button" onClick={resetForm}>Cancelar</Button>
-                    </div>
+                    <strong>Editar servicio</strong>
+                    <form className="service-builder inline-service-form" onSubmit={saveEditedService}>
+                      <label className="input-field">
+                        <span>Servicio primario</span>
+                        <select value={editingDraft?.primary || primaryServices[0]} onChange={(event) => updateEditingDraft('primary', event.target.value)}>
+                          {primaryServices.map((serviceName) => (
+                            <option key={serviceName} value={serviceName}>{serviceName}</option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className="input-field">
+                        <span>Servicio secundario</span>
+                        <select value={editingDraft?.secondary || ''} onChange={(event) => updateEditingDraft('secondary', event.target.value)}>
+                          {(serviceCatalog[editingDraft?.primary] || []).map((serviceName) => (
+                            <option key={serviceName} value={serviceName}>{serviceName}</option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className="input-field">
+                        <span>Duracion</span>
+                        <select value={editingDraft?.duration || '60 min'} onChange={(event) => updateEditingDraft('duration', event.target.value)}>
+                          {durations.map((durationValue) => (
+                            <option key={durationValue}>{durationValue}</option>
+                          ))}
+                        </select>
+                      </label>
+                      <Input label="Precio en pesos" type="number" value={editingDraft?.price || ''} onChange={(event) => updateEditingDraft('price', event.target.value)} />
+                      <Input label="Flow Points por visita" type="number" value={editingDraft?.flowPointsAwarded || ''} onChange={(event) => updateEditingDraft('flowPointsAwarded', event.target.value)} />
+                      <div className="row-actions">
+                        <Button size="sm" type="submit" disabled={isSaving || isArtistServicesLoading}>
+                          {isSaving ? 'Actualizando...' : 'Actualizar servicio'}
+                        </Button>
+                        <Button size="sm" variant="ghost" type="button" onClick={resetForm}>Cancelar</Button>
+                      </div>
+                    </form>
                   </div>
                 )}
               </Fragment>
