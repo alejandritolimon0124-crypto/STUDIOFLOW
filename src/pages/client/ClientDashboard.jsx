@@ -1577,6 +1577,17 @@ function ClientDashboard({ view = 'inicio' }) {
           </div>
         )}
       </div>
+      {bookingNotice && (
+        <div className={`list-row elevated-row ${bookingNotice.toLowerCase().includes('exito') ? 'booking-success-row' : 'booking-error-row'}`}>
+          <div>
+            <strong>{bookingNotice.toLowerCase().includes('exito') ? 'Reservado con exito' : 'No se pudo reservar'}</strong>
+            <small>{bookingNotice}</small>
+          </div>
+          <StatusPill tone={bookingNotice.toLowerCase().includes('exito') ? 'success' : 'danger'}>
+            Reserva
+          </StatusPill>
+        </div>
+      )}
       {bookingError && (
         <div className="list-row elevated-row">
           <div>
@@ -2381,6 +2392,17 @@ function ClientDashboard({ view = 'inicio' }) {
                             </div>
                           )}
                         </div>
+                        {bookingNotice && (
+                          <div className={`list-row elevated-row ${bookingNotice.toLowerCase().includes('exito') ? 'booking-success-row' : 'booking-error-row'}`}>
+                            <div>
+                              <strong>{bookingNotice.toLowerCase().includes('exito') ? 'Reservado con exito' : 'No se pudo reservar'}</strong>
+                              <small>{bookingNotice}</small>
+                            </div>
+                            <StatusPill tone={bookingNotice.toLowerCase().includes('exito') ? 'success' : 'danger'}>
+                              Reserva
+                            </StatusPill>
+                          </div>
+                        )}
                         {bookingError && (
                           <div className="list-row elevated-row">
                             <div>
@@ -2742,6 +2764,17 @@ function ClientDashboard({ view = 'inicio' }) {
                               </div>
                             )}
                           </div>
+                          {bookingNotice && (
+                            <div className={`list-row elevated-row ${bookingNotice.toLowerCase().includes('exito') ? 'booking-success-row' : 'booking-error-row'}`}>
+                              <div>
+                                <strong>{bookingNotice.toLowerCase().includes('exito') ? 'Reservado con exito' : 'No se pudo reservar'}</strong>
+                                <small>{bookingNotice}</small>
+                              </div>
+                              <StatusPill tone={bookingNotice.toLowerCase().includes('exito') ? 'success' : 'danger'}>
+                                Reserva
+                              </StatusPill>
+                            </div>
+                          )}
                           {bookingError && (
                             <div className="list-row elevated-row">
                               <div>

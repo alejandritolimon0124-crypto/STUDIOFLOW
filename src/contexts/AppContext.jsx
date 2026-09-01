@@ -1557,7 +1557,7 @@ export function AppProvider({ children }) {
         lastAttempt: attempt,
         successMessage: '',
       }))
-      return null
+      throw new Error(message)
     } finally {
       setIsBookingLoading(false)
     }
