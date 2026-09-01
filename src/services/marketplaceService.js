@@ -9,6 +9,24 @@ function normalizeNumber(value, fallback = 0) {
   return Number.isFinite(number) ? number : fallback
 }
 
+function normalizeText(value = '') {
+  return String(value)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+}
+
+function inferServiceCategory(service = {}) {
+  const category = service.category || service.category_name || 'Servicios'
+  const serviceName = normalizeText(service.name)
+
+  if (serviceName.includes('pestana')) return 'Colocación de Pestañas'
+  if (serviceName.includes('una') || serviceName.includes('nail')) return 'Colocación de Uñas'
+  if (serviceName.includes('maquillaje')) return 'Maquillaje'
+
+  return category
+}
+
 function normalizeService(service = {}) {
   const durationMinutes = normalizeNumber(service.durationMinutes || service.duration_minutes, 60)
   const priceAmount = normalizeNumber(service.priceAmount || service.price_amount)
@@ -17,7 +35,7 @@ function normalizeService(service = {}) {
     ...service,
     id: service.id,
     name: service.name || 'Servicio',
-    category: service.category || service.category_name || 'Servicios',
+    category: inferServiceCategory(service),
     description: service.description || '',
     ownerType: service.ownerType || service.owner_type || null,
     priceAmount,

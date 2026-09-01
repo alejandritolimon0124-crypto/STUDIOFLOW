@@ -32,9 +32,27 @@ function normalizeTierCode(value) {
   return ['basic', 'medium', 'premium', 'vip'].includes(tier) ? tier : 'basic'
 }
 
+function normalizeText(value = '') {
+  return String(value)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+}
+
+function inferServiceCategory(row = {}, fallback = 'Servicios') {
+  const serviceName = normalizeText(row.name)
+
+  if (serviceName.includes('pestana')) return 'Colocación de Pestañas'
+  if (serviceName.includes('una') || serviceName.includes('nail')) return 'Colocación de Uñas'
+  if (serviceName.includes('maquillaje')) return 'Maquillaje'
+
+  return fallback
+}
+
 function mapServiceOffering(row, catalogs = {}) {
   const category = catalogs.categories?.[row.category_id]
   const tier = catalogs.tiers?.[row.tier_id]
+  const displayCategory = inferServiceCategory(row, category?.name || row.category || 'Servicios')
 
   return {
     id: row.id,
@@ -42,7 +60,7 @@ function mapServiceOffering(row, catalogs = {}) {
     artistId: row.artistId || row.artist_id || null,
     studioId: row.studioId || row.studio_id || null,
     membershipId: row.membershipId || row.membership_id || null,
-    category: category?.name || row.category || 'Servicios',
+    category: displayCategory,
     name: row.name,
     price: Number(row.price_amount ?? row.price) || 0,
     duration: row.duration || formatDuration(row.duration_minutes),
