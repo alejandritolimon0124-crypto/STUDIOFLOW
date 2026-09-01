@@ -1697,7 +1697,7 @@ function ClientDashboard({ view = 'inicio' }) {
                   <div>
                     <h3>{nextAppointment.service || 'Servicio agendado'}</h3>
                     <p>{nextAppointment.artist || 'Artista'} / {nextAppointment.contextName || nextAppointment.address || 'Ubicacion por confirmar'}</p>
-                    <small className="flow-points-slot-note">
+                    <small className="flow-points-slot-note client-flow-points-highlight">
                       {nextAppointment.pointsGranted > 0
                         ? `${nextAppointment.pointsGranted} Flow Points otorgados`
                         : `Otorga ${nextAppointment.flowPointsAwarded || 0} Flow Points al finalizar`}

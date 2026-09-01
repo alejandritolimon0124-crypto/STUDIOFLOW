@@ -1963,13 +1963,24 @@ select:focus,
 .date-block {
   background: #fff;
   border-radius: var(--radius);
+  display: grid;
+  gap: 4px;
+  justify-items: center;
+  min-width: 108px;
   padding: 12px;
+  text-align: center;
+}
+
+.date-block strong,
+.date-block span {
+  display: block;
+  line-height: 1.08;
+  white-space: nowrap;
 }
 
 .date-block span {
   color: var(--muted);
-  display: block;
-  margin-top: 5px;
+  margin-top: 0;
 }
 
 .client-appointment h3 {
@@ -2150,6 +2161,16 @@ select:focus,
   .client-next-appointment {
     align-items: start;
     grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .client-next-appointment .date-block {
+    display: grid;
+    justify-content: center;
+  }
+
+  .client-next-appointment .row-actions {
+    grid-column: 1 / -1;
+    justify-content: flex-start !important;
   }
 
   .client-next-appointment .status-pill {
@@ -4365,6 +4386,16 @@ select:focus,
   display: block;
   font-weight: 950;
   margin-top: 4px;
+}
+
+.client-flow-points-highlight {
+  background: rgba(138, 111, 54, 0.13);
+  border: 1px solid rgba(138, 111, 54, 0.24);
+  border-radius: 10px;
+  color: #6f5829;
+  margin-top: 8px;
+  padding: 8px 10px;
+  width: fit-content;
 }
 
 .flow-points-benefits-panel,
