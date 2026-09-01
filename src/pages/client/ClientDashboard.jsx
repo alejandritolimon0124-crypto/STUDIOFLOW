@@ -700,6 +700,7 @@ function ClientDashboard({ view = 'inicio' }) {
   const [selectedArtistPanelMode, setSelectedArtistPanelMode] = useState('')
   const [selectedMarketplaceServiceId, setSelectedMarketplaceServiceId] = useState('')
   const [selectedMarketplaceRewardId, setSelectedMarketplaceRewardId] = useState('')
+  const [bookingNotice, setBookingNotice] = useState('')
   const [openDropdown, setOpenDropdown] = useState(null)
   const [recommendationMode, setRecommendationMode] = useState('')
   const [happyHourOnly, setHappyHourOnly] = useState(false)
@@ -865,18 +866,45 @@ function ClientDashboard({ view = 'inicio' }) {
 
   const availableSlots = useMemo(
     () => {
-      if (isRealMarketplace) {
-        if (!currentAvailabilityRequestKey || availabilityState.requestKey !== currentAvailabilityRequestKey) return []
-        return marketplaceAvailabilitySlots
+      const normalizeSlots = (slots = []) => {
+        const seenSlots = new Set()
+
+        return slots
+          .filter(Boolean)
+          .filter((slot) => {
+            const slotKey = [
+              slot.date,
+              slot.time,
+              slot.end,
+              slot.serviceOfferingId || selectedServiceOfferingId || selectedMarketplaceService?.id || '',
+              slot.artistId || selectedArtistProfile?.id || '',
+              slot.studioId || selectedArtistStudio?.id || '',
+              slot.membershipId || selectedArtistMembership?.id || '',
+            ].join('|')
+
+            if (seenSlots.has(slotKey)) return false
+            seenSlots.add(slotKey)
+            return true
+          })
+          .sort((firstSlot, secondSlot) => (
+            String(firstSlot.date || '').localeCompare(String(secondSlot.date || ''))
+            || String(firstSlot.time || '').localeCompare(String(secondSlot.time || ''))
+            || String(firstSlot.end || '').localeCompare(String(secondSlot.end || ''))
+          ))
       }
 
-      return getAvailableSlots({
+      if (isRealMarketplace) {
+        if (!currentAvailabilityRequestKey || availabilityState.requestKey !== currentAvailabilityRequestKey) return []
+        return normalizeSlots(marketplaceAvailabilitySlots)
+      }
+
+      return normalizeSlots(getAvailableSlots({
         artistId: selectedArtistProfile?.id,
         studioId: selectedArtistStudio?.id || null,
         membershipId: selectedArtistMembership?.id || null,
         date: bookingDate,
         durationMinutes: effectiveMarketplaceService.durationMinutes || 60,
-      })
+      }))
     },
     [
       bookingDate,
@@ -886,6 +914,8 @@ function ClientDashboard({ view = 'inicio' }) {
       marketplaceAvailabilitySlots,
       availabilityState.requestKey,
       currentAvailabilityRequestKey,
+      selectedMarketplaceService?.id,
+      selectedServiceOfferingId,
       selectedArtistMembership?.id,
       selectedArtistProfile?.id,
       selectedArtistStudio?.id,
@@ -1140,10 +1170,15 @@ function ClientDashboard({ view = 'inicio' }) {
     status: 'Reservada',
   }))
   const upcomingAppointments = realAppointmentSourceReady
-    ? realClientAppointments.filter((appointment) => (
-      !['Completada', 'Cancelada'].includes(appointment.status)
-      && isFutureAppointmentDate(appointment)
-    ))
+    ? realClientAppointments
+      .filter((appointment) => (
+        !['Completada', 'Cancelada'].includes(appointment.status)
+        && isFutureAppointmentDate(appointment)
+      ))
+      .sort((firstAppointment, secondAppointment) => (
+        String(firstAppointment.date || '').localeCompare(String(secondAppointment.date || ''))
+        || String(firstAppointment.time || '').localeCompare(String(secondAppointment.time || ''))
+      ))
     : bookedAppointments
   const historicalAppointments = realAppointmentSourceReady
     ? realClientAppointments
@@ -1307,6 +1342,7 @@ function ClientDashboard({ view = 'inicio' }) {
     })
 
     if (!slot.available) return
+    setBookingNotice('')
 
     if (isRealMarketplace) {
       console.error('[BOOKING TRACE]', 'ClientDashboard real marketplace branch', {
@@ -1333,24 +1369,32 @@ function ClientDashboard({ view = 'inicio' }) {
         rewardId: selectedMarketplaceRewardId || null,
       })
 
-      const booking = await bookMarketplaceAppointment({
-        availabilitySlotIds,
-        serviceOfferingId,
-        rewardId: selectedMarketplaceRewardId || null,
-      })
-
-      console.error('[BOOKING TRACE]', 'ClientDashboard bookMarketplaceAppointment returned', {
-        booking,
-      })
-
-      if (booking) {
-        await loadMarketplaceAvailability({
-          listingId: selectedArtistProfile?.listingId,
+      try {
+        const booking = await bookMarketplaceAppointment({
+          availabilitySlotIds,
           serviceOfferingId,
-          date: bookingDate,
+          rewardId: selectedMarketplaceRewardId || null,
         })
-        await loadClientAppointments()
-        navigate(paths.clientAppointments)
+
+        console.error('[BOOKING TRACE]', 'ClientDashboard bookMarketplaceAppointment returned', {
+          booking,
+        })
+
+        if (booking) {
+          await loadClientAppointments()
+          await loadMarketplaceAvailability({
+            listingId: selectedArtistProfile?.listingId,
+            serviceOfferingId,
+            date: bookingDate,
+          })
+          setBookingNotice('Reservado con exito. Tu cita ya aparece en Citas.')
+          setSelectedArtistPanelMode('')
+          setSelectedMarketplaceRewardId('')
+        } else {
+          setBookingNotice(bookingError || 'No se pudo reservar. Revisa que el horario siga disponible.')
+        }
+      } catch (error) {
+        setBookingNotice(error?.message || 'No se pudo reservar. Revisa que el horario siga disponible.')
       }
 
       return
@@ -1416,6 +1460,7 @@ function ClientDashboard({ view = 'inicio' }) {
     setSelectedArtistPanelMode(mode)
     setSelectedMarketplaceServiceId(nextService.id || '')
     setSecondaryService(nextService.name || getNextServiceForArtist(artist))
+    setBookingNotice('')
     setOpenDropdown(null)
   }
 
@@ -1424,6 +1469,7 @@ function ClientDashboard({ view = 'inicio' }) {
     setSelectedArtistPanelMode('')
     setSelectedMarketplaceServiceId('')
     setSelectedMarketplaceRewardId('')
+    setBookingNotice('')
     setOpenDropdown(null)
   }
 
@@ -2044,6 +2090,17 @@ function ClientDashboard({ view = 'inicio' }) {
                 />
               )}
             </div>
+            {bookingNotice && (
+              <div className={`list-row elevated-row ${bookingNotice.toLowerCase().includes('exito') ? 'booking-success-row' : 'booking-error-row'}`} style={{ marginTop: '14px' }}>
+                <div>
+                  <strong>{bookingNotice.toLowerCase().includes('exito') ? 'Reservado con exito' : 'No se pudo reservar'}</strong>
+                  <small>{bookingNotice}</small>
+                </div>
+                <StatusPill tone={bookingNotice.toLowerCase().includes('exito') ? 'success' : 'danger'}>
+                  Reserva
+                </StatusPill>
+              </div>
+            )}
             <div className="artist-results" style={{ marginTop: '14px' }}>
               {marketplaceArtists.map((artist) => {
                 const isFavorite = clientState.favoriteArtistIds.includes(artist.id)

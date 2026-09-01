@@ -326,7 +326,12 @@ function ArtistDashboard({ view = 'agenda' }) {
   const artistAppointmentSource = realArtistAppointmentSourceReady
     ? realArtistAppointments
     : artistState.appointments
-  const appointmentsForSelectedDate = artistAppointmentSource.filter(apt => apt?.date === safeSelectedDate && apt?.type === 'appointment')
+  const appointmentsForSelectedDate = artistAppointmentSource
+    .filter(apt => apt?.date === safeSelectedDate && apt?.type === 'appointment')
+    .sort((firstAppointment, secondAppointment) => (
+      String(secondAppointment.time || '').localeCompare(String(firstAppointment.time || ''))
+      || String(secondAppointment.id || '').localeCompare(String(firstAppointment.id || ''))
+    ))
   const hasAppointments = appointmentsForSelectedDate.length > 0
   
   const appointmentCount = appointmentsForSelectedDate.length

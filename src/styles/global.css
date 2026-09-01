@@ -1831,6 +1831,18 @@ select:focus,
   white-space: nowrap;
 }
 
+.row-actions .button-success {
+  background: linear-gradient(135deg, #6f7f57, #9aaa91);
+  border-color: transparent;
+  color: #fff;
+}
+
+.row-actions .button-danger {
+  background: linear-gradient(135deg, #8d3f49, #c98791);
+  border-color: transparent;
+  color: #fff;
+}
+
 .row-actions {
   align-items: center;
   display: flex;
