@@ -543,7 +543,7 @@ function ArtistDashboard({ view = 'agenda' }) {
                 </Button>
                 <Button variant="ghost" onClick={() => navigate(paths.artistSchedule)}>Editar horario</Button>
                 <Button variant="ghost" onClick={toggleMetricsPrivacy}>
-                  {hideMetrics ? '👁 Mostrar métricas' : '👁 Ocultar métricas'}
+                  {hideMetrics ? 'Mostrar métricas' : 'Ocultar métricas'}
                 </Button>
               </div>
               {!hideMetrics && (

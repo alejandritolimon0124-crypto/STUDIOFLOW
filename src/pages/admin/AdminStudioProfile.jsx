@@ -341,7 +341,7 @@ function StudioSummarySection({
         <div className="studio-review-actions">
           <Button onClick={() => navigate(`${paths.adminStudio}?section=schedule`)}>Agregar cita</Button>
           <Button variant="ghost" onClick={toggleMetrics}>
-            {showMetrics ? 'Ocultar metricas' : 'Ver metricas'}
+            {showMetrics ? 'Ocultar metricas' : 'Mostrar metricas'}
           </Button>
         </div>
         {selectedDateAppointments.length > 0 && (
