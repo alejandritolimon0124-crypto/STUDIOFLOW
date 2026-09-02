@@ -1,4 +1,4 @@
-import { NavLink, Outlet, useLocation } from 'react-router-dom'
+import { Navigate, NavLink, Outlet, useLocation } from 'react-router-dom'
 import DashboardLayout from './DashboardLayout'
 import { paths } from '../routes/paths'
 import StatusPill from '../components/StatusPill'
@@ -26,6 +26,7 @@ function ArtistLayout() {
   const { pathname } = useLocation()
   const {
     adminState,
+    artistWorkContext,
     session,
   } = useApp()
   const [title, subtitle] = copyByPath[pathname] || copyByPath[paths.artist]
@@ -61,6 +62,14 @@ function ArtistLayout() {
   const isArtistRejected = ['rejected', 'rechazado'].includes(artistStatus)
   const isArtistSuspended = ['inactive', 'inactivo', 'suspended', 'suspendido'].includes(artistStatus)
   const isArtistBlocked = isArtistPendingReview || isArtistRejected || isArtistSuspended
+  const activeArtistContextType = artistWorkContext?.contextType
+    || artistWorkContext?.type
+    || session.activeSessionContext?.contextType
+    || session.activeSessionContext?.type
+    || ''
+  const isActiveStudioArtistWorkspace = activeArtistContextType === 'membership'
+    || Boolean(artistWorkContext?.membershipId || artistWorkContext?.membership_id || session.activeSessionContext?.membershipId || session.activeSessionContext?.membership_id)
+  const shouldBlockArtistMarketplace = pathname === paths.artistMarketing && isActiveStudioArtistWorkspace
   const isPendingExperience = !isArtistBlocked && hasStudioContext && !studioAccess.publicAgenda
   const artistReviewTitle = isArtistRejected
     ? 'Tu solicitud no fue aprobada.'
@@ -95,6 +104,10 @@ function ArtistLayout() {
           </section>
         ) : (
           <>
+        {shouldBlockArtistMarketplace ? (
+          <Navigate to={paths.artistAgenda} replace />
+        ) : (
+          <>
         {isPendingExperience && (
           <section className="studio-validation-banner">
             <div>
@@ -108,6 +121,8 @@ function ArtistLayout() {
           </section>
         )}
         <Outlet />
+          </>
+        )}
           </>
         )}
         <nav className="role-bottom-nav" aria-label="Navegacion de artista">

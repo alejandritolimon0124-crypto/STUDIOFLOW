@@ -96,6 +96,8 @@ const studioOwnerNavigation = [
   { label: 'Inicio', path: `${paths.adminStudio}?section=summary` },
   { label: 'Equipo', path: `${paths.adminStudio}?section=team` },
   { label: 'Agenda', path: `${paths.adminStudio}?section=schedule` },
+  { label: 'Servicios', path: `${paths.adminStudio}?section=services` },
+  { label: 'Marketplace', path: `${paths.adminStudio}?section=marketplace` },
   { label: 'Clientes', path: paths.adminStudioClients },
   { label: 'Configuracion', path: `${paths.adminStudio}?section=settings` },
 ]
@@ -104,8 +106,8 @@ const studioOwnerBottomNavigation = [
   { label: 'Inicio', path: `${paths.adminStudio}?section=summary` },
   { label: 'Equipo', path: `${paths.adminStudio}?section=team` },
   { label: 'Agenda', path: `${paths.adminStudio}?section=schedule` },
+  { label: 'Market', path: `${paths.adminStudio}?section=marketplace` },
   { label: 'Clientes', path: paths.adminStudioClients },
-  { label: 'Config', path: `${paths.adminStudio}?section=settings` },
 ]
 
 function DashboardLayout({ children, role, title, subtitle, showMobileAppbar = true }) {
@@ -201,12 +203,36 @@ function DashboardLayout({ children, role, title, subtitle, showMobileAppbar = t
     if (item.path === paths.adminSystem) return hasPermission(effectiveAdminUser, permissions.GOVERNANCE)
     return true
   }
+  const activeArtistWorkspace = role === 'artist'
+    ? (artistWorkContexts || []).find((context) => normalizeArtistWorkspaceId(context) === artistWorkContextId)
+    : null
+  const activeArtistWorkspaceType = role === 'artist'
+    ? session.activeSessionContext?.contextType || session.activeSessionContext?.type || activeArtistWorkspace?.contextType || activeArtistWorkspace?.type || 'artist'
+    : ''
+  const activeArtistMembershipId = role === 'artist'
+    ? session.activeSessionContext?.membershipId
+      || session.activeSessionContext?.membership_id
+      || activeArtistWorkspace?.membershipId
+      || activeArtistWorkspace?.membership_id
+      || null
+    : null
+  const activeArtistStudioId = role === 'artist'
+    ? session.activeSessionContext?.studioId
+      || session.activeSessionContext?.studio_id
+      || activeArtistWorkspace?.studioId
+      || activeArtistWorkspace?.studio_id
+      || null
+    : null
+  const isArtistMembershipWorkspace = role === 'artist' && (activeArtistWorkspaceType === 'membership' || Boolean(activeArtistMembershipId))
+  const canUseArtistItem = (item) => (
+    !(isArtistMembershipWorkspace && item.path === paths.artistMarketing)
+  )
   const navigation = isStudioOwnerWorkspace
     ? studioOwnerNavigation
-    : roleNavigation[role].filter(canUseAdminItem)
+    : roleNavigation[role].filter(canUseAdminItem).filter(canUseArtistItem)
   const bottomNavigation = isStudioOwnerWorkspace
     ? studioOwnerBottomNavigation
-    : bottomNavigationByRole[role].filter(canUseAdminItem)
+    : bottomNavigationByRole[role].filter(canUseAdminItem).filter(canUseArtistItem)
   const shouldShowDrawerWorkspaces = role === 'artist'
   const shouldShowDrawerActions = role === 'artist'
   const drawerHomePath = isStudioOwnerWorkspace ? paths.adminStudio : role === 'admin' ? paths.admin : role === 'client' ? paths.client : paths.artist
@@ -227,7 +253,10 @@ function DashboardLayout({ children, role, title, subtitle, showMobileAppbar = t
         { label: primaryActionLabel, path: primaryActionPath },
       ]
   const clientPhotoUrl = role === 'client' ? clientState.profile?.photoUrl : ''
-  const artistPhotoUrl = role === 'artist' ? artistState.profile?.photoUrl : ''
+  const artistStudioPhotoUrl = role === 'artist' && activeArtistStudioId
+    ? artistState.profile?.studioPhotoUrls?.[activeArtistStudioId]
+    : ''
+  const artistPhotoUrl = role === 'artist' ? artistStudioPhotoUrl || artistState.profile?.photoUrl : ''
   const profilePhotoUrl = clientPhotoUrl || artistPhotoUrl
   const localProfiles = session.user ? [{ ...session.user, id: session.user.id }] : []
   const currentProfile = getCurrentProfile({ session, profiles: localProfiles })
@@ -464,8 +493,7 @@ function DashboardLayout({ children, role, title, subtitle, showMobileAppbar = t
       })
       setSession((currentSession) => {
         const nextRole = workspace.role || ROLES.STUDIO_OWNER
-        const previousContext = currentSession.activeSessionContext || null
-        const nextSession = {
+        return {
           ...currentSession,
           role: nextRole,
           activeSessionContext: {
@@ -481,11 +509,6 @@ function DashboardLayout({ children, role, title, subtitle, showMobileAppbar = t
               }
             : currentSession.user,
         }
-
-        console.log('[Studio Owner Workspace] activeSessionContext before', previousContext)
-        console.log('[Studio Owner Workspace] activeSessionContext after', nextSession.activeSessionContext)
-
-        return nextSession
       })
     } else {
       setPendingStudioWorkspace(null)

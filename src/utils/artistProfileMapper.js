@@ -96,6 +96,11 @@ export function mapAuthContextToArtistProfile(authContext = {}) {
       website: sourceText(artistProfile, 'website'),
     },
     photoUrl: firstText(artistProfile.photo_url, artistProfile.photoUrl, artistProfile.photo_path, artistProfile.photoPath),
+    studioPhotoUrls: artistProfile.studio_photo_paths && typeof artistProfile.studio_photo_paths === 'object'
+      ? artistProfile.studio_photo_paths
+      : artistProfile.studioPhotoUrls && typeof artistProfile.studioPhotoUrls === 'object'
+        ? artistProfile.studioPhotoUrls
+        : {},
     portfolio: portfolioPaths.length > 0
       ? portfolioPaths.slice(0, 12).map((path, index) => ({
           id: `artist-profile-portfolio-${index + 1}`,

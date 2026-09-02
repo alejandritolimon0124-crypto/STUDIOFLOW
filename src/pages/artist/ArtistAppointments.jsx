@@ -73,6 +73,7 @@ function ArtistAppointments() {
   const [selectedDate, setSelectedDate] = useState(getTodayDateValue)
   const [showForm, setShowForm] = useState(false)
   const [showFilter, setShowFilter] = useState(false)
+  const [appointmentClientQuery, setAppointmentClientQuery] = useState('')
   const [availabilitySlots, setAvailabilitySlots] = useState([])
   const [availabilityMeta, setAvailabilityMeta] = useState({ durationMinutes: 0 })
   const [isAvailabilityLoading, setIsAvailabilityLoading] = useState(false)
@@ -205,15 +206,44 @@ function ArtistAppointments() {
     && appointment.flowPointsAwarded > 0
     && appointment.pointsGranted <= 0
   )
-  const sortAppointmentsByTimeDescending = (appointments = []) => [...appointments].sort((firstAppointment, secondAppointment) => (
-    String(secondAppointment.time || '').localeCompare(String(firstAppointment.time || ''))
-    || String(secondAppointment.id || '').localeCompare(String(firstAppointment.id || ''))
+  const sortAppointmentsByTimeAscending = (appointments = []) => [...appointments].sort((firstAppointment, secondAppointment) => (
+    String(firstAppointment.time || '').localeCompare(String(secondAppointment.time || ''))
+    || String(firstAppointment.id || '').localeCompare(String(secondAppointment.id || ''))
   ))
-  const appointmentsForSelectedDate = sortAppointmentsByTimeDescending(
-    artistAppointments.filter((appointment) => (
-      appointment.date === selectedDate
-      && appointmentMatchesWorkContext(appointment, artistWorkContext)
-    )),
+  const contextAppointments = artistAppointments.filter((appointment) => (
+    appointmentMatchesWorkContext(appointment, artistWorkContext)
+  ))
+  const attendedClientIds = new Set(contextAppointments
+    .filter((appointment) => (
+      appointment.clientId
+      && !['Cancelada', 'No show'].includes(appointment.status)
+      && !['cancelled', 'no_show'].includes(String(appointment.appointmentStatus || '').toLowerCase())
+      && (
+        appointment.status === 'Completada'
+        || String(appointment.appointmentStatus || '').toLowerCase() === 'completed'
+        || (appointment.startsAt && new Date(appointment.startsAt).getTime() < Date.now())
+      )
+    ))
+    .map((appointment) => appointment.clientId))
+  const normalizedAppointmentClientQuery = appointmentClientQuery.trim().toLowerCase()
+  const appointmentsMatchingClientQuery = normalizedAppointmentClientQuery
+    ? contextAppointments.filter((appointment) => {
+      if (appointment.clientId && !attendedClientIds.has(appointment.clientId)) return false
+
+      const searchableText = [
+        appointment.client,
+        appointment.clientName,
+        appointment.clientPhone,
+        appointment.phone,
+        appointment.clientEmail,
+        appointment.email,
+      ].filter(Boolean).join(' ').toLowerCase()
+
+      return searchableText.includes(normalizedAppointmentClientQuery)
+    })
+    : contextAppointments
+  const appointmentsForSelectedDate = sortAppointmentsByTimeAscending(
+    appointmentsMatchingClientQuery.filter((appointment) => appointment.date === selectedDate),
   )
   const upcomingAppointments = appointmentsForSelectedDate.filter((appointment) => !isHistoryAppointment(appointment))
   const pastAppointments = appointmentsForSelectedDate.filter(isHistoryAppointment)
@@ -294,6 +324,18 @@ function ArtistAppointments() {
               value={selectedDate}
               onChange={(event) => setSelectedDate(event.target.value)}
             />
+            <Input
+              label="Filtrar por nombre o celular"
+              placeholder="Nombre o celular de clienta"
+              type="search"
+              value={appointmentClientQuery}
+              onChange={(event) => setAppointmentClientQuery(event.target.value)}
+            />
+            {normalizedAppointmentClientQuery && (
+              <small style={{ color: 'var(--muted)', fontWeight: 800 }}>
+                Solo se muestran clientas que ya acudieron al menos una vez en este entorno.
+              </small>
+            )}
           </div>
         )}
 

@@ -9,8 +9,18 @@ const studioOwnerNavItems = [
   ['Inicio', `${paths.adminStudio}?section=summary`],
   ['Equipo', `${paths.adminStudio}?section=team`],
   ['Agenda', `${paths.adminStudio}?section=schedule`],
+  ['Servicios', `${paths.adminStudio}?section=services`],
+  ['Marketplace', `${paths.adminStudio}?section=marketplace`],
   ['Clientes', paths.adminStudioClients],
   ['Config', `${paths.adminStudio}?section=config`],
+]
+
+const studioOwnerBottomItems = [
+  ['Inicio', `${paths.adminStudio}?section=summary`],
+  ['Equipo', `${paths.adminStudio}?section=team`],
+  ['Agenda', `${paths.adminStudio}?section=schedule`],
+  ['Market', `${paths.adminStudio}?section=marketplace`],
+  ['Clientes', paths.adminStudioClients],
 ]
 
 function getInitials(value = '') {
@@ -147,9 +157,6 @@ function StudioOwnerLayout() {
     ...ownerWorkspaces,
   ].filter(isRealOwnerWorkspace)
 
-  console.log('workspaceItems', workspaceItems)
-  console.log('ownerWorkspaces', ownerWorkspaces)
-  console.log('studioAssignments', studioAssignments)
   const goTo = (path) => {
     navigate(normalizeStudioPath(path))
     setIsMenuOpen(false)
@@ -194,6 +201,7 @@ function StudioOwnerLayout() {
           <div className="avatar">{avatar}</div>
           <div>
             <strong>{studioName}</strong>
+            <span className="studio-owner-badge">STUDIO OWNER</span>
             <small>{studioStatus}</small>
           </div>
         </div>
@@ -261,7 +269,7 @@ function StudioOwnerLayout() {
         <div className="role-layout-shell">
           <Outlet />
           <nav className="role-bottom-nav studio-owner-role-nav" aria-label="Navegacion del estudio">
-            {studioOwnerNavItems.map(([label, path]) => (
+            {studioOwnerBottomItems.map(([label, path]) => (
               <button className={isActiveItem(path) ? 'active' : ''} key={path} type="button" onClick={() => goTo(path)}>
                 {label}
               </button>
@@ -271,7 +279,7 @@ function StudioOwnerLayout() {
       </div>
 
       <nav className="mobile-bottom-nav" aria-label="Navegacion movil del estudio">
-        {studioOwnerNavItems.map(([label, path]) => (
+        {studioOwnerBottomItems.map(([label, path]) => (
           <button className={isActiveItem(path) ? 'active' : ''} type="button" onClick={() => goTo(path)} key={path}>
             <span>{label}</span>
           </button>

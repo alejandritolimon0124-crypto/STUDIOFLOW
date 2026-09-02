@@ -1233,6 +1233,25 @@ select:focus,
   font-size: 11px;
 }
 
+.studio-owner-badge {
+  background: linear-gradient(135deg, #d5b66b, #f7e7b2);
+  border: 1px solid rgba(255, 255, 255, 0.36);
+  border-radius: 999px;
+  color: #35251b;
+  display: inline-flex;
+  font-size: 10px;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  margin-top: 7px;
+  padding: 6px 9px;
+  text-transform: uppercase;
+}
+
+.studio-owner-badge.inline {
+  margin: 6px 0 8px;
+}
+
 .studio-owner-sidebar .sidebar-nav {
   flex-shrink: 0;
   gap: 6px;
@@ -2051,6 +2070,59 @@ select:focus,
   font-weight: 760;
   line-height: 1.3;
   margin: 4px 0 0;
+}
+
+.client-appointment-toast {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(111, 127, 87, 0.28);
+  border-radius: 18px;
+  bottom: 98px;
+  box-shadow: 0 18px 40px rgba(66, 45, 48, 0.22);
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  left: 50%;
+  max-width: min(620px, calc(100vw - 28px));
+  padding: 14px 16px;
+  position: fixed;
+  transform: translateX(-50%);
+  width: 100%;
+  z-index: 80;
+}
+
+.client-appointment-toast strong,
+.client-appointment-toast small {
+  display: block;
+}
+
+.client-appointment-toast strong {
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.2;
+}
+
+.client-appointment-toast small {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 760;
+  line-height: 1.35;
+  margin-top: 3px;
+}
+
+.client-appointment-toast button {
+  background: transparent;
+  border: 0;
+  color: var(--rose-dark);
+  cursor: pointer;
+  flex: 0 0 auto;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.client-appointment-toast.appointment-status-danger {
+  border-color: rgba(141, 63, 73, 0.34);
 }
 
 .search-box {
@@ -3230,6 +3302,87 @@ select:focus,
   max-width: 720px;
   overflow-y: auto;
   width: min(100%, 720px);
+}
+
+.owner-artist-picker {
+  display: grid;
+  gap: 12px;
+}
+
+.owner-artist-picker h4 {
+  color: var(--text);
+  font-size: 16px;
+  line-height: 1.2;
+  margin: 4px 0 0;
+}
+
+.owner-artist-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+}
+
+.owner-artist-card {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  color: var(--text);
+  cursor: pointer;
+  display: grid;
+  gap: 7px;
+  justify-items: center;
+  min-height: 142px;
+  padding: 14px 10px;
+  text-align: center;
+}
+
+.owner-artist-card.active {
+  background: linear-gradient(145deg, rgba(93, 48, 59, 0.98), rgba(132, 74, 88, 0.92));
+  border-color: transparent;
+  box-shadow: 0 16px 34px rgba(93, 48, 59, 0.2);
+  color: #fff;
+}
+
+.owner-artist-card strong,
+.owner-artist-card small {
+  display: block;
+}
+
+.owner-artist-card strong {
+  font-size: 13px;
+  line-height: 1.15;
+}
+
+.owner-artist-card small {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 760;
+  line-height: 1.25;
+}
+
+.owner-artist-card.active small {
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.owner-artist-avatar {
+  align-items: center;
+  background: linear-gradient(145deg, #dfadb9, #b7788b);
+  border-radius: 20px;
+  color: #fff;
+  display: inline-flex;
+  font-size: 18px;
+  font-weight: 950;
+  height: 64px;
+  justify-content: center;
+  overflow: hidden;
+  width: 64px;
+}
+
+.owner-artist-avatar img {
+  height: 100%;
+  object-fit: cover;
+  width: 100%;
 }
 
 .modal-card {

@@ -66,6 +66,8 @@ function normalizeAppointment(appointment = {}) {
     time: appointment.time || getAppointmentTimeValue(appointment.startsAt || appointment.starts_at),
     end: appointment.end || getAppointmentTimeValue(appointment.endsAt || appointment.ends_at),
     client: appointment.client || appointment.clientName || 'Clienta',
+    clientPhone: appointment.clientPhone || appointment.client_phone || appointment.phone || '',
+    clientEmail: appointment.clientEmail || appointment.client_email || appointment.email || '',
     service: appointment.service || 'Servicio',
     artist: appointment.artist || 'Artista',
     contextName,
@@ -245,6 +247,8 @@ export async function fetchStudioOwnerAppointments({ studioId, membershipIds = [
     return normalizeAppointment({
       ...appointment,
       client: appointmentClient?.display_name || 'Clienta',
+      clientPhone: appointmentClient?.phone || '',
+      clientEmail: appointmentClient?.email || '',
       service: service?.name || 'Servicio',
       artist: artist?.display_name || 'Artista',
       date: getAppointmentDateValue(startsAt),

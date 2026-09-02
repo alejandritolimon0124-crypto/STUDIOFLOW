@@ -143,6 +143,7 @@ function ArtistDashboard({ view = 'agenda' }) {
   const dayStripRef = useRef(null)
   const [pointsFeedback, setPointsFeedback] = useState(null)
   const [showDatePicker, setShowDatePicker] = useState(false)
+  const [appointmentClientQuery, setAppointmentClientQuery] = useState('')
   const [appointmentDraft, setAppointmentDraft] = useState({
     clientId: artistState.clients[0]?.id || '',
     client: artistState.clients[0]?.name || '',
@@ -318,6 +319,7 @@ function ArtistDashboard({ view = 'agenda' }) {
   const profileName = artistPersonalInfo.artisticName || authenticatedArtistName
   const studioProfile = currentStudio?.profile || {}
   const activeContextIsMembership = artistWorkContext?.contextType === 'membership'
+  const canAccessArtistMarketplace = !activeContextIsMembership
   const artistDisplayName = activeContextIsMembership
     ? artistWorkContext?.studioName || studioProfile.commercialName || currentStudio?.name || 'Estudio'
     : profileName || 'Artista profesional'
@@ -351,11 +353,40 @@ function ArtistDashboard({ view = 'agenda' }) {
   const activeContextAppointments = artistAppointmentSource.filter((appointment) => (
     appointmentMatchesWorkContext(appointment, artistWorkContext)
   ))
-  const appointmentsForSelectedDate = activeContextAppointments
+  const attendedClientIds = new Set(activeContextAppointments
+    .filter((appointment) => (
+      appointment.clientId
+      && !['Cancelada', 'No show'].includes(appointment.status)
+      && !['cancelled', 'no_show'].includes(String(appointment.appointmentStatus || '').toLowerCase())
+      && (
+        appointment.status === 'Completada'
+        || String(appointment.appointmentStatus || '').toLowerCase() === 'completed'
+        || (appointment.startsAt && new Date(appointment.startsAt).getTime() < Date.now())
+      )
+    ))
+    .map((appointment) => appointment.clientId))
+  const normalizedAppointmentClientQuery = appointmentClientQuery.trim().toLowerCase()
+  const appointmentsMatchingClientQuery = normalizedAppointmentClientQuery
+    ? activeContextAppointments.filter((appointment) => {
+      if (appointment.clientId && !attendedClientIds.has(appointment.clientId)) return false
+
+      const searchableText = [
+        appointment.client,
+        appointment.clientName,
+        appointment.clientPhone,
+        appointment.phone,
+        appointment.clientEmail,
+        appointment.email,
+      ].filter(Boolean).join(' ').toLowerCase()
+
+      return searchableText.includes(normalizedAppointmentClientQuery)
+    })
+    : activeContextAppointments
+  const appointmentsForSelectedDate = appointmentsMatchingClientQuery
     .filter(apt => apt?.date === safeSelectedDate && apt?.type === 'appointment')
     .sort((firstAppointment, secondAppointment) => (
-      String(secondAppointment.time || '').localeCompare(String(firstAppointment.time || ''))
-      || String(secondAppointment.id || '').localeCompare(String(firstAppointment.id || ''))
+      String(firstAppointment.time || '').localeCompare(String(secondAppointment.time || ''))
+      || String(firstAppointment.id || '').localeCompare(String(secondAppointment.id || ''))
     ))
   const hasAppointments = appointmentsForSelectedDate.length > 0
   
@@ -787,6 +818,27 @@ function ArtistDashboard({ view = 'agenda' }) {
                             cursor: 'pointer',
                           }}
                         />
+                        <input
+                          type="search"
+                          value={appointmentClientQuery}
+                          onChange={(event) => setAppointmentClientQuery(event.target.value)}
+                          placeholder="Nombre o celular"
+                          style={{
+                            background: '#fff',
+                            border: '1px solid var(--line)',
+                            borderRadius: 'var(--radius)',
+                            cursor: 'text',
+                            fontSize: '14px',
+                            marginTop: '8px',
+                            padding: '8px 12px',
+                            width: '100%',
+                          }}
+                        />
+                        {normalizedAppointmentClientQuery && (
+                          <small style={{ color: 'var(--muted)', display: 'block', fontWeight: 800, marginTop: 8 }}>
+                            Solo clientas que ya acudieron a este entorno.
+                          </small>
+                        )}
                       </div>
                     )}
                   </div>
@@ -878,13 +930,15 @@ function ArtistDashboard({ view = 'agenda' }) {
                     margin: '0 0 16px 0',
                   }}>No hay citas registradas para esta fecha.</p>
 
-                  <Button 
-                    className="full-width" 
-                    onClick={() => navigate(paths.artistMarketing)}
-                    style={{ marginTop: '16px' }}
-                  >
-                    Impulsar este día
-                  </Button>
+                  {canAccessArtistMarketplace && (
+                    <Button
+                      className="full-width"
+                      onClick={() => navigate(paths.artistMarketing)}
+                      style={{ marginTop: '16px' }}
+                    >
+                      Impulsar este día
+                    </Button>
+                  )}
                 </div>
               )}
             </Card>
@@ -895,8 +949,22 @@ function ArtistDashboard({ view = 'agenda' }) {
           <>
             <Card className="mobile-screen primary-panel">
               <PanelHeader title="Proximas citas" eyebrow="Hoy" action={<Button size="sm">Nueva</Button>} />
+              <div className="form-stack compact-form" style={{ marginBottom: '14px', marginTop: 0 }}>
+                <Input
+                  label="Filtrar por nombre o celular"
+                  placeholder="Nombre o celular de clienta"
+                  type="search"
+                  value={appointmentClientQuery}
+                  onChange={(event) => setAppointmentClientQuery(event.target.value)}
+                />
+                {normalizedAppointmentClientQuery && (
+                  <small style={{ color: 'var(--muted)', fontWeight: 800 }}>
+                    Solo se muestran clientas que ya acudieron al menos una vez en este entorno.
+                  </small>
+                )}
+              </div>
               <div className="compact-list">
-                {activeContextAppointments.length > 0 ? activeContextAppointments.map((item) => (
+                {appointmentsMatchingClientQuery.length > 0 ? appointmentsMatchingClientQuery.map((item) => (
                   <div className="list-row elevated-row" key={`${item.id}-${item.client}-${item.time}`}>
                     <div>
                       <strong>{item.client}</strong>
@@ -918,8 +986,8 @@ function ArtistDashboard({ view = 'agenda' }) {
                 )) : (
                   <div className="list-row elevated-row">
                     <div>
-                      <strong>No hay citas registradas.</strong>
-                      <small>Las citas reales apareceran aqui.</small>
+                      <strong>{normalizedAppointmentClientQuery ? 'Sin coincidencias' : 'No hay citas registradas.'}</strong>
+                      <small>{normalizedAppointmentClientQuery ? 'No hay clientas con historial en este entorno que coincidan con la busqueda.' : 'Las citas reales apareceran aqui.'}</small>
                     </div>
                   </div>
                 )}

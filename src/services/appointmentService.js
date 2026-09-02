@@ -40,6 +40,8 @@ function normalizeAppointment(appointment = {}) {
     serviceOfferingId: appointment.serviceOfferingId || appointment.service_offering_id || null,
     availabilitySlotId: appointment.availabilitySlotId || appointment.availability_slot_id || null,
     client: appointment.client || 'Clienta',
+    clientPhone: appointment.clientPhone || appointment.client_phone || appointment.phone || '',
+    clientEmail: appointment.clientEmail || appointment.client_email || appointment.email || '',
     artist: appointment.artist || 'Artista',
     service: appointment.service || 'Servicio',
     serviceTier: appointment.serviceTier || appointment.service_tier || 'basic',

@@ -83,6 +83,60 @@ function getAppointmentTimestamp(appointment = {}) {
   return new Date(`${date}T${time && time.includes(':') ? time : '00:00'}`).getTime()
 }
 
+function getInitials(value = '') {
+  return String(value || '')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((word) => word[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase()
+}
+
+function appointmentMatchesClientQuery(appointment = {}, query = '') {
+  const normalizedQuery = String(query || '').trim().toLowerCase()
+  if (!normalizedQuery) return true
+
+  const searchableText = [
+    appointment.client,
+    appointment.clientName,
+    appointment.clientPhone,
+    appointment.phone,
+    appointment.clientEmail,
+    appointment.email,
+  ].filter(Boolean).join(' ').toLowerCase()
+
+  return searchableText.includes(normalizedQuery)
+}
+
+function getAttendedClientIds(appointments = []) {
+  return new Set(appointments
+    .filter((appointment) => (
+      appointment.clientId
+      && !['Cancelada', 'No show'].includes(appointment.status)
+      && !['cancelled', 'no_show'].includes(String(appointment.appointmentStatus || '').toLowerCase())
+      && (
+        appointment.status === 'Completada'
+        || String(appointment.appointmentStatus || '').toLowerCase() === 'completed'
+        || getAppointmentTimestamp(appointment) < Date.now()
+      )
+    ))
+    .map((appointment) => appointment.clientId))
+}
+
+function filterAppointmentsByAttendedClientQuery(appointments = [], query = '') {
+  const normalizedQuery = String(query || '').trim()
+  if (!normalizedQuery) return appointments
+
+  const attendedClientIds = getAttendedClientIds(appointments)
+
+  return appointments.filter((appointment) => (
+    (!appointment.clientId || attendedClientIds.has(appointment.clientId))
+    && appointmentMatchesClientQuery(appointment, normalizedQuery)
+  ))
+}
+
 function isConfirmedAppointment(appointment = {}) {
   const status = String(appointment.appointmentStatus || appointment.appointment_status || appointment.status || '').toLowerCase()
   const blockedStatuses = ['pending', 'pendiente', 'cancelled', 'canceled', 'cancelada', 'cancelado', 'por aprobar']
@@ -155,6 +209,7 @@ function StudioSummarySection({
   const [showMetrics, setShowMetrics] = useState(false)
   const [showCalendarFilter, setShowCalendarFilter] = useState(false)
   const [selectedAgendaDate, setSelectedAgendaDate] = useState(getTodayDateValue)
+  const [appointmentClientQuery, setAppointmentClientQuery] = useState('')
   const [pendingMetricsScroll, setPendingMetricsScroll] = useState('')
   const dashboardHeaderRef = useRef(null)
   const metricsRef = useRef(null)
@@ -169,7 +224,8 @@ function StudioSummarySection({
     .flatMap((operation) => operation?.services || [])
     .filter((service) => ['active', 'activo'].includes(String(service.status || '').toLowerCase()))
   const upcomingSlots = operations.flatMap((operation) => operation?.upcomingSlots || [])
-  const selectedDateAppointments = ownerAppointments
+  const filteredOwnerAppointments = filterAppointmentsByAttendedClientQuery(ownerAppointments, appointmentClientQuery)
+  const selectedDateAppointments = filteredOwnerAppointments
     .filter((appointment) => getAppointmentDate(appointment) === selectedAgendaDate)
     .sort((firstAppointment, secondAppointment) => getAppointmentTimestamp(firstAppointment) - getAppointmentTimestamp(secondAppointment))
   const todayAppointments = ownerAppointments.filter((appointment) => getAppointmentDate(appointment) === today)
@@ -215,14 +271,28 @@ function StudioSummarySection({
             Filtrar
           </Button>
         </div>
-        {showCalendarFilter && (
+        <div className="form-stack compact-form" style={{ marginBottom: '14px', marginTop: 0 }}>
+          {showCalendarFilter && (
+            <Input
+              label="Seleccionar fecha"
+              type="date"
+              value={selectedAgendaDate}
+              onChange={(event) => setSelectedAgendaDate(event.target.value || today)}
+            />
+          )}
           <Input
-            label="Seleccionar fecha"
-            type="date"
-            value={selectedAgendaDate}
-            onChange={(event) => setSelectedAgendaDate(event.target.value || today)}
+            label="Filtrar por nombre o celular"
+            placeholder="Nombre o celular de clienta"
+            type="search"
+            value={appointmentClientQuery}
+            onChange={(event) => setAppointmentClientQuery(event.target.value)}
           />
-        )}
+          {appointmentClientQuery.trim() && (
+            <small style={{ color: 'var(--muted)', fontWeight: 800 }}>
+              Solo se muestran clientas que ya acudieron al menos una vez con este estudio.
+            </small>
+          )}
+        </div>
         <OwnerDayStrip
           selectedDate={selectedAgendaDate}
           setSelectedDate={setSelectedAgendaDate}
@@ -265,6 +335,7 @@ function StudioSummarySection({
         <div>
           <span className="eyebrow">Resumen operativo</span>
           <h3>{studioName}</h3>
+          <span className="studio-owner-badge inline">STUDIO OWNER</span>
           <small>{currentStudio?.studioStatus === 'approved' ? 'Estudio aprobado' : currentStudio?.studioStatus || 'Estado por confirmar'}</small>
         </div>
         <div className="studio-review-actions">
@@ -483,9 +554,11 @@ function StudioScheduleSection({
 }) {
   const [showCalendarFilter, setShowCalendarFilter] = useState(false)
   const [selectedAgendaDate, setSelectedAgendaDate] = useState(getTodayDateValue)
+  const [appointmentClientQuery, setAppointmentClientQuery] = useState('')
   const visibleDays = useMemo(() => buildVisibleDays(selectedAgendaDate), [selectedAgendaDate])
   const studioName = profileDraft?.commercialName || currentStudio?.profile?.commercialName || currentStudio?.name || 'Estudio'
-  const selectedDateAppointments = ownerAppointments
+  const filteredOwnerAppointments = filterAppointmentsByAttendedClientQuery(ownerAppointments, appointmentClientQuery)
+  const selectedDateAppointments = filteredOwnerAppointments
     .filter((appointment) => getAppointmentDate(appointment) === selectedAgendaDate)
     .sort((firstAppointment, secondAppointment) => getAppointmentTimestamp(firstAppointment) - getAppointmentTimestamp(secondAppointment))
 
@@ -502,14 +575,28 @@ function StudioScheduleSection({
             Filtrar
           </Button>
         </div>
-        {showCalendarFilter && (
+        <div className="form-stack compact-form" style={{ marginBottom: '14px', marginTop: 0 }}>
+          {showCalendarFilter && (
+            <Input
+              label="Seleccionar fecha"
+              type="date"
+              value={selectedAgendaDate}
+              onChange={(event) => setSelectedAgendaDate(event.target.value || getTodayDateValue())}
+            />
+          )}
           <Input
-            label="Seleccionar fecha"
-            type="date"
-            value={selectedAgendaDate}
-            onChange={(event) => setSelectedAgendaDate(event.target.value || getTodayDateValue())}
+            label="Filtrar por nombre o celular"
+            placeholder="Nombre o celular de clienta"
+            type="search"
+            value={appointmentClientQuery}
+            onChange={(event) => setAppointmentClientQuery(event.target.value)}
           />
-        )}
+          {appointmentClientQuery.trim() && (
+            <small style={{ color: 'var(--muted)', fontWeight: 800 }}>
+              Solo se muestran clientas que ya acudieron al menos una vez con este estudio.
+            </small>
+          )}
+        </div>
         <OwnerDayStrip
           selectedDate={selectedAgendaDate}
           setSelectedDate={setSelectedAgendaDate}
@@ -820,18 +907,40 @@ function OwnerAppointmentModal({
               />
             </>
           )}
-          <label className="input-field">
-            <span>Artista</span>
-            <select
-              value={draft.membershipId}
-              onChange={(event) => onDraftChange({ membershipId: event.target.value, serviceOfferingId: '', availabilitySlotId: '' })}
-            >
-              <option value="">Selecciona artista</option>
-              {memberships.map((membership) => (
-                <option key={membership.id} value={membership.id}>{membership.name}</option>
-              ))}
-            </select>
-          </label>
+          <section className="owner-artist-picker" aria-label="Seleccion de artista">
+            <div>
+              <span className="eyebrow">Artista asignada</span>
+              <h4>Selecciona quien atiende la cita</h4>
+            </div>
+            <div className="owner-artist-grid">
+              {memberships.length > 0 ? memberships.map((membership) => {
+                const isSelected = draft.membershipId === membership.id
+                const photoUrl = membership.studioPhotoUrl || membership.photoUrl || ''
+
+                return (
+                  <button
+                    className={`owner-artist-card${isSelected ? ' active' : ''}`}
+                    key={membership.id}
+                    type="button"
+                    onClick={() => onDraftChange({ membershipId: membership.id, serviceOfferingId: '', availabilitySlotId: '' })}
+                  >
+                    <span className="owner-artist-avatar">
+                      {photoUrl ? <img src={photoUrl} alt={`Foto de ${membership.name}`} /> : getInitials(membership.name)}
+                    </span>
+                    <strong>{membership.name}</strong>
+                    <small>{membership.email || 'Artista del estudio'}</small>
+                  </button>
+                )
+              }) : (
+                <div className="list-row elevated-row">
+                  <div>
+                    <strong>Sin artistas activas</strong>
+                    <small>Agrega artistas al estudio para asignar citas.</small>
+                  </div>
+                </div>
+              )}
+            </div>
+          </section>
           <label className="input-field">
             <span>Servicio</span>
             <select

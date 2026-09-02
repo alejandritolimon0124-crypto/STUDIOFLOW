@@ -21,13 +21,54 @@ function ArtistProfileSettings() {
   const {
     artistProfileError,
     artistState,
+    artistWorkContext,
     isArtistProfileSaving,
     refreshAuthContext,
     saveArtistProfile,
     session,
     setSession,
   } = useApp()
-  const currentStudio = null
+  const activeSessionContext = session.activeSessionContext || {}
+  const activeContextType = artistWorkContext?.contextType
+    || artistWorkContext?.type
+    || activeSessionContext.contextType
+    || activeSessionContext.type
+    || ''
+  const activeMembershipId = artistWorkContext?.membershipId
+    || artistWorkContext?.membership_id
+    || activeSessionContext.membershipId
+    || activeSessionContext.membership_id
+    || null
+  const currentStudioMemberships = (session.memberships || []).filter((membership) => (
+    (membership.status || 'active') === 'active'
+    && (membership.studioId || membership.studio_id)
+  ))
+  const activeStudioMembership = currentStudioMemberships.find((membership) => (
+    (membership.id || membership.membershipId || membership.membership_id) === activeMembershipId
+  )) || currentStudioMemberships[0]
+  const activeStudioId = artistWorkContext?.studioId
+    || artistWorkContext?.studio_id
+    || activeSessionContext.studioId
+    || activeSessionContext.studio_id
+    || activeStudioMembership?.studioId
+    || activeStudioMembership?.studio_id
+    || ''
+  const activeStudioName = artistWorkContext?.studioName
+    || artistWorkContext?.studio_name
+    || activeSessionContext.studioName
+    || activeSessionContext.studio_name
+    || activeStudioMembership?.studioName
+    || activeStudioMembership?.studio_name
+    || 'Estudio'
+  const isStudioArtistContext = activeContextType === 'membership' || Boolean(activeMembershipId)
+  const currentStudio = activeStudioId
+    ? {
+      id: activeStudioId,
+      name: activeStudioName,
+      professionalLocation: {},
+      city: '',
+    }
+    : null
   const artistProfileBelongsToSession = Boolean(
     session.artist?.id
     && (
@@ -270,6 +311,36 @@ function ArtistProfileSettings() {
     }
   }
 
+  const handleStudioPhotoChange = (studioId) => (event) => {
+    const file = event.target.files?.[0]
+    if (!file || !studioId) return
+
+    const reader = new FileReader()
+    reader.onload = () => {
+      setProfileDraft((currentDraft) => ({
+        ...currentDraft,
+        studioPhotoUrls: {
+          ...(currentDraft.studioPhotoUrls || {}),
+          [studioId]: String(reader.result || ''),
+        },
+      }))
+    }
+    reader.readAsDataURL(file)
+    event.target.value = ''
+  }
+
+  const removeStudioPhoto = (studioId) => {
+    setProfileDraft((currentDraft) => {
+      const nextStudioPhotoUrls = { ...(currentDraft.studioPhotoUrls || {}) }
+      delete nextStudioPhotoUrls[studioId]
+
+      return {
+        ...currentDraft,
+        studioPhotoUrls: nextStudioPhotoUrls,
+      }
+    })
+  }
+
   const claimStudioInvitation = async () => {
     if (!claimToken.trim()) {
       setClaimStatus({ tone: 'warm', message: 'Ingresa un token de invitacion.' })
@@ -311,6 +382,84 @@ function ArtistProfileSettings() {
   const openOwnerPanel = async () => {
     await refreshAuthContext?.()
     navigate(paths.adminStudio)
+  }
+
+  if (isStudioArtistContext) {
+    return (
+      <main className="dashboard-grid artist-grid profile-foundation-grid">
+        <Card className="wide-card mobile-screen primary-panel">
+          <PanelHeader title="MI PERFIL" eyebrow={activeStudioName} />
+          <div className="profile-foundation-stack">
+            <section className="profile-foundation-card">
+              <div>
+                <span className="eyebrow">Entorno de estudio</span>
+                <h3>Perfil para {activeStudioName}</h3>
+                <small>Esta informacion se mostrara cuando trabajes dentro del estudio.</small>
+              </div>
+              <div className="profile-photo-row">
+                <div className="artist-photo-preview">
+                  {profileDraft.studioPhotoUrls?.[activeStudioId] ? (
+                    <img src={profileDraft.studioPhotoUrls[activeStudioId]} alt={`Foto de ${activeStudioName}`} />
+                  ) : profileDraft.photoUrl ? (
+                    <img src={profileDraft.photoUrl} alt={`Foto de ${profileDraft.personalInfo.fullName}`} />
+                  ) : (
+                    <span>{activeStudioName.slice(0, 2).toUpperCase()}</span>
+                  )}
+                </div>
+                <div className="artist-photo-actions">
+                  <label className="button button-ghost button-sm" htmlFor="studio-context-only-photo-input">
+                    {profileDraft.studioPhotoUrls?.[activeStudioId] ? 'Cambiar foto' : 'Subir foto'}
+                  </label>
+                  <input
+                    accept="image/*"
+                    className="visually-hidden"
+                    id="studio-context-only-photo-input"
+                    type="file"
+                    onChange={handleStudioPhotoChange(activeStudioId)}
+                  />
+                  {profileDraft.studioPhotoUrls?.[activeStudioId] && (
+                    <button type="button" onClick={() => removeStudioPhoto(activeStudioId)}>Eliminar foto</button>
+                  )}
+                </div>
+              </div>
+            </section>
+
+            <section className="profile-foundation-card">
+              <div>
+                <span className="eyebrow">Perfil profesional</span>
+                <h3>Especialidad en estudio</h3>
+              </div>
+              <Input
+                label="Especialidad principal"
+                value={profileDraft.professionalProfile.primarySpecialty}
+                onChange={(event) => updateDraftSection('professionalProfile', 'primarySpecialty', event.target.value)}
+              />
+              <Input
+                label="Especialidades"
+                value={profileDraft.professionalProfile.specialties || ''}
+                onChange={(event) => updateDraftSection('professionalProfile', 'specialties', event.target.value)}
+              />
+              <label className="input-field">
+                <span>Descripcion profesional</span>
+                <textarea
+                  value={profileDraft.professionalProfile.shortBio}
+                  onChange={(event) => updateDraftSection('professionalProfile', 'shortBio', event.target.value)}
+                  rows="4"
+                />
+              </label>
+              {(saveFeedback || artistProfileError) && (
+                <StatusPill tone={(saveFeedback || artistProfileError).includes('No se pudo') ? 'warm' : 'success'}>
+                  {artistProfileError || saveFeedback}
+                </StatusPill>
+              )}
+              <Button className="full-width" disabled={isArtistProfileSaving} onClick={saveProfile}>
+                {isArtistProfileSaving ? 'Guardando...' : 'Guardar perfil de estudio'}
+              </Button>
+            </section>
+          </div>
+        </Card>
+      </main>
+    )
   }
 
   return (
@@ -387,6 +536,42 @@ function ArtistProfileSettings() {
               </div>
             </div>
           </section>
+
+          {currentStudioMemberships.length > 0 && (
+            <section className="profile-foundation-card">
+              <div>
+                <span className="eyebrow">Entorno de estudio</span>
+                <h3>Foto para {activeStudioName}</h3>
+                <small>Esta foto se mostrara solo cuando trabajes dentro del estudio.</small>
+              </div>
+              <div className="profile-photo-row">
+                <div className="artist-photo-preview">
+                  {profileDraft.studioPhotoUrls?.[activeStudioId] ? (
+                    <img src={profileDraft.studioPhotoUrls[activeStudioId]} alt={`Foto de ${activeStudioName}`} />
+                  ) : profileDraft.photoUrl ? (
+                    <img src={profileDraft.photoUrl} alt={`Foto de ${profileDraft.personalInfo.fullName}`} />
+                  ) : (
+                    <span>{activeStudioName.slice(0, 2).toUpperCase()}</span>
+                  )}
+                </div>
+                <div className="artist-photo-actions">
+                  <label className="button button-ghost button-sm" htmlFor="studio-context-photo-input">
+                    {profileDraft.studioPhotoUrls?.[activeStudioId] ? 'Cambiar foto de estudio' : 'Subir foto de estudio'}
+                  </label>
+                  <input
+                    accept="image/*"
+                    className="visually-hidden"
+                    id="studio-context-photo-input"
+                    type="file"
+                    onChange={handleStudioPhotoChange(activeStudioId)}
+                  />
+                  {profileDraft.studioPhotoUrls?.[activeStudioId] && (
+                    <button type="button" onClick={() => removeStudioPhoto(activeStudioId)}>Eliminar foto de estudio</button>
+                  )}
+                </div>
+              </div>
+            </section>
+          )}
 
           <section className="profile-foundation-card">
             <div>

@@ -13,6 +13,7 @@ function normalizeMembership(membership = {}) {
     name: membership.name || 'Artista',
     email: membership.email || '',
     photoUrl: membership.photoUrl || membership.photo_url || '',
+    studioPhotoUrl: membership.studioPhotoUrl || membership.studio_photo_url || membership.photoUrl || membership.photo_url || '',
     role: membership.role || 'artist',
     status: membership.status || 'pending',
     startedAt: membership.startedAt || membership.started_at || null,

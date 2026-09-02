@@ -306,11 +306,31 @@ function parseAppointmentDateValue(appointmentOrDate) {
   return new Date(year, month - 1, day)
 }
 
-function isFutureAppointmentDate(dateValue) {
-  const appointmentDate = parseAppointmentDateValue(dateValue)
-  const today = parseAppointmentDateValue(getTodayDateValue())
+function getAppointmentStartDateTime(appointmentOrDate) {
+  if (!appointmentOrDate) return null
 
-  return Boolean(appointmentDate && today && appointmentDate >= today)
+  if (typeof appointmentOrDate === 'object') {
+    const startsAt = appointmentOrDate.startsAt || appointmentOrDate.starts_at
+    if (startsAt) {
+      const parsedStartsAt = new Date(startsAt)
+      if (!Number.isNaN(parsedStartsAt.getTime())) return parsedStartsAt
+    }
+
+    const dateKey = getAppointmentDateKey(appointmentOrDate)
+    const timeValue = String(appointmentOrDate.time || '00:00').slice(0, 5)
+    if (dateKey) {
+      const parsedLocalDate = new Date(`${dateKey}T${timeValue || '00:00'}:00`)
+      if (!Number.isNaN(parsedLocalDate.getTime())) return parsedLocalDate
+    }
+  }
+
+  return parseAppointmentDateValue(appointmentOrDate)
+}
+
+function isFutureAppointmentDate(dateValue) {
+  const appointmentDate = getAppointmentStartDateTime(dateValue)
+
+  return Boolean(appointmentDate && appointmentDate > new Date())
 }
 
 function isCurrentMonthAppointment(dateValue) {
@@ -782,6 +802,7 @@ function ClientDashboard({ view = 'inicio' }) {
   const [appointmentHistoryDate, setAppointmentHistoryDate] = useState('')
   const [visibleHistoryCount, setVisibleHistoryCount] = useState(5)
   const [respondingAppointmentId, setRespondingAppointmentId] = useState('')
+  const [appointmentResponseNotice, setAppointmentResponseNotice] = useState(null)
   const [clientFlowPoints, setClientFlowPoints] = useState({ monthlyBalance: 0, monthlyEarned: 0, monthlySpent: 0, activeBalance: 0, expiringSoonPoints: 0, nextExpirationAt: null, validityDays: 90 })
   const [redeemDraft, setRedeemDraft] = useState({ points: '', targetId: '', targetQuery: '' })
   const [redeemStatus, setRedeemStatus] = useState('')
@@ -1348,8 +1369,23 @@ function ClientDashboard({ view = 'inicio' }) {
   )
   const respondToAppointment = async (appointmentId, action) => {
     setRespondingAppointmentId(appointmentId)
-    await updateClientAppointmentResponse({ appointmentId, action })
-    setRespondingAppointmentId('')
+    setAppointmentResponseNotice(null)
+    try {
+      await updateClientAppointmentResponse({ appointmentId, action })
+      setAppointmentResponseNotice(action === 'cancel'
+        ? {
+          tone: 'danger',
+          title: 'Cancelacion registrada',
+          message: 'Gracias por avisarnos de tu cancelacion. Puedes consultar esta cita en tu historial.',
+        }
+        : {
+          tone: 'success',
+          title: 'Cita confirmada',
+          message: 'Tu artista o estudio ya puede ver que confirmaste tu asistencia.',
+        })
+    } finally {
+      setRespondingAppointmentId('')
+    }
   }
 
   useEffect(() => {
@@ -1368,6 +1404,16 @@ function ClientDashboard({ view = 'inicio' }) {
       isActive = false
     }
   }, [hasRealClientSession, realClientAppointments])
+
+  useEffect(() => {
+    if (!appointmentResponseNotice) return undefined
+
+    const noticeTimer = window.setTimeout(() => {
+      setAppointmentResponseNotice(null)
+    }, 8000)
+
+    return () => window.clearTimeout(noticeTimer)
+  }, [appointmentResponseNotice])
 
   const redeemTargets = useMemo(() => {
     const targets = new Map()
@@ -1891,6 +1937,20 @@ function ClientDashboard({ view = 'inicio' }) {
               </Card>
             )}
 
+            {appointmentResponseNotice && (
+              <Card className="mobile-screen primary-panel">
+                <div className={`list-row elevated-row appointment-status-row appointment-status-${appointmentResponseNotice.tone}`}>
+                  <div>
+                    <strong>{appointmentResponseNotice.title}</strong>
+                    <small>{appointmentResponseNotice.message}</small>
+                  </div>
+                  <StatusPill tone={appointmentResponseNotice.tone}>
+                    Cita
+                  </StatusPill>
+                </div>
+              </Card>
+            )}
+
             <Card className="mobile-screen primary-panel client-next-appointment-card">
               <PanelHeader title="Tu próxima cita" eyebrow="Agenda activa" />
               {nextAppointment ? (
@@ -1920,6 +1980,9 @@ function ClientDashboard({ view = 'inicio' }) {
                           >
                             Confirmar
                           </Button>
+                        )}
+                        {!canConfirmAppointment(nextAppointment) && (
+                          <StatusPill tone="success">Cita confirmada</StatusPill>
                         )}
                         <Button
                           size="sm"
@@ -2013,6 +2076,15 @@ function ClientDashboard({ view = 'inicio' }) {
                   )}
                 </div>
               )}
+              {appointmentResponseNotice && (
+                <div className={`list-row elevated-row appointment-status-row appointment-status-${appointmentResponseNotice.tone}`}>
+                  <div>
+                    <strong>{appointmentResponseNotice.title}</strong>
+                    <small>{appointmentResponseNotice.message}</small>
+                  </div>
+                  <StatusPill tone={appointmentResponseNotice.tone}>Cita</StatusPill>
+                </div>
+              )}
               <div className="appointment-stack">
                 {upcomingAppointments.length > 0 ? upcomingAppointments.map((appointment) => (
                   <article className={`client-appointment appointment-status-row appointment-status-${getAppointmentStatusTone(appointment)}`} key={`${appointment.artist}-${appointment.time}-${appointment.date}`}>
@@ -2041,6 +2113,9 @@ function ClientDashboard({ view = 'inicio' }) {
                             >
                               Confirmar
                             </Button>
+                          )}
+                          {!canConfirmAppointment(appointment) && (
+                            <StatusPill tone="success">Cita confirmada</StatusPill>
                           )}
                           <Button
                             size="sm"
@@ -3152,6 +3227,17 @@ function ClientDashboard({ view = 'inicio' }) {
             </Card>
           </>
         )}
+      {appointmentResponseNotice && (
+        <div className={`client-appointment-toast appointment-status-${appointmentResponseNotice.tone}`} role="status" aria-live="polite">
+          <div>
+            <strong>{appointmentResponseNotice.title}</strong>
+            <small>{appointmentResponseNotice.message}</small>
+          </div>
+          <button type="button" onClick={() => setAppointmentResponseNotice(null)}>
+            Cerrar
+          </button>
+        </div>
+      )}
     </main>
   )
 }
