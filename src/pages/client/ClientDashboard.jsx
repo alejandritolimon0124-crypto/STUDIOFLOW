@@ -20,6 +20,7 @@ import { getAppointmentStatusTone } from '../../utils/appointmentStatus'
 import { getCurrentBrowserCoordinates } from '../../utils/browserGeolocation'
 import { getMaxBirthDateForAdult, validateBirthDate } from '../../utils/birthdayValidation'
 import { fetchClientFlowPointsBalance } from '../../services/appointmentService'
+import { serviceCatalog } from '../../services/staticCatalogs'
 
 const clientConfirmationNoticeKey = 'studio-flow-client-confirmation-notices'
 
@@ -62,91 +63,12 @@ function showAppointmentBrowserNotification(appointment = {}) {
   }
 }
 
-const searchServices = {
-  Unas: [
-    { name: 'Gelish', durationMinutes: 60 },
-    { name: 'Rubber', durationMinutes: 75 },
-    { name: 'Acrilicas', durationMinutes: 90 },
-    { name: 'Esculturales', durationMinutes: 120 },
-    { name: 'Soft gel', durationMinutes: 80 },
-    { name: 'Nail art', durationMinutes: 75 },
-    { name: 'Francesas', durationMinutes: 70 },
-  ],
-  Pestanas: [
-    { name: 'Clasicas', durationMinutes: 90 },
-    { name: 'Hibridas', durationMinutes: 100 },
-    { name: 'Volumen ruso', durationMinutes: 120 },
-    { name: 'Anime lashes', durationMinutes: 110 },
-    { name: 'Lash lifting', durationMinutes: 70 },
-    { name: 'Wispy', durationMinutes: 105 },
-    { name: 'Mega volumen', durationMinutes: 140 },
-  ],
-  Maquillaje: [
-    { name: 'Soft glam makeup', durationMinutes: 90 },
-    { name: 'Maquillaje social', durationMinutes: 80 },
-    { name: 'Maquillaje de novia', durationMinutes: 120 },
-    { name: 'Maquillaje natural', durationMinutes: 60 },
-    { name: 'Maquillaje editorial', durationMinutes: 110 },
-    { name: 'Maquillaje de noche', durationMinutes: 90 },
-  ],
-  Cejas: [
-    { name: 'Brow design', durationMinutes: 45 },
-    { name: 'Laminado de ceja', durationMinutes: 55 },
-    { name: 'Henna brows', durationMinutes: 50 },
-    { name: 'Perfilado con hilo', durationMinutes: 30 },
-    { name: 'Tinte de ceja', durationMinutes: 35 },
-  ],
-  Faciales: [
-    { name: 'Facial glow', durationMinutes: 60 },
-    { name: 'Limpieza facial profunda', durationMinutes: 80 },
-    { name: 'Facial hidratante', durationMinutes: 70 },
-    { name: 'Facial antiacne', durationMinutes: 75 },
-    { name: 'Peeling facial', durationMinutes: 60 },
-  ],
-  Depilacion: [
-    { name: 'Cera facial', durationMinutes: 30 },
-    { name: 'Cera corporal', durationMinutes: 60 },
-    { name: 'Depilacion con hilo', durationMinutes: 35 },
-    { name: 'Axilas', durationMinutes: 25 },
-    { name: 'Pierna completa', durationMinutes: 70 },
-  ],
-  Peinado: [
-    { name: 'Ondas glam', durationMinutes: 60 },
-    { name: 'Peinado social', durationMinutes: 75 },
-    { name: 'Recogido elegante', durationMinutes: 90 },
-    { name: 'Brushing', durationMinutes: 45 },
-  ],
-  Skincare: [
-    { name: 'Rutina personalizada', durationMinutes: 50 },
-    { name: 'Dermaplaning', durationMinutes: 60 },
-    { name: 'Mascarilla premium', durationMinutes: 40 },
-    { name: 'Tratamiento luminoso', durationMinutes: 70 },
-  ],
-  Spa: [
-    { name: 'Spa manicure', durationMinutes: 75 },
-    { name: 'Spa pedicure', durationMinutes: 80 },
-    { name: 'Ritual relajante', durationMinutes: 90 },
-    { name: 'Exfoliacion corporal', durationMinutes: 60 },
-  ],
-  Masajes: [
-    { name: 'Masaje relajante', durationMinutes: 60 },
-    { name: 'Masaje descontracturante', durationMinutes: 75 },
-    { name: 'Masaje drenante', durationMinutes: 70 },
-    { name: 'Masaje facial', durationMinutes: 40 },
-  ],
-  Microblading: [
-    { name: 'Microblading pelo a pelo', durationMinutes: 120 },
-    { name: 'Microshading', durationMinutes: 130 },
-    { name: 'Retoque microblading', durationMinutes: 80 },
-    { name: 'Diseno previo', durationMinutes: 45 },
-  ],
-  Laminado: [
-    { name: 'Laminado de ceja', durationMinutes: 55 },
-    { name: 'Laminado con tinte', durationMinutes: 65 },
-    { name: 'Lash lifting', durationMinutes: 70 },
-    { name: 'Combo ceja y pestana', durationMinutes: 100 },
-  ],
-}
+const searchServices = Object.fromEntries(
+  Object.entries(serviceCatalog).map(([category, services]) => [
+    category,
+    services.map((name) => ({ name, durationMinutes: 60 })),
+  ]),
+)
 
 const allSearchServices = Object.values(searchServices).flat()
 const weekdayLabels = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado']

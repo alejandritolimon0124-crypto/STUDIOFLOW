@@ -6,7 +6,7 @@ import PanelHeader from '../../components/PanelHeader'
 import StatusPill from '../../components/StatusPill'
 import WorkspaceCardSelector from '../../components/WorkspaceCardSelector'
 import { useApp } from '../../contexts/appContextCore'
-import { serviceCatalog } from '../../services/staticCatalogs'
+import { normalizeServiceCategory, serviceCatalog } from '../../services/staticCatalogs'
 import { formatCurrency } from '../../utils/formatters'
 
 const durations = ['30 min', '45 min', '60 min', '75 min', '90 min', '120 min']
@@ -59,7 +59,8 @@ function ArtistServices() {
   }
 
   const editService = (service) => {
-    const nextPrimary = service.category && serviceCatalog[service.category] ? service.category : primaryServices[0]
+    const nextCategory = normalizeServiceCategory(service.category)
+    const nextPrimary = serviceCatalog[nextCategory] ? nextCategory : primaryServices[0]
 
     setEditingId(service.id)
     setEditingDraft({

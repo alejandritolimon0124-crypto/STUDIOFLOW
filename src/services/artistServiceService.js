@@ -1,5 +1,6 @@
 import { requireSupabase } from '../lib/supabaseClient'
 import { getContextRpcParams } from './artistWorkContextService'
+import { normalizeServiceCategory } from './staticCatalogs'
 
 const STATUS_TO_DB = {
   Activo: 'active',
@@ -40,13 +41,16 @@ function normalizeText(value = '') {
 }
 
 function inferServiceCategory(row = {}, fallback = 'Servicios') {
+  const normalizedFallback = normalizeServiceCategory(fallback)
+  if (normalizedFallback !== 'Servicios') return normalizedFallback
+
   const serviceName = normalizeText(row.name)
 
-  if (serviceName.includes('pestana')) return 'Colocación de Pestañas'
-  if (serviceName.includes('una') || serviceName.includes('nail')) return 'Colocación de Uñas'
+  if (serviceName.includes('pestana')) return 'Pestanas'
+  if (serviceName.includes('una') || serviceName.includes('nail')) return 'Unas'
   if (serviceName.includes('maquillaje')) return 'Maquillaje'
 
-  return fallback
+  return normalizedFallback
 }
 
 function mapServiceOffering(row, catalogs = {}) {
@@ -91,7 +95,7 @@ export async function saveArtistServiceOffering({ artistId, service, workContext
 
   const client = requireSupabase()
   const payload = {
-    category: service.category,
+    category: normalizeServiceCategory(service.category),
     tier_code: normalizeTierCode(service.serviceTier),
     name: String(service.name || '').trim(),
     price_amount: Number(service.price) || 0,

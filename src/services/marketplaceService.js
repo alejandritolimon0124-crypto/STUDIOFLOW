@@ -1,4 +1,5 @@
 import { requireSupabase } from '../lib/supabaseClient'
+import { normalizeServiceCategory } from './staticCatalogs'
 
 function asArray(value) {
   return Array.isArray(value) ? value : []
@@ -18,13 +19,16 @@ function normalizeText(value = '') {
 
 function inferServiceCategory(service = {}) {
   const category = service.category || service.category_name || 'Servicios'
+  const normalizedCategory = normalizeServiceCategory(category)
+  if (normalizedCategory !== 'Servicios') return normalizedCategory
+
   const serviceName = normalizeText(service.name)
 
-  if (serviceName.includes('pestana')) return 'Colocación de Pestañas'
-  if (serviceName.includes('una') || serviceName.includes('nail')) return 'Colocación de Uñas'
+  if (serviceName.includes('pestana')) return 'Pestanas'
+  if (serviceName.includes('una') || serviceName.includes('nail')) return 'Unas'
   if (serviceName.includes('maquillaje')) return 'Maquillaje'
 
-  return category
+  return normalizedCategory
 }
 
 function normalizeService(service = {}) {

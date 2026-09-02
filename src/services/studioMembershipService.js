@@ -1,4 +1,5 @@
 import { requireSupabase } from '../lib/supabaseClient'
+import { normalizeServiceCategory } from './staticCatalogs'
 
 function asArray(value) {
   return Array.isArray(value) ? value : []
@@ -70,7 +71,7 @@ function normalizeStudioService(service = {}) {
     id: service.id,
     name: service.name || 'Servicio',
     description: service.description || '',
-    category: service.category || 'Servicios',
+    category: normalizeServiceCategory(service.category || 'Servicios'),
     price: Number(service.price || service.priceAmount || service.price_amount || 0),
     durationMinutes,
     duration: durationMinutes ? `${durationMinutes} min` : '',
