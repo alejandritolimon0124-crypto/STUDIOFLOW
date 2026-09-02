@@ -90,6 +90,17 @@ export async function fetchArtistServices({ artistId, workContext = null }) {
   return (data?.services || []).map((row) => mapServiceOffering(row))
 }
 
+function serviceMatchesWorkContext(service = {}, workContext = {}) {
+  const contextType = workContext?.contextType || workContext?.type || 'artist'
+
+  if (contextType === 'membership') {
+    const membershipId = workContext.membershipId || workContext.membership_id || null
+    return service.ownerType === 'membership' && service.membershipId === membershipId
+  }
+
+  return service.ownerType === 'artist' && !service.membershipId && !service.studioId
+}
+
 export async function saveArtistServiceOffering({ artistId, service, workContext = null }) {
   if (!artistId) throw new Error('Artist id requerido para guardar servicios.')
 
@@ -110,6 +121,7 @@ export async function saveArtistServiceOffering({ artistId, service, workContext
     ? await client.rpc('studio_flow_artist_update_context_service_offering', {
         p_service_offering_id: service.id,
         p_patch: payload,
+        ...getContextRpcParams(workContext),
       })
     : await client.rpc('studio_flow_artist_create_context_service_offering', {
         p_service: payload,
@@ -120,7 +132,7 @@ export async function saveArtistServiceOffering({ artistId, service, workContext
   return mapServiceOffering(data?.service)
 }
 
-export async function updateArtistServiceOfferingStatus({ serviceId, status }) {
+export async function updateArtistServiceOfferingStatus({ serviceId, status, workContext = null }) {
   if (!isDatabaseId(serviceId)) throw new Error('Service id invalido para actualizar estado.')
 
   const client = requireSupabase()
@@ -129,6 +141,7 @@ export async function updateArtistServiceOfferingStatus({ serviceId, status }) {
     p_service_offering_id: serviceId,
     p_status: dbStatus,
     p_reason: null,
+    ...getContextRpcParams(workContext),
   })
 
   if (error) throw error
@@ -136,7 +149,7 @@ export async function updateArtistServiceOfferingStatus({ serviceId, status }) {
   return mapServiceOffering(data?.service)
 }
 
-export async function archiveArtistServiceOffering({ serviceId }) {
+export async function archiveArtistServiceOffering({ serviceId, workContext = null }) {
   if (!isDatabaseId(serviceId)) throw new Error('Service id invalido para archivar.')
 
   const client = requireSupabase()
@@ -144,7 +157,12 @@ export async function archiveArtistServiceOffering({ serviceId }) {
     p_service_offering_id: serviceId,
     p_status: 'archived',
     p_reason: null,
+    ...getContextRpcParams(workContext),
   })
 
   if (error) throw error
+}
+
+export function filterServicesForWorkContext(services = [], workContext = {}) {
+  return services.filter((service) => serviceMatchesWorkContext(service, workContext))
 }

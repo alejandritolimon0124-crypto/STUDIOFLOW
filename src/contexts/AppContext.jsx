@@ -2632,7 +2632,7 @@ export function AppProvider({ children }) {
     }
 
     setArtistServicesError('')
-    const updatedService = await updateArtistServiceOfferingStatus({ serviceId, status })
+    const updatedService = await updateArtistServiceOfferingStatus({ serviceId, status, workContext: activeArtistWorkContext })
     setArtistState((currentState) => ({
       ...currentState,
       services: currentState.services.map((service) =>
@@ -2640,7 +2640,7 @@ export function AppProvider({ children }) {
       ),
     }))
     return updatedService
-  }, [session.isMockSession])
+  }, [activeArtistWorkContext, session.isMockSession])
 
   const archiveArtistService = useCallback(async (serviceId) => {
     if (session.isMockSession) {
@@ -2652,12 +2652,12 @@ export function AppProvider({ children }) {
     }
 
     setArtistServicesError('')
-    await archiveArtistServiceOffering({ serviceId })
+    await archiveArtistServiceOffering({ serviceId, workContext: activeArtistWorkContext })
     setArtistState((currentState) => ({
       ...currentState,
       services: currentState.services.filter((service) => service.id !== serviceId),
     }))
-  }, [session.isMockSession])
+  }, [activeArtistWorkContext, session.isMockSession])
 
   const selectArtistWorkContext = useCallback((contextId) => {
     const nextContext = artistWorkContexts.find((context) => normalizeWorkContextId(context) === contextId)

@@ -6,6 +6,7 @@ import PanelHeader from '../../components/PanelHeader'
 import StatusPill from '../../components/StatusPill'
 import WorkspaceCardSelector from '../../components/WorkspaceCardSelector'
 import { useApp } from '../../contexts/appContextCore'
+import { filterServicesForWorkContext } from '../../services/artistServiceService'
 import { normalizeServiceCategory, serviceCatalog } from '../../services/staticCatalogs'
 import { formatCurrency } from '../../utils/formatters'
 
@@ -33,6 +34,7 @@ function ArtistServices() {
   const [editingDraft, setEditingDraft] = useState(null)
   const [feedback, setFeedback] = useState('')
   const [isSaving, setIsSaving] = useState(false)
+  const visibleArtistServices = filterServicesForWorkContext(artistServices, artistWorkContext)
 
   useEffect(() => {
     if (artistServicesError) showFeedback(artistServicesError)
@@ -243,7 +245,7 @@ function ArtistServices() {
         <Card className="mobile-screen">
           <PanelHeader title="Servicios activos" eyebrow="Disponibles" />
           <div className="service-list">
-            {artistServices.filter((service) => service.status === 'Activo').map((service) => (
+            {visibleArtistServices.filter((service) => service.status === 'Activo').map((service) => (
               <Fragment key={service.id}>
                 <div className={`service-row management-row${editingId === service.id ? ' is-editing' : ''}`}>
                   <div>
@@ -304,7 +306,7 @@ function ArtistServices() {
         <Card className="mobile-screen">
           <PanelHeader title="Servicios suspendidos" eyebrow="Pausados" />
           <div className="service-list">
-            {artistServices.filter((service) => service.status === 'Suspendido').map((service) => (
+            {visibleArtistServices.filter((service) => service.status === 'Suspendido').map((service) => (
               <Fragment key={service.id}>
                 <div className={`service-row management-row${editingId === service.id ? ' is-editing' : ''}`}>
                   <div>
