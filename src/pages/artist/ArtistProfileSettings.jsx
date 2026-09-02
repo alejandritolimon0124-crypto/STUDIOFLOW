@@ -279,6 +279,17 @@ function ArtistProfileSettings() {
 
   const saveProfile = async () => {
     const nextProfile = { ...profileDraft }
+
+    if (isStudioArtistContext) {
+      try {
+        await saveArtistProfile(nextProfile)
+        setSaveFeedback('Perfil de estudio guardado')
+      } catch (error) {
+        setSaveFeedback(error.message || 'No se pudo guardar el perfil de estudio')
+      }
+      return
+    }
+
     const birthdayError = validateBirthDate(profileDraft.personalInfo?.birthday)
 
     if (birthdayError) {
