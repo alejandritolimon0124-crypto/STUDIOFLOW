@@ -16,6 +16,14 @@ import { getMaxBirthDateForAdult, validateBirthDate } from '../../utils/birthday
 
 const portfolioLimit = 12
 
+function getStudioScopedPhotoUrl(profile = {}, studioId = '') {
+  const studioPhotoUrls = profile.studioPhotoUrls || {}
+  if (studioId && studioPhotoUrls[studioId]) return studioPhotoUrls[studioId]
+
+  const firstStudioPhotoUrl = Object.values(studioPhotoUrls).find((value) => String(value || '').trim())
+  return firstStudioPhotoUrl || ''
+}
+
 function ArtistProfileSettings() {
   const navigate = useNavigate()
   const {
@@ -79,7 +87,7 @@ function ArtistProfileSettings() {
   const safeArtistProfile = artistProfileBelongsToSession ? artistState.profile : {}
   const sessionArtistProfile = artistProfileBelongsToSession
     ? safeArtistProfile
-    : mapAuthContextToArtistProfile({ profile: session.profile, artist: session.artist })
+    : mapAuthContextToArtistProfile({ profile: session.profile, artist: session.artist }, artistState.profile)
   const [profileDraft, setProfileDraft] = useState({
     ...sessionArtistProfile,
     professionalLocation: createArtistLocationSettings(sessionArtistProfile?.professionalLocation),
@@ -91,6 +99,8 @@ function ArtistProfileSettings() {
   const [claimToken, setClaimToken] = useState('')
   const [claimStatus, setClaimStatus] = useState({ tone: 'neutral', message: '' })
   const [isClaimingInvitation, setIsClaimingInvitation] = useState(false)
+  const studioPhotoSignature = JSON.stringify(sessionArtistProfile.studioPhotoUrls || {})
+  const activeStudioPhotoUrl = getStudioScopedPhotoUrl(profileDraft, activeStudioId)
   const effectiveLocation = profileDraft.professionalLocation.useStudioLocation
     ? currentStudio?.professionalLocation
     : profileDraft.professionalLocation.customLocation
@@ -116,7 +126,15 @@ function ArtistProfileSettings() {
     setLocationDetection({ status: 'idle', message: '' })
     setIsArtistLocationConfirmed(false)
     setSaveFeedback('')
-  }, [session.artist?.id, session.profile?.id, sessionArtistProfile.artistId, sessionArtistProfile.artistProfileId])
+  }, [
+    activeStudioId,
+    session.artist?.id,
+    session.profile?.id,
+    sessionArtistProfile.artistId,
+    sessionArtistProfile.artistProfileId,
+    sessionArtistProfile.photoUrl,
+    studioPhotoSignature,
+  ])
 
   const updateDraftSection = (section, field, value) => {
     setProfileDraft((currentDraft) => ({
@@ -409,8 +427,8 @@ function ArtistProfileSettings() {
               </div>
               <div className="profile-photo-row">
                 <div className="artist-photo-preview">
-                  {profileDraft.studioPhotoUrls?.[activeStudioId] ? (
-                    <img src={profileDraft.studioPhotoUrls[activeStudioId]} alt={`Foto de ${activeStudioName}`} />
+                  {activeStudioPhotoUrl ? (
+                    <img src={activeStudioPhotoUrl} alt={`Foto de ${activeStudioName}`} />
                   ) : profileDraft.photoUrl ? (
                     <img src={profileDraft.photoUrl} alt={`Foto de ${profileDraft.personalInfo.fullName}`} />
                   ) : (
@@ -419,7 +437,7 @@ function ArtistProfileSettings() {
                 </div>
                 <div className="artist-photo-actions">
                   <label className="button button-ghost button-sm" htmlFor="studio-context-only-photo-input">
-                    {profileDraft.studioPhotoUrls?.[activeStudioId] ? 'Cambiar foto' : 'Subir foto'}
+                    {activeStudioPhotoUrl ? 'Cambiar foto' : 'Subir foto'}
                   </label>
                   <input
                     accept="image/*"
@@ -428,7 +446,7 @@ function ArtistProfileSettings() {
                     type="file"
                     onChange={handleStudioPhotoChange(activeStudioId)}
                   />
-                  {profileDraft.studioPhotoUrls?.[activeStudioId] && (
+                  {activeStudioPhotoUrl && (
                     <button type="button" onClick={() => removeStudioPhoto(activeStudioId)}>Eliminar foto</button>
                   )}
                 </div>

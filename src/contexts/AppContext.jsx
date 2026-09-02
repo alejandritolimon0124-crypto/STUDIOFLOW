@@ -945,7 +945,7 @@ export function AppProvider({ children }) {
         profile: mapAuthContextToArtistProfile({
           ...authContext,
           artistProfile,
-        }),
+        }, currentState.profile),
       }))
     }
 
@@ -1069,7 +1069,7 @@ export function AppProvider({ children }) {
           profile: mapAuthContextToArtistProfile({
             ...authContext,
             artistProfile,
-          }),
+          }, currentState.profile),
         }))
       }
 
@@ -1181,7 +1181,7 @@ export function AppProvider({ children }) {
         profile: mapAuthContextToArtistProfile({
           ...authContext,
           artistProfile,
-        }),
+        }, currentState.profile),
       }))
       localStorage.removeItem(storageKey)
       setSession(nextSession)

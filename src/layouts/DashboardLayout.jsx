@@ -42,6 +42,14 @@ function cleanWorkspaceLabel(value = '') {
     .trim()
 }
 
+function getStudioScopedPhotoUrl(profile = {}, studioId = '') {
+  const studioPhotoUrls = profile.studioPhotoUrls || {}
+  if (studioId && studioPhotoUrls[studioId]) return studioPhotoUrls[studioId]
+
+  const firstStudioPhotoUrl = Object.values(studioPhotoUrls).find((value) => String(value || '').trim())
+  return firstStudioPhotoUrl || ''
+}
+
 const roleNavigation = {
   admin: [
     { label: 'Inicio', path: paths.admin },
@@ -254,7 +262,7 @@ function DashboardLayout({ children, role, title, subtitle, showMobileAppbar = t
       ]
   const clientPhotoUrl = role === 'client' ? clientState.profile?.photoUrl : ''
   const artistStudioPhotoUrl = role === 'artist' && activeArtistStudioId
-    ? artistState.profile?.studioPhotoUrls?.[activeArtistStudioId]
+    ? getStudioScopedPhotoUrl(artistState.profile, activeArtistStudioId)
     : ''
   const artistPhotoUrl = role === 'artist' ? artistStudioPhotoUrl || artistState.profile?.photoUrl : ''
   const profilePhotoUrl = clientPhotoUrl || artistPhotoUrl
