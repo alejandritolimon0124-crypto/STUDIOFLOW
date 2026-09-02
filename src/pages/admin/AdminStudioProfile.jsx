@@ -271,28 +271,28 @@ function StudioSummarySection({
             Filtrar
           </Button>
         </div>
-        <div className="form-stack compact-form" style={{ marginBottom: '14px', marginTop: 0 }}>
-          {showCalendarFilter && (
+        {showCalendarFilter && (
+          <div className="form-stack compact-form" style={{ marginBottom: '14px', marginTop: 0 }}>
             <Input
               label="Seleccionar fecha"
               type="date"
               value={selectedAgendaDate}
               onChange={(event) => setSelectedAgendaDate(event.target.value || today)}
             />
-          )}
-          <Input
-            label="Filtrar por nombre o celular"
-            placeholder="Nombre o celular de clienta"
-            type="search"
-            value={appointmentClientQuery}
-            onChange={(event) => setAppointmentClientQuery(event.target.value)}
-          />
-          {appointmentClientQuery.trim() && (
-            <small style={{ color: 'var(--muted)', fontWeight: 800 }}>
-              Solo se muestran clientas que ya acudieron al menos una vez con este estudio.
-            </small>
-          )}
-        </div>
+            <Input
+              label="Filtrar por nombre o celular"
+              placeholder="Nombre o celular de clienta"
+              type="search"
+              value={appointmentClientQuery}
+              onChange={(event) => setAppointmentClientQuery(event.target.value)}
+            />
+            {appointmentClientQuery.trim() && (
+              <small style={{ color: 'var(--muted)', fontWeight: 800 }}>
+                Solo se muestran clientas que ya acudieron al menos una vez con este estudio.
+              </small>
+            )}
+          </div>
+        )}
         <OwnerDayStrip
           selectedDate={selectedAgendaDate}
           setSelectedDate={setSelectedAgendaDate}
@@ -571,32 +571,35 @@ function StudioScheduleSection({
           <small>Citas confirmadas del estudio y vista rapida de dias.</small>
         </div>
         <div className="studio-review-actions">
+          <Button size="sm" onClick={() => onOpenAppointmentModal({})}>
+            Generar cita
+          </Button>
           <Button size="sm" variant="ghost" onClick={() => setShowCalendarFilter((currentValue) => !currentValue)}>
             Filtrar
           </Button>
         </div>
-        <div className="form-stack compact-form" style={{ marginBottom: '14px', marginTop: 0 }}>
-          {showCalendarFilter && (
+        {showCalendarFilter && (
+          <div className="form-stack compact-form" style={{ marginBottom: '14px', marginTop: 0 }}>
             <Input
               label="Seleccionar fecha"
               type="date"
               value={selectedAgendaDate}
               onChange={(event) => setSelectedAgendaDate(event.target.value || getTodayDateValue())}
             />
-          )}
-          <Input
-            label="Filtrar por nombre o celular"
-            placeholder="Nombre o celular de clienta"
-            type="search"
-            value={appointmentClientQuery}
-            onChange={(event) => setAppointmentClientQuery(event.target.value)}
-          />
-          {appointmentClientQuery.trim() && (
-            <small style={{ color: 'var(--muted)', fontWeight: 800 }}>
-              Solo se muestran clientas que ya acudieron al menos una vez con este estudio.
-            </small>
-          )}
-        </div>
+            <Input
+              label="Filtrar por nombre o celular"
+              placeholder="Nombre o celular de clienta"
+              type="search"
+              value={appointmentClientQuery}
+              onChange={(event) => setAppointmentClientQuery(event.target.value)}
+            />
+            {appointmentClientQuery.trim() && (
+              <small style={{ color: 'var(--muted)', fontWeight: 800 }}>
+                Solo se muestran clientas que ya acudieron al menos una vez con este estudio.
+              </small>
+            )}
+          </div>
+        )}
         <OwnerDayStrip
           selectedDate={selectedAgendaDate}
           setSelectedDate={setSelectedAgendaDate}

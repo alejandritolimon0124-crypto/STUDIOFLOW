@@ -72,6 +72,7 @@ function ArtistAppointments() {
   const [formErrors, setFormErrors] = useState({})
   const [selectedDate, setSelectedDate] = useState(getTodayDateValue)
   const [showForm, setShowForm] = useState(false)
+  const [showFilter, setShowFilter] = useState(false)
   const [appointmentClientQuery, setAppointmentClientQuery] = useState('')
   const [availabilitySlots, setAvailabilitySlots] = useState([])
   const [availabilityMeta, setAvailabilityMeta] = useState({ durationMinutes: 0 })
@@ -310,28 +311,33 @@ function ArtistAppointments() {
           <Button size="sm" onClick={() => setShowForm((currentValue) => !currentValue)}>
             {showForm ? 'Ocultar formulario' : 'Generar cita'}
           </Button>
+          <Button size="sm" variant="ghost" onClick={() => setShowFilter((currentValue) => !currentValue)}>
+            Filtrar
+          </Button>
         </div>
 
-        <div className="form-stack compact-form" style={{ marginBottom: '14px', marginTop: 0 }}>
-          <Input
-            label="Filtrar por fecha"
-            type="date"
-            value={selectedDate}
-            onChange={(event) => setSelectedDate(event.target.value)}
-          />
-          <Input
-            label="Filtrar por nombre o celular"
-            placeholder="Nombre o celular de clienta"
-            type="search"
-            value={appointmentClientQuery}
-            onChange={(event) => setAppointmentClientQuery(event.target.value)}
-          />
-          {normalizedAppointmentClientQuery && (
-            <small style={{ color: 'var(--muted)', fontWeight: 800 }}>
-              Solo se muestran clientas que ya acudieron al menos una vez en este entorno.
-            </small>
-          )}
-        </div>
+        {showFilter && (
+          <div className="form-stack compact-form" style={{ marginBottom: '14px', marginTop: 0 }}>
+            <Input
+              label="Filtrar por fecha"
+              type="date"
+              value={selectedDate}
+              onChange={(event) => setSelectedDate(event.target.value)}
+            />
+            <Input
+              label="Filtrar por nombre o celular"
+              placeholder="Nombre o celular de clienta"
+              type="search"
+              value={appointmentClientQuery}
+              onChange={(event) => setAppointmentClientQuery(event.target.value)}
+            />
+            {normalizedAppointmentClientQuery && (
+              <small style={{ color: 'var(--muted)', fontWeight: 800 }}>
+                Solo se muestran clientas que ya acudieron al menos una vez en este entorno.
+              </small>
+            )}
+          </div>
+        )}
 
         {artistAppointmentsError && <small style={{ color: 'var(--rose-dark)', fontWeight: 800 }}>{artistAppointmentsError}</small>}
         {manualArtistAppointmentStatus && (
