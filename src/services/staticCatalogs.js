@@ -196,11 +196,38 @@ const serviceCategoryAliases = {
   Laminado: 'Cejas',
 }
 
+const serviceNameAliases = {
+  'Unas en gel': 'Uñas en gel',
+  'unas en gel': 'Uñas en gel',
+  'Unas acrilicas': 'Uñas acrílicas',
+  'unas acrilicas': 'Uñas acrílicas',
+  'Unas postizas': 'Uñas postizas',
+  'unas postizas': 'Uñas postizas',
+  'Unas decoradas': 'Uñas decoradas',
+  'unas decoradas': 'Uñas decoradas',
+  'Extension de unas': 'Extensión de uñas',
+  'Extension de uñas': 'Extensión de uñas',
+  'Unas 3D': 'Uñas 3D',
+  'unas 3D': 'Uñas 3D',
+  'Pestanas volumen ruso': 'Pestañas volumen ruso',
+  'Pestanas volumen clasico': 'Pestañas volumen clásico',
+  'Pestanas volumen hibrido': 'Pestañas volumen híbrido',
+  'Pestanas de seda': 'Pestañas de seda',
+  'Pestanas de vison': 'Pestañas de visón',
+  'Refuerzos de pestanas': 'Refuerzos de pestañas',
+  'Desmaquillante de pestanas': 'Desmaquillante de pestañas',
+}
+
 export function normalizeServiceCategory(category = '') {
   const cleanCategory = String(category || '').trim()
   return serviceCatalog[cleanCategory]
     ? cleanCategory
     : serviceCategoryAliases[cleanCategory] || cleanCategory || 'Servicios'
+}
+
+export function normalizeServiceName(name = '') {
+  const cleanName = String(name || '').trim()
+  return serviceNameAliases[cleanName] || cleanName
 }
 
 export const weeklyScheduleTemplate = [

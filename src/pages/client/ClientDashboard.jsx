@@ -20,7 +20,7 @@ import { getAppointmentStatusTone } from '../../utils/appointmentStatus'
 import { getCurrentBrowserCoordinates } from '../../utils/browserGeolocation'
 import { getMaxBirthDateForAdult, validateBirthDate } from '../../utils/birthdayValidation'
 import { fetchClientFlowPointsBalance } from '../../services/appointmentService'
-import { serviceCatalog } from '../../services/staticCatalogs'
+import { normalizeServiceName, serviceCatalog } from '../../services/staticCatalogs'
 
 const clientConfirmationNoticeKey = 'studio-flow-client-confirmation-notices'
 
@@ -162,7 +162,7 @@ function isActiveMarketplaceService(service = {}) {
 
 function normalizeMarketplaceServiceOption(service) {
   const rawName = typeof service === 'string' ? service : service?.name
-  const name = String(rawName || '').trim()
+  const name = normalizeServiceName(rawName)
   if (!name) return null
 
   const knownService = allSearchServices.find((item) => item.name.toLowerCase() === name.toLowerCase())

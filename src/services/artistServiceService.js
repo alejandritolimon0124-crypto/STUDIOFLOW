@@ -1,6 +1,6 @@
 import { requireSupabase } from '../lib/supabaseClient'
 import { getContextRpcParams } from './artistWorkContextService'
-import { normalizeServiceCategory } from './staticCatalogs'
+import { normalizeServiceCategory, normalizeServiceName } from './staticCatalogs'
 
 const STATUS_TO_DB = {
   Activo: 'active',
@@ -65,7 +65,7 @@ function mapServiceOffering(row, catalogs = {}) {
     studioId: row.studioId || row.studio_id || null,
     membershipId: row.membershipId || row.membership_id || null,
     category: displayCategory,
-    name: row.name,
+    name: normalizeServiceName(row.name),
     price: Number(row.price_amount ?? row.price) || 0,
     duration: row.duration || formatDuration(row.duration_minutes),
     flowPointsAwarded: Number(row.flowPointsAwarded ?? row.flow_points_awarded) || 0,
@@ -97,7 +97,7 @@ export async function saveArtistServiceOffering({ artistId, service, workContext
   const payload = {
     category: normalizeServiceCategory(service.category),
     tier_code: normalizeTierCode(service.serviceTier),
-    name: String(service.name || '').trim(),
+    name: normalizeServiceName(service.name),
     price_amount: Number(service.price) || 0,
     duration_minutes: parseDurationMinutes(service.duration),
     flow_points_awarded: Math.max(0, Number.parseInt(String(service.flowPointsAwarded || 0), 10) || 0),

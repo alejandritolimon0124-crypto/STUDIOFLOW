@@ -1,5 +1,5 @@
 import { requireSupabase } from '../lib/supabaseClient'
-import { normalizeServiceCategory } from './staticCatalogs'
+import { normalizeServiceCategory, normalizeServiceName } from './staticCatalogs'
 
 function asArray(value) {
   return Array.isArray(value) ? value : []
@@ -38,7 +38,7 @@ function normalizeService(service = {}) {
   return {
     ...service,
     id: service.id,
-    name: service.name || 'Servicio',
+    name: normalizeServiceName(service.name || 'Servicio'),
     category: inferServiceCategory(service),
     description: service.description || '',
     ownerType: service.ownerType || service.owner_type || null,
