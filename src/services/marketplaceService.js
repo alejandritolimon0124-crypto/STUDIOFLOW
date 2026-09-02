@@ -24,8 +24,8 @@ function inferServiceCategory(service = {}) {
 
   const serviceName = normalizeText(service.name)
 
-  if (serviceName.includes('pestana')) return 'Pestanas'
-  if (serviceName.includes('una') || serviceName.includes('nail')) return 'Unas'
+  if (serviceName.includes('pestana')) return 'Pestañas'
+  if (serviceName.includes('una') || serviceName.includes('nail')) return 'Uñas'
   if (serviceName.includes('maquillaje')) return 'Maquillaje'
 
   return normalizedCategory
