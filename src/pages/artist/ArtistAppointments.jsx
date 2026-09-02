@@ -247,6 +247,7 @@ function ArtistAppointments() {
   )
   const upcomingAppointments = appointmentsForSelectedDate.filter((appointment) => !isHistoryAppointment(appointment))
   const pastAppointments = appointmentsForSelectedDate.filter(isHistoryAppointment)
+  const shouldShowHistory = showFilter && (normalizedAppointmentClientQuery || selectedDate !== getTodayDateValue())
 
   const validateDraft = () => {
     const nextErrors = {}
@@ -308,7 +309,7 @@ function ArtistAppointments() {
       <Card className="wide-card mobile-screen primary-panel">
         <PanelHeader title="Citas del dia" eyebrow={selectedDate === getTodayDateValue() ? 'Hoy' : selectedDate} />
         <div className="row-actions" style={{ justifyContent: 'flex-start', marginBottom: '14px' }}>
-          <Button size="sm" onClick={() => setShowForm((currentValue) => !currentValue)}>
+          <Button className="appointment-primary-action" size="sm" onClick={() => setShowForm((currentValue) => !currentValue)}>
             {showForm ? 'Ocultar formulario' : 'Generar cita'}
           </Button>
           <Button size="sm" variant="ghost" onClick={() => setShowFilter((currentValue) => !currentValue)}>
@@ -336,6 +337,231 @@ function ArtistAppointments() {
                 Solo se muestran clientas que ya acudieron al menos una vez en este entorno.
               </small>
             )}
+          </div>
+        )}
+
+        {showForm && (
+          <div className="inline-appointment-form">
+            <PanelHeader title="Generar cita" eyebrow="Agenda real" />
+            <div className="form-stack compact-form">
+              {selectedClient?.id ? (
+                <div className="list-row elevated-row">
+                  <div style={{
+                    alignItems: 'center',
+                    display: 'flex',
+                    gap: 12,
+                  }}>
+                    {selectedClient.photoUrl ? (
+                      <img
+                        alt=""
+                        src={selectedClient.photoUrl}
+                        style={{
+                          borderRadius: '50%',
+                          height: 48,
+                          objectFit: 'cover',
+                          width: 48,
+                        }}
+                      />
+                    ) : (
+                      <span style={{
+                        alignItems: 'center',
+                        background: 'var(--surface-rose)',
+                        borderRadius: '50%',
+                        color: 'var(--rose-dark)',
+                        display: 'inline-flex',
+                        fontWeight: 900,
+                        height: 48,
+                        justifyContent: 'center',
+                        width: 48,
+                      }}>
+                        {selectedClient.name?.slice(0, 1) || 'C'}
+                      </span>
+                    )}
+                    <div>
+                      <strong>{selectedClient.name || 'Clienta'}</strong>
+                      <small>{selectedClient.phone || 'Sin celular'}</small>
+                    </div>
+                  </div>
+                  <StatusPill tone="success">Clienta existente</StatusPill>
+                </div>
+              ) : (
+                <>
+                  <label className="input-field">
+                    <span>Buscar clienta</span>
+                    <input
+                      type="search"
+                      placeholder="Nombre, correo o celular"
+                      value={clientSearch}
+                      onChange={(event) => {
+                        setClientSearch(event.target.value)
+                        setDraft((currentDraft) => ({ ...currentDraft, clientId: '' }))
+                      }}
+                    />
+                    {(clientSearch || draft.phone) && (
+                      <div className="autocomplete-suggestions">
+                        {clientResults.map((client) => (
+                          <button
+                            key={client.id}
+                            type="button"
+                            className="suggestion-item"
+                            onClick={() => {
+                              const { firstName, lastName } = splitClientName(client.name)
+                              setDraft((currentDraft) => ({
+                                ...currentDraft,
+                                clientId: client.id,
+                                firstName: firstName || '',
+                                lastName,
+                                phone: client.phone || '',
+                              }))
+                              setSelectedClientRecord(client)
+                              setClientSearch(client.name || '')
+                            }}
+                          >
+                            {client.name}
+                            {client.phone && <small>{client.phone}</small>}
+                          </button>
+                        ))}
+                        {!isClientSearchLoading && !clientSearchError && clientSearch.trim().length >= 2 && clientResults.length === 0 && (
+                          <div className="suggestion-item muted-suggestion">Sin coincidencias registradas.</div>
+                        )}
+                        {clientSearchError && (
+                          <div className="suggestion-item muted-suggestion">{clientSearchError}</div>
+                        )}
+                      </div>
+                    )}
+                    {isClientSearchLoading && <small>Buscando clientas registradas...</small>}
+                  </label>
+
+                  {selectedClientFromSearch && (
+                    <div className="list-row elevated-row">
+                      <div>
+                        <strong>{selectedClientFromSearch.name || 'Clienta'}</strong>
+                        <small>{selectedClientFromSearch.phone || 'Sin celular registrado'}</small>
+                      </div>
+                      <div className="row-actions" style={{ justifyContent: 'flex-end', gap: 6 }}>
+                        <StatusPill tone="success">Seleccionada</StatusPill>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => {
+                            setSelectedClientRecord(null)
+                            setClientSearch('')
+                            setDraft((currentDraft) => ({
+                              ...currentDraft,
+                              clientId: '',
+                              firstName: '',
+                              lastName: '',
+                              phone: '',
+                            }))
+                          }}
+                        >
+                          Cambiar
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
+                  <Input
+                    label="Nombre"
+                    value={draft.firstName}
+                    onChange={(event) => updateDraft('firstName', event.target.value)}
+                  />
+                  {formErrors.firstName && <small style={{ color: 'var(--rose-dark)', fontWeight: 800 }}>{formErrors.firstName}</small>}
+
+                  <Input
+                    label="Apellido"
+                    value={draft.lastName}
+                    onChange={(event) => updateDraft('lastName', event.target.value)}
+                  />
+                  {formErrors.lastName && <small style={{ color: 'var(--rose-dark)', fontWeight: 800 }}>{formErrors.lastName}</small>}
+
+                  <Input
+                    label="Celular"
+                    type="tel"
+                    value={draft.phone}
+                    onChange={(event) => updateDraft('phone', event.target.value)}
+                  />
+                  {formErrors.phone && <small style={{ color: 'var(--rose-dark)', fontWeight: 800 }}>{formErrors.phone}</small>}
+                </>
+              )}
+
+              <label className="input-field">
+                <span>Servicio</span>
+                <select
+                  value={draft.serviceOfferingId}
+                  onChange={(event) => updateDraft('serviceOfferingId', event.target.value)}
+                >
+                  {artistServices.length === 0 && <option value="">Sin servicios activos</option>}
+                  {artistServices.map((service) => (
+                    <option key={service.id} value={service.id}>
+                      {service.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {formErrors.serviceOfferingId && <small style={{ color: 'var(--rose-dark)', fontWeight: 800 }}>{formErrors.serviceOfferingId}</small>}
+
+              <Input
+                label="Fecha"
+                type="date"
+                value={draft.date}
+                onChange={(event) => updateDraft('date', event.target.value)}
+              />
+              {formErrors.date && <small style={{ color: 'var(--rose-dark)', fontWeight: 800 }}>{formErrors.date}</small>}
+
+              <div className="input-field">
+                <span>Horarios disponibles</span>
+                {isAvailabilityLoading && <small>Cargando horarios...</small>}
+                {!isAvailabilityLoading && availabilityError && (
+                  <small style={{ color: 'var(--rose-dark)', fontWeight: 800 }}>{availabilityError}</small>
+                )}
+                {!isAvailabilityLoading && !availabilityError && availabilitySlots.length === 0 && (
+                  <small>Sin horarios disponibles</small>
+                )}
+                {!isAvailabilityLoading && availabilitySlots.length > 0 && (
+                  <div className="row-actions" style={{ justifyContent: 'flex-start' }}>
+                    {availabilitySlots.map((slot) => {
+                      const isSelected = draft.time === slot.time
+
+                      return (
+                        <Button
+                          key={slot.id}
+                          size="sm"
+                          variant={isSelected ? 'primary' : 'ghost'}
+                          onClick={() => updateDraft('time', slot.time)}
+                        >
+                          {slot.time}
+                        </Button>
+                      )
+                    })}
+                  </div>
+                )}
+                {availabilityMeta.durationMinutes > 0 && (
+                  <small>Duracion del servicio: {availabilityMeta.durationMinutes} min</small>
+                )}
+              </div>
+              {formErrors.time && <small style={{ color: 'var(--rose-dark)', fontWeight: 800 }}>{formErrors.time}</small>}
+
+              <label className="input-field">
+                <span>Notas</span>
+                <textarea
+                  rows="3"
+                  value={draft.notes}
+                  onChange={(event) => updateDraft('notes', event.target.value)}
+                />
+              </label>
+
+              {manualArtistAppointmentError && (
+                <small style={{ color: 'var(--rose-dark)', fontWeight: 800 }}>{manualArtistAppointmentError}</small>
+              )}
+              {manualArtistAppointmentStatus && (
+                <small style={{ color: 'var(--success)', fontWeight: 800 }}>{manualArtistAppointmentStatus}</small>
+              )}
+
+              <Button className="full-width" disabled={isManualArtistAppointmentSaving} onClick={saveAppointment}>
+                {isManualArtistAppointmentSaving ? 'Guardando cita...' : 'Guardar cita'}
+              </Button>
+            </div>
           </div>
         )}
 
@@ -403,7 +629,7 @@ function ArtistAppointments() {
         </div>
       </Card>
 
-      {showForm && (
+      {false && showForm && (
         <Card className="mobile-screen primary-panel">
           <PanelHeader title="Generar cita" eyebrow="Agenda real" />
           <div className="form-stack compact-form">
@@ -664,6 +890,7 @@ function ArtistAppointments() {
         </Card>
       )}
 
+      {shouldShowHistory && (
       <Card className="mobile-screen">
         <PanelHeader title="Historial" eyebrow={selectedDate} />
         <div className="compact-list">
@@ -698,6 +925,7 @@ function ArtistAppointments() {
           )}
         </div>
       </Card>
+      )}
     </main>
   )
 }

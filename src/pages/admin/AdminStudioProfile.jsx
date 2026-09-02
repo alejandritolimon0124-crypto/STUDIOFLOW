@@ -550,6 +550,7 @@ function StudioScheduleSection({
   onRequestConfirmations,
   ownerAppointments,
   profileDraft,
+  renderOwnerAppointmentForm,
   toggleMembershipOperations,
 }) {
   const [showCalendarFilter, setShowCalendarFilter] = useState(false)
@@ -571,7 +572,7 @@ function StudioScheduleSection({
           <small>Citas confirmadas del estudio y vista rapida de dias.</small>
         </div>
         <div className="studio-review-actions">
-          <Button size="sm" onClick={() => onOpenAppointmentModal({})}>
+          <Button className="appointment-primary-action" size="sm" onClick={() => onOpenAppointmentModal({})}>
             Generar cita
           </Button>
           <Button size="sm" variant="ghost" onClick={() => setShowCalendarFilter((currentValue) => !currentValue)}>
@@ -600,6 +601,7 @@ function StudioScheduleSection({
             )}
           </div>
         )}
+        {renderOwnerAppointmentForm?.()}
         <OwnerDayStrip
           selectedDate={selectedAgendaDate}
           setSelectedDate={setSelectedAgendaDate}
@@ -808,6 +810,7 @@ function OwnerAppointmentModal({
   currentStudio,
   draft,
   feedback,
+  inline = false,
   isClientSearchLoading,
   isSaving,
   membershipOperationsById,
@@ -830,8 +833,8 @@ function OwnerAppointmentModal({
   const selectedClient = clients.find((client) => client.id === draft.clientId)
 
   return (
-    <div className="modal-shell owner-appointment-modal" aria-label="Agendar cita">
-      <div className="modal-card">
+    <div className={inline ? 'inline-appointment-form owner-appointment-inline' : 'modal-shell owner-appointment-modal'} aria-label="Agendar cita">
+      <div className={inline ? 'owner-appointment-inline-card' : 'modal-card'}>
         <div className="modal-header">
           <div>
             <span className="eyebrow">{currentStudio?.profile?.commercialName || currentStudio?.name || 'Estudio'}</span>
@@ -1725,6 +1728,25 @@ function AdminStudioProfile() {
     )
   }
 
+  const renderOwnerAppointmentForm = (inline = true) => (
+    <OwnerAppointmentModal
+      clients={modalClientResults}
+      clientSearchStatus={ownerClientSearchStatus}
+      currentStudio={currentStudio}
+      draft={ownerAppointmentDraft}
+      feedback={ownerAppointmentFeedback}
+      inline={inline}
+      isClientSearchLoading={isOwnerClientSearchLoading}
+      isSaving={isOwnerAppointmentSaving}
+      membershipOperationsById={membershipOperationsById}
+      memberships={activeMemberships}
+      onClose={closeOwnerAppointmentModal}
+      onDraftChange={updateOwnerAppointmentDraft}
+      onSearchClients={searchOwnerClients}
+      onSave={saveOwnerAppointment}
+    />
+  )
+
   return (
     <main className="dashboard-grid admin-grid profile-foundation-grid">
       <Card className="wide-card mobile-screen primary-panel">
@@ -2237,6 +2259,7 @@ function AdminStudioProfile() {
               onRequestConfirmations={sendStudioConfirmationRequests}
               ownerAppointments={ownerAppointments}
               profileDraft={profileDraft}
+              renderOwnerAppointmentForm={isOwnerAppointmentOpen ? renderOwnerAppointmentForm : null}
               toggleMembershipOperations={toggleMembershipOperations}
             />
           )}
@@ -2282,23 +2305,7 @@ function AdminStudioProfile() {
           )}
         </div>
       </Card>
-      {isOwnerAppointmentOpen && (
-        <OwnerAppointmentModal
-          clients={modalClientResults}
-          clientSearchStatus={ownerClientSearchStatus}
-          currentStudio={currentStudio}
-          draft={ownerAppointmentDraft}
-          feedback={ownerAppointmentFeedback}
-          isClientSearchLoading={isOwnerClientSearchLoading}
-          isSaving={isOwnerAppointmentSaving}
-          membershipOperationsById={membershipOperationsById}
-          memberships={activeMemberships}
-          onClose={closeOwnerAppointmentModal}
-          onDraftChange={updateOwnerAppointmentDraft}
-          onSearchClients={searchOwnerClients}
-          onSave={saveOwnerAppointment}
-        />
-      )}
+      {isOwnerAppointmentOpen && selectedSection !== 'schedule' && renderOwnerAppointmentForm(false)}
     </main>
   )
 }

@@ -86,6 +86,20 @@ p {
   color: #fff;
 }
 
+.appointment-primary-action {
+  min-width: 148px;
+  box-shadow: 0 18px 32px rgba(45, 37, 39, 0.24);
+  font-weight: 900;
+}
+
+.inline-appointment-form {
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  margin: 0 0 16px;
+  padding: 16px;
+}
+
 .button-ghost {
   background: rgba(255, 255, 255, 0.72);
   border: 1px solid var(--line);
