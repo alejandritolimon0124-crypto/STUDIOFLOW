@@ -365,22 +365,72 @@ function PremiumDropdown({ label, value, options, open, onToggle, onChange }) {
         </span>
       </button>
       {open && (
+        <button
+          aria-label="Cerrar selector"
+          type="button"
+          onClick={onToggle}
+          style={{
+            background: 'rgba(42, 34, 36, 0.28)',
+            border: 0,
+            bottom: 0,
+            left: 0,
+            position: 'fixed',
+            right: 0,
+            top: 0,
+            zIndex: 90,
+          }}
+        />
+      )}
+      {open && (
         <div
           style={{
             background: 'rgba(255, 251, 248, 0.98)',
             border: '1px solid rgba(214, 186, 177, 0.7)',
-            borderRadius: '20px',
-            boxShadow: '0 22px 44px rgba(118, 77, 67, 0.18)',
-            left: 0,
-            maxHeight: '260px',
+            borderRadius: '24px 24px 0 0',
+            bottom: 0,
+            boxShadow: '0 -22px 54px rgba(45, 37, 39, 0.22)',
+            display: 'grid',
+            gap: '10px',
+            left: '50%',
+            maxHeight: '72vh',
+            maxWidth: '720px',
             overflowY: 'auto',
-            padding: '8px',
-            position: 'absolute',
-            right: 0,
-            top: 'calc(100% + 8px)',
-            zIndex: 40,
+            padding: '18px 16px max(18px, env(safe-area-inset-bottom))',
+            position: 'fixed',
+            transform: 'translateX(-50%)',
+            width: 'min(100vw, 720px)',
+            zIndex: 100,
           }}
         >
+          <div style={{
+            alignItems: 'center',
+            borderBottom: '1px solid rgba(214, 186, 177, 0.52)',
+            display: 'flex',
+            justifyContent: 'space-between',
+            padding: '0 4px 12px',
+          }}>
+            <div>
+              <strong style={{ display: 'block', fontSize: '18px' }}>{label}</strong>
+              <small style={{ color: 'var(--muted)', fontWeight: 800 }}>Selecciona una opción</small>
+            </div>
+            <button
+              type="button"
+              onClick={onToggle}
+              style={{
+                background: 'rgba(245, 221, 223, 0.72)',
+                border: '1px solid rgba(201, 135, 145, 0.24)',
+                borderRadius: '999px',
+                color: 'var(--rose-dark)',
+                font: 'inherit',
+                fontSize: '18px',
+                fontWeight: 900,
+                height: '42px',
+                width: '42px',
+              }}
+            >
+              x
+            </button>
+          </div>
           {safeOptions.map((option) => (
             <button
               key={option.value}
@@ -393,20 +443,22 @@ function PremiumDropdown({ label, value, options, open, onToggle, onChange }) {
               }}
               style={{
                 background: option.value === value ? 'rgba(229, 177, 168, 0.2)' : 'transparent',
-                border: 0,
-                borderRadius: '14px',
+                border: option.value === value ? '1px solid rgba(141, 79, 90, 0.28)' : '1px solid rgba(234, 223, 218, 0.78)',
+                borderRadius: '16px',
                 color: 'var(--ink)',
                 display: 'grid',
                 font: 'inherit',
+                fontSize: '17px',
                 fontWeight: option.value === value ? 900 : 750,
-                gap: '2px',
-                padding: '12px',
+                gap: '4px',
+                minHeight: '62px',
+                padding: '14px 16px',
                 textAlign: 'left',
                 width: '100%',
               }}
             >
               {option.label}
-              {option.meta && <small style={{ color: 'var(--muted)', fontWeight: 700 }}>{option.meta}</small>}
+              {option.meta && <small style={{ color: 'var(--muted)', fontSize: '14px', fontWeight: 800 }}>{option.meta}</small>}
             </button>
           ))}
         </div>
