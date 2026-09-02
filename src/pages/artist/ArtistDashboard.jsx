@@ -107,6 +107,13 @@ function getInitials(name = '') {
     .toUpperCase()
 }
 
+function getStudioScopedArtistPhoto(profile = {}, studioId = '') {
+  const studioPhotoUrls = profile.studioPhotoUrls || {}
+  const studioPhoto = studioId ? studioPhotoUrls[studioId] : ''
+
+  return String(studioPhoto || '').trim()
+}
+
 function appointmentMatchesWorkContext(appointment = {}, workContext = {}) {
   if (workContext?.contextType === 'membership') {
     return appointment.membershipId === workContext.membershipId
@@ -323,8 +330,14 @@ function ArtistDashboard({ view = 'agenda' }) {
   const artistDisplayName = activeContextIsMembership
     ? artistWorkContext?.studioName || studioProfile.commercialName || currentStudio?.name || 'Estudio'
     : profileName || 'Artista profesional'
+  const heroPhotoLabel = activeContextIsMembership
+    ? profileName || authenticatedArtistName || artistDisplayName
+    : artistDisplayName
+  const studioScopedArtistPhoto = activeContextIsMembership
+    ? getStudioScopedArtistPhoto(authenticatedArtistProfile, activeWorkContextStudioId)
+    : ''
   const profilePhoto = activeContextIsMembership
-    ? studioProfile.logoUrl || studioProfile.logo_path || currentStudio?.logoUrl || currentStudio?.logo_path || ''
+    ? studioScopedArtistPhoto
     : authenticatedArtistProfile.photoUrl || ''
   const customProfileLocation = authenticatedArtistProfile.professionalLocation?.customLocation || {}
   const heroLocation = hasProfessionalLocationContent(customProfileLocation)
@@ -526,9 +539,9 @@ function ArtistDashboard({ view = 'agenda' }) {
               </div>
               <div className="artist-hero-photo">
                 {profilePhoto ? (
-                  <img src={profilePhoto} alt={`Foto de ${artistDisplayName}`} />
+                  <img src={profilePhoto} alt={`Foto de ${heroPhotoLabel}`} />
                 ) : (
-                  <span>{getInitials(artistDisplayName)}</span>
+                  <span>{getInitials(heroPhotoLabel)}</span>
                 )}
               </div>
               <div className="hero-actions artist-hero-actions">
