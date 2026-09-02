@@ -6,6 +6,9 @@ function asArray(value) {
 }
 
 function normalizeMembership(membership = {}) {
+  const status = membership.status || 'pending'
+  const normalizedStatus = String(status || '').toLowerCase()
+
   return {
     id: membership.id || membership.membershipId || membership.membership_id,
     membershipId: membership.membershipId || membership.membership_id || membership.id,
@@ -16,10 +19,10 @@ function normalizeMembership(membership = {}) {
     photoUrl: membership.photoUrl || membership.photo_url || '',
     studioPhotoUrl: membership.studioPhotoUrl || membership.studio_photo_url || membership.photoUrl || membership.photo_url || '',
     role: membership.role || 'artist',
-    status: membership.status || 'pending',
+    status,
     startedAt: membership.startedAt || membership.started_at || null,
     createdAt: membership.createdAt || membership.created_at || null,
-    active: Boolean(membership.active),
+    active: Boolean(membership.active) || ['active', 'activo'].includes(normalizedStatus),
   }
 }
 

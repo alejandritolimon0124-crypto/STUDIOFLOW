@@ -1019,6 +1019,11 @@ function normalizeOwnerClient(client = {}) {
   }
 }
 
+function isActiveMembership(membership = {}) {
+  const status = String(membership.status || '').toLowerCase()
+  return Boolean(membership.active) || ['active', 'activo'].includes(status)
+}
+
 function AdminStudioProfile() {
   const navigate = useNavigate()
   const location = useLocation()
@@ -1103,9 +1108,37 @@ function AdminStudioProfile() {
   const galleryCount = (profileDraft.gallery || []).length
   const hasGalleryCapacity = galleryCount < galleryLimit
   const activeMemberships = useMemo(
-    () => membershipState.memberships.filter((membership) => membership.active || membership.status === 'active'),
+    () => membershipState.memberships.filter(isActiveMembership),
     [membershipState.memberships],
   )
+  const displayedTeamMemberships = useMemo(() => {
+    if (!searchedArtist?.alreadyMember) return activeMemberships
+
+    const searchedMembershipId = searchedArtist.membershipId || searchedArtist.membership_id || null
+    const alreadyDisplayed = activeMemberships.some((membership) => (
+      (searchedMembershipId && (membership.id === searchedMembershipId || membership.membershipId === searchedMembershipId))
+      || (searchedArtist.id && membership.artistId === searchedArtist.id)
+      || (searchedArtist.email && membership.email === searchedArtist.email)
+    ))
+
+    if (alreadyDisplayed) return activeMemberships
+
+    return [
+      {
+        id: searchedMembershipId || `searched-${searchedArtist.id || searchedArtist.email}`,
+        membershipId: searchedMembershipId,
+        artistId: searchedArtist.id,
+        name: searchedArtist.name,
+        email: searchedArtist.email,
+        photoUrl: searchedArtist.photoUrl,
+        status: searchedArtist.membershipStatus || 'active',
+        active: true,
+        startedAt: '',
+        createdAt: '',
+      },
+      ...activeMemberships,
+    ]
+  }, [activeMemberships, searchedArtist])
   const requestedSectionParam = searchParams.get('section') || 'summary'
   const requestedSection = requestedSectionParam === 'config' ? 'settings' : requestedSectionParam
   const selectedSection = studioSections.includes(requestedSection) ? requestedSection : 'summary'
@@ -1458,6 +1491,20 @@ function AdminStudioProfile() {
       || (String(locationDraft.latitude || '').trim() && String(locationDraft.longitude || '').trim())
     ),
   )
+  const marketplaceStatus = String(
+    currentStudio?.marketplaceStatus
+    || currentStudio?.marketplace_status
+    || currentStudio?.profile?.marketplaceStatus
+    || currentStudio?.profile?.marketplace_status
+    || '',
+  ).toLowerCase()
+  const isStudioMarketplacePublished = Boolean(
+    currentStudio?.marketplaceListingId
+    || currentStudio?.marketplace_listing_id
+    || currentStudio?.marketplaceProfileId
+    || currentStudio?.marketplace_profile_id
+    || ['published', 'active', 'visible'].includes(marketplaceStatus),
+  )
 
   const publishMarketplace = async () => {
     if (!currentStudio?.id || !hasMarketplaceMinimumData || isPublishingMarketplace) return
@@ -1468,7 +1515,7 @@ function AdminStudioProfile() {
     try {
       await publishStudioMarketplace(currentStudio.id)
       await loadAdminArtists?.().catch(() => null)
-      setMarketplaceFeedback({ tone: 'success', message: 'Estudio publicado en Marketplace.' })
+      setMarketplaceFeedback({ tone: 'success', message: isStudioMarketplacePublished ? 'Publicacion actualizada.' : 'Estudio publicado en Marketplace.' })
     } catch (error) {
       setMarketplaceFeedback({ tone: 'warm', message: error.message || 'No se pudo publicar el estudio.' })
     } finally {
@@ -1507,6 +1554,9 @@ function AdminStudioProfile() {
 
       setSearchedArtist(artist)
       setArtistSearchStatus({ tone: 'success', message: 'Artista encontrada.' })
+      if (artist.alreadyMember) {
+        await loadStudioMemberships({ silent: true })
+      }
     } catch (error) {
       setArtistSearchStatus({ tone: 'warm', message: error.message || 'No se pudo buscar la artista.' })
     } finally {
@@ -1987,14 +2037,19 @@ function AdminStudioProfile() {
           <section className="profile-foundation-card">
             <div>
               <span className="eyebrow">Marketplace</span>
-              <h3>Publicacion del estudio</h3>
-              <small>Disponible cuando el estudio esta aprobado y tiene nombre comercial, ciudad y ubicacion.</small>
+              <h3>{isStudioMarketplacePublished ? 'Estudio visible en busqueda' : 'Activar visibilidad del estudio'}</h3>
+              <small>
+                {isStudioMarketplacePublished
+                  ? 'El estudio ya puede aparecer para clientas. Usa este boton solo si cambiaste perfil, ubicacion o servicios.'
+                  : 'Activalo cuando el estudio este aprobado y tenga nombre comercial, ciudad y ubicacion.'}
+              </small>
             </div>
+            {isStudioMarketplacePublished && <StatusPill tone="success">Publicado</StatusPill>}
             <Button
               disabled={!hasMarketplaceMinimumData || isPublishingMarketplace}
               onClick={publishMarketplace}
             >
-              {isPublishingMarketplace ? 'Publicando...' : 'Publicar estudio en Marketplace'}
+              {isPublishingMarketplace ? 'Guardando...' : isStudioMarketplacePublished ? 'Actualizar publicacion' : 'Publicar estudio'}
             </Button>
             {!hasMarketplaceMinimumData && (
               <small style={{ color: 'var(--muted)', fontWeight: 800 }}>
@@ -2118,7 +2173,7 @@ function AdminStudioProfile() {
                   <h3>Artistas vinculadas</h3>
                 </div>
                 <div className="compact-list">
-                  {activeMemberships.map((membership) => {
+                  {displayedTeamMemberships.map((membership) => {
                     const operations = membershipOperationsById[membership.id]
                     const isExpanded = expandedMembershipId === membership.id
                     const isLoadingOperations = membershipOperationsLoadingId === membership.id
@@ -2184,7 +2239,7 @@ function AdminStudioProfile() {
                       </div>
                     )
                   })}
-                  {!isMembershipsLoading && activeMemberships.length === 0 && (
+                  {!isMembershipsLoading && displayedTeamMemberships.length === 0 && (
                     <div className="list-row elevated-row">
                       <div>
                         <strong>Sin artistas vinculadas</strong>
@@ -2277,14 +2332,19 @@ function AdminStudioProfile() {
           <section className="profile-foundation-card">
             <div>
               <span className="eyebrow">Marketplace</span>
-              <h3>Publicacion del estudio</h3>
-              <small>Disponible cuando el estudio esta aprobado y tiene nombre comercial, ciudad y ubicacion.</small>
+              <h3>{isStudioMarketplacePublished ? 'Estudio visible en busqueda' : 'Activar visibilidad del estudio'}</h3>
+              <small>
+                {isStudioMarketplacePublished
+                  ? 'El estudio ya puede aparecer para clientas. Usa este boton solo si cambiaste perfil, ubicacion o servicios.'
+                  : 'Activalo cuando el estudio este aprobado y tenga nombre comercial, ciudad y ubicacion.'}
+              </small>
             </div>
+            {isStudioMarketplacePublished && <StatusPill tone="success">Publicado</StatusPill>}
             <Button
               disabled={!hasMarketplaceMinimumData || isPublishingMarketplace}
               onClick={publishMarketplace}
             >
-              {isPublishingMarketplace ? 'Publicando...' : 'Publicar estudio en Marketplace'}
+              {isPublishingMarketplace ? 'Guardando...' : isStudioMarketplacePublished ? 'Actualizar publicacion' : 'Publicar estudio'}
             </Button>
             {!hasMarketplaceMinimumData && (
               <small style={{ color: 'var(--muted)', fontWeight: 800 }}>
