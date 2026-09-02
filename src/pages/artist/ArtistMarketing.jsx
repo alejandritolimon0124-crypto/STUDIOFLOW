@@ -73,6 +73,7 @@ function ArtistMarketing() {
   const [maintenanceDays, setMaintenanceDays] = useState(14)
   const [isMarketingSaving, setIsMarketingSaving] = useState(false)
   const toastIdRef = useRef(0)
+  const marketingSettingsRequestRef = useRef(0)
   const localProfiles = session.user ? [{ ...session.user, id: session.user.id }] : []
   const artistStudioMemberships = deriveMembershipsFromLegacyData({ artists: adminState.artists })
   const selectorArtists = adminState.artists.map((artist) => (
@@ -169,8 +170,13 @@ function ArtistMarketing() {
   }
 
   const loadMarketingSettings = async () => {
+    const requestId = marketingSettingsRequestRef.current + 1
+    marketingSettingsRequestRef.current = requestId
+
     try {
       const settings = await fetchArtistMarketingSettings({ artistId: marketingArtistId })
+      if (requestId !== marketingSettingsRequestRef.current) return
+
       const rules = settings.happyHour?.rules || {}
       setMarketingSettings(settings)
       setLowOccupancyDraft({
@@ -336,6 +342,7 @@ function ArtistMarketing() {
     const nextActive = !lowOccupancyDraft.active
     const previousDraft = lowOccupancyDraft
     const nextDraft = { ...lowOccupancyDraft, active: nextActive }
+    marketingSettingsRequestRef.current += 1
     setIsMarketingSaving(true)
     setLowOccupancyDraft(nextDraft)
     try {
@@ -346,15 +353,15 @@ function ArtistMarketing() {
         lowOccupancy: {
           ...(settings.lowOccupancy || {}),
           active: nextActive,
-          period: settings.lowOccupancy?.period || nextDraft.period,
-          threshold: Math.min(Number(settings.lowOccupancy?.threshold || nextDraft.threshold), 40),
+          period: nextDraft.period,
+          threshold: Math.min(Number(nextDraft.threshold || 40), 40),
         },
       }))
       setLowOccupancyDraft((draft) => ({
         ...draft,
         active: nextActive,
-        period: settings.lowOccupancy?.period || nextDraft.period,
-        threshold: Math.min(Number(settings.lowOccupancy?.threshold || nextDraft.threshold), 40),
+        period: nextDraft.period,
+        threshold: Math.min(Number(nextDraft.threshold || 40), 40),
       }))
       triggerToast(nextActive ? 'Baja ocupacion lista para automatizar' : 'Baja ocupacion pausada')
     } catch (error) {
