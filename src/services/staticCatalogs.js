@@ -218,6 +218,14 @@ const serviceNameAliases = {
   'Desmaquillante de pestanas': 'Desmaquillante de pestañas',
 }
 
+function normalizeLookupText(value = '') {
+  return String(value || '')
+    .trim()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+}
+
 export function normalizeServiceCategory(category = '') {
   const cleanCategory = String(category || '').trim()
   return serviceCatalog[cleanCategory]
@@ -227,7 +235,16 @@ export function normalizeServiceCategory(category = '') {
 
 export function normalizeServiceName(name = '') {
   const cleanName = String(name || '').trim()
-  return serviceNameAliases[cleanName] || cleanName
+  const directAlias = serviceNameAliases[cleanName]
+  if (directAlias) return directAlias
+
+  const normalizedName = normalizeLookupText(cleanName)
+  const normalizedAlias = Object.entries(serviceNameAliases).find(([alias]) => (
+    normalizeLookupText(alias) === normalizedName
+  ))
+
+  if (normalizedAlias) return normalizedAlias[1]
+  return cleanName.replace(/\bpestanas\b/gi, 'pestañas').replace(/\bpestana\b/gi, 'pestaña')
 }
 
 export const weeklyScheduleTemplate = [
