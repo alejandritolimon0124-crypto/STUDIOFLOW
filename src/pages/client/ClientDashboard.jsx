@@ -754,9 +754,23 @@ function ClientDashboard({ view = 'inicio' }) {
     })
   const marketplaceSearchServices = useMemo(() => {
     const groupsFromArtists = buildServiceGroupsFromListings(activeArtists)
-    if (Object.keys(groupsFromArtists).length > 0) return groupsFromArtists
+    const mergedGroups = { ...searchServices }
 
-    return isRealMarketplace ? {} : searchServices
+    Object.entries(groupsFromArtists).forEach(([category, services]) => {
+      const existingServices = mergedGroups[category] || []
+      const servicesByName = new Map(existingServices.map((service) => [service.name, service]))
+
+      services.forEach((service) => {
+        servicesByName.set(service.name, {
+          ...servicesByName.get(service.name),
+          ...service,
+        })
+      })
+
+      mergedGroups[category] = [...servicesByName.values()]
+    })
+
+    return mergedGroups
   }, [activeArtists, isRealMarketplace])
   const primaryServiceOptions = Object.keys(marketplaceSearchServices)
   const currentServiceGroup = marketplaceSearchServices[primaryService]
