@@ -264,7 +264,11 @@ function DashboardLayout({ children, role, title, subtitle, showMobileAppbar = t
   const artistStudioPhotoUrl = role === 'artist' && activeArtistStudioId
     ? getStudioScopedPhotoUrl(artistState.profile, activeArtistStudioId)
     : ''
-  const artistPhotoUrl = role === 'artist' ? artistStudioPhotoUrl || artistState.profile?.photoUrl : ''
+  const artistPhotoUrl = role === 'artist'
+    ? isArtistMembershipWorkspace
+      ? artistStudioPhotoUrl
+      : artistState.profile?.photoUrl
+    : ''
   const profilePhotoUrl = clientPhotoUrl || artistPhotoUrl
   const localProfiles = session.user ? [{ ...session.user, id: session.user.id }] : []
   const currentProfile = getCurrentProfile({ session, profiles: localProfiles })

@@ -144,6 +144,7 @@ function ArtistDashboard({ view = 'agenda' }) {
     selectedDate,
     setSelectedDate,
     artistWorkContext,
+    artistWorkContextId,
   } = useApp()
   const [showAppointmentForm, setShowAppointmentForm] = useState(false)
   const appointmentFormRef = useRef(null)
@@ -326,6 +327,7 @@ function ArtistDashboard({ view = 'agenda' }) {
   const profileName = artistPersonalInfo.artisticName || authenticatedArtistName
   const studioProfile = currentStudio?.profile || {}
   const activeContextIsMembership = artistWorkContext?.contextType === 'membership'
+    || String(artistWorkContextId || '').startsWith('membership:')
   const canAccessArtistMarketplace = !activeContextIsMembership
   const artistDisplayName = activeContextIsMembership
     ? artistWorkContext?.studioName || studioProfile.commercialName || currentStudio?.name || 'Estudio'
