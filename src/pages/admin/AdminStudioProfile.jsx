@@ -1021,7 +1021,7 @@ function normalizeOwnerClient(client = {}) {
 
 function isActiveMembership(membership = {}) {
   const status = String(membership.status || '').toLowerCase()
-  return Boolean(membership.active) || ['active', 'activo'].includes(status)
+  return Boolean(membership.active) || ['active', 'activo', 'accepted', 'aceptada', 'approved', 'aprobada'].includes(status)
 }
 
 function AdminStudioProfile() {
@@ -1130,7 +1130,8 @@ function AdminStudioProfile() {
         artistId: searchedArtist.id,
         name: searchedArtist.name,
         email: searchedArtist.email,
-        photoUrl: searchedArtist.photoUrl,
+        photoUrl: searchedArtist.studioPhotoUrl || searchedArtist.photoUrl,
+        studioPhotoUrl: searchedArtist.studioPhotoUrl || searchedArtist.photoUrl,
         status: searchedArtist.membershipStatus || 'active',
         active: true,
         startedAt: '',
@@ -1789,7 +1790,7 @@ function AdminStudioProfile() {
       isClientSearchLoading={isOwnerClientSearchLoading}
       isSaving={isOwnerAppointmentSaving}
       membershipOperationsById={membershipOperationsById}
-      memberships={activeMemberships}
+      memberships={displayedTeamMemberships}
       onClose={closeOwnerAppointmentModal}
       onDraftChange={updateOwnerAppointmentDraft}
       onSearchClients={searchOwnerClients}

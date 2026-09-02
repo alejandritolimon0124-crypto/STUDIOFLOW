@@ -22,7 +22,7 @@ function normalizeMembership(membership = {}) {
     status,
     startedAt: membership.startedAt || membership.started_at || null,
     createdAt: membership.createdAt || membership.created_at || null,
-    active: Boolean(membership.active) || ['active', 'activo'].includes(normalizedStatus),
+    active: Boolean(membership.active) || ['active', 'activo', 'accepted', 'aceptada', 'approved', 'aprobada'].includes(normalizedStatus),
   }
 }
 
@@ -45,9 +45,11 @@ function normalizeArtistCandidate(artist = {}) {
     id: artist.id || artist.artistId || artist.artist_id,
     artistId: artist.artistId || artist.artist_id || artist.id,
     profileId: artist.profileId || artist.profile_id || null,
+    membershipId: artist.membershipId || artist.membership_id || null,
     name: artist.name || 'Artista',
     email: artist.email || '',
     photoUrl: artist.photoUrl || artist.photo_url || '',
+    studioPhotoUrl: artist.studioPhotoUrl || artist.studio_photo_url || artist.photoUrl || artist.photo_url || '',
     city: artist.city || '',
     status: artist.status || 'active',
     membershipStatus: artist.membershipStatus || artist.membership_status || '',
