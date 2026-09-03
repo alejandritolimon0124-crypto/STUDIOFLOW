@@ -426,7 +426,7 @@ function StudioSummarySection({
         </div>
         <div className="compact-list">
           {activeMemberships.map((membership) => {
-            const memberServices = (membershipOperationsById[membership.id]?.services || [])
+            const memberServices = (membershipOperationsById[getMembershipRecordId(membership)]?.services || [])
               .filter((service) => ['active', 'activo'].includes(String(service.status || '').toLowerCase()))
 
             return (
@@ -474,9 +474,10 @@ function StudioServicesSection({
       </div>
       <div className="compact-list">
         {activeMemberships.map((membership) => {
-          const operations = membershipOperationsById[membership.id]
-          const isExpanded = expandedMembershipId === membership.id
-          const isLoadingOperations = membershipOperationsLoadingId === membership.id
+          const membershipRecordId = getMembershipRecordId(membership)
+          const operations = membershipOperationsById[membershipRecordId]
+          const isExpanded = expandedMembershipId === membershipRecordId
+          const isLoadingOperations = membershipOperationsLoadingId === membershipRecordId
 
           return (
             <div className="elevated-row" key={membership.id}>
@@ -491,7 +492,7 @@ function StudioServicesSection({
                     disabled={isLoadingOperations}
                     size="sm"
                     variant="ghost"
-                    onClick={() => toggleMembershipOperations(membership.id)}
+                    onClick={() => toggleMembershipOperations(membershipRecordId)}
                   >
                     {isLoadingOperations ? 'Cargando...' : isExpanded ? 'Ocultar' : 'Ver servicios'}
                   </Button>
@@ -655,9 +656,10 @@ function StudioScheduleSection({
         </div>
         <div className="compact-list">
           {activeMemberships.map((membership) => {
-            const operations = membershipOperationsById[membership.id]
-            const isExpanded = expandedMembershipId === membership.id
-            const isLoadingOperations = membershipOperationsLoadingId === membership.id
+            const membershipRecordId = getMembershipRecordId(membership)
+            const operations = membershipOperationsById[membershipRecordId]
+            const isExpanded = expandedMembershipId === membershipRecordId
+            const isLoadingOperations = membershipOperationsLoadingId === membershipRecordId
 
             return (
               <div className="elevated-row" key={membership.id}>
@@ -672,7 +674,7 @@ function StudioScheduleSection({
                       disabled={isLoadingOperations}
                       size="sm"
                       variant="ghost"
-                      onClick={() => toggleMembershipOperations(membership.id)}
+                      onClick={() => toggleMembershipOperations(membershipRecordId)}
                     >
                       {isLoadingOperations ? 'Cargando...' : isExpanded ? 'Ocultar' : 'Ver agenda'}
                     </Button>
@@ -820,8 +822,9 @@ function OwnerAppointmentModal({
   onSearchClients,
   onSave,
 }) {
-  const selectedMembership = memberships.find((membership) => membership.id === draft.membershipId)
-  const selectedOperations = draft.membershipId ? membershipOperationsById[draft.membershipId] : null
+  const selectedMembership = memberships.find((membership) => getMembershipRecordId(membership) === draft.membershipId || membership.id === draft.membershipId)
+  const selectedOperationsKey = selectedMembership ? getMembershipRecordId(selectedMembership) : draft.membershipId
+  const selectedOperations = selectedOperationsKey ? membershipOperationsById[selectedOperationsKey] : null
   const services = (selectedOperations?.services || []).filter((service) => ['active', 'activo'].includes(String(service.status || '').toLowerCase()))
   const selectedService = services.find((service) => service.id === draft.serviceOfferingId)
   const slots = (selectedOperations?.upcomingSlots || []).filter((slot) => slot.status === 'available')
@@ -920,15 +923,16 @@ function OwnerAppointmentModal({
             </div>
             <div className="owner-artist-grid">
               {memberships.length > 0 ? memberships.map((membership) => {
-                const isSelected = draft.membershipId === membership.id
-                const photoUrl = membership.studioPhotoUrl || membership.photoUrl || ''
+                const membershipRecordId = getMembershipRecordId(membership)
+                const isSelected = draft.membershipId === membershipRecordId
+                const photoUrl = membership.studioPhotoUrl || ''
 
                 return (
                   <button
                     className={`owner-artist-card${isSelected ? ' active' : ''}`}
-                    key={membership.id}
+                    key={membershipRecordId || membership.id}
                     type="button"
-                    onClick={() => onDraftChange({ membershipId: membership.id, serviceOfferingId: '', availabilitySlotId: '' })}
+                    onClick={() => onDraftChange({ membershipId: membershipRecordId, serviceOfferingId: '', availabilitySlotId: '' })}
                   >
                     <span className="owner-artist-avatar">
                       {photoUrl ? <img src={photoUrl} alt={`Foto de ${membership.name}`} /> : getInitials(membership.name)}
@@ -1024,6 +1028,10 @@ function isActiveMembership(membership = {}) {
   return Boolean(membership.active) || ['active', 'activo', 'accepted', 'aceptada', 'approved', 'aprobada'].includes(status)
 }
 
+function getMembershipRecordId(membership = {}) {
+  return membership.membershipId || membership.membership_id || membership.id || ''
+}
+
 function buildMembershipsFromAdminArtists(artists = [], studioId = '') {
   if (!studioId) return []
 
@@ -1042,8 +1050,8 @@ function buildMembershipsFromAdminArtists(artists = [], studioId = '') {
           profileId: artist.profileId || artist.profile_id || null,
           name: artist.name || artist.owner || 'Artista',
           email: artist.email || artist.profile?.email || '',
-          photoUrl: artist.artistProfile?.studio_photo_paths?.[studioId] || artist.artistProfile?.photo_path || artist.profile?.photoUrl || '',
-          studioPhotoUrl: artist.artistProfile?.studio_photo_paths?.[studioId] || artist.artistProfile?.photo_path || '',
+          photoUrl: artist.artistProfile?.photo_path || artist.profile?.photoUrl || '',
+          studioPhotoUrl: artist.artistProfile?.studio_photo_paths?.[studioId] || '',
           role: membership.role || artist.plan || 'artist',
           status: membership.status || 'active',
           active: true,
@@ -1065,8 +1073,8 @@ function buildMembershipsFromAdminArtists(artists = [], studioId = '') {
           profileId: artist.profileId || null,
           name: artist.name || artist.owner || 'Artista',
           email: artist.email || artist.profile?.email || '',
-          photoUrl: artist.artistProfile?.studio_photo_paths?.[studioId] || artist.artistProfile?.photo_path || artist.profile?.photoUrl || '',
-          studioPhotoUrl: artist.artistProfile?.studio_photo_paths?.[studioId] || artist.artistProfile?.photo_path || '',
+          photoUrl: artist.artistProfile?.photo_path || artist.profile?.photoUrl || '',
+          studioPhotoUrl: artist.artistProfile?.studio_photo_paths?.[studioId] || '',
           role: artist.plan || 'artist',
           status: 'active',
           active: true,
@@ -1176,7 +1184,7 @@ function AdminStudioProfile() {
     fallbackMemberships.forEach((fallbackMembership) => {
       const exists = merged.some((membership) => (
         membership.id === fallbackMembership.id
-        || (membership.membershipId && membership.membershipId === fallbackMembership.membershipId)
+        || (getMembershipRecordId(membership) && getMembershipRecordId(membership) === getMembershipRecordId(fallbackMembership))
         || (membership.artistId && membership.artistId === fallbackMembership.artistId)
       ))
 
@@ -1204,8 +1212,8 @@ function AdminStudioProfile() {
         artistId: searchedArtist.id,
         name: searchedArtist.name,
         email: searchedArtist.email,
-        photoUrl: searchedArtist.studioPhotoUrl || searchedArtist.photoUrl,
-        studioPhotoUrl: searchedArtist.studioPhotoUrl || searchedArtist.photoUrl,
+        photoUrl: searchedArtist.photoUrl,
+        studioPhotoUrl: searchedArtist.studioPhotoUrl,
         status: searchedArtist.membershipStatus || 'active',
         active: true,
         startedAt: '',
@@ -1218,7 +1226,7 @@ function AdminStudioProfile() {
   const requestedSection = requestedSectionParam === 'config' ? 'settings' : requestedSectionParam
   const selectedSection = studioSections.includes(requestedSection) ? requestedSection : 'summary'
   const ownerAppointments = useMemo(() => {
-    const activeMembershipIds = new Set(operationalMemberships.map((membership) => membership.membershipId || membership.id).filter(Boolean))
+    const activeMembershipIds = new Set(operationalMemberships.map(getMembershipRecordId).filter(Boolean))
     const activeArtistIds = new Set(operationalMemberships.map((membership) => membership.artistId).filter(Boolean))
 
     return studioOwnerAppointments
@@ -1237,7 +1245,7 @@ function AdminStudioProfile() {
   const modalClientResults = ownerClientResults
 
   const activeMembershipIds = useMemo(
-    () => operationalMemberships.map((membership) => membership.membershipId || membership.id).filter(Boolean),
+    () => operationalMemberships.map(getMembershipRecordId).filter(Boolean),
     [operationalMemberships],
   )
 
@@ -1401,7 +1409,10 @@ function AdminStudioProfile() {
   useEffect(() => {
     if (!['summary', 'services', 'schedule', 'metrics'].includes(selectedSection)) return undefined
 
-    const membershipsToLoad = operationalMemberships.filter((membership) => membership.id && !membershipOperationsById[membership.id])
+    const membershipsToLoad = operationalMemberships.filter((membership) => {
+      const membershipRecordId = getMembershipRecordId(membership)
+      return membershipRecordId && !membershipOperationsById[membershipRecordId]
+    })
     if (membershipsToLoad.length === 0) return undefined
 
     let isCancelled = false
@@ -1409,7 +1420,7 @@ function AdminStudioProfile() {
     const loadOperationalResources = async () => {
       for (const membership of membershipsToLoad) {
         if (isCancelled) return
-        await loadMembershipOperations(membership.id)
+        await loadMembershipOperations(getMembershipRecordId(membership))
       }
     }
 
@@ -1727,7 +1738,7 @@ function AdminStudioProfile() {
 
   const openOwnerAppointmentModal = async ({ membership = null, slot = null, client = null } = {}) => {
     const normalizedClient = client ? normalizeOwnerClient(client) : null
-    const membershipId = membership?.id || ''
+    const membershipId = getMembershipRecordId(membership)
 
     setOwnerAppointmentDraft({
       ...emptyOwnerAppointmentDraft,
@@ -2147,7 +2158,7 @@ function AdminStudioProfile() {
             </div>
             <div className="compact-list">
               {operationalMemberships.flatMap((membership) => (
-                (membershipOperationsById[membership.id]?.services || [])
+                (membershipOperationsById[getMembershipRecordId(membership)]?.services || [])
                   .filter((service) => ['active', 'activo'].includes(String(service.status || '').toLowerCase()))
                   .map((service) => (
                     <div className="list-row elevated-row" key={`${membership.id}-${service.id}`}>
@@ -2160,7 +2171,7 @@ function AdminStudioProfile() {
                   ))
               ))}
               {operationalMemberships.flatMap((membership) => (
-                (membershipOperationsById[membership.id]?.services || [])
+                (membershipOperationsById[getMembershipRecordId(membership)]?.services || [])
                   .filter((service) => ['active', 'activo'].includes(String(service.status || '').toLowerCase()))
               )).length === 0 && (
                 <div className="list-row elevated-row">
@@ -2233,8 +2244,8 @@ function AdminStudioProfile() {
                 {searchedArtist && (
                   <div className="list-row elevated-row">
                     <div className="client-photo-preview" style={{ height: 44, width: 44 }}>
-                      {searchedArtist.photoUrl ? (
-                        <img src={searchedArtist.photoUrl} alt={`Foto de ${searchedArtist.name}`} />
+                      {searchedArtist.studioPhotoUrl ? (
+                        <img src={searchedArtist.studioPhotoUrl} alt={`Foto de ${searchedArtist.name}`} />
                       ) : (
                         <span>{String(searchedArtist.name || 'AR').slice(0, 2).toUpperCase()}</span>
                       )}
@@ -2266,16 +2277,17 @@ function AdminStudioProfile() {
                 </div>
                 <div className="compact-list">
                   {displayedTeamMemberships.map((membership) => {
-                    const operations = membershipOperationsById[membership.id]
-                    const isExpanded = expandedMembershipId === membership.id
-                    const isLoadingOperations = membershipOperationsLoadingId === membership.id
+                    const membershipRecordId = getMembershipRecordId(membership)
+                    const operations = membershipOperationsById[membershipRecordId]
+                    const isExpanded = expandedMembershipId === membershipRecordId
+                    const isLoadingOperations = membershipOperationsLoadingId === membershipRecordId
 
                     return (
-                      <div className="elevated-row" key={membership.id}>
+                      <div className="elevated-row" key={membershipRecordId || membership.id}>
                         <div className="list-row" style={{ padding: 0 }}>
                           <div className="client-photo-preview" style={{ height: 44, width: 44 }}>
-                            {membership.photoUrl ? (
-                              <img src={membership.photoUrl} alt={`Foto de ${membership.name}`} />
+                            {membership.studioPhotoUrl ? (
+                              <img src={membership.studioPhotoUrl} alt={`Foto de ${membership.name}`} />
                             ) : (
                               <span>{String(membership.name || 'AR').slice(0, 2).toUpperCase()}</span>
                             )}
@@ -2291,7 +2303,7 @@ function AdminStudioProfile() {
                               disabled={isLoadingOperations}
                               size="sm"
                               variant="ghost"
-                              onClick={() => toggleMembershipOperations(membership.id)}
+                              onClick={() => toggleMembershipOperations(membershipRecordId)}
                             >
                               {isLoadingOperations ? 'Cargando...' : isExpanded ? 'Ocultar' : 'Ver recursos'}
                             </Button>
