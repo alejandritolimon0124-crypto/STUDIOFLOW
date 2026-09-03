@@ -64,6 +64,7 @@ const roleNavigation = {
     { label: 'Citas', path: paths.artistAppointments },
     { label: 'Mis horarios', path: paths.artistSchedule },
     { label: 'Servicios', path: paths.artistServices },
+    { label: 'Clientas', path: paths.artistClients },
     { label: 'Marketplace', path: paths.artistMarketing },
     { label: 'MI PERFIL', path: paths.artistSettings },
   ],
