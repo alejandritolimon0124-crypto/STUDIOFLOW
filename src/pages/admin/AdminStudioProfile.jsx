@@ -12,7 +12,7 @@ import { getAppointmentStatusTone } from '../../utils/appointmentStatus'
 import { getCurrentProfile, getCurrentStudio } from '../../modules/entities/entitySelectors'
 import { paths } from '../../routes/paths'
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
-import { publishStudioMarketplace } from '../../services/studioService'
+import { hideStudioMarketplace, publishStudioMarketplace } from '../../services/studioService'
 import {
   createStudioOwnerAppointment,
   fetchStudioOwnerAppointments,
@@ -1131,6 +1131,7 @@ function AdminStudioProfile() {
   const [searchParams] = useSearchParams()
   const { adminState, loadAdminArtists, loadAdminClients, session, updateManagedStudioProfile } = useApp()
   const [isPublishingMarketplace, setIsPublishingMarketplace] = useState(false)
+  const [marketplaceVisibilityOverride, setMarketplaceVisibilityOverride] = useState('')
   const [marketplaceFeedback, setMarketplaceFeedback] = useState({ tone: 'neutral', message: '' })
   const [membershipState, setMembershipState] = useState({
     memberships: [],
@@ -1629,18 +1630,22 @@ function AdminStudioProfile() {
     ),
   )
   const marketplaceStatus = String(
-    currentStudio?.marketplaceStatus
+    marketplaceVisibilityOverride
+    || currentStudio?.marketplaceStatus
     || currentStudio?.marketplace_status
     || currentStudio?.profile?.marketplaceStatus
     || currentStudio?.profile?.marketplace_status
     || '',
   ).toLowerCase()
   const isStudioMarketplacePublished = Boolean(
-    currentStudio?.marketplaceListingId
-    || currentStudio?.marketplace_listing_id
-    || currentStudio?.marketplaceProfileId
-    || currentStudio?.marketplace_profile_id
-    || ['published', 'active', 'visible'].includes(marketplaceStatus),
+    marketplaceStatus !== 'hidden'
+    && (
+      currentStudio?.marketplaceListingId
+      || currentStudio?.marketplace_listing_id
+      || currentStudio?.marketplaceProfileId
+      || currentStudio?.marketplace_profile_id
+      || ['published', 'active', 'visible'].includes(marketplaceStatus)
+    ),
   )
 
   const publishMarketplace = async () => {
@@ -1651,10 +1656,29 @@ function AdminStudioProfile() {
 
     try {
       await publishStudioMarketplace(currentStudio.id)
+      setMarketplaceVisibilityOverride('visible')
       await loadAdminArtists?.().catch(() => null)
       setMarketplaceFeedback({ tone: 'success', message: isStudioMarketplacePublished ? 'Publicacion actualizada.' : 'Estudio publicado en Marketplace.' })
     } catch (error) {
       setMarketplaceFeedback({ tone: 'warm', message: error.message || 'No se pudo publicar el estudio.' })
+    } finally {
+      setIsPublishingMarketplace(false)
+    }
+  }
+
+  const hideMarketplace = async () => {
+    if (!currentStudio?.id || isPublishingMarketplace) return
+
+    setIsPublishingMarketplace(true)
+    setMarketplaceFeedback({ tone: 'neutral', message: '' })
+
+    try {
+      await hideStudioMarketplace(currentStudio.id)
+      setMarketplaceVisibilityOverride('hidden')
+      await loadAdminArtists?.().catch(() => null)
+      setMarketplaceFeedback({ tone: 'success', message: 'Estudio oculto del Marketplace.' })
+    } catch (error) {
+      setMarketplaceFeedback({ tone: 'warm', message: error.message || 'No se pudo ocultar el estudio.' })
     } finally {
       setIsPublishingMarketplace(false)
     }
@@ -2356,12 +2380,23 @@ function AdminStudioProfile() {
               </small>
             </div>
             {isStudioMarketplacePublished && <StatusPill tone="success">Publicado</StatusPill>}
-            <Button
-              disabled={!hasMarketplaceMinimumData || isPublishingMarketplace}
-              onClick={publishMarketplace}
-            >
-              {isPublishingMarketplace ? 'Guardando...' : isStudioMarketplacePublished ? 'Actualizar publicacion' : 'Publicar estudio'}
-            </Button>
+            <div className="row-actions">
+              <Button
+                disabled={!hasMarketplaceMinimumData || isPublishingMarketplace}
+                onClick={publishMarketplace}
+              >
+                {isPublishingMarketplace ? 'Guardando...' : isStudioMarketplacePublished ? 'Actualizar publicacion' : 'Publicar estudio'}
+              </Button>
+              {isStudioMarketplacePublished && (
+                <Button
+                  disabled={isPublishingMarketplace}
+                  variant="danger"
+                  onClick={hideMarketplace}
+                >
+                  Ocultar estudio
+                </Button>
+              )}
+            </div>
             {!hasMarketplaceMinimumData && (
               <small style={{ color: 'var(--muted)', fontWeight: 800 }}>
                 Requiere estudio aprobado, nombre comercial, ciudad y direccion o coordenadas.
@@ -2668,12 +2703,23 @@ function AdminStudioProfile() {
                   </small>
                 </div>
                 {isStudioMarketplacePublished && <StatusPill tone="success">Publicado</StatusPill>}
-                <Button
-                  disabled={!hasMarketplaceMinimumData || isPublishingMarketplace}
-                  onClick={publishMarketplace}
-                >
-                  {isPublishingMarketplace ? 'Guardando...' : isStudioMarketplacePublished ? 'Actualizar publicacion' : 'Publicar estudio'}
-                </Button>
+                <div className="row-actions">
+                  <Button
+                    disabled={!hasMarketplaceMinimumData || isPublishingMarketplace}
+                    onClick={publishMarketplace}
+                  >
+                    {isPublishingMarketplace ? 'Guardando...' : isStudioMarketplacePublished ? 'Actualizar publicacion' : 'Publicar estudio'}
+                  </Button>
+                  {isStudioMarketplacePublished && (
+                    <Button
+                      disabled={isPublishingMarketplace}
+                      variant="danger"
+                      onClick={hideMarketplace}
+                    >
+                      Ocultar estudio
+                    </Button>
+                  )}
+                </div>
                 {!hasMarketplaceMinimumData && (
                   <small style={{ color: 'var(--muted)', fontWeight: 800 }}>
                     Requiere estudio aprobado, nombre comercial, ciudad y direccion o coordenadas.

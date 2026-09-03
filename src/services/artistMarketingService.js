@@ -227,19 +227,19 @@ export async function deleteStudioFlowPointReward({ rewardId, studioId } = {}) {
 
 export async function setStudioDoublePointsPromotion({ active, studioId } = {}) {
   const client = requireSupabase()
-  const { error } = await client.rpc('studio_flow_studio_set_double_points_promotion', {
+  const { data, error } = await client.rpc('studio_flow_studio_set_double_points_promotion', {
     p_active: Boolean(active),
     ...studioParams(studioId),
   })
 
   if (error) throw error
 
-  return fetchStudioMarketingSettings({ studioId })
+  return normalizeMarketingPayload(data)
 }
 
 export async function saveStudioHappyHourPromotion({ active, discountPercent, weekdays, startTime, endTime, studioId } = {}) {
   const client = requireSupabase()
-  const { error } = await client.rpc('studio_flow_studio_save_happy_hour_promotion', {
+  const { data, error } = await client.rpc('studio_flow_studio_save_happy_hour_promotion', {
     p_active: Boolean(active),
     p_discount_percent: Number(discountPercent) || 0,
     p_weekdays: weekdays,
@@ -250,5 +250,5 @@ export async function saveStudioHappyHourPromotion({ active, discountPercent, we
 
   if (error) throw error
 
-  return fetchStudioMarketingSettings({ studioId })
+  return normalizeMarketingPayload(data)
 }

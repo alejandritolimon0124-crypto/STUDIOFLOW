@@ -94,3 +94,16 @@ export async function publishStudioMarketplace(studioId) {
 
   return data
 }
+
+export async function hideStudioMarketplace(studioId) {
+  if (!studioId) throw new Error('Studio requerido para ocultar marketplace.')
+
+  const client = requireSupabase()
+  const { data, error } = await client.rpc('studio_flow_hide_studio_marketplace', {
+    p_studio_id: studioId,
+  })
+
+  if (error) throw error
+
+  return data
+}
