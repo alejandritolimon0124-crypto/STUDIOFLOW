@@ -310,20 +310,20 @@ function StudioSummarySection({
 
   return (
     <>
-      <section className="hero-panel studio-hero artist-profile-hero studio-owner-hero-card">
-        <div className="studio-owner-summary-heading">
-          <div className="studio-owner-summary-copy">
-            <span className="eyebrow">{currentStudio?.profile?.addressLine || currentStudio?.addressLine || 'Ubicacion del estudio por confirmar'}</span>
-            <h3>{studioName}</h3>
+      <section className="hero-panel studio-hero artist-profile-hero mobile-screen studio-owner-hero-card">
+        <div className="artist-hero-copy studio-owner-summary-copy">
+          <span className="eyebrow">{currentStudio?.profile?.addressLine || currentStudio?.addressLine || 'Ubicacion del estudio por confirmar'}</span>
+          <h2>{studioName}</h2>
+          <div>
             <span className="studio-owner-badge inline">STUDIO OWNER</span>
           </div>
-          <div className="studio-owner-summary-logo">
-            {studioLogoUrl ? (
-              <img src={studioLogoUrl} alt={`Foto de perfil de ${studioName}`} />
-            ) : (
-              <span>{studioName.slice(0, 2)}</span>
-            )}
-          </div>
+        </div>
+        <div className="artist-hero-photo studio-owner-summary-logo">
+          {studioLogoUrl ? (
+            <img src={studioLogoUrl} alt={`Foto de perfil de ${studioName}`} />
+          ) : (
+            <span>{studioName.slice(0, 2)}</span>
+          )}
         </div>
         <div className="hero-actions artist-hero-actions studio-owner-hero-actions">
           <Button onClick={() => navigate(`${paths.adminStudio}?section=schedule`)}>Agregar cita</Button>
