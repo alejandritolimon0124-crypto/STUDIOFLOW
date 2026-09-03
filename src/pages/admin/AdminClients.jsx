@@ -245,13 +245,17 @@ function AdminClients() {
 
   return (
     <main className="dashboard-grid admin-grid">
+      {!isStudioOwnerContext && (
+        <>
         <MetricCard label="Clientas activas" value={activeClientsCount} trend={`${suspendedClientsCount} suspendidas`} tone={suspendedClientsCount ? 'warm' : 'success'} />
         <MetricCard label="Clientas suspendidas" value={suspendedClientsCount} trend={`${activeClientsCount} activas`} tone={suspendedClientsCount ? 'warm' : 'neutral'} />
+        </>
+      )}
 
         <Card className="wide-card mobile-screen primary-panel">
           <PanelHeader
             title="Clientes"
-            eyebrow="Suspension y reactivacion"
+            eyebrow={isStudioOwnerContext ? 'Clientas del estudio' : 'Suspension y reactivacion'}
             action={isStudioOwnerContext ? <Button disabled={!isStudioOwnerContext} size="sm" onClick={() => openOwnerAppointmentFlow()}>Nueva clienta</Button> : null}
           />
           <div className="admin-search">
@@ -288,8 +292,8 @@ function AdminClients() {
                   <strong>{client.name}</strong>
                   <small>{client.email || client.phone || 'Sin contacto'} / {Number(client.appointments) || 0} citas</small>
                 </div>
-                <StatusPill tone={client.status === 'Activo' ? 'success' : 'warm'}>
-                  {client.status === 'Activo' ? 'Activo' : 'Suspendido'}
+                <StatusPill tone={isStudioOwnerContext ? 'neutral' : client.status === 'Activo' ? 'success' : 'warm'}>
+                  {isStudioOwnerContext ? 'Clienta' : client.status === 'Activo' ? 'Activo' : 'Suspendido'}
                 </StatusPill>
                 <div className="row-actions">
                   {!isStudioOwnerContext && (
