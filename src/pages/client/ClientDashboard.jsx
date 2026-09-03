@@ -1229,6 +1229,7 @@ function ClientDashboard({ view = 'inicio' }) {
   const marketplaceArtists = useMemo(
     () => {
       const directSearchQuery = studioQuery.trim().toLowerCase()
+      const hasActiveRecommendationFilters = nearbyOnly || todayOnly || happyHourOnly || doublePointsOnly
 
       return activeArtists
         .map((artist) => {
@@ -1238,7 +1239,7 @@ function ClientDashboard({ view = 'inicio' }) {
         })
         .filter((artist) => {
           if (searchMode === 'Nombre estudio') {
-            if (directSearchQuery.length < 2) return false
+            if (directSearchQuery.length < 2) return hasActiveRecommendationFilters
 
             const artistStudio = getStudioPublicProfile({
               artist,
@@ -1248,6 +1249,8 @@ function ClientDashboard({ view = 'inicio' }) {
             const searchable = `${artist.name} ${artist.owner} ${artist.city} ${artistStudio.profile?.commercialName || ''}`.toLowerCase()
             return searchable.includes(directSearchQuery)
           }
+
+          if (hasActiveRecommendationFilters) return true
 
           return !secondaryService || artist.marketplaceServices.includes(secondaryService)
         })
