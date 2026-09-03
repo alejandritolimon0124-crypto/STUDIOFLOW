@@ -1151,7 +1151,8 @@ select:focus,
 
 .sidebar-brand {
   justify-content: center;
-  min-height: 84px;
+  min-height: 98px;
+  overflow: hidden;
   padding: 0;
   width: 100%;
 }
@@ -1159,12 +1160,12 @@ select:focus,
 .drawer-brand-logo img {
   border-radius: 26px;
   display: block;
-  max-height: 132px;
+  max-height: 154px;
   max-width: 100%;
   object-fit: contain;
-  transform: scale(1.18);
+  transform: scale(1.42);
   transform-origin: center;
-  width: min(244px, 96%);
+  width: min(310px, 116%);
 }
 
 .drawer-actions {
@@ -1300,14 +1301,14 @@ select:focus,
 }
 
 .studio-owner-sidebar .sidebar-brand {
-  min-height: 92px;
+  min-height: 98px;
   overflow: hidden;
 }
 
 .studio-owner-sidebar .drawer-brand-logo img {
-  max-height: 118px;
-  transform: scale(1.28);
-  width: min(280px, 112%);
+  max-height: 154px;
+  transform: scale(1.42);
+  width: min(310px, 116%);
 }
 
 .studio-owner-sidebar .sidebar-profile {
@@ -1374,14 +1375,14 @@ select:focus,
 }
 
 .artist-sidebar .sidebar-brand {
-  min-height: 92px;
+  min-height: 98px;
   overflow: hidden;
 }
 
 .artist-sidebar .drawer-brand-logo img {
-  max-height: 118px;
-  transform: scale(1.28);
-  width: min(280px, 112%);
+  max-height: 154px;
+  transform: scale(1.42);
+  width: min(310px, 116%);
 }
 
 .artist-sidebar .sidebar-nav {
@@ -4096,14 +4097,14 @@ select:focus,
   }
 
   .artist-sidebar .sidebar-brand {
-    min-height: 92px;
+    min-height: 98px;
     overflow: hidden;
   }
 
   .artist-sidebar .drawer-brand-logo img {
-    max-height: 118px;
-    transform: scale(1.32);
-    width: min(286px, 112%);
+    max-height: 154px;
+    transform: scale(1.46);
+    width: min(316px, 116%);
   }
 
   .artist-sidebar .sidebar-profile,
