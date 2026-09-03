@@ -597,7 +597,7 @@ select:focus,
   background: linear-gradient(135deg, rgba(255, 245, 240, 0.92), rgba(255, 234, 226, 0.9));
   border-radius: 28px;
   box-shadow: var(--shadow-soft);
-  padding: 28px;
+  padding: 28px 24px;
 }
 
 .studio-owner-summary-heading {
@@ -649,12 +649,14 @@ select:focus,
 
 .studio-owner-hero-actions .button {
   min-height: 78px;
+  border-radius: 12px;
+  font-size: 16px;
   width: 100%;
 }
 
 .studio-owner-hero-actions .button.full-width {
   grid-column: 1 / -1;
-  min-height: 64px;
+  min-height: 62px;
 }
 
 .studio-owner-summary-logo img {

@@ -268,11 +268,6 @@ function StudioOwnerLayout() {
           </button>
         </header>
 
-        <div className="topbar-titles">
-          <h1>{studioName}</h1>
-          <p>Operacion, equipo, servicios y configuracion del estudio.</p>
-        </div>
-
         <div className="role-layout-shell">
           <Outlet />
           <nav className="role-bottom-nav studio-owner-role-nav" aria-label="Navegacion del estudio">
