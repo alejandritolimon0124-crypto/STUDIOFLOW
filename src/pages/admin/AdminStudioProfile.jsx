@@ -27,6 +27,15 @@ import {
   findStudioArtistByEmail,
   inviteStudioArtist,
 } from '../../services/studioMembershipService'
+import {
+  deleteStudioFlowPointReward,
+  fetchStudioMarketingSettings,
+  saveStudioFlowPointReward,
+  saveStudioHappyHourPromotion,
+  setStudioDoublePointsPromotion,
+  setStudioFlowPointRedemptionScope,
+  setStudioFlowPointsEnabled,
+} from '../../services/artistMarketingService'
 
 const galleryLimit = 5
 const studioSections = ['summary', 'team', 'services', 'schedule', 'marketplace', 'metrics', 'settings']
@@ -41,6 +50,24 @@ const emptyOwnerAppointmentDraft = {
   availabilitySlotId: '',
   notes: '',
 }
+
+const emptyStudioMarketingSettings = {
+  rewards: [],
+  flowPointsEnabled: false,
+  flowPointRedemptionScope: 'exclusive',
+  doublePoints: { status: 'paused', rules: {} },
+  happyHour: { status: 'paused', rules: {} },
+}
+
+const weekdayOptions = [
+  { value: 1, label: 'Lun' },
+  { value: 2, label: 'Mar' },
+  { value: 3, label: 'Mie' },
+  { value: 4, label: 'Jue' },
+  { value: 5, label: 'Vie' },
+  { value: 6, label: 'Sab' },
+  { value: 0, label: 'Dom' },
+]
 
 function parseDateValue(dateValue) {
   const [year, month, day] = String(dateValue || '').split('-').map(Number)
@@ -1129,6 +1156,13 @@ function AdminStudioProfile() {
   const [isOwnerClientSearchLoading, setIsOwnerClientSearchLoading] = useState(false)
   const [ownerClientSearchStatus, setOwnerClientSearchStatus] = useState({ tone: 'neutral', message: '' })
   const [studioOwnerAppointments, setStudioOwnerAppointments] = useState([])
+  const [studioMarketingSettings, setStudioMarketingSettings] = useState(emptyStudioMarketingSettings)
+  const [studioRewardDraft, setStudioRewardDraft] = useState({ discountPercent: 10, pointsCost: '' })
+  const [studioHappyHourDraft, setStudioHappyHourDraft] = useState({ discountPercent: 10, weekdays: [1, 2, 3, 4, 5], startTime: '14:00', endTime: '17:00' })
+  const [isStudioMarketingLoading, setIsStudioMarketingLoading] = useState(false)
+  const [isStudioMarketingSaving, setIsStudioMarketingSaving] = useState(false)
+  const [studioMarketingFeedback, setStudioMarketingFeedback] = useState({ tone: 'neutral', message: '' })
+  const studioMarketingRequestRef = useRef(0)
   const ownerAppointmentFormRef = useRef(null)
   const localProfiles = session.user ? [{ ...session.user, id: session.user.id }] : []
   const currentProfile = getCurrentProfile({ session, profiles: localProfiles })
@@ -1205,6 +1239,10 @@ function AdminStudioProfile() {
 
     return merged
   }, [activeMemberships, fallbackMemberships])
+  const studioFlowPointsEnabled = Boolean(studioMarketingSettings.flowPointsEnabled)
+  const studioDoublePointsActive = studioMarketingSettings.doublePoints?.status === 'active'
+  const studioHappyHourActive = studioMarketingSettings.happyHour?.status === 'active'
+  const studioFlowPointRedemptionScope = studioMarketingSettings.flowPointRedemptionScope || 'exclusive'
   const displayedTeamMemberships = useMemo(() => {
     if (!searchedArtist?.alreadyMember) return operationalMemberships
 
@@ -1619,6 +1657,173 @@ function AdminStudioProfile() {
       setMarketplaceFeedback({ tone: 'warm', message: error.message || 'No se pudo publicar el estudio.' })
     } finally {
       setIsPublishingMarketplace(false)
+    }
+  }
+
+  const loadStudioMarketingSettings = useCallback(async () => {
+    if (!currentStudio?.id) return
+
+    const requestId = studioMarketingRequestRef.current + 1
+    studioMarketingRequestRef.current = requestId
+    setIsStudioMarketingLoading(true)
+
+    try {
+      const settings = await fetchStudioMarketingSettings({ studioId: currentStudio.id })
+      if (requestId !== studioMarketingRequestRef.current) return
+
+      const happyHourRules = settings.happyHour?.rules || {}
+      setStudioMarketingSettings(settings)
+      setStudioHappyHourDraft({
+        discountPercent: Number(happyHourRules.discountPercent || 10),
+        weekdays: Array.isArray(happyHourRules.weekdays) ? happyHourRules.weekdays.map(Number) : [1, 2, 3, 4, 5],
+        startTime: happyHourRules.startTime || '14:00',
+        endTime: happyHourRules.endTime || '17:00',
+      })
+      setStudioMarketingFeedback({ tone: 'neutral', message: '' })
+    } catch (error) {
+      setStudioMarketingFeedback({ tone: 'warm', message: error.message || 'No se pudo cargar Marketplace.' })
+    } finally {
+      setIsStudioMarketingLoading(false)
+    }
+  }, [currentStudio?.id])
+
+  useEffect(() => {
+    if (selectedSection === 'marketplace') {
+      loadStudioMarketingSettings()
+    }
+  }, [loadStudioMarketingSettings, selectedSection])
+
+  const updateStudioMarketingSettings = (settings, fallbackMessage = 'Marketplace actualizado.') => {
+    setStudioMarketingSettings(settings)
+    setStudioMarketingFeedback({ tone: 'success', message: fallbackMessage })
+  }
+
+  const toggleStudioFlowPointsEnabled = async () => {
+    const nextActive = !studioFlowPointsEnabled
+    const previousSettings = studioMarketingSettings
+    setIsStudioMarketingSaving(true)
+    setStudioMarketingSettings((current) => ({ ...current, flowPointsEnabled: nextActive }))
+
+    try {
+      const settings = await setStudioFlowPointsEnabled({ active: nextActive, studioId: currentStudio.id })
+      updateStudioMarketingSettings(settings, nextActive ? 'Flow Points activos para el estudio.' : 'Flow Points pausados para el estudio.')
+    } catch (error) {
+      setStudioMarketingSettings(previousSettings)
+      setStudioMarketingFeedback({ tone: 'warm', message: error.message || 'No se pudo actualizar Flow Points.' })
+    } finally {
+      setIsStudioMarketingSaving(false)
+    }
+  }
+
+  const changeStudioFlowPointScope = async (scope) => {
+    const previousSettings = studioMarketingSettings
+    setIsStudioMarketingSaving(true)
+    setStudioMarketingSettings((current) => ({ ...current, flowPointRedemptionScope: scope }))
+
+    try {
+      const settings = await setStudioFlowPointRedemptionScope({ scope, studioId: currentStudio.id })
+      updateStudioMarketingSettings(settings, scope === 'open' ? 'El estudio acepta puntos libres.' : 'El estudio acepta solo puntos exclusivos.')
+    } catch (error) {
+      setStudioMarketingSettings(previousSettings)
+      setStudioMarketingFeedback({ tone: 'warm', message: error.message || 'No se pudo guardar el tipo de puntos.' })
+    } finally {
+      setIsStudioMarketingSaving(false)
+    }
+  }
+
+  const addStudioFlowPointReward = async () => {
+    if (!studioRewardDraft.pointsCost) return
+
+    setIsStudioMarketingSaving(true)
+    try {
+      const reward = await saveStudioFlowPointReward({ ...studioRewardDraft, studioId: currentStudio.id })
+      setStudioMarketingSettings((current) => ({
+        ...current,
+        rewards: [...current.rewards, reward].sort((first, second) => first.pointsCost - second.pointsCost),
+      }))
+      setStudioRewardDraft({ discountPercent: 10, pointsCost: '' })
+      setStudioMarketingFeedback({ tone: 'success', message: 'Beneficio Flow Points agregado.' })
+    } catch (error) {
+      setStudioMarketingFeedback({ tone: 'warm', message: error.message || 'No se pudo agregar el beneficio.' })
+    } finally {
+      setIsStudioMarketingSaving(false)
+    }
+  }
+
+  const deleteStudioReward = async (rewardId) => {
+    if (!window.confirm('Eliminar este beneficio Flow Points?')) return
+
+    const previousSettings = studioMarketingSettings
+    setIsStudioMarketingSaving(true)
+    setStudioMarketingSettings((current) => ({
+      ...current,
+      rewards: current.rewards.filter((reward) => reward.id !== rewardId),
+    }))
+
+    try {
+      const settings = await deleteStudioFlowPointReward({ rewardId, studioId: currentStudio.id })
+      updateStudioMarketingSettings(settings, 'Beneficio eliminado.')
+    } catch (error) {
+      setStudioMarketingSettings(previousSettings)
+      setStudioMarketingFeedback({ tone: 'warm', message: error.message || 'No se pudo eliminar el beneficio.' })
+    } finally {
+      setIsStudioMarketingSaving(false)
+    }
+  }
+
+  const toggleStudioDoublePoints = async () => {
+    const nextActive = !studioDoublePointsActive
+    const previousSettings = studioMarketingSettings
+    setIsStudioMarketingSaving(true)
+    setStudioMarketingSettings((current) => ({
+      ...current,
+      doublePoints: {
+        ...(current.doublePoints || {}),
+        status: nextActive ? 'active' : 'paused',
+        rules: { ...(current.doublePoints?.rules || {}), multiplier: 2 },
+      },
+    }))
+
+    try {
+      const settings = await setStudioDoublePointsPromotion({ active: nextActive, studioId: currentStudio.id })
+      updateStudioMarketingSettings(settings, nextActive ? 'Puntos dobles activos para el estudio.' : 'Puntos dobles pausados.')
+    } catch (error) {
+      setStudioMarketingSettings(previousSettings)
+      setStudioMarketingFeedback({ tone: 'warm', message: error.message || 'No se pudo actualizar puntos dobles.' })
+    } finally {
+      setIsStudioMarketingSaving(false)
+    }
+  }
+
+  const toggleStudioHappyHourDay = (weekday) => {
+    setStudioHappyHourDraft((draft) => ({
+      ...draft,
+      weekdays: draft.weekdays.includes(weekday)
+        ? draft.weekdays.filter((day) => day !== weekday)
+        : [...draft.weekdays, weekday].sort((first, second) => first - second),
+    }))
+  }
+
+  const saveStudioHappyHour = async (active = true) => {
+    const previousSettings = studioMarketingSettings
+    setIsStudioMarketingSaving(true)
+    setStudioMarketingSettings((current) => ({
+      ...current,
+      happyHour: {
+        ...(current.happyHour || {}),
+        status: active ? 'active' : 'paused',
+        rules: studioHappyHourDraft,
+      },
+    }))
+
+    try {
+      const settings = await saveStudioHappyHourPromotion({ ...studioHappyHourDraft, active, studioId: currentStudio.id })
+      updateStudioMarketingSettings(settings, active ? 'Happy Hour actualizado para el estudio.' : 'Happy Hour pausado.')
+    } catch (error) {
+      setStudioMarketingSettings(previousSettings)
+      setStudioMarketingFeedback({ tone: 'warm', message: error.message || 'No se pudo guardar Happy Hour.' })
+    } finally {
+      setIsStudioMarketingSaving(false)
     }
   }
 
@@ -2452,34 +2657,175 @@ function AdminStudioProfile() {
 
           {selectedSection === 'marketplace' && (
             <StudioMarketplaceSection>
-          <section className="profile-foundation-card">
-            <div>
-              <span className="eyebrow">Marketplace</span>
-              <h3>{isStudioMarketplacePublished ? 'Estudio visible en busqueda' : 'Activar visibilidad del estudio'}</h3>
-              <small>
-                {isStudioMarketplacePublished
-                  ? 'El estudio ya puede aparecer para clientas. Usa este boton solo si cambiaste perfil, ubicacion o servicios.'
-                  : 'Activalo cuando el estudio este aprobado y tenga nombre comercial, ciudad y ubicacion.'}
-              </small>
-            </div>
-            {isStudioMarketplacePublished && <StatusPill tone="success">Publicado</StatusPill>}
-            <Button
-              disabled={!hasMarketplaceMinimumData || isPublishingMarketplace}
-              onClick={publishMarketplace}
-            >
-              {isPublishingMarketplace ? 'Guardando...' : isStudioMarketplacePublished ? 'Actualizar publicacion' : 'Publicar estudio'}
-            </Button>
-            {!hasMarketplaceMinimumData && (
-              <small style={{ color: 'var(--muted)', fontWeight: 800 }}>
-                Requiere estudio aprobado, nombre comercial, ciudad y direccion o coordenadas.
-              </small>
-            )}
-            {marketplaceFeedback.message && (
-              <small style={{ color: marketplaceFeedback.tone === 'success' ? 'var(--success)' : 'var(--rose-dark)', fontWeight: 800 }}>
-                {marketplaceFeedback.message}
-              </small>
-            )}
-          </section>
+              <section className="profile-foundation-card">
+                <div>
+                  <span className="eyebrow">Marketplace</span>
+                  <h3>{isStudioMarketplacePublished ? 'Estudio visible en busqueda' : 'Activar visibilidad del estudio'}</h3>
+                  <small>
+                    {isStudioMarketplacePublished
+                      ? 'El estudio ya puede aparecer para clientas. Usa este boton solo si cambiaste perfil, ubicacion o servicios.'
+                      : 'Activalo cuando el estudio este aprobado y tenga nombre comercial, ciudad y ubicacion.'}
+                  </small>
+                </div>
+                {isStudioMarketplacePublished && <StatusPill tone="success">Publicado</StatusPill>}
+                <Button
+                  disabled={!hasMarketplaceMinimumData || isPublishingMarketplace}
+                  onClick={publishMarketplace}
+                >
+                  {isPublishingMarketplace ? 'Guardando...' : isStudioMarketplacePublished ? 'Actualizar publicacion' : 'Publicar estudio'}
+                </Button>
+                {!hasMarketplaceMinimumData && (
+                  <small style={{ color: 'var(--muted)', fontWeight: 800 }}>
+                    Requiere estudio aprobado, nombre comercial, ciudad y direccion o coordenadas.
+                  </small>
+                )}
+                {marketplaceFeedback.message && (
+                  <small style={{ color: marketplaceFeedback.tone === 'success' ? 'var(--success)' : 'var(--rose-dark)', fontWeight: 800 }}>
+                    {marketplaceFeedback.message}
+                  </small>
+                )}
+              </section>
+
+              <section className="profile-foundation-card flow-points-benefits-panel">
+                <div>
+                  <span className="eyebrow">Flow Points</span>
+                  <h3>Beneficios del estudio</h3>
+                  <small>Configura si {profileDraft.commercialName || currentStudio?.name || 'el estudio'} otorga y acepta puntos en sus reservas.</small>
+                </div>
+                <div className={`marketplace-switch-card ${studioFlowPointsEnabled ? 'active' : ''}`}>
+                  <div>
+                    <strong>{studioFlowPointsEnabled ? 'Flow Points activos' : 'Flow Points pausados'}</strong>
+                    <small>{studioFlowPointsEnabled ? 'Las clientas pueden ver beneficios del estudio.' : 'No se mostraran beneficios de puntos para este estudio.'}</small>
+                  </div>
+                  <Button disabled={isStudioMarketingSaving || isStudioMarketingLoading} size="sm" variant={studioFlowPointsEnabled ? 'danger' : 'success'} onClick={toggleStudioFlowPointsEnabled}>
+                    {studioFlowPointsEnabled ? 'Desactivar Flow Points' : 'Activar Flow Points'}
+                  </Button>
+                </div>
+                <div className="flow-points-scope-options">
+                  <button
+                    className={studioFlowPointRedemptionScope === 'exclusive' ? 'is-active exclusive' : 'exclusive'}
+                    disabled={isStudioMarketingSaving}
+                    onClick={() => changeStudioFlowPointScope('exclusive')}
+                    type="button"
+                  >
+                    <strong>★ Puntos exclusivos</strong>
+                    <small>Solo acepta puntos generados en este estudio.</small>
+                  </button>
+                  <button
+                    className={studioFlowPointRedemptionScope === 'open' ? 'is-active open' : 'open'}
+                    disabled={isStudioMarketingSaving}
+                    onClick={() => changeStudioFlowPointScope('open')}
+                    type="button"
+                  >
+                    <strong>★ Puntos libres</strong>
+                    <small>Acepta puntos de otros perfiles.</small>
+                  </button>
+                </div>
+                <div className="location-form-grid">
+                  <label className="input-field">
+                    <span>Descuento</span>
+                    <select
+                      value={studioRewardDraft.discountPercent}
+                      onChange={(event) => setStudioRewardDraft((draft) => ({ ...draft, discountPercent: Number(event.target.value) }))}
+                    >
+                      {[5, 10, 15, 20, 25, 30].map((percent) => (
+                        <option value={percent} key={percent}>{percent}%</option>
+                      ))}
+                    </select>
+                  </label>
+                  <Input
+                    label="Puntos necesarios"
+                    min="1"
+                    type="number"
+                    value={studioRewardDraft.pointsCost}
+                    onChange={(event) => setStudioRewardDraft((draft) => ({ ...draft, pointsCost: event.target.value }))}
+                  />
+                </div>
+                <Button disabled={isStudioMarketingSaving || !studioRewardDraft.pointsCost} onClick={addStudioFlowPointReward}>
+                  Agregar beneficio Flow Points
+                </Button>
+                <div className="compact-list">
+                  {studioMarketingSettings.rewards.length > 0 ? studioMarketingSettings.rewards.map((reward) => (
+                    <div className="list-row elevated-row" key={reward.id}>
+                      <div>
+                        <strong>{reward.discountPercent}% de descuento</strong>
+                        <small>Disponible con {reward.pointsCost} Flow Points</small>
+                      </div>
+                      <Button disabled={isStudioMarketingSaving} size="sm" variant="danger" onClick={() => deleteStudioReward(reward.id)}>
+                        Eliminar
+                      </Button>
+                    </div>
+                  )) : (
+                    <div className="list-row elevated-row">
+                      <div>
+                        <strong>Sin beneficios agregados.</strong>
+                        <small>Agrega descuentos para que las clientas puedan canjear puntos.</small>
+                      </div>
+                      <StatusPill tone="neutral">Vacio</StatusPill>
+                    </div>
+                  )}
+                </div>
+              </section>
+
+              <section className="profile-foundation-card double-points-panel">
+                <div>
+                  <span className="eyebrow">PUNTOS DOBLES!</span>
+                  <h3>{studioDoublePointsActive ? 'Promocion activa' : 'Promocion pausada'}</h3>
+                  <small>Cuando esta activo, las citas del estudio duplican los puntos al otorgarlos.</small>
+                </div>
+                <Button disabled={isStudioMarketingSaving || isStudioMarketingLoading} variant={studioDoublePointsActive ? 'danger' : 'success'} onClick={toggleStudioDoublePoints}>
+                  {studioDoublePointsActive ? 'Desactivar' : 'Activar'}
+                </Button>
+              </section>
+
+              <section className="profile-foundation-card happy-hour-panel">
+                <div>
+                  <span className="eyebrow">Happy Hour</span>
+                  <h3>{studioHappyHourActive ? 'Happy Hour activo' : 'Happy Hour pausado'}</h3>
+                  <small>Define dias, horario y descuento para reservas del estudio.</small>
+                </div>
+                <div className="location-form-grid">
+                  <label className="input-field">
+                    <span>Descuento</span>
+                    <select
+                      value={studioHappyHourDraft.discountPercent}
+                      onChange={(event) => setStudioHappyHourDraft((draft) => ({ ...draft, discountPercent: Number(event.target.value) }))}
+                    >
+                      {[5, 10, 15, 20, 25, 30].map((percent) => (
+                        <option value={percent} key={percent}>{percent}%</option>
+                      ))}
+                    </select>
+                  </label>
+                  <Input label="Desde" type="time" value={studioHappyHourDraft.startTime} onChange={(event) => setStudioHappyHourDraft((draft) => ({ ...draft, startTime: event.target.value }))} />
+                  <Input label="Hasta" type="time" value={studioHappyHourDraft.endTime} onChange={(event) => setStudioHappyHourDraft((draft) => ({ ...draft, endTime: event.target.value }))} />
+                </div>
+                <div className="weekday-toggle-row">
+                  {weekdayOptions.map((day) => (
+                    <button
+                      className={studioHappyHourDraft.weekdays.includes(day.value) ? 'active' : ''}
+                      key={day.value}
+                      type="button"
+                      onClick={() => toggleStudioHappyHourDay(day.value)}
+                    >
+                      {day.label}
+                    </button>
+                  ))}
+                </div>
+                <div className="row-actions">
+                  <Button disabled={isStudioMarketingSaving || isStudioMarketingLoading} size="sm" variant={studioHappyHourActive ? 'danger' : 'success'} onClick={() => saveStudioHappyHour(!studioHappyHourActive)}>
+                    {studioHappyHourActive ? 'Desactivar Happy Hour' : 'Activar Happy Hour'}
+                  </Button>
+                  <Button disabled={isStudioMarketingSaving || isStudioMarketingLoading} size="sm" variant="ghost" onClick={() => saveStudioHappyHour(true)}>
+                    Guardar ajustes
+                  </Button>
+                </div>
+              </section>
+
+              {studioMarketingFeedback.message && (
+                <small style={{ color: studioMarketingFeedback.tone === 'success' ? 'var(--success)' : 'var(--rose-dark)', fontWeight: 800 }}>
+                  {studioMarketingFeedback.message}
+                </small>
+              )}
             </StudioMarketplaceSection>
           )}
 

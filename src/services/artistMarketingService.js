@@ -44,6 +44,10 @@ function artistParams(artistId) {
   return artistId ? { p_artist_id: artistId } : {}
 }
 
+function studioParams(studioId) {
+  return studioId ? { p_studio_id: studioId } : {}
+}
+
 export async function setArtistFlowPointsEnabled({ active, artistId } = {}) {
   const client = requireSupabase()
   const { data, error } = await client.rpc('studio_flow_artist_set_flow_points_enabled', {
@@ -159,4 +163,92 @@ export async function sendArtistMarketingNotification({ type, maintenanceDays, a
   return {
     insertedCount: Number(data?.insertedCount || data?.inserted_count || 0),
   }
+}
+
+export async function fetchStudioMarketingSettings({ studioId } = {}) {
+  const client = requireSupabase()
+  const { data, error } = await client.rpc('studio_flow_studio_get_marketing_settings', {
+    ...studioParams(studioId),
+  })
+
+  if (error) throw error
+
+  return normalizeMarketingPayload(data)
+}
+
+export async function setStudioFlowPointsEnabled({ active, studioId } = {}) {
+  const client = requireSupabase()
+  const { data, error } = await client.rpc('studio_flow_studio_set_flow_points_enabled', {
+    p_active: Boolean(active),
+    ...studioParams(studioId),
+  })
+
+  if (error) throw error
+
+  return normalizeMarketingPayload(data)
+}
+
+export async function setStudioFlowPointRedemptionScope({ scope, studioId } = {}) {
+  const client = requireSupabase()
+  const { data, error } = await client.rpc('studio_flow_studio_set_flow_points_redemption_scope', {
+    p_scope: scope === 'open' ? 'open' : 'exclusive',
+    ...studioParams(studioId),
+  })
+
+  if (error) throw error
+
+  return normalizeMarketingPayload(data)
+}
+
+export async function saveStudioFlowPointReward({ discountPercent, pointsCost, studioId } = {}) {
+  const client = requireSupabase()
+  const { data, error } = await client.rpc('studio_flow_studio_save_flow_point_reward', {
+    p_discount_percent: Number(discountPercent) || 0,
+    p_points_cost: Number(pointsCost) || 0,
+    ...studioParams(studioId),
+  })
+
+  if (error) throw error
+
+  return normalizeReward(data?.reward)
+}
+
+export async function deleteStudioFlowPointReward({ rewardId, studioId } = {}) {
+  const client = requireSupabase()
+  const { data, error } = await client.rpc('studio_flow_studio_delete_flow_point_reward', {
+    p_reward_id: rewardId,
+    ...studioParams(studioId),
+  })
+
+  if (error) throw error
+
+  return normalizeMarketingPayload(data)
+}
+
+export async function setStudioDoublePointsPromotion({ active, studioId } = {}) {
+  const client = requireSupabase()
+  const { error } = await client.rpc('studio_flow_studio_set_double_points_promotion', {
+    p_active: Boolean(active),
+    ...studioParams(studioId),
+  })
+
+  if (error) throw error
+
+  return fetchStudioMarketingSettings({ studioId })
+}
+
+export async function saveStudioHappyHourPromotion({ active, discountPercent, weekdays, startTime, endTime, studioId } = {}) {
+  const client = requireSupabase()
+  const { error } = await client.rpc('studio_flow_studio_save_happy_hour_promotion', {
+    p_active: Boolean(active),
+    p_discount_percent: Number(discountPercent) || 0,
+    p_weekdays: weekdays,
+    p_start_time: startTime,
+    p_end_time: endTime,
+    ...studioParams(studioId),
+  })
+
+  if (error) throw error
+
+  return fetchStudioMarketingSettings({ studioId })
 }
