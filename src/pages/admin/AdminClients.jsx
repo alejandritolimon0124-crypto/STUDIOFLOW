@@ -16,7 +16,12 @@ import {
 import {
   fetchStudioOwnerAppointmentClients,
   fetchStudioOwnerClientAppointments,
+  createStudioOwnerAppointment,
 } from '../../services/studioOwnerAppointmentService'
+import {
+  fetchStudioMembershipOperations,
+  fetchStudioMemberships,
+} from '../../services/studioMembershipService'
 import { useNavigate } from 'react-router-dom'
 
 const uniqueById = (items = []) => Array.from(new Map(items.filter(Boolean).map((item) => [item.id, item])).values())
@@ -56,6 +61,16 @@ function AdminClients() {
     message: '',
   })
   const [inlinePanel, setInlinePanel] = useState({ clientId: '', mode: '' })
+  const [studioMemberships, setStudioMemberships] = useState([])
+  const [membershipOperationsById, setMembershipOperationsById] = useState({})
+  const [ownerAppointmentDraft, setOwnerAppointmentDraft] = useState({
+    membershipId: '',
+    serviceOfferingId: '',
+    availabilitySlotId: '',
+    notes: '',
+  })
+  const [isOwnerAppointmentSaving, setIsOwnerAppointmentSaving] = useState(false)
+  const [ownerAppointmentFeedback, setOwnerAppointmentFeedback] = useState({ tone: 'neutral', message: '' })
   const studioOwnerAssignments = (session.roles || []).filter((assignment) => (
     assignment.role === ROLES.STUDIO_OWNER
     && (assignment.status || 'active') !== 'inactive'
@@ -184,6 +199,57 @@ function AdminClients() {
   }, [accessibleClientStudioIds, adminState.clients, isStudioOwnerContext, query, realClientResults, session.user])
   const activeClientsCount = adminState.clients.filter((client) => client.status === 'Activo').length
   const suspendedClientsCount = adminState.clients.filter((client) => client.status !== 'Activo').length
+  const selectedMembershipOperations = membershipOperationsById[ownerAppointmentDraft.membershipId] || null
+  const selectedOwnerServices = (selectedMembershipOperations?.services || []).filter((service) => ['active', 'activo'].includes(String(service.status || '').toLowerCase()))
+  const selectedOwnerSlots = (selectedMembershipOperations?.upcomingSlots || []).filter((slot) => slot.status === 'available')
+
+  useEffect(() => {
+    if (!isStudioOwnerContext || !activeStudioId) return undefined
+
+    let isActive = true
+
+    fetchStudioMemberships(activeStudioId)
+      .then((payload) => {
+        if (!isActive) return
+        const activeMemberships = payload.memberships.filter((membership) => membership.active)
+        setStudioMemberships(activeMemberships)
+        if (!ownerAppointmentDraft.membershipId && activeMemberships[0]?.id) {
+          setOwnerAppointmentDraft((currentDraft) => ({ ...currentDraft, membershipId: activeMemberships[0].id }))
+        }
+      })
+      .catch(() => {
+        if (isActive) setStudioMemberships([])
+      })
+
+    return () => {
+      isActive = false
+    }
+  }, [activeStudioId, isStudioOwnerContext, ownerAppointmentDraft.membershipId])
+
+  useEffect(() => {
+    if (!activeStudioId || !ownerAppointmentDraft.membershipId || membershipOperationsById[ownerAppointmentDraft.membershipId]) return undefined
+
+    let isActive = true
+    fetchStudioMembershipOperations({ studioId: activeStudioId, membershipId: ownerAppointmentDraft.membershipId })
+      .then((operations) => {
+        if (!isActive) return
+        setMembershipOperationsById((currentOperations) => ({
+          ...currentOperations,
+          [ownerAppointmentDraft.membershipId]: operations,
+        }))
+      })
+      .catch(() => null)
+
+    return () => {
+      isActive = false
+    }
+  }, [activeStudioId, membershipOperationsById, ownerAppointmentDraft.membershipId])
+
+  useEffect(() => {
+    if (!ownerAppointmentDraft.serviceOfferingId && selectedOwnerServices[0]?.id) {
+      setOwnerAppointmentDraft((currentDraft) => ({ ...currentDraft, serviceOfferingId: selectedOwnerServices[0].id }))
+    }
+  }, [ownerAppointmentDraft.serviceOfferingId, selectedOwnerServices])
 
   const openOwnerAppointmentFlow = (client = null) => {
     if (!isStudioOwnerContext) return
@@ -230,6 +296,50 @@ function AdminClients() {
         ? { clientId: '', mode: '' }
         : { clientId: client.id, mode: 'appointment' }
     ))
+    setOwnerAppointmentFeedback({ tone: 'neutral', message: '' })
+  }
+
+  const updateOwnerAppointmentDraft = (patch) => {
+    setOwnerAppointmentDraft((currentDraft) => ({
+      ...currentDraft,
+      ...patch,
+      ...(Object.prototype.hasOwnProperty.call(patch, 'membershipId') ? { serviceOfferingId: '', availabilitySlotId: '' } : {}),
+      ...(Object.prototype.hasOwnProperty.call(patch, 'serviceOfferingId') ? { availabilitySlotId: '' } : {}),
+    }))
+    setOwnerAppointmentFeedback({ tone: 'neutral', message: '' })
+  }
+
+  const saveInlineOwnerAppointment = async (client) => {
+    if (!activeStudioId || !client?.id || !ownerAppointmentDraft.membershipId || !ownerAppointmentDraft.serviceOfferingId || !ownerAppointmentDraft.availabilitySlotId) {
+      setOwnerAppointmentFeedback({ tone: 'warm', message: 'Selecciona artista, servicio y horario disponible.' })
+      return
+    }
+
+    setIsOwnerAppointmentSaving(true)
+    setOwnerAppointmentFeedback({ tone: 'neutral', message: '' })
+
+    try {
+      await createStudioOwnerAppointment({
+        studioId: activeStudioId,
+        membershipId: ownerAppointmentDraft.membershipId,
+        serviceOfferingId: ownerAppointmentDraft.serviceOfferingId,
+        availabilitySlotId: ownerAppointmentDraft.availabilitySlotId,
+        clientId: client.id,
+        clientName: client.name,
+        clientPhone: client.phone,
+        clientEmail: client.email,
+        notes: ownerAppointmentDraft.notes,
+      })
+      const operations = await fetchStudioMembershipOperations({ studioId: activeStudioId, membershipId: ownerAppointmentDraft.membershipId })
+      setMembershipOperationsById((currentOperations) => ({ ...currentOperations, [ownerAppointmentDraft.membershipId]: operations }))
+      setOwnerAppointmentFeedback({ tone: 'success', message: 'Cita generada con exito.' })
+      setOwnerAppointmentDraft((currentDraft) => ({ ...currentDraft, availabilitySlotId: '', notes: '' }))
+      await openClientAppointments(client, 'upcoming')
+    } catch (error) {
+      setOwnerAppointmentFeedback({ tone: 'warm', message: error.message || 'No se pudo generar la cita.' })
+    } finally {
+      setIsOwnerAppointmentSaving(false)
+    }
   }
 
   const openInlineProfile = (client) => {
@@ -376,14 +486,94 @@ function AdminClients() {
                       eyebrow={client.name}
                       action={<Button size="sm" variant="ghost" onClick={closeInlinePanel}>Ocultar info</Button>}
                     />
+                    {ownerAppointmentFeedback.message && (
+                      <div className={`list-row elevated-row ${ownerAppointmentFeedback.tone === 'success' ? 'booking-success-row' : 'booking-error-row'}`}>
+                        <div>
+                          <strong>{ownerAppointmentFeedback.tone === 'success' ? 'Cita generada con exito' : 'Aviso'}</strong>
+                          <small>{ownerAppointmentFeedback.message}</small>
+                        </div>
+                        <StatusPill tone={ownerAppointmentFeedback.tone === 'success' ? 'success' : 'neutral'}>Cita</StatusPill>
+                      </div>
+                    )}
                     {inlinePanel.mode === 'appointment' && (
-                      <div className="compact-list">
+                      <div className="form-stack compact-form">
                         <div className="list-row elevated-row">
                           <div>
-                            <strong>Crear cita para {client.name}</strong>
-                            <small>Abre la agenda del estudio con esta clienta seleccionada.</small>
+                            <strong>{client.name}</strong>
+                            <small>{client.phone || client.email || 'Sin contacto'} / clienta seleccionada</small>
                           </div>
-                          <Button size="sm" onClick={() => openOwnerAppointmentFlow(client)}>Continuar</Button>
+                          <StatusPill tone="success">Lista</StatusPill>
+                        </div>
+                        <section className="owner-artist-picker" aria-label="Seleccion de artista">
+                          <div>
+                            <span className="eyebrow">Artista asignada</span>
+                            <h4>Selecciona quien atiende la cita</h4>
+                          </div>
+                          <div className="owner-artist-grid owner-artist-grid-highlight">
+                            {studioMemberships.length > 0 ? studioMemberships.map((membership) => {
+                              const isSelected = ownerAppointmentDraft.membershipId === membership.id
+                              const photoUrl = membership.studioPhotoUrl || membership.photoUrl || ''
+
+                              return (
+                                <button
+                                  className={`owner-artist-card${isSelected ? ' active' : ''}`}
+                                  key={membership.id}
+                                  type="button"
+                                  onClick={() => updateOwnerAppointmentDraft({ membershipId: membership.id })}
+                                >
+                                  <span className="owner-artist-avatar">
+                                    {photoUrl ? <img src={photoUrl} alt={`Foto de ${membership.name}`} /> : String(membership.name || 'A').slice(0, 2)}
+                                  </span>
+                                  <strong>{membership.name}</strong>
+                                  <small>{membership.email || 'Artista del estudio'}</small>
+                                </button>
+                              )
+                            }) : (
+                              <div className="list-row elevated-row">
+                                <div>
+                                  <strong>Sin artistas activas</strong>
+                                  <small>Vincula artistas al estudio para generar citas.</small>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </section>
+                        <label className="input-field">
+                          <span>Servicio</span>
+                          <select
+                            value={ownerAppointmentDraft.serviceOfferingId}
+                            onChange={(event) => updateOwnerAppointmentDraft({ serviceOfferingId: event.target.value })}
+                          >
+                            <option value="">Selecciona servicio</option>
+                            {selectedOwnerServices.map((service) => (
+                              <option key={service.id} value={service.id}>{service.name} / {service.duration || `${service.durationMinutes} min`}</option>
+                            ))}
+                          </select>
+                        </label>
+                        <label className="input-field">
+                          <span>Horario disponible</span>
+                          <select
+                            value={ownerAppointmentDraft.availabilitySlotId}
+                            onChange={(event) => updateOwnerAppointmentDraft({ availabilitySlotId: event.target.value })}
+                          >
+                            <option value="">Selecciona horario</option>
+                            {selectedOwnerSlots.map((slot) => (
+                              <option key={slot.id} value={slot.id}>{slot.date} / {slot.time} - {slot.end}</option>
+                            ))}
+                          </select>
+                        </label>
+                        <label className="input-field">
+                          <span>Notas</span>
+                          <textarea
+                            rows="3"
+                            value={ownerAppointmentDraft.notes}
+                            onChange={(event) => updateOwnerAppointmentDraft({ notes: event.target.value })}
+                          />
+                        </label>
+                        <div className="row-actions">
+                          <Button className="full-width appointment-primary-action" disabled={isOwnerAppointmentSaving} onClick={() => saveInlineOwnerAppointment(client)}>
+                            {isOwnerAppointmentSaving ? 'Guardando cita...' : 'Guardar cita'}
+                          </Button>
                         </div>
                       </div>
                     )}

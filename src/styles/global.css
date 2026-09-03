@@ -2932,6 +2932,16 @@ select:focus,
   margin-bottom: 0;
 }
 
+.inline-slot-grid {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(auto-fit, minmax(88px, 1fr));
+}
+
+.inline-slot-grid .button {
+  min-height: 44px;
+}
+
 .favorite-directions-panel {
   padding-top: 12px;
 }

@@ -1,13 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import Button from '../../components/Button'
 import Card from '../../components/Card'
 import Input from '../../components/Input'
 import PanelHeader from '../../components/PanelHeader'
 import StatusPill from '../../components/StatusPill'
 import { useApp } from '../../contexts/appContextCore'
-import { paths } from '../../routes/paths'
 import { fetchArtistClients } from '../../services/artistClientService'
+import { fetchManualArtistAvailability } from '../../services/appointmentService'
 
 function getAppointmentTimestamp(appointment = {}) {
   const date = appointment.startsAt || appointment.starts_at || appointment.date || ''
@@ -40,13 +39,28 @@ function getPastAppointments(client = {}) {
 }
 
 function ArtistClients() {
-  const navigate = useNavigate()
-  const { artistWorkContext } = useApp()
+  const {
+    artistServices,
+    artistWorkContext,
+    createManualArtistAppointment,
+    isManualArtistAppointmentSaving,
+    loadArtistAppointments,
+  } = useApp()
   const [clients, setClients] = useState([])
   const [search, setSearch] = useState('')
   const [selectedPanel, setSelectedPanel] = useState({ client: null, mode: '' })
+  const [appointmentDraft, setAppointmentDraft] = useState({
+    serviceOfferingId: '',
+    date: new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10),
+    time: '',
+    notes: '',
+  })
+  const [availabilitySlots, setAvailabilitySlots] = useState([])
+  const [isAvailabilityLoading, setIsAvailabilityLoading] = useState(false)
+  const [appointmentFeedback, setAppointmentFeedback] = useState({ tone: 'neutral', message: '' })
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
+  const activeArtistServices = artistServices.filter((service) => ['activo', 'active'].includes(String(service.status || '').toLowerCase()))
 
   useEffect(() => {
     let isActive = true
@@ -101,9 +115,86 @@ function ArtistClients() {
         ? { client: null, mode: '' }
         : { client, mode }
     ))
+    setAppointmentFeedback({ tone: 'neutral', message: '' })
   }
 
   const closePanel = () => setSelectedPanel({ client: null, mode: '' })
+
+  useEffect(() => {
+    if (!appointmentDraft.serviceOfferingId && activeArtistServices[0]?.id) {
+      setAppointmentDraft((currentDraft) => ({ ...currentDraft, serviceOfferingId: activeArtistServices[0].id }))
+    }
+  }, [activeArtistServices, appointmentDraft.serviceOfferingId])
+
+  useEffect(() => {
+    if (selectedPanel.mode !== 'appointment' || !appointmentDraft.serviceOfferingId || !appointmentDraft.date) {
+      setAvailabilitySlots([])
+      return undefined
+    }
+
+    let isActive = true
+    setIsAvailabilityLoading(true)
+    setAppointmentFeedback({ tone: 'neutral', message: '' })
+
+    fetchManualArtistAvailability({
+      serviceOfferingId: appointmentDraft.serviceOfferingId,
+      date: appointmentDraft.date,
+      workContext: artistWorkContext,
+    })
+      .then((availability) => {
+        if (isActive) setAvailabilitySlots(availability.slots || [])
+      })
+      .catch((requestError) => {
+        if (!isActive) return
+        setAvailabilitySlots([])
+        setAppointmentFeedback({ tone: 'warm', message: requestError.message || 'No se pudieron cargar horarios disponibles.' })
+      })
+      .finally(() => {
+        if (isActive) setIsAvailabilityLoading(false)
+      })
+
+    return () => {
+      isActive = false
+    }
+  }, [appointmentDraft.date, appointmentDraft.serviceOfferingId, artistWorkContext, selectedPanel.mode])
+
+  const updateAppointmentDraft = (field, value) => {
+    setAppointmentDraft((currentDraft) => ({
+      ...currentDraft,
+      [field]: value,
+      ...(field === 'date' || field === 'serviceOfferingId' ? { time: '' } : {}),
+    }))
+    setAppointmentFeedback({ tone: 'neutral', message: '' })
+  }
+
+  const saveInlineAppointment = async (client) => {
+    if (!appointmentDraft.serviceOfferingId || !appointmentDraft.date || !appointmentDraft.time) {
+      setAppointmentFeedback({ tone: 'warm', message: 'Selecciona servicio, fecha y horario disponible.' })
+      return
+    }
+
+    const appointment = await createManualArtistAppointment({
+      clientId: client.id,
+      serviceOfferingId: appointmentDraft.serviceOfferingId,
+      date: appointmentDraft.date,
+      time: appointmentDraft.time,
+      notes: appointmentDraft.notes,
+      workContext: artistWorkContext,
+    })
+
+    if (!appointment) {
+      setAppointmentFeedback({ tone: 'warm', message: 'No se pudo generar la cita.' })
+      return
+    }
+
+    await loadArtistAppointments()
+    const refreshedClients = await fetchArtistClients({ search: search.trim(), limit: 5, workContext: artistWorkContext })
+    setClients(refreshedClients)
+    const refreshedClient = refreshedClients.find((item) => item.id === client.id) || client
+    setSelectedPanel({ client: refreshedClient, mode: 'upcoming' })
+    setAppointmentFeedback({ tone: 'success', message: 'Cita generada con exito.' })
+    setAppointmentDraft((currentDraft) => ({ ...currentDraft, time: '', notes: '' }))
+  }
 
   const renderAppointmentRows = (appointments = [], emptyMessage = 'Sin citas para mostrar.') => (
     <div className="compact-list">
@@ -175,15 +266,74 @@ function ArtistClients() {
                     eyebrow={client.name}
                     action={<Button size="sm" variant="ghost" onClick={closePanel}>Ocultar info</Button>}
                   />
+                  {appointmentFeedback.message && (
+                    <div className={`list-row elevated-row ${appointmentFeedback.tone === 'success' ? 'booking-success-row' : 'booking-error-row'}`}>
+                      <div>
+                        <strong>{appointmentFeedback.tone === 'success' ? 'Cita generada con exito' : 'Aviso'}</strong>
+                        <small>{appointmentFeedback.message}</small>
+                      </div>
+                      <StatusPill tone={appointmentFeedback.tone === 'success' ? 'success' : 'neutral'}>Cita</StatusPill>
+                    </div>
+                  )}
                   {selectedPanel.mode === 'appointment' && (
-                    <div className="compact-list">
+                    <div className="form-stack compact-form">
                       <div className="list-row elevated-row">
                         <div>
-                          <strong>Crear cita para {client.name}</strong>
-                          <small>Abre el formulario con la clienta ya seleccionada.</small>
+                          <strong>{client.name}</strong>
+                          <small>{client.phone || 'Sin celular'} / clienta seleccionada</small>
                         </div>
-                        <Button size="sm" onClick={() => navigate(paths.artistAppointments, { state: { selectedClient: client } })}>Continuar</Button>
+                        <StatusPill tone="success">Lista</StatusPill>
                       </div>
+                      <label className="input-field">
+                        <span>Servicio</span>
+                        <select
+                          value={appointmentDraft.serviceOfferingId}
+                          onChange={(event) => updateAppointmentDraft('serviceOfferingId', event.target.value)}
+                        >
+                          {activeArtistServices.length === 0 && <option value="">Sin servicios activos</option>}
+                          {activeArtistServices.map((service) => (
+                            <option key={service.id} value={service.id}>{service.name}</option>
+                          ))}
+                        </select>
+                      </label>
+                      <Input
+                        label="Fecha"
+                        type="date"
+                        value={appointmentDraft.date}
+                        onChange={(event) => updateAppointmentDraft('date', event.target.value)}
+                      />
+                      <div className="input-field">
+                        <span>Horarios disponibles</span>
+                        {isAvailabilityLoading && <small>Cargando horarios...</small>}
+                        {!isAvailabilityLoading && availabilitySlots.length === 0 && (
+                          <small>Sin horarios disponibles para esta fecha.</small>
+                        )}
+                        {!isAvailabilityLoading && availabilitySlots.length > 0 && (
+                          <div className="inline-slot-grid">
+                            {availabilitySlots.map((slot) => (
+                              <Button
+                                key={slot.id}
+                                size="sm"
+                                variant={appointmentDraft.time === slot.time ? 'primary' : 'ghost'}
+                                onClick={() => updateAppointmentDraft('time', slot.time)}
+                              >
+                                {slot.time}
+                              </Button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <label className="input-field">
+                        <span>Notas</span>
+                        <textarea
+                          rows="3"
+                          value={appointmentDraft.notes}
+                          onChange={(event) => updateAppointmentDraft('notes', event.target.value)}
+                        />
+                      </label>
+                      <Button className="full-width appointment-primary-action" disabled={isManualArtistAppointmentSaving} onClick={() => saveInlineAppointment(client)}>
+                        {isManualArtistAppointmentSaving ? 'Guardando cita...' : 'Guardar cita'}
+                      </Button>
                     </div>
                   )}
                   {selectedPanel.mode === 'upcoming' && renderAppointmentRows(
