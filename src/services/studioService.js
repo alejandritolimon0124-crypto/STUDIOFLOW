@@ -1,11 +1,15 @@
 import { requireSupabase } from '../lib/supabaseClient'
 
 function normalizeStudio(row = {}) {
+  const logoUrl = row.logoUrl || row.logo_url || row.logoPath || row.logo_path || row.profile?.logoUrl || row.profile?.logo_path || ''
+
   return {
     id: row.studioId || row.studio_id || null,
     studioId: row.studioId || row.studio_id || null,
     studioStatus: row.studioStatus || row.studio_status || 'pending',
     commercialName: row.commercialName || row.commercial_name || '',
+    logoUrl,
+    logoPath: logoUrl,
     city: row.city || '',
     addressLine: row.addressLine || row.address_line || '',
     geoLat: row.geoLat || row.geo_lat || null,
@@ -14,6 +18,12 @@ function normalizeStudio(row = {}) {
     marketplaceListingId: row.marketplaceListingId || row.marketplace_listing_id || null,
     marketplaceStatus: row.marketplaceStatus || row.marketplace_status || 'not_published',
     createdAt: row.createdAt || row.created_at || null,
+    profile: {
+      ...(row.profile || {}),
+      commercialName: row.profile?.commercialName || row.profile?.commercial_name || row.commercialName || row.commercial_name || '',
+      logoUrl,
+      logoPath: logoUrl,
+    },
   }
 }
 

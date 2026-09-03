@@ -82,6 +82,11 @@ function StudioOwnerLayout() {
     || activeAssignment?.studioName
     || activeAssignment?.studio_name
     || ''
+  const studioLogoUrl = activeStudio?.profile?.logoUrl
+    || activeStudio?.profile?.logoPath
+    || activeStudio?.logoUrl
+    || activeStudio?.logoPath
+    || ''
   const studioStatus = activeStudio?.studioStatus === 'approved' ? 'Estudio aprobado' : activeStudio?.studioStatus || 'Estudio activo'
   const avatar = getInitials(studioName) || 'SO'
   const currentLocation = `${location.pathname}${location.search || ''}`
@@ -198,7 +203,9 @@ function StudioOwnerLayout() {
         </button>
 
         <div className="sidebar-profile">
-          <div className="avatar">{avatar}</div>
+          <div className="avatar">
+            {studioLogoUrl ? <img src={studioLogoUrl} alt={`Foto de perfil de ${studioName}`} /> : avatar}
+          </div>
           <div>
             <strong>{studioName}</strong>
             <span className="studio-owner-badge">STUDIO OWNER</span>
@@ -257,7 +264,7 @@ function StudioOwnerLayout() {
             <img className="mobile-brand-logo" src={drawerLogo} alt="Studio Flow" />
           </div>
           <button className="avatar mini topbar-profile-avatar" type="button" onClick={() => goTo(`${paths.adminStudio}?section=settings`)}>
-            {avatar}
+            {studioLogoUrl ? <img src={studioLogoUrl} alt={`Foto de perfil de ${studioName}`} /> : avatar}
           </button>
         </header>
 
