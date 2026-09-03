@@ -662,7 +662,7 @@ function StudioScheduleSection({
             const isLoadingOperations = membershipOperationsLoadingId === membershipRecordId
 
             return (
-              <div className="elevated-row" key={membership.id}>
+              <div className="elevated-row owner-team-agenda-card" key={membershipRecordId || membership.id}>
                 <div className="list-row" style={{ padding: 0 }}>
                   <div>
                     <strong>{membership.name}</strong>
@@ -1118,6 +1118,7 @@ function AdminStudioProfile() {
   const [isOwnerClientSearchLoading, setIsOwnerClientSearchLoading] = useState(false)
   const [ownerClientSearchStatus, setOwnerClientSearchStatus] = useState({ tone: 'neutral', message: '' })
   const [studioOwnerAppointments, setStudioOwnerAppointments] = useState([])
+  const ownerAppointmentFormRef = useRef(null)
   const localProfiles = session.user ? [{ ...session.user, id: session.user.id }] : []
   const currentProfile = getCurrentProfile({ session, profiles: localProfiles })
   const studioOwnerAssignment = (session.roles || []).find((assignment) => (
@@ -1759,6 +1760,10 @@ function AdminStudioProfile() {
     if (membershipId && !membershipOperationsById[membershipId]) {
       await loadMembershipOperations(membershipId).catch(() => null)
     }
+
+    window.setTimeout(() => {
+      ownerAppointmentFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, 80)
   }
 
   const closeOwnerAppointmentModal = () => {
@@ -1867,22 +1872,24 @@ function AdminStudioProfile() {
   }
 
   const renderOwnerAppointmentForm = (inline = true) => (
-    <OwnerAppointmentModal
-      clients={modalClientResults}
-      clientSearchStatus={ownerClientSearchStatus}
-      currentStudio={currentStudio}
-      draft={ownerAppointmentDraft}
-      feedback={ownerAppointmentFeedback}
-      inline={inline}
-      isClientSearchLoading={isOwnerClientSearchLoading}
-      isSaving={isOwnerAppointmentSaving}
-      membershipOperationsById={membershipOperationsById}
-      memberships={displayedTeamMemberships}
-      onClose={closeOwnerAppointmentModal}
-      onDraftChange={updateOwnerAppointmentDraft}
-      onSearchClients={searchOwnerClients}
-      onSave={saveOwnerAppointment}
-    />
+    <div ref={ownerAppointmentFormRef}>
+      <OwnerAppointmentModal
+        clients={modalClientResults}
+        clientSearchStatus={ownerClientSearchStatus}
+        currentStudio={currentStudio}
+        draft={ownerAppointmentDraft}
+        feedback={ownerAppointmentFeedback}
+        inline={inline}
+        isClientSearchLoading={isOwnerClientSearchLoading}
+        isSaving={isOwnerAppointmentSaving}
+        membershipOperationsById={membershipOperationsById}
+        memberships={displayedTeamMemberships}
+        onClose={closeOwnerAppointmentModal}
+        onDraftChange={updateOwnerAppointmentDraft}
+        onSearchClients={searchOwnerClients}
+        onSave={saveOwnerAppointment}
+      />
+    </div>
   )
 
   return (
