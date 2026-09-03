@@ -242,6 +242,7 @@ function StudioSummarySection({
   onAwardFlowPoints,
   onRequestConfirmations,
   ownerAppointments,
+  ownStudio,
   profileDraft,
 }) {
   const [showMetrics, setShowMetrics] = useState(false)
@@ -257,6 +258,12 @@ function StudioSummarySection({
     || profileDraft.logoPath
     || currentStudio?.profile?.logoUrl
     || currentStudio?.profile?.logoPath
+    || currentStudio?.logoUrl
+    || currentStudio?.logoPath
+    || ownStudio?.profile?.logoUrl
+    || ownStudio?.profile?.logoPath
+    || ownStudio?.logoUrl
+    || ownStudio?.logoPath
     || ''
   const visibleDays = useMemo(() => buildVisibleDays(selectedAgendaDate), [selectedAgendaDate])
   const today = getTodayDateValue()
@@ -2227,6 +2234,7 @@ function AdminStudioProfile() {
               onAwardFlowPoints={awardStudioAppointmentPoints}
               onRequestConfirmations={sendStudioConfirmationRequests}
               ownerAppointments={ownerAppointments}
+              ownStudio={ownStudioMarketplaceState}
               profileDraft={profileDraft}
             />
           )}
