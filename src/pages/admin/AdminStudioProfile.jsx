@@ -253,6 +253,11 @@ function StudioSummarySection({
   const metricsRef = useRef(null)
   const [nowTimestamp] = useState(() => Date.now())
   const studioName = profileDraft.commercialName || currentStudio?.profile?.commercialName || currentStudio?.name || 'Estudio'
+  const studioLogoUrl = profileDraft.logoUrl
+    || profileDraft.logoPath
+    || currentStudio?.profile?.logoUrl
+    || currentStudio?.profile?.logoPath
+    || ''
   const visibleDays = useMemo(() => buildVisibleDays(selectedAgendaDate), [selectedAgendaDate])
   const today = getTodayDateValue()
   const weekEndDate = getWeekEndDate(today)
@@ -370,11 +375,20 @@ function StudioSummarySection({
       </section>
 
       <section className="profile-foundation-card">
-        <div>
-          <span className="eyebrow">Resumen operativo</span>
-          <h3>{studioName}</h3>
-          <span className="studio-owner-badge inline">STUDIO OWNER</span>
-          <small>{currentStudio?.studioStatus === 'approved' ? 'Estudio aprobado' : currentStudio?.studioStatus || 'Estado por confirmar'}</small>
+        <div className="studio-owner-summary-heading">
+          <div className="studio-owner-summary-logo">
+            {studioLogoUrl ? (
+              <img src={studioLogoUrl} alt={`Foto de perfil de ${studioName}`} />
+            ) : (
+              <span>{studioName.slice(0, 2)}</span>
+            )}
+          </div>
+          <div>
+            <span className="eyebrow">Resumen operativo</span>
+            <h3>{studioName}</h3>
+            <span className="studio-owner-badge inline">STUDIO OWNER</span>
+            <small>{currentStudio?.studioStatus === 'approved' ? 'Estudio aprobado' : currentStudio?.studioStatus || 'Estado por confirmar'}</small>
+          </div>
         </div>
         <div className="studio-review-actions">
           <Button onClick={() => navigate(`${paths.adminStudio}?section=schedule`)}>Agregar cita</Button>

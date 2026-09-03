@@ -593,6 +593,36 @@ select:focus,
   margin-top: 4px;
 }
 
+.studio-owner-summary-heading {
+  align-items: center;
+  display: grid;
+  gap: 14px;
+  grid-template-columns: auto 1fr;
+}
+
+.studio-owner-summary-logo {
+  align-items: center;
+  background: rgba(247, 238, 235, 0.82);
+  border: 1px solid rgba(214, 186, 177, 0.88);
+  border-radius: 22px;
+  color: var(--rose-dark);
+  display: inline-flex;
+  font-size: 20px;
+  font-weight: 900;
+  height: 92px;
+  justify-content: center;
+  overflow: hidden;
+  text-transform: uppercase;
+  width: 92px;
+}
+
+.studio-owner-summary-logo img {
+  display: block;
+  height: 100%;
+  object-fit: cover;
+  width: 100%;
+}
+
 .profile-photo-row,
 .studio-logo-row {
   align-items: center;
