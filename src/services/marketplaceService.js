@@ -167,6 +167,7 @@ function normalizeListing(listing = {}) {
       status: reward.status || 'active',
     })),
     specialties: asArray(profile.specialties || listing.specialties),
+    phone: profile.phone || profile.telephone || listing.phone || listing.telephone || '',
     photoUrl: profile.photoUrl || profile.photo_path || listing.photoUrl || listing.photo_path || '',
     portfolio,
     contactLinks: profile.contactLinks || profile.contact_links || {},

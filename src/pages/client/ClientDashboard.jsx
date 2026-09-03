@@ -520,6 +520,7 @@ function getArtistPublicProfile(artistState, artist) {
     primarySpecialty: profile.professionalProfile?.primarySpecialty || profile.professionalProfile?.specialties || artist?.specialties?.[0] || artist?.services || '',
     biography: profile.professionalProfile?.biography || profile.professionalProfile?.shortBio || artist?.summary || '',
     contactLinks: profile.contactLinks || artist?.contactLinks || {},
+    phone: profile.personalInfo?.phone || artist?.phone || artist?.profile?.phone || '',
     professionalLocation: profile.professionalLocation || artist?.professionalLocation,
     portfolio: Array.isArray(profile.portfolio) ? profile.portfolio : artist?.portfolio || [],
     specialties: profile.professionalProfile?.specialties || artist?.specialties || '',
@@ -544,6 +545,21 @@ function getStudioContactItems(studio = {}) {
     studio.profile?.email && { label: 'Correo', value: studio.profile.email },
     studio.profile?.hours && { label: 'Horarios', value: studio.profile.hours },
   ].filter(Boolean)
+}
+
+function getMarketplaceContactPhone({ artist = {}, publicArtistProfile = {}, studioProfile = {}, isStudioListing = false } = {}) {
+  const studioPhone = studioProfile?.profile?.phone
+    || studioProfile?.phone
+    || studioProfile?.ownerPhone
+    || ''
+  const artistPhone = publicArtistProfile?.phone
+    || artist?.phone
+    || artist?.profile?.phone
+    || artist?.contactLinks?.whatsapp
+    || publicArtistProfile?.contactLinks?.whatsapp
+    || ''
+
+  return isStudioListing ? studioPhone || artistPhone : artistPhone || studioPhone
 }
 
 function hasUsableProfessionalLocation(location = {}) {
@@ -2372,6 +2388,12 @@ function ClientDashboard({ view = 'inicio' }) {
                   ? studioDisplayName || artist.title || artist.owner || 'Estudio beauty'
                   : publicArtistProfile.fullName || artist.owner || 'Artista beauty'
                 const profileTypeLabel = isStudioListing ? 'Estudio' : 'Artista'
+                const profilePhone = getMarketplaceContactPhone({
+                  artist,
+                  publicArtistProfile,
+                  studioProfile,
+                  isStudioListing,
+                })
                 const profileInitials = getArtistInitials(profileDisplayName)
                 const artistBiography = publicArtistProfile.biography?.trim()
                 const hasSocialLinks = contactLinks.whatsapp || contactLinks.instagram || contactLinks.facebook
@@ -2388,6 +2410,7 @@ function ClientDashboard({ view = 'inicio' }) {
                       </div>
                       <div className="marketplace-result-copy">
                         <strong>{profileDisplayName}</strong>
+                        {profilePhone && <span className="marketplace-phone-number">{profilePhone}</span>}
                         <small>{profileTypeLabel}</small>
                         <small>{artist.marketplaceServices.slice(0, 3).join(' • ')}</small>
                         <span className={`marketplace-availability availability-${artist.badge.level}`}>
@@ -2454,6 +2477,7 @@ function ClientDashboard({ view = 'inicio' }) {
                           <div className="public-profile-hero-copy">
                             <span className="eyebrow">{publicArtistProfile.primarySpecialty || profileTypeLabel}</span>
                             <h3>{profileDisplayName}</h3>
+                            {profilePhone && <span className="marketplace-phone-number hero-phone">{profilePhone}</span>}
                             <span className={`marketplace-availability availability-${artist.badge.level}`}>
                               {artist.badge.label}
                             </span>
@@ -2736,6 +2760,12 @@ function ClientDashboard({ view = 'inicio' }) {
                     ? studioDisplayName || artist.title || artist.owner || 'Estudio beauty'
                     : publicArtistProfile.fullName || artist.owner || 'Artista beauty'
                   const profileTypeLabel = isStudioListing ? 'Estudio' : 'Artista'
+                  const profilePhone = getMarketplaceContactPhone({
+                    artist,
+                    publicArtistProfile,
+                    studioProfile,
+                    isStudioListing,
+                  })
                   const profileInitials = getArtistInitials(profileDisplayName)
                   const artistBiography = publicArtistProfile.biography?.trim()
                   const hasSocialLinks = contactLinks.whatsapp || contactLinks.instagram || contactLinks.facebook
@@ -2752,6 +2782,7 @@ function ClientDashboard({ view = 'inicio' }) {
                         </div>
                         <div className="marketplace-result-copy">
                           <strong>{profileDisplayName}</strong>
+                          {profilePhone && <span className="marketplace-phone-number">{profilePhone}</span>}
                           <small>{profileTypeLabel}</small>
                           <small>{artist.marketplaceServices.slice(0, 3).join(' • ')}</small>
                           <span className={`marketplace-availability availability-${artist.badge.level}`}>
@@ -2834,6 +2865,7 @@ function ClientDashboard({ view = 'inicio' }) {
                             <div className="public-profile-hero-copy">
                               <span className="eyebrow">{publicArtistProfile.primarySpecialty || profileTypeLabel}</span>
                               <h3>{profileDisplayName}</h3>
+                              {profilePhone && <span className="marketplace-phone-number hero-phone">{profilePhone}</span>}
                               <span className={`marketplace-availability availability-${artist.badge.level}`}>
                                 {artist.badge.label}
                               </span>

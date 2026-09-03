@@ -2884,6 +2884,22 @@ select:focus,
   color: inherit;
 }
 
+.marketplace-phone-number,
+.favorite-card .marketplace-phone-number {
+  color: #4f7f45;
+  display: block;
+  font-size: 19px;
+  font-weight: 950;
+  line-height: 1.12;
+  margin-top: 3px;
+}
+
+.marketplace-phone-number.hero-phone,
+.favorite-card .marketplace-phone-number.hero-phone {
+  font-size: 22px;
+  margin: 4px 0 2px;
+}
+
 .favorite-directions-panel {
   padding-top: 12px;
 }
