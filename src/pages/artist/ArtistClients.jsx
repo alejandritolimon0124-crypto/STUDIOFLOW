@@ -377,7 +377,6 @@ function ArtistClients() {
                         <span className="eyebrow">Nota especial</span>
                         <p>{client.notes || 'Sin nota especial registrada.'}</p>
                       </div>
-                      {renderAppointmentRows(client.history, 'Sin citas registradas.')}
                     </div>
                   )}
                 </div>
