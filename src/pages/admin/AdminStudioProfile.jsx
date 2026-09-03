@@ -381,8 +381,14 @@ function StudioSummarySection({
         </div>
       </section>
 
-      <section className="profile-foundation-card">
+      <section className="profile-foundation-card studio-owner-hero-card">
         <div className="studio-owner-summary-heading">
+          <div className="studio-owner-summary-copy">
+            <span className="eyebrow">Resumen operativo</span>
+            <h3>{studioName}</h3>
+            <span className="studio-owner-badge inline">STUDIO OWNER</span>
+            <small>{currentStudio?.studioStatus === 'approved' ? 'Estudio aprobado' : currentStudio?.studioStatus || 'Estado por confirmar'}</small>
+          </div>
           <div className="studio-owner-summary-logo">
             {studioLogoUrl ? (
               <img src={studioLogoUrl} alt={`Foto de perfil de ${studioName}`} />
@@ -390,14 +396,8 @@ function StudioSummarySection({
               <span>{studioName.slice(0, 2)}</span>
             )}
           </div>
-          <div>
-            <span className="eyebrow">Resumen operativo</span>
-            <h3>{studioName}</h3>
-            <span className="studio-owner-badge inline">STUDIO OWNER</span>
-            <small>{currentStudio?.studioStatus === 'approved' ? 'Estudio aprobado' : currentStudio?.studioStatus || 'Estado por confirmar'}</small>
-          </div>
         </div>
-        <div className="studio-review-actions">
+        <div className="hero-actions artist-hero-actions studio-owner-hero-actions">
           <Button onClick={() => navigate(`${paths.adminStudio}?section=schedule`)}>Agregar cita</Button>
           <Button variant="ghost" onClick={toggleMetrics}>
             {showMetrics ? 'Ocultar metricas' : 'Mostrar metricas'}
