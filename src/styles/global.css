@@ -1149,6 +1149,8 @@ select:focus,
   max-height: 132px;
   max-width: 100%;
   object-fit: contain;
+  transform: scale(1.18);
+  transform-origin: center;
   width: min(244px, 96%);
 }
 
@@ -1285,12 +1287,14 @@ select:focus,
 }
 
 .studio-owner-sidebar .sidebar-brand {
-  min-height: 86px;
+  min-height: 92px;
+  overflow: hidden;
 }
 
 .studio-owner-sidebar .drawer-brand-logo img {
-  max-height: 104px;
-  width: min(238px, 96%);
+  max-height: 118px;
+  transform: scale(1.28);
+  width: min(280px, 112%);
 }
 
 .studio-owner-sidebar .sidebar-profile {
@@ -1357,12 +1361,14 @@ select:focus,
 }
 
 .artist-sidebar .sidebar-brand {
-  min-height: 86px;
+  min-height: 92px;
+  overflow: hidden;
 }
 
 .artist-sidebar .drawer-brand-logo img {
-  max-height: 104px;
-  width: min(238px, 96%);
+  max-height: 118px;
+  transform: scale(1.28);
+  width: min(280px, 112%);
 }
 
 .artist-sidebar .sidebar-nav {
@@ -4077,12 +4083,14 @@ select:focus,
   }
 
   .artist-sidebar .sidebar-brand {
-    min-height: 82px;
+    min-height: 92px;
+    overflow: hidden;
   }
 
   .artist-sidebar .drawer-brand-logo img {
-    max-height: 98px;
-    width: min(238px, 96%);
+    max-height: 118px;
+    transform: scale(1.32);
+    width: min(286px, 112%);
   }
 
   .artist-sidebar .sidebar-profile,
