@@ -784,9 +784,11 @@ function ClientDashboard({ view = 'inicio' }) {
   const [selectedMarketplaceRewardId, setSelectedMarketplaceRewardId] = useState('')
   const [bookingNotice, setBookingNotice] = useState('')
   const [openDropdown, setOpenDropdown] = useState(null)
-  const [recommendationMode, setRecommendationMode] = useState('')
+  const [nearbyOnly, setNearbyOnly] = useState(false)
+  const [todayOnly, setTodayOnly] = useState(false)
   const [happyHourOnly, setHappyHourOnly] = useState(false)
   const [doublePointsOnly, setDoublePointsOnly] = useState(false)
+  const [visibleMarketplaceCount, setVisibleMarketplaceCount] = useState(5)
   const [showPastAppointments, setShowPastAppointments] = useState(false)
   const [showAppointmentDateFilter, setShowAppointmentDateFilter] = useState(false)
   const [appointmentHistoryDate, setAppointmentHistoryDate] = useState('')
@@ -1249,11 +1251,11 @@ function ClientDashboard({ view = 'inicio' }) {
 
           return !secondaryService || artist.marketplaceServices.includes(secondaryService)
         })
-        .filter((artist) => recommendationMode !== 'today' || getTodayAvailabilityCount(artist) > 0)
+        .filter((artist) => !todayOnly || getTodayAvailabilityCount(artist) > 0)
         .filter((artist) => !happyHourOnly || hasActiveHappyHour(artist))
         .filter((artist) => !doublePointsOnly || hasActiveDoublePoints(artist))
         .sort((firstArtist, secondArtist) => {
-          if (recommendationMode === 'nearby') {
+          if (nearbyOnly) {
             const firstProfile = getArtistPublicProfile(artistState, firstArtist)
             const firstStudio = getStudioPublicProfile({
               artist: firstArtist,
@@ -1288,7 +1290,7 @@ function ClientDashboard({ view = 'inicio' }) {
               || firstArtist.occupancy - secondArtist.occupancy
           }
 
-          if (recommendationMode === 'today') {
+          if (todayOnly) {
             return getTodayAvailabilityCount(secondArtist) - getTodayAvailabilityCount(firstArtist)
               || secondArtist.availabilityScore - firstArtist.availabilityScore
               || firstArtist.occupancy - secondArtist.occupancy
@@ -1308,7 +1310,8 @@ function ClientDashboard({ view = 'inicio' }) {
       getAvailableSlots,
       isRealMarketplace,
       effectiveMarketplaceService.durationMinutes,
-      recommendationMode,
+      nearbyOnly,
+      todayOnly,
       searchMode,
       secondaryService,
       studioQuery,
@@ -1316,6 +1319,8 @@ function ClientDashboard({ view = 'inicio' }) {
       doublePointsOnly,
     ],
   )
+  const visibleMarketplaceArtists = marketplaceArtists.slice(0, visibleMarketplaceCount)
+  const hasMoreMarketplaceArtists = marketplaceArtists.length > visibleMarketplaceArtists.length
   const bookedAppointments = realAppointmentSourceReady ? [] : agendaSettings.bookedSlots.map((slot) => ({
     artist: slot.artist || 'Artista',
     service: slot.service || 'Servicio reservado',
@@ -1654,13 +1659,30 @@ function ClientDashboard({ view = 'inicio' }) {
     setOpenDropdown(null)
   }
 
-  const selectRecommendationMode = (nextMode) => {
-    setRecommendationMode((currentMode) => currentMode === nextMode ? '' : nextMode)
+  const resetMarketplaceList = () => {
+    setVisibleMarketplaceCount(5)
     closeArtistProfile()
+  }
 
-    if (nextMode === 'today') {
-      setBookingDate(getTodayDateValue())
-    }
+  const toggleNearbyFilter = () => {
+    setNearbyOnly((currentValue) => !currentValue)
+    resetMarketplaceList()
+  }
+
+  const toggleTodayFilter = () => {
+    setTodayOnly((currentValue) => !currentValue)
+    setBookingDate(getTodayDateValue())
+    resetMarketplaceList()
+  }
+
+  const toggleHappyHourFilter = () => {
+    setHappyHourOnly((currentValue) => !currentValue)
+    resetMarketplaceList()
+  }
+
+  const toggleDoublePointsFilter = () => {
+    setDoublePointsOnly((currentValue) => !currentValue)
+    resetMarketplaceList()
   }
 
   const changeSelectedMarketplaceService = (nextServiceName) => {
@@ -2237,27 +2259,27 @@ function ClientDashboard({ view = 'inicio' }) {
               </div>
               <div className="client-recommendation-actions">
                 <button
-                  className={`recommendation-choice${recommendationMode === 'nearby' ? ' is-active' : ''}`}
+                  className={`recommendation-choice${nearbyOnly ? ' is-active' : ''}`}
                   type="button"
-                  onClick={() => selectRecommendationMode('nearby')}
+                  aria-pressed={nearbyOnly}
+                  onClick={toggleNearbyFilter}
                 >
                   <strong>Cerca de mi</strong>
-                  {recommendationMode === 'nearby' && <span>Seleccionado</span>}
+                  {nearbyOnly && <span>Seleccionado</span>}
                 </button>
                 <button
-                  className={`recommendation-choice${recommendationMode === 'today' ? ' is-active' : ''}`}
+                  className={`recommendation-choice${todayOnly ? ' is-active' : ''}`}
                   type="button"
-                  onClick={() => selectRecommendationMode('today')}
+                  aria-pressed={todayOnly}
+                  onClick={toggleTodayFilter}
                 >
                   <strong>Citas para hoy</strong>
-                  {recommendationMode === 'today' && <span>Seleccionado</span>}
+                  {todayOnly && <span>Seleccionado</span>}
                 </button>
               </div>
-              {recommendationMode && (
+              {(nearbyOnly || todayOnly || happyHourOnly || doublePointsOnly) && (
                 <p className="client-recommendation-status">
-                  {recommendationMode === 'nearby'
-                    ? 'Mostrando primero opciones cercanas.'
-                    : 'Mostrando solo opciones con citas para hoy.'}
+                  Mostrando sugerencias que cumplen con los filtros activos.
                 </p>
               )}
               <div className="client-promo-filter-grid">
@@ -2265,10 +2287,7 @@ function ClientDashboard({ view = 'inicio' }) {
                   className={`client-promo-filter happy-hour${happyHourOnly ? ' is-active' : ''}`}
                   type="button"
                   aria-pressed={happyHourOnly}
-                  onClick={() => {
-                    setHappyHourOnly((current) => !current)
-                    closeArtistProfile()
-                  }}
+                  onClick={toggleHappyHourFilter}
                 >
                   <span>Happy Hour</span>
                   <strong>{happyHourOnly ? 'Activo' : 'Filtrar'}</strong>
@@ -2278,10 +2297,7 @@ function ClientDashboard({ view = 'inicio' }) {
                   className={`client-promo-filter double-points${doublePointsOnly ? ' is-active' : ''}`}
                   type="button"
                   aria-pressed={doublePointsOnly}
-                  onClick={() => {
-                    setDoublePointsOnly((current) => !current)
-                    closeArtistProfile()
-                  }}
+                  onClick={toggleDoublePointsFilter}
                 >
                   <span>Puntos dobles</span>
                   <strong>{doublePointsOnly ? 'Activo' : 'Filtrar'}</strong>
@@ -2297,7 +2313,7 @@ function ClientDashboard({ view = 'inicio' }) {
                 onToggle={() => setOpenDropdown(openDropdown === 'searchMode' ? null : 'searchMode')}
                 onChange={(nextMode) => {
                   setSearchMode(nextMode)
-                  closeArtistProfile()
+                  resetMarketplaceList()
                 }}
                 options={[
                   { value: 'Servicio', label: 'Servicio', meta: 'Encuentra disponibilidad por tratamiento' },
@@ -2314,7 +2330,7 @@ function ClientDashboard({ view = 'inicio' }) {
                     onChange={(nextPrimary) => {
                       setPrimaryService(nextPrimary)
                       setSecondaryService(marketplaceSearchServices[nextPrimary]?.[0]?.name || '')
-                      closeArtistProfile()
+                      resetMarketplaceList()
                     }}
                     options={primaryServiceOptions.map((service) => ({
                       value: service,
@@ -2329,7 +2345,7 @@ function ClientDashboard({ view = 'inicio' }) {
                     onToggle={() => setOpenDropdown(openDropdown === 'secondaryService' ? null : 'secondaryService')}
                     onChange={(nextService) => {
                       setSecondaryService(nextService)
-                      closeArtistProfile()
+                      resetMarketplaceList()
                     }}
                     options={currentServiceGroup.map((service) => ({
                       value: service.name,
@@ -2344,7 +2360,10 @@ function ClientDashboard({ view = 'inicio' }) {
                   type="search"
                         placeholder="Nombre de artista o estudio..."
                   value={studioQuery}
-                  onChange={(event) => setStudioQuery(event.target.value)}
+                  onChange={(event) => {
+                    setStudioQuery(event.target.value)
+                    resetMarketplaceList()
+                  }}
                 />
               )}
             </div>
@@ -2360,7 +2379,7 @@ function ClientDashboard({ view = 'inicio' }) {
               </div>
             )}
             <div className="artist-results" style={{ marginTop: '14px' }}>
-              {marketplaceArtists.map((artist) => {
+              {visibleMarketplaceArtists.map((artist) => {
                 const isFavorite = clientState.favoriteArtistIds.includes(artist.id)
                 const publicArtistProfile = getArtistPublicProfile(artistState, artist)
                 const studioProfile = getStudioPublicProfile({
@@ -2707,6 +2726,16 @@ function ClientDashboard({ view = 'inicio' }) {
                   </article>
                 )
               })}
+              {hasMoreMarketplaceArtists && (
+                <button
+                  className="marketplace-show-more-button"
+                  type="button"
+                  onClick={() => setVisibleMarketplaceCount((currentCount) => currentCount + 5)}
+                >
+                  Mostrar mas
+                </button>
+              )}
+
               {marketplaceArtists.length === 0 && (
                 <div className="artist-result">
                   <div>
