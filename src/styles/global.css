@@ -641,7 +641,20 @@ select:focus,
 }
 
 .studio-owner-hero-actions {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   margin-top: 4px;
+}
+
+.studio-owner-hero-actions .button {
+  min-height: 78px;
+  width: 100%;
+}
+
+.studio-owner-hero-actions .button.full-width {
+  grid-column: 1 / -1;
+  min-height: 64px;
 }
 
 .studio-owner-summary-logo img {
