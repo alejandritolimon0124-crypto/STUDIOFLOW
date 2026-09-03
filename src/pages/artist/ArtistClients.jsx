@@ -22,6 +22,16 @@ function isCancelledAppointment(appointment = {}) {
   return ['cancelada', 'cancelado', 'cancelled', 'canceled', 'no show', 'no_show'].some((blockedStatus) => status.includes(blockedStatus))
 }
 
+function getInitials(name = 'Clienta') {
+  return name
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join('')
+    .toUpperCase()
+}
+
 function getUpcomingAppointments(client = {}) {
   const now = Date.now()
 
@@ -346,13 +356,26 @@ function ArtistClients() {
                   )}
                   {selectedPanel.mode === 'profile' && (
                     <div className="compact-list">
-                      <div className="list-row elevated-row">
-                        <div>
-                          <strong>{client.phone || 'Sin celular'}</strong>
-                          <small>{client.email || 'Sin email'}</small>
+                      <div className="client-profile-summary-card">
+                        <div className="client-profile-avatar">
+                          {client.photoUrl ? (
+                            <img src={client.photoUrl} alt={client.name} />
+                          ) : (
+                            <span>{getInitials(client.name)}</span>
+                          )}
+                        </div>
+                        <div className="client-profile-details">
+                          <span className="eyebrow">Nombre completo</span>
+                          <strong>{client.name}</strong>
+                          <small className="client-phone-highlight">{client.phone || 'Sin celular'}</small>
+                          <small>{client.email || 'Sin correo electronico'}</small>
                           <small>Ultima visita: {client.lastVisit || 'sin fecha'}</small>
                         </div>
                         <StatusPill tone="success">{client.totalVisits} visitas</StatusPill>
+                      </div>
+                      <div className="client-profile-notes-card">
+                        <span className="eyebrow">Nota especial</span>
+                        <p>{client.notes || 'Sin nota especial registrada.'}</p>
                       </div>
                       {renderAppointmentRows(client.history, 'Sin citas registradas.')}
                     </div>

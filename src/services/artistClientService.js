@@ -13,6 +13,7 @@ function normalizeArtistClient(client = {}) {
     email: client.email || '',
     phone: client.phone || '',
     photoUrl: client.photoUrl || client.photo_path || '',
+    notes: client.notes || client.profileNotes || client.profile_notes || '',
     visits: Number(client.visits ?? client.totalVisits ?? client.total_visits ?? 0),
     totalVisits: Number(client.totalVisits ?? client.total_visits ?? client.visits ?? 0),
     lastVisit: client.lastVisit || client.last_visit || '',

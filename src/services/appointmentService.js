@@ -213,7 +213,7 @@ export async function fetchManualArtistAvailability({
   if (!date) throw new Error('Selecciona una fecha.')
 
   const client = requireSupabase()
-  const { data, error } = await client.rpc('studio_flow_artist_get_manual_availability', {
+  const { data, error } = await client.rpc('studio_flow_artist_get_manual_availability_scoped', {
     p_service_offering_id: serviceOfferingId,
     p_date: date,
     ...getContextRpcParams(workContext),

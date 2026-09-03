@@ -17,6 +17,7 @@ function normalizeClientProfilePayload(data = {}) {
     city: clientProfile.city || '',
     state: clientProfile.state || '',
     postalCode: clientProfile.postal_code || clientProfile.postalCode || '',
+    notes: clientProfile.notes || '',
   }
 }
 
