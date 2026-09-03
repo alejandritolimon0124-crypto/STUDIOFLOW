@@ -310,7 +310,7 @@ function StudioSummarySection({
 
   return (
     <>
-      <section className="profile-foundation-card studio-owner-hero-card">
+      <section className="hero-panel studio-hero artist-profile-hero studio-owner-hero-card">
         <div className="studio-owner-summary-heading">
           <div className="studio-owner-summary-copy">
             <span className="eyebrow">{currentStudio?.profile?.addressLine || currentStudio?.addressLine || 'Ubicacion del estudio por confirmar'}</span>
