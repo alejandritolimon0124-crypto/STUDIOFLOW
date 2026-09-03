@@ -1024,6 +1024,61 @@ function isActiveMembership(membership = {}) {
   return Boolean(membership.active) || ['active', 'activo', 'accepted', 'aceptada', 'approved', 'aprobada'].includes(status)
 }
 
+function buildMembershipsFromAdminArtists(artists = [], studioId = '') {
+  if (!studioId) return []
+
+  return artists
+    .flatMap((artist) => {
+      const memberships = Array.isArray(artist.memberships) ? artist.memberships : []
+      const explicitMemberships = memberships
+        .filter((membership) => (
+          (membership.studioId || membership.studio_id) === studioId
+          && !['inactive', 'inactivo', 'archived', 'archivado'].includes(String(membership.status || '').toLowerCase())
+        ))
+        .map((membership) => ({
+          id: membership.id || artist.membershipId || `membership-${artist.id}-${studioId}`,
+          membershipId: membership.id || artist.membershipId || null,
+          artistId: artist.id,
+          profileId: artist.profileId || artist.profile_id || null,
+          name: artist.name || artist.owner || 'Artista',
+          email: artist.email || artist.profile?.email || '',
+          photoUrl: artist.artistProfile?.studio_photo_paths?.[studioId] || artist.artistProfile?.photo_path || artist.profile?.photoUrl || '',
+          studioPhotoUrl: artist.artistProfile?.studio_photo_paths?.[studioId] || artist.artistProfile?.photo_path || '',
+          role: membership.role || artist.plan || 'artist',
+          status: membership.status || 'active',
+          active: true,
+          startedAt: membership.startedAt || membership.started_at || '',
+          createdAt: membership.createdAt || membership.created_at || artist.registeredAt || '',
+        }))
+
+      if (explicitMemberships.length > 0) return explicitMemberships
+
+      if (
+        artist.studioId === studioId
+        && artist.membershipId
+        && !['inactive', 'inactivo', 'archived', 'archivado', 'rejected', 'rechazado'].includes(String(artist.status || '').toLowerCase())
+      ) {
+        return [{
+          id: artist.membershipId,
+          membershipId: artist.membershipId,
+          artistId: artist.id,
+          profileId: artist.profileId || null,
+          name: artist.name || artist.owner || 'Artista',
+          email: artist.email || artist.profile?.email || '',
+          photoUrl: artist.artistProfile?.studio_photo_paths?.[studioId] || artist.artistProfile?.photo_path || artist.profile?.photoUrl || '',
+          studioPhotoUrl: artist.artistProfile?.studio_photo_paths?.[studioId] || artist.artistProfile?.photo_path || '',
+          role: artist.plan || 'artist',
+          status: 'active',
+          active: true,
+          startedAt: artist.registeredAt || '',
+          createdAt: artist.registeredAt || '',
+        }]
+      }
+
+      return []
+    })
+}
+
 function AdminStudioProfile() {
   const navigate = useNavigate()
   const location = useLocation()
@@ -1111,17 +1166,36 @@ function AdminStudioProfile() {
     () => membershipState.memberships.filter(isActiveMembership),
     [membershipState.memberships],
   )
+  const fallbackMemberships = useMemo(
+    () => buildMembershipsFromAdminArtists(adminState.artists, currentStudio?.id),
+    [adminState.artists, currentStudio?.id],
+  )
+  const operationalMemberships = useMemo(() => {
+    const merged = [...activeMemberships]
+
+    fallbackMemberships.forEach((fallbackMembership) => {
+      const exists = merged.some((membership) => (
+        membership.id === fallbackMembership.id
+        || (membership.membershipId && membership.membershipId === fallbackMembership.membershipId)
+        || (membership.artistId && membership.artistId === fallbackMembership.artistId)
+      ))
+
+      if (!exists) merged.push(fallbackMembership)
+    })
+
+    return merged
+  }, [activeMemberships, fallbackMemberships])
   const displayedTeamMemberships = useMemo(() => {
-    if (!searchedArtist?.alreadyMember) return activeMemberships
+    if (!searchedArtist?.alreadyMember) return operationalMemberships
 
     const searchedMembershipId = searchedArtist.membershipId || searchedArtist.membership_id || null
-    const alreadyDisplayed = activeMemberships.some((membership) => (
+    const alreadyDisplayed = operationalMemberships.some((membership) => (
       (searchedMembershipId && (membership.id === searchedMembershipId || membership.membershipId === searchedMembershipId))
       || (searchedArtist.id && membership.artistId === searchedArtist.id)
       || (searchedArtist.email && membership.email === searchedArtist.email)
     ))
 
-    if (alreadyDisplayed) return activeMemberships
+    if (alreadyDisplayed) return operationalMemberships
 
     return [
       {
@@ -1137,15 +1211,15 @@ function AdminStudioProfile() {
         startedAt: '',
         createdAt: '',
       },
-      ...activeMemberships,
+      ...operationalMemberships,
     ]
-  }, [activeMemberships, searchedArtist])
+  }, [operationalMemberships, searchedArtist])
   const requestedSectionParam = searchParams.get('section') || 'summary'
   const requestedSection = requestedSectionParam === 'config' ? 'settings' : requestedSectionParam
   const selectedSection = studioSections.includes(requestedSection) ? requestedSection : 'summary'
   const ownerAppointments = useMemo(() => {
-    const activeMembershipIds = new Set(activeMemberships.map((membership) => membership.membershipId || membership.id).filter(Boolean))
-    const activeArtistIds = new Set(activeMemberships.map((membership) => membership.artistId).filter(Boolean))
+    const activeMembershipIds = new Set(operationalMemberships.map((membership) => membership.membershipId || membership.id).filter(Boolean))
+    const activeArtistIds = new Set(operationalMemberships.map((membership) => membership.artistId).filter(Boolean))
 
     return studioOwnerAppointments
       .filter(isConfirmedAppointment)
@@ -1159,12 +1233,12 @@ function AdminStudioProfile() {
         if (appointmentArtistId) return activeArtistIds.has(appointmentArtistId)
         return false
       })
-  }, [activeMemberships, currentStudio?.id, studioOwnerAppointments])
+  }, [operationalMemberships, currentStudio?.id, studioOwnerAppointments])
   const modalClientResults = ownerClientResults
 
   const activeMembershipIds = useMemo(
-    () => activeMemberships.map((membership) => membership.membershipId || membership.id).filter(Boolean),
-    [activeMemberships],
+    () => operationalMemberships.map((membership) => membership.membershipId || membership.id).filter(Boolean),
+    [operationalMemberships],
   )
 
   const loadStudioOwnerAppointments = useCallback(async () => {
@@ -1283,7 +1357,8 @@ function AdminStudioProfile() {
     if (!currentStudio?.id) return
 
     loadStudioMemberships()
-  }, [currentStudio?.id, loadStudioMemberships])
+    loadAdminArtists?.().catch(() => null)
+  }, [currentStudio?.id, loadAdminArtists, loadStudioMemberships])
 
   useEffect(() => {
     if (!currentStudio?.id) return
@@ -1326,7 +1401,7 @@ function AdminStudioProfile() {
   useEffect(() => {
     if (!['summary', 'services', 'schedule', 'metrics'].includes(selectedSection)) return undefined
 
-    const membershipsToLoad = activeMemberships.filter((membership) => membership.id && !membershipOperationsById[membership.id])
+    const membershipsToLoad = operationalMemberships.filter((membership) => membership.id && !membershipOperationsById[membership.id])
     if (membershipsToLoad.length === 0) return undefined
 
     let isCancelled = false
@@ -1343,7 +1418,7 @@ function AdminStudioProfile() {
     return () => {
       isCancelled = true
     }
-  }, [activeMemberships, loadMembershipOperations, membershipOperationsById, selectedSection])
+  }, [operationalMemberships, loadMembershipOperations, membershipOperationsById, selectedSection])
 
   const updateProfileField = (field, value) => {
     setProfileDraft((currentDraft) => ({
@@ -1815,7 +1890,7 @@ function AdminStudioProfile() {
           )}
           {selectedSection === 'summary' && (
             <StudioSummarySection
-              activeMemberships={activeMemberships}
+              activeMemberships={operationalMemberships}
               currentStudio={currentStudio}
               membershipOperationsById={membershipOperationsById}
               navigate={navigate}
@@ -2071,7 +2146,7 @@ function AdminStudioProfile() {
               <small>Lectura consolidada de servicios activos publicados por artistas vinculadas.</small>
             </div>
             <div className="compact-list">
-              {activeMemberships.flatMap((membership) => (
+              {operationalMemberships.flatMap((membership) => (
                 (membershipOperationsById[membership.id]?.services || [])
                   .filter((service) => ['active', 'activo'].includes(String(service.status || '').toLowerCase()))
                   .map((service) => (
@@ -2084,7 +2159,7 @@ function AdminStudioProfile() {
                     </div>
                   ))
               ))}
-              {activeMemberships.flatMap((membership) => (
+              {operationalMemberships.flatMap((membership) => (
                 (membershipOperationsById[membership.id]?.services || [])
                   .filter((service) => ['active', 'activo'].includes(String(service.status || '').toLowerCase()))
               )).length === 0 && (
@@ -2111,10 +2186,26 @@ function AdminStudioProfile() {
             </div>
             <Button
               disabled={isMembershipsLoading}
-              onClick={() => loadStudioMemberships({ successMessage: 'Artistas del estudio actualizadas.' })}
+              onClick={async () => {
+                await loadAdminArtists?.().catch(() => null)
+                const payload = await loadStudioMemberships()
+                const remoteCount = (payload?.memberships || []).filter(isActiveMembership).length
+                const detectedCount = Math.max(remoteCount, operationalMemberships.length)
+                setMembershipFeedback({
+                  tone: detectedCount > 0 ? 'success' : 'warm',
+                  message: detectedCount > 0
+                    ? `${detectedCount} artista${detectedCount === 1 ? '' : 's'} vinculada${detectedCount === 1 ? '' : 's'} detectada${detectedCount === 1 ? '' : 's'}.`
+                    : 'No se detectaron artistas vinculadas para este estudio.',
+                })
+              }}
             >
               {isMembershipsLoading ? 'Actualizando...' : 'Actualizar'}
             </Button>
+            {membershipFeedback.message && (
+              <small style={{ color: membershipFeedback.tone === 'success' ? 'var(--success)' : 'var(--rose-dark)', fontWeight: 800 }}>
+                {membershipFeedback.message}
+              </small>
+            )}
           </section>
 
           <section className="profile-foundation-card">
@@ -2161,7 +2252,7 @@ function AdminStudioProfile() {
                 <Button disabled={isMembershipsLoading || !searchedArtist || searchedArtist.alreadyMember} onClick={inviteArtist}>
                   {isMembershipsLoading ? 'Procesando...' : 'Invitar artista'}
                 </Button>
-                {membershipFeedback.message && (
+                {membershipFeedback.message && selectedSection !== 'team' && (
                   <small style={{ color: membershipFeedback.tone === 'success' ? 'var(--success)' : 'var(--rose-dark)', fontWeight: 800 }}>
                     {membershipFeedback.message}
                   </small>
@@ -2295,7 +2386,7 @@ function AdminStudioProfile() {
 
           {selectedSection === 'services' && (
             <StudioServicesSection
-              activeMemberships={activeMemberships}
+              activeMemberships={operationalMemberships}
               expandedMembershipId={expandedMembershipId}
               membershipOperationsById={membershipOperationsById}
               membershipOperationsLoadingId={membershipOperationsLoadingId}
@@ -2305,7 +2396,7 @@ function AdminStudioProfile() {
 
           {selectedSection === 'schedule' && (
             <StudioScheduleSection
-              activeMemberships={activeMemberships}
+              activeMemberships={operationalMemberships}
               currentStudio={currentStudio}
               expandedMembershipId={expandedMembershipId}
               membershipOperationsById={membershipOperationsById}
@@ -2322,7 +2413,7 @@ function AdminStudioProfile() {
 
           {selectedSection === 'metrics' && (
             <StudioMetricsSection
-              activeMemberships={activeMemberships}
+              activeMemberships={operationalMemberships}
               membershipOperationsById={membershipOperationsById}
               membershipState={membershipState}
             />
