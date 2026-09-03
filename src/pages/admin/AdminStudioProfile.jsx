@@ -12,7 +12,7 @@ import { getAppointmentStatusTone } from '../../utils/appointmentStatus'
 import { getCurrentProfile, getCurrentStudio } from '../../modules/entities/entitySelectors'
 import { paths } from '../../routes/paths'
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
-import { hideStudioMarketplace, publishStudioMarketplace } from '../../services/studioService'
+import { fetchOwnStudios, hideStudioMarketplace, publishStudioMarketplace } from '../../services/studioService'
 import {
   createStudioOwnerAppointment,
   fetchStudioOwnerAppointments,
@@ -1146,6 +1146,7 @@ function AdminStudioProfile() {
   const { adminState, loadAdminArtists, loadAdminClients, session, updateManagedStudioProfile } = useApp()
   const [isPublishingMarketplace, setIsPublishingMarketplace] = useState(false)
   const [marketplaceVisibilityOverride, setMarketplaceVisibilityOverride] = useState('')
+  const [ownStudioMarketplaceState, setOwnStudioMarketplaceState] = useState(null)
   const [marketplaceFeedback, setMarketplaceFeedback] = useState({ tone: 'neutral', message: '' })
   const [membershipState, setMembershipState] = useState({
     memberships: [],
@@ -1436,6 +1437,26 @@ function AdminStudioProfile() {
   useEffect(() => {
     if (!currentStudio?.id) return
 
+    let isActive = true
+
+    fetchOwnStudios()
+      .then((studios) => {
+        if (!isActive) return
+        const ownStudio = studios.find((studio) => studio.id === currentStudio.id || studio.studioId === currentStudio.id)
+        setOwnStudioMarketplaceState(ownStudio || null)
+      })
+      .catch(() => {
+        if (isActive) setOwnStudioMarketplaceState(null)
+      })
+
+    return () => {
+      isActive = false
+    }
+  }, [currentStudio?.id])
+
+  useEffect(() => {
+    if (!currentStudio?.id) return
+
     loadStudioOwnerAppointments()
   }, [currentStudio?.id, loadStudioOwnerAppointments])
 
@@ -1645,6 +1666,8 @@ function AdminStudioProfile() {
   )
   const marketplaceStatus = String(
     marketplaceVisibilityOverride
+    || ownStudioMarketplaceState?.marketplaceStatus
+    || ownStudioMarketplaceState?.marketplace_status
     || currentStudio?.marketplaceStatus
     || currentStudio?.marketplace_status
     || currentStudio?.profile?.marketplaceStatus
@@ -1658,6 +1681,10 @@ function AdminStudioProfile() {
       || currentStudio?.marketplace_listing_id
       || currentStudio?.marketplaceProfileId
       || currentStudio?.marketplace_profile_id
+      || ownStudioMarketplaceState?.marketplaceListingId
+      || ownStudioMarketplaceState?.marketplace_listing_id
+      || ownStudioMarketplaceState?.marketplaceProfileId
+      || ownStudioMarketplaceState?.marketplace_profile_id
       || ['published', 'active', 'visible'].includes(marketplaceStatus)
     ),
   )
@@ -1669,8 +1696,14 @@ function AdminStudioProfile() {
     setMarketplaceFeedback({ tone: 'neutral', message: '' })
 
     try {
-      await publishStudioMarketplace(currentStudio.id)
+      const publishedState = await publishStudioMarketplace(currentStudio.id)
       setMarketplaceVisibilityOverride('visible')
+      setOwnStudioMarketplaceState((currentState) => ({
+        ...(currentState || {}),
+        ...publishedState,
+        marketplaceStatus: publishedState.visibilityStatus || publishedState.visibility_status || 'visible',
+        marketplace_status: publishedState.visibilityStatus || publishedState.visibility_status || 'visible',
+      }))
       await loadAdminArtists?.().catch(() => null)
       setMarketplaceFeedback({ tone: 'success', message: isStudioMarketplacePublished ? 'Publicacion actualizada.' : 'Estudio publicado en Marketplace.' })
     } catch (error) {
@@ -1687,8 +1720,14 @@ function AdminStudioProfile() {
     setMarketplaceFeedback({ tone: 'neutral', message: '' })
 
     try {
-      await hideStudioMarketplace(currentStudio.id)
+      const hiddenState = await hideStudioMarketplace(currentStudio.id)
       setMarketplaceVisibilityOverride('hidden')
+      setOwnStudioMarketplaceState((currentState) => ({
+        ...(currentState || {}),
+        ...hiddenState,
+        marketplaceStatus: hiddenState.visibilityStatus || hiddenState.visibility_status || 'hidden',
+        marketplace_status: hiddenState.visibilityStatus || hiddenState.visibility_status || 'hidden',
+      }))
       await loadAdminArtists?.().catch(() => null)
       setMarketplaceFeedback({ tone: 'success', message: 'Estudio oculto del Marketplace.' })
     } catch (error) {
