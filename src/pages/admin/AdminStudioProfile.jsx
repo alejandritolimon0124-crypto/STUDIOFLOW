@@ -62,9 +62,9 @@ function getTodayDateValue() {
 function buildVisibleDays(startDateValue) {
   const startDate = parseDateValue(startDateValue)
 
-  return Array.from({ length: 5 }, (_, index) => {
+  return Array.from({ length: 31 }, (_, index) => {
     const date = new Date(startDate)
-    date.setDate(startDate.getDate() + index)
+    date.setDate(startDate.getDate() + index - 15)
     return formatDateValue(date)
   })
 }
@@ -173,8 +173,19 @@ function getMonthEndDate(startDateValue) {
 }
 
 function OwnerDayStrip({ selectedDate, setSelectedDate, visibleDays }) {
+  const stripRef = useRef(null)
+
+  useEffect(() => {
+    try {
+      const activeDay = stripRef.current?.querySelector('.active')
+      activeDay?.scrollIntoView({ block: 'nearest', inline: 'center' })
+    } catch {
+      // Mantiene la tira util aunque algun navegador ignore el centrado suave.
+    }
+  }, [selectedDate])
+
   return (
-    <div className="day-strip">
+    <div className="day-strip scrollable-day-strip" ref={stripRef}>
       {visibleDays.map((dateValue) => {
         const date = parseDateValue(dateValue)
         const dayLabel = date.toLocaleDateString('es-MX', { weekday: 'short' }).substring(0, 3)
@@ -921,7 +932,7 @@ function OwnerAppointmentModal({
               <span className="eyebrow">Artista asignada</span>
               <h4>Selecciona quien atiende la cita</h4>
             </div>
-            <div className="owner-artist-grid">
+            <div className="owner-artist-grid owner-artist-grid-highlight">
               {memberships.length > 0 ? memberships.map((membership) => {
                 const membershipRecordId = getMembershipRecordId(membership)
                 const isSelected = draft.membershipId === membershipRecordId
@@ -2291,7 +2302,7 @@ function AdminStudioProfile() {
                     const isLoadingOperations = membershipOperationsLoadingId === membershipRecordId
 
                     return (
-                      <div className="elevated-row" key={membershipRecordId || membership.id}>
+                      <div className="elevated-row owner-team-agenda-card" key={membershipRecordId || membership.id}>
                         <div className="list-row" style={{ padding: 0 }}>
                           <div className="client-photo-preview" style={{ height: 44, width: 44 }}>
                             {membership.studioPhotoUrl ? (

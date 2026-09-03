@@ -864,7 +864,7 @@ function ArtistDashboard({ view = 'agenda' }) {
                 <span>Anticipacion minima 2 h</span>
                 <span>Descanso 14:00 - 15:00</span>
               </div>
-              <div className="day-strip" ref={dayStripRef}>
+              <div className="day-strip scrollable-day-strip" ref={dayStripRef}>
                 {visibleDays.map((dateValue) => {
                   const d = parseDateValue(dateValue)
                   const dayLabel = d.toLocaleDateString('es-MX', { weekday: 'short' }).substring(0, 3)
