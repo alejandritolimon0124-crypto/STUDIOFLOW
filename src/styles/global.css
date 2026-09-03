@@ -2913,6 +2913,25 @@ select:focus,
   width: 100%;
 }
 
+.client-result-block {
+  display: grid;
+  gap: 8px;
+}
+
+.client-inline-info-panel {
+  background: rgba(255, 250, 247, 0.92);
+  border: 1px solid rgba(214, 186, 177, 0.76);
+  border-radius: 18px;
+  display: grid;
+  gap: 12px;
+  margin: -2px 4px 10px;
+  padding: 12px;
+}
+
+.client-inline-info-panel .panel-header {
+  margin-bottom: 0;
+}
+
 .favorite-directions-panel {
   padding-top: 12px;
 }

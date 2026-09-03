@@ -50,11 +50,22 @@ function ArtistClients() {
 
   useEffect(() => {
     let isActive = true
+    const query = search.trim()
+
+    if (query.length < 2) {
+      setClients([])
+      setSelectedPanel({ client: null, mode: '' })
+      setError('')
+      setIsLoading(false)
+      return () => {
+        isActive = false
+      }
+    }
 
     setIsLoading(true)
     setError('')
 
-    fetchArtistClients({ search, limit: 5, workContext: artistWorkContext })
+    fetchArtistClients({ search: query, limit: 5, workContext: artistWorkContext })
       .then((nextClients) => {
         if (!isActive) return
         setClients(nextClients)
@@ -91,6 +102,8 @@ function ArtistClients() {
         : { client, mode }
     ))
   }
+
+  const closePanel = () => setSelectedPanel({ client: null, mode: '' })
 
   const renderAppointmentRows = (appointments = [], emptyMessage = 'Sin citas para mostrar.') => (
     <div className="compact-list">
@@ -140,23 +153,66 @@ function ArtistClients() {
           )}
 
           {!error && clients.length > 0 && clients.map((client) => (
-            <div className="list-row elevated-row" key={client.id}>
-              <div>
-                <strong>{client.name}</strong>
-                <small>{client.phone || 'Sin celular'} / {client.email || 'Sin email'}</small>
-                <small>{client.totalVisits} visitas / ultima visita {client.lastVisit || 'sin fecha'}</small>
+            <div className="client-result-block" key={client.id}>
+              <div className="list-row elevated-row">
+                <div>
+                  <strong>{client.name}</strong>
+                  <small>{client.phone || 'Sin celular'} / {client.email || 'Sin email'}</small>
+                  <small>{client.totalVisits} visitas / ultima visita {client.lastVisit || 'sin fecha'}</small>
+                </div>
+                <div className="row-actions">
+                  <StatusPill tone="rose">{client.lastVisit || 'Real'}</StatusPill>
+                  <button type="button" onClick={() => openPanel(client, 'appointment')}>Generar cita</button>
+                  <button type="button" onClick={() => openPanel(client, 'upcoming')}>Proxima cita</button>
+                  <button type="button" onClick={() => openPanel(client, 'history')}>Ver historial</button>
+                  <button type="button" onClick={() => openPanel(client, 'profile')}>Ver perfil</button>
+                </div>
               </div>
-              <div className="row-actions">
-                <StatusPill tone="rose">{client.lastVisit || 'Real'}</StatusPill>
-                <button type="button" onClick={() => navigate(paths.artistAppointments, { state: { selectedClient: client } })}>Generar cita</button>
-                <button type="button" onClick={() => openPanel(client, 'upcoming')}>Proxima cita</button>
-                <button type="button" onClick={() => openPanel(client, 'history')}>Ver historial</button>
-                <button type="button" onClick={() => openPanel(client, 'profile')}>Ver perfil</button>
-              </div>
+              {selectedPanel.client?.id === client.id && (
+                <div className="client-inline-info-panel">
+                  <PanelHeader
+                    title={selectedPanel.mode === 'appointment' ? 'Generar cita' : selectedPanel.mode === 'upcoming' ? 'Proxima cita' : selectedPanel.mode === 'history' ? 'Historial' : 'Perfil clienta'}
+                    eyebrow={client.name}
+                    action={<Button size="sm" variant="ghost" onClick={closePanel}>Ocultar info</Button>}
+                  />
+                  {selectedPanel.mode === 'appointment' && (
+                    <div className="compact-list">
+                      <div className="list-row elevated-row">
+                        <div>
+                          <strong>Crear cita para {client.name}</strong>
+                          <small>Abre el formulario con la clienta ya seleccionada.</small>
+                        </div>
+                        <Button size="sm" onClick={() => navigate(paths.artistAppointments, { state: { selectedClient: client } })}>Continuar</Button>
+                      </div>
+                    </div>
+                  )}
+                  {selectedPanel.mode === 'upcoming' && renderAppointmentRows(
+                    getUpcomingAppointments(client).slice(0, 1),
+                    'No hay proxima cita agendada.',
+                  )}
+                  {selectedPanel.mode === 'history' && renderAppointmentRows(
+                    getPastAppointments(client),
+                    'No hay historial para mostrar.',
+                  )}
+                  {selectedPanel.mode === 'profile' && (
+                    <div className="compact-list">
+                      <div className="list-row elevated-row">
+                        <div>
+                          <strong>{client.phone || 'Sin celular'}</strong>
+                          <small>{client.email || 'Sin email'}</small>
+                          <small>Ultima visita: {client.lastVisit || 'sin fecha'}</small>
+                        </div>
+                        <StatusPill tone="success">{client.totalVisits} visitas</StatusPill>
+                      </div>
+                      {renderAppointmentRows(client.history, 'Sin citas registradas.')}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           ))}
 
-          {!error && clients.length === 0 && (
+          {!error && search.trim().length >= 2 && clients.length === 0 && (
             <div className="list-row elevated-row">
               <div>
                 <strong>{isLoading ? 'Cargando clientas...' : 'Sin clientas reales'}</strong>
@@ -171,37 +227,6 @@ function ArtistClients() {
           )}
         </div>
       </Card>
-
-      {selectedPanel.client && (
-        <Card className="mobile-screen">
-          <PanelHeader
-            title={selectedPanel.mode === 'upcoming' ? 'Proxima cita' : selectedPanel.mode === 'history' ? 'Historial' : 'Perfil clienta'}
-            eyebrow={selectedPanel.client.name}
-            action={<Button size="sm" onClick={() => navigate(paths.artistAppointments, { state: { selectedClient: selectedPanel.client } })}>Generar cita</Button>}
-          />
-          {selectedPanel.mode === 'upcoming' && renderAppointmentRows(
-            getUpcomingAppointments(selectedPanel.client).slice(0, 1),
-            'No hay proxima cita agendada.',
-          )}
-          {selectedPanel.mode === 'history' && renderAppointmentRows(
-            getPastAppointments(selectedPanel.client),
-            'No hay historial para mostrar.',
-          )}
-          {selectedPanel.mode === 'profile' && (
-            <div className="compact-list">
-              <div className="list-row elevated-row">
-                <div>
-                  <strong>{selectedPanel.client.phone || 'Sin celular'}</strong>
-                  <small>{selectedPanel.client.email || 'Sin email'}</small>
-                  <small>Ultima visita: {selectedPanel.client.lastVisit || 'sin fecha'}</small>
-                </div>
-                <StatusPill tone="success">{selectedPanel.client.totalVisits} visitas</StatusPill>
-              </div>
-              {renderAppointmentRows(selectedPanel.client.history, 'Sin citas registradas.')}
-            </div>
-          )}
-        </Card>
-      )}
     </main>
   )
 }
