@@ -1025,7 +1025,7 @@ function normalizeOwnerClient(client = {}) {
 
 function isActiveMembership(membership = {}) {
   const status = String(membership.status || '').toLowerCase()
-  return Boolean(membership.active) || ['active', 'activo', 'accepted', 'aceptada', 'approved', 'aprobada'].includes(status)
+  return Boolean(membership.active) || ['active', 'activo'].includes(status)
 }
 
 function getMembershipRecordId(membership = {}) {
@@ -1738,7 +1738,8 @@ function AdminStudioProfile() {
 
   const openOwnerAppointmentModal = async ({ membership = null, slot = null, client = null } = {}) => {
     const normalizedClient = client ? normalizeOwnerClient(client) : null
-    const membershipId = getMembershipRecordId(membership)
+    const fallbackMembership = membership || operationalMemberships[0] || null
+    const membershipId = getMembershipRecordId(fallbackMembership)
 
     setOwnerAppointmentDraft({
       ...emptyOwnerAppointmentDraft,
@@ -1756,7 +1757,7 @@ function AdminStudioProfile() {
     setIsOwnerAppointmentOpen(true)
 
     if (membershipId && !membershipOperationsById[membershipId]) {
-      loadMembershipOperations(membershipId).catch(() => null)
+      await loadMembershipOperations(membershipId).catch(() => null)
     }
   }
 

@@ -22,7 +22,7 @@ function normalizeMembership(membership = {}) {
     status,
     startedAt: membership.startedAt || membership.started_at || null,
     createdAt: membership.createdAt || membership.created_at || null,
-    active: Boolean(membership.active) || ['active', 'activo', 'accepted', 'aceptada', 'approved', 'aprobada'].includes(normalizedStatus),
+    active: Boolean(membership.active) || ['active', 'activo'].includes(normalizedStatus),
   }
 }
 
