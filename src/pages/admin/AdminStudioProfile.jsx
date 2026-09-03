@@ -1824,7 +1824,16 @@ function AdminStudioProfile() {
 
     try {
       const settings = await setStudioDoublePointsPromotion({ active: nextActive, studioId: currentStudio.id })
-      updateStudioMarketingSettings(settings, nextActive ? 'Puntos dobles activos para el estudio.' : 'Puntos dobles pausados.')
+      updateStudioMarketingSettings({
+        ...settings,
+        doublePoints: {
+          ...(settings.doublePoints || {}),
+          type: 'double_points',
+          name: 'Puntos dobles',
+          status: nextActive ? 'active' : 'paused',
+          rules: { ...(settings.doublePoints?.rules || {}), multiplier: 2 },
+        },
+      }, nextActive ? 'Puntos dobles activos para el estudio.' : 'Puntos dobles pausados.')
     } catch (error) {
       setStudioMarketingSettings(previousSettings)
       setStudioMarketingFeedback({ tone: 'warm', message: error.message || 'No se pudo actualizar puntos dobles.' })
@@ -1856,7 +1865,16 @@ function AdminStudioProfile() {
 
     try {
       const settings = await saveStudioHappyHourPromotion({ ...studioHappyHourDraft, active, studioId: currentStudio.id })
-      updateStudioMarketingSettings(settings, active ? 'Happy Hour actualizado para el estudio.' : 'Happy Hour pausado.')
+      updateStudioMarketingSettings({
+        ...settings,
+        happyHour: {
+          ...(settings.happyHour || {}),
+          type: 'happy_hour',
+          name: 'Happy Hour',
+          status: active ? 'active' : 'paused',
+          rules: studioHappyHourDraft,
+        },
+      }, active ? 'Happy Hour actualizado para el estudio.' : 'Happy Hour pausado.')
     } catch (error) {
       setStudioMarketingSettings(previousSettings)
       setStudioMarketingFeedback({ tone: 'warm', message: error.message || 'No se pudo guardar Happy Hour.' })
