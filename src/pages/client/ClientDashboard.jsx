@@ -803,15 +803,15 @@ function ClientDashboard({ view = 'inicio' }) {
     () => deriveMembershipsFromLegacyData({ artists: adminState.artists }),
     [adminState.artists],
   )
-  const getArtistMembership = (artist) => artist?.membership || getMembershipForArtist({
+  const getArtistMembership = (artist) => artist?.membership || (isRealMarketplace ? null : getMembershipForArtist({
     artistId: artist?.artistId || artist?.id,
     artistStudioMemberships,
-  })
-  const getArtistStudio = (artist) => artist?.studio || getStudioForArtist({
+  }))
+  const getArtistStudio = (artist) => artist?.studio || (isRealMarketplace ? null : getStudioForArtist({
     artistId: artist?.artistId || artist?.id,
     studios: adminState.studios,
     artistStudioMemberships,
-  })
+  }))
   const activeArtists = isRealMarketplace
     ? marketplaceListings
     : adminState.artists.filter((artist) => {
@@ -957,7 +957,7 @@ function ClientDashboard({ view = 'inicio' }) {
     () => {
       const normalizeSlots = (slots = []) => {
         const seenSlots = new Set()
-        const selectedArtistId = selectedArtistProfile?.artistId || selectedArtistProfile?.id || ''
+        const selectedArtistId = selectedArtistProfile?.artistId || (isRealMarketplace ? '' : selectedArtistProfile?.id) || ''
         const selectedStudioId = selectedArtistProfile?.studioId || selectedArtistStudio?.id || ''
         const selectedMembershipId = selectedArtistProfile?.membershipId || selectedArtistMembership?.id || ''
         const slotBelongsToSelectedTarget = (slot = {}) => {
@@ -1027,6 +1027,7 @@ function ClientDashboard({ view = 'inicio' }) {
       happyHourOnly,
       selectedArtistMembership?.id,
       selectedArtistProfile?.id,
+      selectedArtistProfile,
       selectedArtistStudio?.id,
     ],
   )
