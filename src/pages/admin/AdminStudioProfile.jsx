@@ -2222,7 +2222,7 @@ function AdminStudioProfile() {
 
   return (
     <main className="dashboard-grid admin-grid profile-foundation-grid">
-      <Card className="wide-card mobile-screen primary-panel">
+      <Card className="wide-card mobile-screen primary-panel studio-owner-screen-card">
         <div className="profile-foundation-stack">
           {confirmationFeedback.message && (
             <div className="list-row elevated-row">

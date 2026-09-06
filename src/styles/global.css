@@ -564,10 +564,17 @@ select:focus,
   grid-column: span 8;
 }
 
+.studio-owner-screen-card {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  padding: 0;
+}
+
 .profile-foundation-stack {
   display: grid;
   gap: 14px;
-  margin-top: 18px;
+  margin-top: 0;
 }
 
 .profile-foundation-card {
@@ -4502,6 +4509,10 @@ select:focus,
     min-width: 0;
     min-height: 0;
     padding: 16px;
+  }
+
+  .studio-owner-screen-card {
+    padding: 0;
   }
 
   .hero-panel,
