@@ -69,6 +69,9 @@ function ArtistLayout() {
     || ''
   const isActiveStudioArtistWorkspace = activeArtistContextType === 'membership'
     || Boolean(artistWorkContext?.membershipId || artistWorkContext?.membership_id || session.activeSessionContext?.membershipId || session.activeSessionContext?.membership_id)
+  const artistSettingsPath = isActiveStudioArtistWorkspace
+    ? `${paths.artistSettings}?context=studio`
+    : `${paths.artistSettings}?context=independent`
   const shouldBlockArtistMarketplace = pathname === paths.artistMarketing && isActiveStudioArtistWorkspace
   const isPendingExperience = !isArtistBlocked && hasStudioContext && !studioAccess.publicAgenda
   const artistReviewTitle = isArtistRejected
@@ -130,7 +133,7 @@ function ArtistLayout() {
           <NavLink to="/artist/appointments">Citas</NavLink>
           <NavLink to="/artist/schedule">Mis horarios</NavLink>
           <NavLink to="/artist/services">Servicios</NavLink>
-          <NavLink to="/artist/settings">MI PERFIL</NavLink>
+          <NavLink to={artistSettingsPath}>MI PERFIL</NavLink>
         </nav>
       </div>
     </DashboardLayout>

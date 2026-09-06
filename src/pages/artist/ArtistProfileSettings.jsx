@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import Button from '../../components/Button'
 import Card from '../../components/Card'
 import Input from '../../components/Input'
@@ -26,6 +26,7 @@ function getStudioScopedPhotoUrl(profile = {}, studioId = '') {
 
 function ArtistProfileSettings() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const {
     artistProfileError,
     artistState,
@@ -68,7 +69,9 @@ function ArtistProfileSettings() {
     || activeStudioMembership?.studioName
     || activeStudioMembership?.studio_name
     || 'Estudio'
-  const isStudioArtistContext = activeContextType === 'membership' || Boolean(activeMembershipId)
+  const requestedProfileContext = searchParams.get('context') || 'independent'
+  const hasActiveStudioArtistContext = activeContextType === 'membership' || Boolean(activeMembershipId)
+  const isStudioArtistContext = requestedProfileContext === 'studio' && hasActiveStudioArtistContext
   const currentStudio = activeStudioId
     ? {
       id: activeStudioId,

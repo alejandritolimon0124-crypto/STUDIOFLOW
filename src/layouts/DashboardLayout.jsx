@@ -233,15 +233,23 @@ function DashboardLayout({ children, role, title, subtitle, showMobileAppbar = t
       || null
     : null
   const isArtistMembershipWorkspace = role === 'artist' && (activeArtistWorkspaceType === 'membership' || Boolean(activeArtistMembershipId))
+  const artistSettingsPath = isArtistMembershipWorkspace
+    ? `${paths.artistSettings}?context=studio`
+    : `${paths.artistSettings}?context=independent`
   const canUseArtistItem = (item) => (
     !(isArtistMembershipWorkspace && item.path === paths.artistMarketing)
   )
+  const resolveArtistNavigationItem = (item) => (
+    role === 'artist' && item.path === paths.artistSettings
+      ? { ...item, path: artistSettingsPath }
+      : item
+  )
   const navigation = isStudioOwnerWorkspace
     ? studioOwnerNavigation
-    : roleNavigation[role].filter(canUseAdminItem).filter(canUseArtistItem)
+    : roleNavigation[role].filter(canUseAdminItem).filter(canUseArtistItem).map(resolveArtistNavigationItem)
   const bottomNavigation = isStudioOwnerWorkspace
     ? studioOwnerBottomNavigation
-    : bottomNavigationByRole[role].filter(canUseAdminItem).filter(canUseArtistItem)
+    : bottomNavigationByRole[role].filter(canUseAdminItem).filter(canUseArtistItem).map(resolveArtistNavigationItem)
   const shouldShowDrawerWorkspaces = role === 'artist'
   const shouldShowDrawerActions = role === 'artist'
   const drawerHomePath = isStudioOwnerWorkspace ? paths.adminStudio : role === 'admin' ? paths.admin : role === 'client' ? paths.client : paths.artist
