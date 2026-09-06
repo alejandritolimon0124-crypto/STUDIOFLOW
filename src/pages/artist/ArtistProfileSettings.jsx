@@ -200,6 +200,7 @@ function ArtistProfileSettings() {
         ...currentDraft,
         professionalLocation: {
           ...currentDraft.professionalLocation,
+          useStudioLocation: false,
           customLocation: {
             ...currentDraft.professionalLocation.customLocation,
             latitude: coordinates.latitude,
@@ -324,7 +325,8 @@ function ArtistProfileSettings() {
       if (Object.keys(nextErrors).length > 0) {
         setLocationErrors(nextErrors)
         nextProfile.professionalLocation = safeArtistProfile.professionalLocation
-      } else if (customLocationHasCoordinates && !isArtistLocationConfirmed) {
+      } else if (customLocationHasCoordinates && !isArtistLocationConfirmed
+        && JSON.stringify(profileDraft.professionalLocation) !== JSON.stringify(sessionArtistProfile.professionalLocation)) {
         setLocationErrors({ latitude: 'Confirma que esta ubicacion corresponde a tu estudio.' })
         setSaveFeedback('Confirma que esta ubicacion corresponde a tu estudio.')
         return

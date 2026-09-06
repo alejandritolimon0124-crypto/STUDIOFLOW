@@ -84,7 +84,7 @@ function profileToPayload(profile = {}, artistId) {
   const customLocation = locationSettings.customLocation || {}
   const bio = cleanText(professionalProfile.shortBio)
   const city = cleanText(customLocation.city)
-  const googleMapsUrl = nullableText(customLocation.googleMapsUrl) || buildGoogleMapsUrl(customLocation) || null
+  const googleMapsUrl = buildGoogleMapsUrl(customLocation) || null
 
   return {
     artist_id: artistId,
@@ -149,6 +149,11 @@ export async function saveArtistProfile({ artistId, profileId, profile }) {
   })
 
   if (error) throw error
+
+  if (!data?.artist_profile?.id
+    || (payload.birthday && data.artist_profile.birthday !== payload.birthday)) {
+    throw new Error('No se pudo verificar el guardado del perfil. Intenta nuevamente.')
+  }
 
   return mapArtistProfileRow(data?.artist_profile)
 }
