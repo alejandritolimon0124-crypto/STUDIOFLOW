@@ -323,7 +323,7 @@ function getServiceOptionsForArtist(artist = {}) {
   })
 }
 
-function PremiumDropdown({ label, value, options, open, onToggle, onChange }) {
+function PremiumDropdown({ label, value, options, open, onToggle, onChange, compact = false }) {
   const safeOptions = options.length > 0
     ? options
     : [{ value: '', label: 'Sin opciones', meta: 'No disponible', disabled: true }]
@@ -367,12 +367,12 @@ function PremiumDropdown({ label, value, options, open, onToggle, onChange }) {
       {open && (
         <div
           style={{
-            alignItems: 'stretch',
+            alignItems: compact ? 'center' : 'stretch',
             background: 'rgba(42, 34, 36, 0.28)',
             bottom: 0,
             display: 'grid',
             left: 0,
-            padding: 'max(14px, env(safe-area-inset-top)) 10px max(10px, env(safe-area-inset-bottom))',
+            padding: compact ? '18px 14px' : 'max(14px, env(safe-area-inset-top)) 10px max(10px, env(safe-area-inset-bottom))',
             position: 'fixed',
             right: 0,
             top: 0,
@@ -389,11 +389,11 @@ function PremiumDropdown({ label, value, options, open, onToggle, onChange }) {
               display: 'grid',
               gap: '10px',
               margin: '0 auto',
-              maxHeight: '100%',
-              maxWidth: '720px',
+              maxHeight: compact ? 'none' : '100%',
+              maxWidth: compact ? '420px' : '720px',
               overflowY: 'auto',
-              padding: '18px 16px',
-              width: 'min(100%, 720px)',
+              padding: compact ? '16px' : '18px 16px',
+              width: compact ? 'min(100%, 420px)' : 'min(100%, 720px)',
             }}
             onClick={(event) => event.stopPropagation()}
           >
@@ -443,11 +443,11 @@ function PremiumDropdown({ label, value, options, open, onToggle, onChange }) {
                   color: 'var(--ink)',
                   display: 'grid',
                   font: 'inherit',
-                  fontSize: '18px',
+                  fontSize: compact ? '16px' : '18px',
                   fontWeight: option.value === value ? 900 : 750,
                   gap: '4px',
-                  minHeight: '66px',
-                  padding: '14px 16px',
+                  minHeight: compact ? '50px' : '66px',
+                  padding: compact ? '10px 14px' : '14px 16px',
                   textAlign: 'left',
                   width: '100%',
                 }}
@@ -2309,6 +2309,7 @@ function ClientDashboard({ view = 'inicio' }) {
                 label="Buscar por"
                 value={searchMode}
                 open={openDropdown === 'searchMode'}
+                compact
                 onToggle={() => setOpenDropdown(openDropdown === 'searchMode' ? null : 'searchMode')}
                 onChange={(nextMode) => {
                   setSearchMode(nextMode)
