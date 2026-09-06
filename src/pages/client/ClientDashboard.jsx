@@ -365,41 +365,21 @@ function PremiumDropdown({ label, value, options, open, onToggle, onChange }) {
         </span>
       </button>
       {open && (
-        <button
-          aria-label="Cerrar selector"
-          type="button"
-          onClick={onToggle}
-          style={{
-            background: 'rgba(42, 34, 36, 0.28)',
-            border: 0,
-            bottom: 0,
-            left: 0,
-            position: 'fixed',
-            right: 0,
-            top: 0,
-            zIndex: 90,
-          }}
-        />
-      )}
-      {open && (
         <div
           style={{
             background: 'rgba(255, 251, 248, 0.98)',
             border: '1px solid rgba(214, 186, 177, 0.7)',
-            borderRadius: '24px 24px 0 0',
-            bottom: 0,
-            boxShadow: '0 -22px 54px rgba(45, 37, 39, 0.22)',
+            borderRadius: '20px',
+            boxShadow: '0 18px 42px rgba(45, 37, 39, 0.16)',
             display: 'grid',
             gap: '10px',
-            left: '50%',
-            maxHeight: '72vh',
-            maxWidth: '720px',
+            marginTop: '10px',
+            maxHeight: '360px',
             overflowY: 'auto',
-            padding: '18px 16px max(18px, env(safe-area-inset-bottom))',
-            position: 'fixed',
-            transform: 'translateX(-50%)',
-            width: 'min(100vw, 720px)',
-            zIndex: 100,
+            padding: '14px',
+            position: 'relative',
+            width: '100%',
+            zIndex: 5,
           }}
         >
           <div style={{
