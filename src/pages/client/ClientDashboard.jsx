@@ -367,80 +367,96 @@ function PremiumDropdown({ label, value, options, open, onToggle, onChange }) {
       {open && (
         <div
           style={{
-            background: 'rgba(255, 251, 248, 0.98)',
-            border: '1px solid rgba(214, 186, 177, 0.7)',
-            borderRadius: '20px',
-            boxShadow: '0 18px 42px rgba(45, 37, 39, 0.16)',
+            alignItems: 'end',
+            background: 'rgba(42, 34, 36, 0.28)',
+            bottom: 0,
             display: 'grid',
-            gap: '10px',
-            marginTop: '10px',
-            maxHeight: '360px',
-            overflowY: 'auto',
-            padding: '14px',
-            position: 'relative',
-            width: '100%',
-            zIndex: 5,
+            left: 0,
+            padding: '18px 12px 0',
+            position: 'fixed',
+            right: 0,
+            top: 0,
+            zIndex: 100,
           }}
+          onClick={onToggle}
         >
-          <div style={{
-            alignItems: 'center',
-            borderBottom: '1px solid rgba(214, 186, 177, 0.52)',
-            display: 'flex',
-            justifyContent: 'space-between',
-            padding: '0 4px 12px',
-          }}>
-            <div>
-              <strong style={{ display: 'block', fontSize: '18px' }}>{label}</strong>
-              <small style={{ color: 'var(--muted)', fontWeight: 800 }}>Selecciona una opción</small>
+          <div
+            style={{
+              background: 'rgba(255, 251, 248, 0.98)',
+              border: '1px solid rgba(214, 186, 177, 0.7)',
+              borderRadius: '28px 28px 0 0',
+              boxShadow: '0 -22px 54px rgba(45, 37, 39, 0.22)',
+              display: 'grid',
+              gap: '10px',
+              margin: '0 auto',
+              maxHeight: '82vh',
+              maxWidth: '720px',
+              overflowY: 'auto',
+              padding: '18px 16px max(18px, env(safe-area-inset-bottom))',
+              width: 'min(100%, 720px)',
+            }}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div style={{
+              alignItems: 'center',
+              borderBottom: '1px solid rgba(214, 186, 177, 0.52)',
+              display: 'flex',
+              justifyContent: 'space-between',
+              padding: '0 4px 12px',
+            }}>
+              <div>
+                <strong style={{ display: 'block', fontSize: '20px' }}>{label}</strong>
+                <small style={{ color: 'var(--muted)', fontWeight: 800 }}>Selecciona una opción</small>
+              </div>
+              <button
+                type="button"
+                onClick={onToggle}
+                style={{
+                  background: 'rgba(245, 221, 223, 0.72)',
+                  border: '1px solid rgba(201, 135, 145, 0.24)',
+                  borderRadius: '999px',
+                  color: 'var(--rose-dark)',
+                  font: 'inherit',
+                  fontSize: '18px',
+                  fontWeight: 900,
+                  height: '42px',
+                  width: '42px',
+                }}
+              >
+                x
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={onToggle}
-              style={{
-                background: 'rgba(245, 221, 223, 0.72)',
-                border: '1px solid rgba(201, 135, 145, 0.24)',
-                borderRadius: '999px',
-                color: 'var(--rose-dark)',
-                font: 'inherit',
-                fontSize: '18px',
-                fontWeight: 900,
-                height: '42px',
-                width: '42px',
-              }}
-            >
-              x
-            </button>
+            {safeOptions.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                disabled={option.disabled}
+                onClick={() => {
+                  if (option.disabled) return
+                  onChange(option.value)
+                  onToggle()
+                }}
+                style={{
+                  background: option.value === value ? 'rgba(229, 177, 168, 0.2)' : 'transparent',
+                  border: option.value === value ? '1px solid rgba(141, 79, 90, 0.28)' : '1px solid rgba(234, 223, 218, 0.78)',
+                  borderRadius: '16px',
+                  color: 'var(--ink)',
+                  display: 'grid',
+                  font: 'inherit',
+                  fontSize: '18px',
+                  fontWeight: option.value === value ? 900 : 750,
+                  gap: '4px',
+                  minHeight: '66px',
+                  padding: '14px 16px',
+                  textAlign: 'left',
+                  width: '100%',
+                }}
+              >
+                {option.label}
+                {option.meta && <small style={{ color: 'var(--muted)', fontSize: '14px', fontWeight: 800 }}>{option.meta}</small>}
+              </button>
+            ))}
           </div>
-          {safeOptions.map((option) => (
-            <button
-              key={option.value}
-              type="button"
-              disabled={option.disabled}
-              onClick={() => {
-                if (option.disabled) return
-                onChange(option.value)
-                onToggle()
-              }}
-              style={{
-                background: option.value === value ? 'rgba(229, 177, 168, 0.2)' : 'transparent',
-                border: option.value === value ? '1px solid rgba(141, 79, 90, 0.28)' : '1px solid rgba(234, 223, 218, 0.78)',
-                borderRadius: '16px',
-                color: 'var(--ink)',
-                display: 'grid',
-                font: 'inherit',
-                fontSize: '17px',
-                fontWeight: option.value === value ? 900 : 750,
-                gap: '4px',
-                minHeight: '62px',
-                padding: '14px 16px',
-                textAlign: 'left',
-                width: '100%',
-              }}
-            >
-              {option.label}
-              {option.meta && <small style={{ color: 'var(--muted)', fontSize: '14px', fontWeight: 800 }}>{option.meta}</small>}
-            </button>
-          ))}
         </div>
       )}
     </div>
