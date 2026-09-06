@@ -386,7 +386,9 @@ function PremiumDropdown({ label, value, options, open, onToggle, onChange, comp
               border: '1px solid rgba(214, 186, 177, 0.7)',
               borderRadius: '24px',
               boxShadow: '0 22px 58px rgba(45, 37, 39, 0.22)',
+              alignContent: 'start',
               display: 'grid',
+              gridAutoRows: 'max-content',
               gap: '10px',
               margin: '0 auto',
               maxHeight: compact ? 'none' : '100%',
@@ -441,6 +443,7 @@ function PremiumDropdown({ label, value, options, open, onToggle, onChange, comp
                   border: option.value === value ? '1px solid rgba(141, 79, 90, 0.28)' : '1px solid rgba(234, 223, 218, 0.78)',
                   borderRadius: '16px',
                   color: 'var(--ink)',
+                  alignContent: 'center',
                   display: 'grid',
                   font: 'inherit',
                   fontSize: compact ? '16px' : '18px',
@@ -1732,7 +1735,7 @@ function ClientDashboard({ view = 'inicio' }) {
           </div>
         )}
         <PremiumDropdown
-          label="Servicio primario"
+          label="Elige una categoria"
           value={selectedArtistPrimaryService}
           open={openDropdown === `${dropdownPrefix}PrimaryService`}
           onToggle={() => setOpenDropdown(openDropdown === `${dropdownPrefix}PrimaryService` ? null : `${dropdownPrefix}PrimaryService`)}
@@ -1744,7 +1747,7 @@ function ClientDashboard({ view = 'inicio' }) {
           }))}
         />
         <PremiumDropdown
-          label="Servicio secundario"
+          label="Elige el servicio que quieres agendar"
           value={selectedMarketplaceServiceName}
           open={openDropdown === `${dropdownPrefix}SecondaryService`}
           onToggle={() => setOpenDropdown(openDropdown === `${dropdownPrefix}SecondaryService` ? null : `${dropdownPrefix}SecondaryService`)}
@@ -2606,7 +2609,7 @@ function ClientDashboard({ view = 'inicio' }) {
 
                         <div className="form-stack compact-form public-booking-flow">
                           <PremiumDropdown
-                            label="Servicio primario"
+                            label="Elige una categoria"
                             value={selectedArtistPrimaryService}
                             open={openDropdown === 'profilePrimaryService'}
                             onToggle={() => setOpenDropdown(openDropdown === 'profilePrimaryService' ? null : 'profilePrimaryService')}
@@ -2618,7 +2621,7 @@ function ClientDashboard({ view = 'inicio' }) {
                             }))}
                           />
                           <PremiumDropdown
-                            label="Servicio secundario"
+                            label="Elige el servicio que quieres agendar"
                             value={selectedMarketplaceServiceName}
                             open={openDropdown === 'profileSecondaryService'}
                             onToggle={() => setOpenDropdown(openDropdown === 'profileSecondaryService' ? null : 'profileSecondaryService')}
@@ -3004,7 +3007,7 @@ function ClientDashboard({ view = 'inicio' }) {
 
                           <div className="form-stack compact-form public-booking-flow">
                             <PremiumDropdown
-                              label="Servicio primario"
+                              label="Elige una categoria"
                               value={selectedArtistPrimaryService}
                               open={openDropdown === 'favoriteProfilePrimaryService'}
                               onToggle={() => setOpenDropdown(openDropdown === 'favoriteProfilePrimaryService' ? null : 'favoriteProfilePrimaryService')}
@@ -3016,7 +3019,7 @@ function ClientDashboard({ view = 'inicio' }) {
                               }))}
                             />
                             <PremiumDropdown
-                              label="Servicio secundario"
+                              label="Elige el servicio que quieres agendar"
                               value={selectedMarketplaceServiceName}
                               open={openDropdown === 'favoriteProfileSecondaryService'}
                               onToggle={() => setOpenDropdown(openDropdown === 'favoriteProfileSecondaryService' ? null : 'favoriteProfileSecondaryService')}
