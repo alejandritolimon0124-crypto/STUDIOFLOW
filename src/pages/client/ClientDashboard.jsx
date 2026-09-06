@@ -330,7 +330,7 @@ function PremiumDropdown({ label, value, options, open, onToggle, onChange, comp
   const selectedOption = safeOptions.find((option) => option.value === value) || safeOptions[0]
 
   return (
-    <div className="input-field" style={{ position: 'relative' }}>
+    <div className="input-field premium-dropdown-field" style={{ position: 'relative' }}>
       <span>{label}</span>
       <button
         type="button"
@@ -2306,7 +2306,7 @@ function ClientDashboard({ view = 'inicio' }) {
             </section>
             <div className="form-stack compact-form">
               <PremiumDropdown
-                label="Buscar por"
+                label="Busca tu artista o el servicio que necesitas"
                 value={searchMode}
                 open={openDropdown === 'searchMode'}
                 compact
@@ -2323,7 +2323,7 @@ function ClientDashboard({ view = 'inicio' }) {
               {searchMode === 'Servicio' ? (
                 <>
                   <PremiumDropdown
-                    label="Servicio primario"
+                    label="Elige una categoria"
                     value={primaryService}
                     open={openDropdown === 'primaryService'}
                     onToggle={() => setOpenDropdown(openDropdown === 'primaryService' ? null : 'primaryService')}
@@ -2339,7 +2339,7 @@ function ClientDashboard({ view = 'inicio' }) {
                     }))}
                   />
                   <PremiumDropdown
-                    label="Servicio secundario"
+                    label="Elige el servicio que quieres agendar"
                     value={secondaryService}
                     open={openDropdown === 'secondaryService'}
                     onToggle={() => setOpenDropdown(openDropdown === 'secondaryService' ? null : 'secondaryService')}

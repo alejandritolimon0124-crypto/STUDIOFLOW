@@ -443,6 +443,13 @@ p {
   font-weight: 700;
 }
 
+.premium-dropdown-field > span {
+  color: var(--ink);
+  font-size: 18px;
+  font-weight: 950;
+  line-height: 1.25;
+}
+
 input,
 select,
 .input-field textarea {
