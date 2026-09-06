@@ -770,6 +770,7 @@ function ClientDashboard({ view = 'inicio' }) {
   const [bookingDate, setBookingDate] = useState(getTodayDateValue)
   const [profileDraft, setProfileDraft] = useState(clientState.profile)
   const [profileError, setProfileError] = useState('')
+  const [isProfileSaving, setIsProfileSaving] = useState(false)
   const [searchMode, setSearchMode] = useState('Servicio')
   const [primaryService, setPrimaryService] = useState('Pestañas')
   const [secondaryService, setSecondaryService] = useState(searchServices.Pestañas[0].name)
@@ -1107,9 +1108,9 @@ function ClientDashboard({ view = 'inicio' }) {
     ...(hasRealClientSession ? {} : artistClientProfile),
     id: clientLookupId || clientState.profile?.id || '',
     profileId: sessionProfile.id || clientState.profile?.profileId || '',
-    name: sessionClientName || clientState.profile?.name || artistClientProfile?.name,
-    email: sessionClientEmail || clientState.profile?.email || artistClientProfile?.email,
-    phone: sessionClientPhone || clientState.profile?.phone || artistClientProfile?.phone,
+    name: clientState.profile?.name || sessionClientName || artistClientProfile?.name,
+    email: clientState.profile?.email || sessionClientEmail || artistClientProfile?.email,
+    phone: clientState.profile?.phone || sessionClientPhone || artistClientProfile?.phone,
     birthday: clientState.profile?.birthday || '',
     notes: clientState.profile?.notes || artistClientProfile?.notes,
     photoUrl: clientState.profile?.photoUrl || '',
@@ -1148,6 +1149,8 @@ function ClientDashboard({ view = 'inicio' }) {
       city: currentClient.city || '',
       state: currentClient.state || '',
       postalCode: currentClient.postalCode || '',
+      notes: currentClient.notes || '',
+      photoUrl: currentClient.photoUrl || '',
     }))
   }, [
     hasRealClientSession,
@@ -1162,6 +1165,8 @@ function ClientDashboard({ view = 'inicio' }) {
     currentClient.city,
     currentClient.state,
     currentClient.postalCode,
+    currentClient.notes,
+    currentClient.photoUrl,
   ])
   const handleClientPhotoChange = (event) => {
     const file = event.target.files?.[0]
@@ -1171,7 +1176,6 @@ function ClientDashboard({ view = 'inicio' }) {
     reader.onload = () => {
       const photoUrl = String(reader.result || '')
       setProfileDraft((currentDraft) => ({ ...currentDraft, photoUrl }))
-      updateClientProfile({ photoUrl })
     }
     reader.readAsDataURL(file)
     event.target.value = ''
@@ -1179,10 +1183,10 @@ function ClientDashboard({ view = 'inicio' }) {
 
   const removeClientPhoto = () => {
     setProfileDraft((currentDraft) => ({ ...currentDraft, photoUrl: '' }))
-    updateClientProfile({ photoUrl: '' })
   }
 
   const saveClientProfile = async () => {
+    if (isProfileSaving) return
     const birthdayError = validateBirthDate(profileDraft.birthday)
     if (birthdayError) {
       setProfileError(birthdayError)
@@ -1190,9 +1194,16 @@ function ClientDashboard({ view = 'inicio' }) {
     }
 
     setProfileError('')
-    const savedProfile = await updateClientProfile(profileDraft)
-    setProfileDraft((currentDraft) => ({ ...currentDraft, ...savedProfile }))
-    setProfileError('Perfil guardado.')
+    setIsProfileSaving(true)
+    try {
+      const savedProfile = await updateClientProfile(profileDraft)
+      setProfileDraft((currentDraft) => ({ ...currentDraft, ...savedProfile }))
+      setProfileError('Perfil guardado.')
+    } catch (error) {
+      setProfileError(error.message || 'No se pudo guardar el perfil. Intenta nuevamente.')
+    } finally {
+      setIsProfileSaving(false)
+    }
   }
 
   const detectClientLocation = async () => {
@@ -3252,7 +3263,9 @@ function ClientDashboard({ view = 'inicio' }) {
                     {profileError}
                   </small>
                 )}
-                <Button className="full-width" onClick={saveClientProfile}>Guardar perfil</Button>
+                <Button className="full-width" disabled={isProfileSaving || locationDetection.status === 'loading'} onClick={saveClientProfile}>
+                  {isProfileSaving ? 'Guardando perfil...' : 'Guardar perfil'}
+                </Button>
               </div>
             </Card>
             <Card className="mobile-screen">

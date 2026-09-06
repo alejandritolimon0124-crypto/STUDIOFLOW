@@ -27,6 +27,8 @@ export async function fetchOwnClientProfile() {
 
   if (error) throw error
 
+  if (!data?.client?.id) throw new Error('No se pudo verificar el perfil guardado.')
+
   return normalizeClientProfilePayload(data)
 }
 
@@ -37,6 +39,8 @@ export async function updateOwnClientProfile(patch = {}) {
   })
 
   if (error) throw error
+
+  if (!data?.client?.id) throw new Error('No se pudo verificar el perfil guardado.')
 
   return normalizeClientProfilePayload(data)
 }

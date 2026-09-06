@@ -1,4 +1,4 @@
-const GEOLOCATION_TIMEOUT_MS = 12000
+const GEOLOCATION_TIMEOUT_MS = 20000
 
 export function isBrowserGeolocationAvailable() {
   return typeof navigator !== 'undefined' && Boolean(navigator.geolocation)
@@ -15,30 +15,44 @@ export function getCurrentBrowserCoordinates() {
   }
 
   return new Promise((resolve, reject) => {
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
+    let watchId
+    let bestPosition
+    const finish = (error) => {
+      clearTimeout(timer)
+      if (watchId !== undefined) navigator.geolocation.clearWatch(watchId)
+      if (bestPosition && bestPosition.coords.accuracy <= 200) {
         resolve({
-          latitude: formatDetectedCoordinate(position.coords.latitude),
-          longitude: formatDetectedCoordinate(position.coords.longitude),
+          latitude: formatDetectedCoordinate(bestPosition.coords.latitude),
+          longitude: formatDetectedCoordinate(bestPosition.coords.longitude),
+          accuracy: Math.round(bestPosition.coords.accuracy),
         })
+      } else {
+        reject(error || new Error('La ubicacion recibida es poco precisa. Activa la ubicacion precisa del dispositivo e intenta nuevamente.'))
+      }
+    }
+    const timer = setTimeout(() => finish(), GEOLOCATION_TIMEOUT_MS)
+    watchId = navigator.geolocation.watchPosition(
+      (position) => {
+        if (!bestPosition || position.coords.accuracy < bestPosition.coords.accuracy) bestPosition = position
+        if (position.coords.accuracy <= 50) finish()
       },
       (error) => {
         if (error.code === error.PERMISSION_DENIED) {
-          reject(new Error('Permite el acceso a tu ubicacion para detectar las coordenadas.'))
+          finish(new Error('Permite el acceso a tu ubicacion para detectar las coordenadas.'))
           return
         }
 
         if (error.code === error.POSITION_UNAVAILABLE) {
-          reject(new Error('No se pudo detectar tu ubicacion actual.'))
+          finish(new Error('No se pudo detectar tu ubicacion actual.'))
           return
         }
 
         if (error.code === error.TIMEOUT) {
-          reject(new Error('La deteccion de ubicacion tardo demasiado.'))
+          finish(new Error('La deteccion de ubicacion tardo demasiado.'))
           return
         }
 
-        reject(new Error('No se pudo usar la ubicacion actual.'))
+        finish(new Error('No se pudo usar la ubicacion actual.'))
       },
       {
         enableHighAccuracy: true,

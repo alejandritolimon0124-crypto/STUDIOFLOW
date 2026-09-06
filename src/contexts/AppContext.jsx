@@ -2571,15 +2571,14 @@ export function AppProvider({ children }) {
   }, [])
 
   const updateClientProfile = useCallback(async (updates) => {
-    setClientState((currentState) => ({
-      ...currentState,
-      profile: {
-        ...currentState.profile,
-        ...updates,
-      },
-    }))
-
-    if (session.isMockSession || session.role !== ROLES.CLIENT) return updates
+    if (session.isMockSession) {
+      setClientState((currentState) => ({
+        ...currentState,
+        profile: { ...currentState.profile, ...updates },
+      }))
+      return updates
+    }
+    if (session.role !== ROLES.CLIENT) throw new Error('Ingresa al perfil de clienta para guardar los cambios.')
 
     try {
       const savedProfile = await updateOwnClientProfile(updates)
@@ -2593,7 +2592,7 @@ export function AppProvider({ children }) {
       return savedProfile
     } catch (error) {
       console.error('[Studio Flow] Client profile sync failed', error)
-      return updates
+      throw error
     }
   }, [session.isMockSession, session.role])
 
