@@ -367,7 +367,7 @@ function PremiumDropdown({ label, value, options, open, onToggle, onChange, comp
       {open && (
         <div
           style={{
-            alignItems: compact ? 'center' : 'stretch',
+            alignItems: 'center',
             background: 'rgba(42, 34, 36, 0.28)',
             bottom: 0,
             display: 'grid',
@@ -391,9 +391,12 @@ function PremiumDropdown({ label, value, options, open, onToggle, onChange, comp
               gridAutoRows: 'max-content',
               gap: '10px',
               margin: '0 auto',
-              maxHeight: compact ? 'none' : '100%',
+              boxSizing: 'border-box',
+              minHeight: 0,
+              maxHeight: 'min(85dvh, 100%)',
               maxWidth: compact ? '420px' : '720px',
               overflowY: 'auto',
+              overscrollBehavior: 'contain',
               padding: compact ? '16px' : '18px 16px',
               width: compact ? 'min(100%, 420px)' : 'min(100%, 720px)',
             }}
