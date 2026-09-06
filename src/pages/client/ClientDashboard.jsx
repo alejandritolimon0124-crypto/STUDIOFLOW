@@ -367,16 +367,9 @@ function PremiumDropdown({ label, value, options, open, onToggle, onChange, comp
       {open && (
         <div
           style={{
-            alignItems: 'center',
-            background: 'rgba(42, 34, 36, 0.28)',
-            bottom: 0,
             display: 'grid',
-            left: 0,
-            padding: compact ? '18px 14px' : 'max(14px, env(safe-area-inset-top)) 10px max(10px, env(safe-area-inset-bottom))',
-            position: 'fixed',
-            right: 0,
-            top: 0,
-            zIndex: 100,
+            minWidth: 0,
+            width: '100%',
           }}
           onClick={onToggle}
         >
@@ -393,12 +386,12 @@ function PremiumDropdown({ label, value, options, open, onToggle, onChange, comp
               margin: '0 auto',
               boxSizing: 'border-box',
               minHeight: 0,
-              maxHeight: 'min(85dvh, 100%)',
-              maxWidth: compact ? '420px' : '720px',
+              maxHeight: '55dvh',
+              maxWidth: '100%',
               overflowY: 'auto',
               overscrollBehavior: 'contain',
               padding: compact ? '16px' : '18px 16px',
-              width: compact ? 'min(100%, 420px)' : 'min(100%, 720px)',
+              width: '100%',
             }}
             onClick={(event) => event.stopPropagation()}
           >
