@@ -69,9 +69,7 @@ function ArtistLayout() {
     || ''
   const isActiveStudioArtistWorkspace = activeArtistContextType === 'membership'
     || Boolean(artistWorkContext?.membershipId || artistWorkContext?.membership_id || session.activeSessionContext?.membershipId || session.activeSessionContext?.membership_id)
-  const artistSettingsPath = isActiveStudioArtistWorkspace
-    ? `${paths.artistSettings}?context=studio`
-    : `${paths.artistSettings}?context=independent`
+  const artistSettingsPath = `${paths.artistSettings}?context=independent`
   const shouldBlockArtistMarketplace = pathname === paths.artistMarketing && isActiveStudioArtistWorkspace
   const isPendingExperience = !isArtistBlocked && hasStudioContext && !studioAccess.publicAgenda
   const artistReviewTitle = isArtistRejected

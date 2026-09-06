@@ -233,9 +233,7 @@ function DashboardLayout({ children, role, title, subtitle, showMobileAppbar = t
       || null
     : null
   const isArtistMembershipWorkspace = role === 'artist' && (activeArtistWorkspaceType === 'membership' || Boolean(activeArtistMembershipId))
-  const artistSettingsPath = isArtistMembershipWorkspace
-    ? `${paths.artistSettings}?context=studio`
-    : `${paths.artistSettings}?context=independent`
+  const artistSettingsPath = `${paths.artistSettings}?context=independent`
   const canUseArtistItem = (item) => (
     !(isArtistMembershipWorkspace && item.path === paths.artistMarketing)
   )

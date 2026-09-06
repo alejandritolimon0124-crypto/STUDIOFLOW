@@ -193,8 +193,10 @@ function createSessionFromAuthContext(authSession, authContext = {}) {
   const roles = getRoleAssignments(authContext)
   const activeRoleAssignment = roles.find((assignment) => assignment.role === role) || roles[0]
   const memberships = Array.isArray(authContext.memberships) ? authContext.memberships : []
-  const activeMembership = memberships[0]
-  const studioId = activeRoleAssignment?.studioId || activeRoleAssignment?.studio_id || activeMembership?.studioId || activeMembership?.studio_id || null
+  const activeMembership = role === ROLES.ARTIST ? null : memberships[0]
+  const studioId = role === ROLES.ARTIST
+    ? null
+    : activeRoleAssignment?.studioId || activeRoleAssignment?.studio_id || activeMembership?.studioId || activeMembership?.studio_id || null
   const artistId = authContext.artist?.id || null
   const clientId = authContext.client?.id || null
 
@@ -220,6 +222,7 @@ function createSessionFromAuthContext(authSession, authContext = {}) {
     memberships,
     activeSessionContext: {
       role,
+      contextType: role === ROLES.ARTIST ? 'artist' : undefined,
       studioId,
       artistId,
       clientId,
@@ -844,12 +847,16 @@ export function AppProvider({ children }) {
     fetchArtistWorkContexts()
       .then((contexts) => {
         if (!isMounted) return
-        const nextContexts = contexts.length ? contexts : [fallbackArtistWorkContext]
+        const contextsWithIndependentFirst = [
+          fallbackArtistWorkContext,
+          ...contexts.filter((context) => normalizeWorkContextId(context) !== normalizeWorkContextId(fallbackArtistWorkContext)),
+        ]
+        const nextContexts = contexts.length ? contextsWithIndependentFirst : [fallbackArtistWorkContext]
         setArtistWorkContexts(nextContexts)
         setArtistWorkContextId((currentId) => (
           nextContexts.some((context) => normalizeWorkContextId(context) === currentId)
             ? currentId
-            : normalizeWorkContextId(nextContexts[0])
+            : normalizeWorkContextId(fallbackArtistWorkContext)
         ))
       })
       .catch(() => {
