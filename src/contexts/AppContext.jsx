@@ -1375,7 +1375,7 @@ export function AppProvider({ children }) {
         ...savedSettings,
         bookedSlots: currentSettings.bookedSlots,
       }))
-      setArtistScheduleStatus(`Horarios guardados. ${savedSettings.availabilitySlotsGenerated || 0} slots generados.`)
+      setArtistScheduleStatus('Agenda actualizada con éxito')
 
       return savedSettings
     } catch (error) {

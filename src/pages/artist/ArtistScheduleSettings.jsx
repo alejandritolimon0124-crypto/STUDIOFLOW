@@ -52,12 +52,10 @@ function ArtistScheduleSettings() {
           {(artistScheduleError || artistScheduleStatus) && (
             <div className="list-row elevated-row" style={{ marginBottom: '14px' }}>
               <div>
-                <strong>{artistScheduleError ? 'No se pudieron guardar horarios' : 'Agenda sincronizada'}</strong>
-                <small>{artistScheduleError || artistScheduleStatus}</small>
+                <strong>{artistScheduleError ? 'No se pudieron guardar horarios' : artistScheduleStatus}</strong>
+                {artistScheduleError && <small>{artistScheduleError}</small>}
               </div>
-              <StatusPill tone={artistScheduleError ? 'warning' : 'success'}>
-                {artistScheduleError ? 'Error' : 'Supabase'}
-              </StatusPill>
+              {artistScheduleError && <StatusPill tone="warning">Error</StatusPill>}
             </div>
           )}
           <div className="list-row elevated-row" style={{ marginBottom: '14px' }}>
