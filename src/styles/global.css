@@ -443,6 +443,41 @@ p {
   font-weight: 700;
 }
 
+.password-input-wrapper {
+  display: block;
+  position: relative;
+  min-width: 0;
+}
+
+.password-input-wrapper input {
+  box-sizing: border-box;
+  width: 100%;
+  padding-right: 52px;
+}
+
+.password-visibility-toggle {
+  position: absolute;
+  right: 2px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--rose-dark);
+  cursor: pointer;
+}
+
+.password-visibility-toggle:focus-visible {
+  outline: 2px solid var(--rose-dark);
+  outline-offset: -3px;
+}
+
 .premium-dropdown-field > span {
   color: var(--ink);
   font-size: 18px;
