@@ -1,4 +1,5 @@
 import { requireSupabase } from '../lib/supabaseClient'
+import { fetchAdminClients } from './adminClientService'
 
 const studioOwnerTimeZone = 'America/Mexico_City'
 
@@ -138,14 +139,19 @@ export async function fetchStudioOwnerAppointmentClients({ studioId, query = '',
 
   if (error) throw error
 
+  const profiles = await fetchAdminClients()
+  const profilesById = new Map(profiles.map((profile) => [profile.id, profile]))
   const normalizedQuery = String(query || '').trim().toLowerCase()
   const clientsById = new Map()
 
   ;(data || []).forEach((appointment) => {
-    const appointmentClient = normalizeClient(appointment.client || {})
+    const appointmentClient = normalizeClient({
+      ...(appointment.client || {}),
+      ...profilesById.get(appointment.client?.id),
+    })
     if (!appointmentClient.id) return
 
-    const searchable = `${appointmentClient.name} ${appointmentClient.fullName} ${appointmentClient.email}`.toLowerCase()
+    const searchable = `${appointmentClient.name} ${appointmentClient.fullName} ${appointmentClient.email} ${appointmentClient.phone}`.toLowerCase()
     if (normalizedQuery && !searchable.includes(normalizedQuery)) return
 
     const existingClient = clientsById.get(appointmentClient.id)
