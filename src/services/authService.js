@@ -60,6 +60,12 @@ export async function signInWithGoogle() {
 
 export async function signUpWithPassword({ email, password, displayName, phone, defaultRole, metadata = {} }) {
   const client = requireSupabase()
+  const { data: phoneAvailable, error: phoneError } = await client.rpc('studio_flow_check_registration_phone', {
+    p_phone: phone,
+    p_role: defaultRole,
+  })
+  if (phoneError) throw phoneError
+  if (!phoneAvailable) throw new Error('Ese número ya está en uso por otro perfil')
   const payload = {
     email: String(email || '').trim().toLowerCase(),
     password,

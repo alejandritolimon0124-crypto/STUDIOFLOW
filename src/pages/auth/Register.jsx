@@ -85,8 +85,8 @@ function Register() {
       }
 
       navigate(paths.client)
-    } catch {
-      setLocalError('No se pudo crear la cuenta cliente.')
+    } catch (error) {
+      setLocalError(error.message || 'No se pudo crear la cuenta cliente.')
     }
   }
 
@@ -108,8 +108,8 @@ function Register() {
       }
 
       navigate(paths.artistSettings)
-    } catch {
-      setLocalError('No se pudo crear la cuenta artista.')
+    } catch (error) {
+      setLocalError(error.message || 'No se pudo crear la cuenta artista.')
     }
   }
 
