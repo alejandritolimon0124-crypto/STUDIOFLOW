@@ -1844,6 +1844,12 @@ function ClientDashboard({ view = 'inicio' }) {
         {view === 'inicio' && (
           <>
             <section className="hero-panel client-hero mobile-screen">
+              <div>
+                <div className="client-hero-heading">
+                  <div className="client-hero-identity">
+                    <span className="client-hero-greeting">Hola</span>
+                    <strong className="client-hero-name">{currentClient.name}</strong>
+                  </div>
               <div className="client-hero-photo">
                 {currentClient.photoUrl ? (
                   <img src={currentClient.photoUrl} alt={`Foto de ${currentClient.name}`} />
@@ -1851,9 +1857,7 @@ function ClientDashboard({ view = 'inicio' }) {
                   <span>Agregar foto</span>
                 )}
               </div>
-              <div>
-                <span className="client-hero-greeting">Hola</span>
-                <strong className="client-hero-name">{currentClient.name}</strong>
+                </div>
                 <h2>Tu universo beauty premium</h2>
                 <div className="hero-actions">
                   <Button onClick={() => navigate(paths.clientExplore)}>Agendar ahora</Button>

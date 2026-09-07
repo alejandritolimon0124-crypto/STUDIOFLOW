@@ -4830,6 +4830,17 @@ select:focus,
   position: relative;
 }
 
+.client-hero-heading {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 72px;
+  align-items: start;
+  gap: 12px;
+}
+
+.client-hero-identity {
+  min-width: 0;
+}
+
 .client-hero-photo {
   align-items: center;
   background:
@@ -4841,16 +4852,14 @@ select:focus,
   display: inline-flex;
   font-size: 11px;
   font-weight: 900;
-  height: clamp(82px, 22vw, 112px);
+  height: 72px;
   justify-content: center;
   letter-spacing: 0.08em;
   overflow: hidden;
-  position: absolute;
-  right: 22px;
+  position: relative;
   text-align: center;
   text-transform: uppercase;
-  top: 22px;
-  width: clamp(82px, 22vw, 112px);
+  width: 72px;
   z-index: 2;
 }
 
@@ -4943,10 +4952,12 @@ select:focus,
   color: #2d2527;
   display: block;
   font-family: Georgia, 'Times New Roman', serif;
-  font-size: clamp(3.2rem, 13vw, 5.8rem);
+  font-size: 36px;
   font-weight: 900;
-  line-height: 0.86;
-  max-width: 8ch;
+  line-height: 1.08;
+  letter-spacing: 0;
+  overflow-wrap: anywhere;
+  max-width: 100%;
   text-transform: uppercase;
 }
 
@@ -5404,6 +5415,10 @@ select:focus,
 @media (min-width: 900px) {
   .client-hero {
     grid-template-columns: 1.8fr 1fr;
+  }
+
+  .client-hero-name {
+    font-size: 48px;
   }
 
   .client-action-grid {
