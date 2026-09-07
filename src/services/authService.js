@@ -106,7 +106,12 @@ export async function sendPasswordReset(email) {
     { redirectTo: getAuthRedirectUrl('/reset-password') },
   )
 
-  if (error) throw error
+  if (error) {
+    if (error.status === 429 || error.code === 'over_email_send_rate_limit' || /email rate limit/i.test(error.message || '')) {
+      throw new Error('El servicio de correo alcanzo temporalmente su limite de envios. No se envio el enlace. Intenta mas tarde.')
+    }
+    throw error
+  }
 }
 
 export async function updatePassword(password) {

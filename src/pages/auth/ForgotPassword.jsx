@@ -16,11 +16,15 @@ function ForgotPassword() {
 
   const handleSubmit = async (event) => {
     event.preventDefault()
+    if (isSubmitting) return
+    setSent(false)
     setIsSubmitting(true)
 
     try {
       await resetPassword(email)
       setSent(true)
+    } catch {
+      // The shared auth error displays the failed request.
     } finally {
       setIsSubmitting(false)
     }
