@@ -265,65 +265,23 @@ async function repairIncompleteAuthContext(authSession, authContext = {}) {
   const phone = metadata.phone || authContext.profile?.phone || ''
   const birthday = metadata.birthday || ''
 
-  console.log('CLIENT REPAIR START', {
-    hasAuthUser: Boolean(authSession?.user),
-    hasProfile: Boolean(authContext.profile),
-    hasClient: Boolean(authContext.client),
-    role,
-  })
-  console.log('CLIENT REPAIR PROFILE', {
-    display_name: authContext.profile?.display_name,
-    phone: authContext.profile?.phone,
-    default_role: authContext.profile?.default_role,
-    metadata_default_role: metadata.default_role,
-  })
 
   if (role === ROLES.CLIENT && (!authContext.client || !hasRoleAssignment(authContext, ROLES.CLIENT))) {
     if (!birthday) {
-      console.log('CLIENT REPAIR SKIPPED', {
-        reason: 'missing_birthday',
-        hasClient: Boolean(authContext.client),
-        hasClientRole: hasRoleAssignment(authContext, ROLES.CLIENT),
-      })
       return authContext
     }
 
-    console.log('CLIENT REPAIR MISSING CLIENT', {
-      missingClient: !authContext.client,
-      missingClientRole: !hasRoleAssignment(authContext, ROLES.CLIENT),
-    })
-    console.log('CLIENT REPAIR BOOTSTRAP CALLED', {
-      display_name: displayName,
-      phone,
-      default_role: role,
-    })
 
     try {
       const repairedAuthContext = await bootstrapClientProfile({ displayName, phone, birthday })
-      console.log('CLIENT REPAIR SUCCESS', {
-        hasProfile: Boolean(repairedAuthContext.profile),
-        hasClient: Boolean(repairedAuthContext.client),
-        roles: repairedAuthContext.roles,
-      })
       return repairedAuthContext
     } catch (error) {
-      console.error('CLIENT REPAIR ERROR', {
-        message: error.message,
-        code: error.code,
-        details: error.details,
-        hint: error.hint,
-      })
       throw error
     }
   }
 
   if (role === ROLES.ARTIST && (!authContext.artist || !hasRoleAssignment(authContext, ROLES.ARTIST))) {
     if (!birthday) {
-      console.log('ARTIST REPAIR SKIPPED', {
-        reason: 'missing_birthday',
-        hasArtist: Boolean(authContext.artist),
-        hasArtistRole: hasRoleAssignment(authContext, ROLES.ARTIST),
-      })
       return authContext
     }
 
@@ -936,11 +894,6 @@ export function AppProvider({ children }) {
       return initialSession
     }
 
-    console.log('CLIENT REPAIR START', {
-      source: 'hydrateSupabaseSession',
-      authUserId: authSession.user.id,
-      email: authSession.user.email,
-    })
 
     const authContext = await repairIncompleteAuthContext(authSession, await fetchAuthContext())
     const nextSession = createSessionFromAuthContext(authSession, authContext)
@@ -959,12 +912,6 @@ export function AppProvider({ children }) {
     if (authContext.client) {
       const mappedClientProfile = mapAuthContextToClientProfile(authContext)
       const remoteClientProfile = await fetchOwnClientProfile().catch(() => ({}))
-      console.log('CLIENT HYDRATION INPUT', {
-        source: 'hydrateSupabaseSession',
-        profile: authContext.profile,
-        client: authContext.client,
-      })
-      console.log('CLIENT HYDRATION MAPPED PROFILE', mappedClientProfile)
       setClientState((currentState) => ({
         ...currentState,
         profile: {
@@ -1130,12 +1077,6 @@ export function AppProvider({ children }) {
       const nextSession = createSessionFromAuthContext(data.session, authContext)
       const mappedClientProfile = mapAuthContextToClientProfile(authContext)
       const remoteClientProfile = await fetchOwnClientProfile().catch(() => ({}))
-      console.log('CLIENT HYDRATION INPUT', {
-        source: 'registerClient',
-        profile: authContext.profile,
-        client: authContext.client,
-      })
-      console.log('CLIENT HYDRATION MAPPED PROFILE', mappedClientProfile)
       setClientState((currentState) => ({
         ...currentState,
         profile: {
@@ -1497,20 +1438,8 @@ export function AppProvider({ children }) {
     rewardId = null,
     notes = null,
   } = {}) => {
-    console.error('[BOOKING TRACE]', 'AppContext bookMarketplaceAppointment entry', {
-      availabilitySlotIds,
-      serviceOfferingId,
-      rewardId,
-      notes,
-      sessionRole: session.role,
-      isMockSession: session.isMockSession,
-    })
 
     if (session.isMockSession || session.role !== ROLES.CLIENT) {
-      console.error('[BOOKING TRACE]', 'AppContext guard returned null', {
-        sessionRole: session.role,
-        isMockSession: session.isMockSession,
-      })
       return null
     }
 
@@ -1537,13 +1466,9 @@ export function AppProvider({ children }) {
         notes,
       }
 
-      console.log('[BOOKING] AppContext payload', payload)
-      console.error('[BOOKING TRACE]', 'AppContext calling bookingService', payload)
 
       const booking = await bookMarketplaceAppointmentRecord(payload)
 
-      console.log('[BOOKING] AppContext response', booking)
-      console.error('[BOOKING TRACE]', 'AppContext bookingService returned', booking)
 
       setBookingState({
         lastBooking: booking,
@@ -1554,12 +1479,6 @@ export function AppProvider({ children }) {
       return booking
     } catch (error) {
       const message = error.message || 'No se pudo reservar la cita.'
-      console.error('[BOOKING] AppContext error', error)
-      console.error('[BOOKING TRACE]', 'AppContext caught error', error)
-      console.error('[Studio Flow] Booking marketplace failed', {
-        attempt,
-        error,
-      })
       setBookingError(message)
       setBookingState((currentState) => ({
         ...currentState,
@@ -2610,7 +2529,6 @@ export function AppProvider({ children }) {
       }))
       return savedProfile
     } catch (error) {
-      console.error('[Studio Flow] Client profile sync failed', error)
       throw error
     }
   }, [session.isMockSession, session.role])

@@ -44,43 +44,17 @@ export async function bookMarketplaceAppointment({
   rewardId = null,
   notes = null,
 } = {}) {
-  console.error('[BOOKING TRACE]', 'bookingService entry', {
-    availabilitySlotIds,
-    serviceOfferingId,
-    notes,
-  })
 
   const slotIds = asArray(availabilitySlotIds).filter(Boolean)
 
   if (slotIds.length === 0) {
-    console.error('[BOOKING TRACE]', 'bookingService validation failed: empty availabilitySlotIds', {
-      availabilitySlotIds,
-      slotIds,
-      serviceOfferingId,
-    })
     throw new Error('Selecciona un horario disponible.')
   }
 
   if (!serviceOfferingId) {
-    console.error('[BOOKING TRACE]', 'bookingService validation failed: missing serviceOfferingId', {
-      availabilitySlotIds,
-      slotIds,
-      serviceOfferingId,
-    })
     throw new Error('Selecciona un servicio.')
   }
 
-  console.log('[BOOKING] RPC request', {
-    availabilitySlotIds: slotIds,
-    serviceOfferingId,
-    notes,
-  })
-  console.error('[BOOKING TRACE]', 'bookingService calling supabase.rpc', {
-    rpc: 'studio_flow_marketplace_book_appointment',
-    availabilitySlotIds: slotIds,
-    serviceOfferingId,
-    notes,
-  })
 
   const client = requireSupabase()
   const { data, error } = await client.rpc('studio_flow_marketplace_book_appointment', {
@@ -90,8 +64,6 @@ export async function bookMarketplaceAppointment({
   })
 
   if (error) {
-    console.error('[BOOKING] RPC error', error)
-    console.error('[BOOKING TRACE]', 'bookingService supabase.rpc returned error', error)
     throw error
   }
 
@@ -107,8 +79,6 @@ export async function bookMarketplaceAppointment({
     bookingPayload = rewardData || data
   }
 
-  console.log('[BOOKING] RPC response', bookingPayload)
-  console.error('[BOOKING TRACE]', 'bookingService supabase.rpc returned data', bookingPayload)
 
   return normalizeBookingPayload(bookingPayload)
 }

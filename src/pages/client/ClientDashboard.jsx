@@ -712,17 +712,10 @@ function openWhatsAppContact(whatsapp, serviceName = '') {
   window.open(whatsappUrl, '_blank', 'noopener,noreferrer')
 }
 
-function openDirections(location, source = 'effectiveLocation') {
+function openDirections(location) {
   const mapsUrl = buildGoogleMapsUrl(location)
   if (!mapsUrl) return
 
-  console.info('[Studio Flow] Como llegar audit', {
-    source,
-    Latitude: location?.latitude || '',
-    Longitude: location?.longitude || '',
-    effectiveLocation: location,
-    MapsURL: mapsUrl,
-  })
 
   window.open(mapsUrl, '_blank', 'noopener,noreferrer')
 }
@@ -1127,13 +1120,6 @@ function ClientDashboard({ view = 'inicio' }) {
     rewardsHistory: hasRealClientSession ? [] : artistClientProfile?.rewardsHistory || [],
   }
   const clientLocation = getClientLocation(currentClient)
-  console.log('CLIENT DASHBOARD SESSION CLIENT', {
-    hasRealClientSession,
-    sessionClient: session.client,
-    sessionProfile: session.profile,
-    clientStateProfile: clientState.profile,
-  })
-  console.log('CLIENT DASHBOARD CURRENT CLIENT', currentClient)
 
   useEffect(() => {
     if (!hasRealClientSession) return
@@ -1530,41 +1516,18 @@ function ClientDashboard({ view = 'inicio' }) {
   }, [pendingConfirmationAppointments])
 
   const reserveSlot = async (slot) => {
-    console.error('[BOOKING TRACE]', 'ClientDashboard reserveSlot entry', {
-      slot,
-      isRealMarketplace,
-      selectedServiceOfferingId,
-      selectedMarketplaceService,
-      selectedArtistProfile,
-    })
 
     if (!slot.available) return
     setBookingNotice('')
 
     if (isRealMarketplace) {
-      console.error('[BOOKING TRACE]', 'ClientDashboard real marketplace branch', {
-        slot,
-        selectedServiceOfferingId,
-        selectedMarketplaceService,
-        selectedArtistProfile,
-      })
 
-      console.log('[BOOKING] click reserve', {
-        slot,
-        selectedMarketplaceService,
-        selectedArtistProfile,
-      })
 
       const serviceOfferingId = slot.serviceOfferingId || selectedServiceOfferingId
       const availabilitySlotIds = slot.availabilitySlotIds?.length
         ? slot.availabilitySlotIds
         : [slot.availabilitySlotId || slot.id]
 
-      console.error('[BOOKING TRACE]', 'ClientDashboard calling bookMarketplaceAppointment', {
-        availabilitySlotIds,
-        serviceOfferingId,
-        rewardId: selectedMarketplaceRewardId || null,
-      })
 
       try {
         const booking = await bookMarketplaceAppointment({
@@ -1573,9 +1536,6 @@ function ClientDashboard({ view = 'inicio' }) {
           rewardId: selectedMarketplaceRewardId || null,
         })
 
-        console.error('[BOOKING TRACE]', 'ClientDashboard bookMarketplaceAppointment returned', {
-          booking,
-        })
 
         if (booking) {
           await loadClientAppointments()
@@ -2668,11 +2628,6 @@ function ClientDashboard({ view = 'inicio' }) {
                                   variant={slot.isHappyHour ? 'success' : slot.available ? 'primary' : 'ghost'}
                                   disabled={!slot.available || isBookingLoading}
                                   onClick={() => {
-                                    console.error('[BOOKING TRACE]', 'ClientDashboard reserve button onClick', {
-                                      slot,
-                                      selectedMarketplaceService,
-                                      selectedArtistProfile,
-                                    })
                                     reserveSlot(slot)
                                   }}
                                 >
@@ -3066,11 +3021,6 @@ function ClientDashboard({ view = 'inicio' }) {
                                     variant={slot.isHappyHour ? 'success' : slot.available ? 'primary' : 'ghost'}
                                     disabled={!slot.available || isBookingLoading}
                                     onClick={() => {
-                                      console.error('[BOOKING TRACE]', 'ClientDashboard reserve button onClick', {
-                                        slot,
-                                        selectedMarketplaceService,
-                                        selectedArtistProfile,
-                                      })
                                       reserveSlot(slot)
                                     }}
                                   >
