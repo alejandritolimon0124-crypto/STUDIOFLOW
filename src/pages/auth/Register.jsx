@@ -80,7 +80,7 @@ function Register() {
       const result = await registerClient(clientForm)
 
       if (result.needsEmailConfirmation) {
-        setConfirmationMessage('Revisa tu correo para confirmar la cuenta antes de entrar.')
+        setConfirmationMessage('Revisa tu correo para confirmar el registro. Si este correo ya tenia una cuenta, inicia sesion o restablece tu contraseña.')
         return
       }
 
@@ -103,7 +103,7 @@ function Register() {
       })
 
       if (result.needsEmailConfirmation) {
-        setConfirmationMessage('Revisa tu correo para confirmar la cuenta antes de entrar.')
+        setConfirmationMessage('Revisa tu correo para confirmar el registro. Si este correo ya tenia una cuenta, inicia sesion o restablece tu contraseña.')
         return
       }
 

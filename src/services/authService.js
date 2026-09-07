@@ -64,6 +64,7 @@ export async function signUpWithPassword({ email, password, displayName, phone, 
     email: String(email || '').trim().toLowerCase(),
     password,
     options: {
+      emailRedirectTo: getAuthRedirectUrl('/login'),
       data: {
         display_name: displayName,
         phone,
@@ -73,13 +74,13 @@ export async function signUpWithPassword({ email, password, displayName, phone, 
     },
   }
 
-  console.log('SIGNUP PAYLOAD', payload)
-
   const { data, error } = await client.auth.signUp(payload)
 
-  console.log('SIGNUP RESPONSE', { data, error })
-
   if (error) throw error
+
+  if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+    throw new Error('No se pudo completar un registro nuevo con este correo. Si ya tienes cuenta, inicia sesion o restablece tu contraseña.')
+  }
 
   return data
 }
