@@ -1051,9 +1051,7 @@ function ClientDashboard({ view = 'inicio' }) {
     if (!isRealMarketplace || !selectedArtistProfile) return
 
     const refreshedArtistProfile = marketplaceListings.find((listing) => (
-      listing.id === selectedArtistProfile.id
-      || listing.artistId === selectedArtistProfile.artistId
-      || listing.listingId === selectedArtistProfile.listingId
+      listing.listingId === selectedArtistProfile.listingId
     ))
 
     if (!refreshedArtistProfile) return
