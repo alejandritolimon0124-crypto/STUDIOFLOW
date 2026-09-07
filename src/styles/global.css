@@ -3036,8 +3036,8 @@ select:focus,
 
 .manual-booking-slot-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
   width: 100%;
 }
 
@@ -3049,7 +3049,7 @@ select:focus,
   min-width: 0;
   width: 100%;
   min-height: 72px;
-  padding: 10px 8px;
+  padding: 10px 4px;
   font-size: 18px;
   white-space: normal;
 }
@@ -3058,12 +3058,6 @@ select:focus,
   color: inherit;
   font-size: 14px;
   font-weight: 600;
-}
-
-@media (min-width: 900px) {
-  .manual-booking-slot-grid {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
 }
 
 .inline-slot-grid {
