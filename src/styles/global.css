@@ -1999,39 +1999,11 @@ select:focus,
   font-weight: 900;
 }
 
-.stats-card {
-  display: grid;
-  gap: 18px;
-}
 
-.stats-card strong {
-  display: block;
-  font-size: 36px;
-  letter-spacing: 0;
-}
 
-.stats-card p {
-  color: var(--muted);
-  line-height: 1.45;
-  margin-top: 6px;
-}
 
-.stats-visual {
-  min-height: 180px;
-}
 
-.history-chart {
-  align-items: end;
-  display: grid;
-  gap: 8px;
-  grid-template-columns: repeat(6, 1fr);
-  height: 180px;
-}
 
-.history-chart span {
-  background: linear-gradient(180deg, #dca4ac, #f2dddf);
-  border-radius: 7px 7px 3px 3px;
-}
 
 .toggle-row {
   align-items: center;
@@ -3089,20 +3061,7 @@ select:focus,
   margin: 0;
 }
 
-.empty-state {
-  align-items: center;
-  color: var(--muted);
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  justify-content: center;
-  min-height: 210px;
-  text-align: center;
-}
 
-.empty-state h3 {
-  color: var(--text);
-}
 
 .admin-grid .metric-card {
   grid-column: span 3;
@@ -3510,9 +3469,6 @@ select:focus,
   margin-bottom: 16px;
 }
 
-.modal-preview-card {
-  grid-column: span 4;
-}
 
 .modal-shell {
   background: linear-gradient(135deg, rgba(245, 221, 223, 0.62), rgba(255, 255, 255, 0.56));
@@ -3940,8 +3896,7 @@ select:focus,
   .admin-grid .metric-card,
   .artist-grid .card:not(.calendar-card):not(.wide-card),
   .client-grid .card:not(.wide-card),
-  .admin-grid .card:not(.wide-card),
-  .modal-preview-card {
+  .admin-grid .card:not(.wide-card) {
     grid-column: span 6;
   }
 }
