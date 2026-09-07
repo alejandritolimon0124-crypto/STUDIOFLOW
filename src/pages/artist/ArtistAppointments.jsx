@@ -519,18 +519,18 @@ function ArtistAppointments() {
                   <small>Sin horarios disponibles</small>
                 )}
                 {!isAvailabilityLoading && availabilitySlots.length > 0 && (
-                  <div className="row-actions" style={{ justifyContent: 'flex-start' }}>
+                  <div className="manual-booking-slot-grid">
                     {availabilitySlots.map((slot) => {
                       const isSelected = draft.time === slot.time
 
                       return (
                         <Button
                           key={slot.id}
-                          size="sm"
+                          aria-pressed={isSelected}
                           variant={isSelected ? 'primary' : 'ghost'}
                           onClick={() => updateDraft('time', slot.time)}
                         >
-                          {slot.time}
+                          {slot.time} - {slot.end}
                         </Button>
                       )
                     })}

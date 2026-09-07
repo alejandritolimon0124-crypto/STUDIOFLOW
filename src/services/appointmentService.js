@@ -261,7 +261,15 @@ export async function createManualArtistAppointment({
 
   const { data, error } = await client.rpc(rpcName, params)
 
-  if (error) throw error
+  if (error) {
+    if (/selected (availability )?slots do not cover the service duration/i.test(error.message || '')) {
+      throw new Error('No hay un bloque continuo disponible para completar este servicio a esa hora. No se guardo la cita. Actualiza los horarios y elige otro inicio; si la agenda esta libre, revisa los descansos y bloqueos en Mis horarios.')
+    }
+    if (/selected time is not available|artist already has an appointment/i.test(error.message || '')) {
+      throw new Error('Ese horario ya esta ocupado. No se guardo la cita. Selecciona otro horario disponible.')
+    }
+    throw error
+  }
 
   return normalizeAppointment(data?.appointment)
 }

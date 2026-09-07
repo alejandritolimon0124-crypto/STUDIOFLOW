@@ -3034,6 +3034,21 @@ select:focus,
   margin: 0;
 }
 
+.manual-booking-slot-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 160px), 1fr));
+  gap: 12px;
+  width: 100%;
+}
+
+.manual-booking-slot-grid .button {
+  width: 100%;
+  min-height: 60px;
+  padding: 12px;
+  font-size: 18px;
+  white-space: normal;
+}
+
 .inline-slot-grid {
   display: grid;
   gap: 8px;
