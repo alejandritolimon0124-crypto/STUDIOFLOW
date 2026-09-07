@@ -744,7 +744,6 @@ function ClientDashboard({ view = 'inicio' }) {
     isClientAppointmentsLoading,
     isBookingLoading,
     bookingError,
-    loadMarketplaceListings,
     loadMarketplaceAvailability,
     loadClientAppointments,
     isMarketplaceLoading,
@@ -890,23 +889,28 @@ function ClientDashboard({ view = 'inicio' }) {
   useEffect(() => {
     if (!isRealMarketplace) return undefined
 
+    let refreshTimer
     const refreshMarketplaceAfterExternalReturn = () => {
       if (document.visibilityState && document.visibilityState !== 'visible') return
 
-      loadMarketplaceListings()
-      if (selectedArtistProfile?.listingId && bookingDate) {
-        loadMarketplaceAvailability({
-          listingId: selectedArtistProfile.listingId,
-          serviceOfferingId: selectedServiceOfferingId,
-          date: bookingDate,
-        })
-      }
+      window.clearTimeout(refreshTimer)
+      refreshTimer = window.setTimeout(() => {
+        if (document.visibilityState === 'hidden') return
+        if (selectedArtistProfile?.listingId && bookingDate) {
+          loadMarketplaceAvailability({
+            listingId: selectedArtistProfile.listingId,
+            serviceOfferingId: selectedServiceOfferingId,
+            date: bookingDate,
+          })
+        }
+      }, 150)
     }
 
     window.addEventListener('pageshow', refreshMarketplaceAfterExternalReturn)
     window.addEventListener('focus', refreshMarketplaceAfterExternalReturn)
 
     return () => {
+      window.clearTimeout(refreshTimer)
       window.removeEventListener('pageshow', refreshMarketplaceAfterExternalReturn)
       window.removeEventListener('focus', refreshMarketplaceAfterExternalReturn)
     }
@@ -914,7 +918,6 @@ function ClientDashboard({ view = 'inicio' }) {
     bookingDate,
     isRealMarketplace,
     loadMarketplaceAvailability,
-    loadMarketplaceListings,
     selectedArtistProfile?.listingId,
     selectedServiceOfferingId,
   ])

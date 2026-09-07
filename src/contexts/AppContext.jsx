@@ -1666,13 +1666,20 @@ export function AppProvider({ children }) {
     loadArtistScheduleSettings(activeArtistWorkContext).catch(() => {
       // artistScheduleError already exposes the failure to the UI.
     })
+  }, [activeArtistWorkContext, loadArtistScheduleSettings, loadArtistServices, session.artist?.id, session.isMockSession, session.role, session.user?.artistId])
+
+  useEffect(() => {
+    if (session.role !== ROLES.ARTIST || session.isMockSession) return
+    const artistId = session.artist?.id || session.user?.artistId
+    if (!artistId) return
+
     loadArtistAppointments(artistId).catch(() => {
       // artistAppointmentsError already exposes the failure to the UI.
     })
     loadIndependentArtistPublicationReadiness(artistId).catch(() => {
       // publicationError already exposes the failure to the UI.
     })
-  }, [activeArtistWorkContext, loadArtistAppointments, loadArtistScheduleSettings, loadArtistServices, loadIndependentArtistPublicationReadiness, session.artist?.id, session.isMockSession, session.role, session.user?.artistId])
+  }, [loadArtistAppointments, loadIndependentArtistPublicationReadiness, session.artist?.id, session.isMockSession, session.role, session.user?.artistId])
 
   useEffect(() => {
     if (session.role !== ROLES.CLIENT || session.isMockSession) return
@@ -1709,9 +1716,13 @@ export function AppProvider({ children }) {
 
   useEffect(() => {
     if (!supabase || session.isMockSession || session.role !== ROLES.CLIENT) return undefined
+    let refreshTimer
     const refresh = () => {
       if (document.visibilityState === 'hidden') return
-      loadMarketplaceListings().catch(() => {})
+      window.clearTimeout(refreshTimer)
+      refreshTimer = window.setTimeout(() => {
+        if (document.visibilityState !== 'hidden') loadMarketplaceListings().catch(() => {})
+      }, 150)
     }
     const channel = supabase.channel('client-marketplace-visibility')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'marketplace_profiles' }, refresh)
@@ -1719,9 +1730,14 @@ export function AppProvider({ children }) {
       .subscribe()
     const interval = window.setInterval(refresh, 30000)
     document.addEventListener('visibilitychange', refresh)
+    window.addEventListener('focus', refresh)
+    window.addEventListener('pageshow', refresh)
     return () => {
+      window.clearTimeout(refreshTimer)
       window.clearInterval(interval)
       document.removeEventListener('visibilitychange', refresh)
+      window.removeEventListener('focus', refresh)
+      window.removeEventListener('pageshow', refresh)
       supabase.removeChannel(channel)
     }
   }, [loadMarketplaceListings, session.isMockSession, session.role])
