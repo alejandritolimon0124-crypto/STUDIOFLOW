@@ -8,11 +8,7 @@ import PanelHeader from '../../components/PanelHeader'
 import StatusPill from '../../components/StatusPill'
 import { useApp } from '../../contexts/appContextCore'
 import { calculateWeeklyOccupancy } from '../../modules/marketing/occupancyEngine'
-import { generateAutomaticPromotion } from '../../modules/marketing/promotionEngine'
-import { detectInactiveClients } from '../../modules/marketing/reactivationEngine'
 import { calculateClientTier } from '../../modules/marketing/loyaltyEngine'
-import { generateInsights } from '../../modules/marketing/smartInsights'
-import { generateArtistAutomations } from '../../modules/automation/smartAutomationEngine'
 import { canUseOperationalFeature, getStudioStatusLabel, getStudioStatusTone } from '../../modules/governance/studioGovernance'
 import {
   deriveMembershipsFromLegacyData,
@@ -40,32 +36,16 @@ const automations = [
   { name: 'Campañas automáticas', active: true },
 ]
 
-const toastLabels = {
-  happyHour: '✓ Happy Hour activado',
-  lowOccupancy: '✓ Ajuste de baja ocupación aplicado',
-  silentPromo: '✓ Promoción silenciosa actualizada',
-  loyaltyActive: '✓ Programa de lealtad actualizado',
-}
 
 function ArtistMarketing() {
-  const { adminState, artistState, session, selectedDate } = useApp()
+  const { adminState, artistState, session } = useApp()
   const [happyHour, setHappyHour] = useState(false)
-  const [lowOccupancy, setLowOccupancy] = useState(true)
-  const [silentPromo, setSilentPromo] = useState(false)
   const [loyaltyActive, setLoyaltyActive] = useState(true)
   const [visitsRequired, setVisitsRequired] = useState(5)
-  const [discountPercent, setDiscountPercent] = useState(15)
-  const [validityDays, setValidityDays] = useState(45)
   const [automationStates, setAutomationStates] = useState(
     automations.reduce((acc, auto) => ({ ...acc, [auto.name]: auto.active }), {})
   )
-  const [priorityAgenda, setPriorityAgenda] = useState(true)
-  const [privatePromos, setPrivatePromos] = useState(true)
-  const [earlyBooking, setEarlyBooking] = useState(false)
-  const [vipBadgeActive, setVipBadgeActive] = useState(true)
-  const [preferentialSupport, setPreferentialSupport] = useState(true)
   const [toasts, setToasts] = useState([])
-  const [isPremiumModalOpen, setIsPremiumModalOpen] = useState(false)
   const [marketingSettings, setMarketingSettings] = useState({ rewards: [], doublePoints: { status: 'paused', rules: {} }, happyHour: { status: 'paused', rules: {} } })
   const [rewardDraft, setRewardDraft] = useState({ discountPercent: 10, pointsCost: '' })
   const [happyHourDraft, setHappyHourDraft] = useState({ discountPercent: 10, weekdays: [1, 2, 3, 4, 5], startTime: '14:00', endTime: '17:00' })
@@ -115,7 +95,7 @@ function ArtistMarketing() {
     lowOccupancyDraft.active,
   ].filter(Boolean).length
 
-  const { weeklyOccupancy, lowSlots, busyDays } = calculateWeeklyOccupancy(loadedAppointments)
+  const { weeklyOccupancy } = calculateWeeklyOccupancy(loadedAppointments)
   const monthlyOccupancy = useMemo(() => {
     const now = new Date()
     const monthAppointments = loadedAppointments.filter((appointment) => {
@@ -128,19 +108,6 @@ function ArtistMarketing() {
     return Math.min(Math.round((monthAppointments.length / 80) * 100), 100)
   }, [loadedAppointments])
   const lowOccupancyRate = lowOccupancyDraft.period === 'month' ? monthlyOccupancy : weeklyOccupancy
-  const promotionSummary = generateAutomaticPromotion(weeklyOccupancy)
-  const inactiveClients = detectInactiveClients(loadedClients)
-  const loyaltyTier = calculateClientTier(premiumClients[0]?.visits || 0)
-  const baseInsights = generateInsights({
-    weeklyOccupancy,
-    lowSlots,
-    busyDays,
-    inactiveCount: inactiveClients.length,
-    happyHourActive: happyHour,
-  })
-  const artistAutomations = generateArtistAutomations(artistState, selectedDate)
-
-  const loyaltyPreview = `${visitsRequired} visitas = ${discountPercent}% OFF por ${validityDays} días`
   const doublePointsActive = marketingSettings.doublePoints?.status === 'active'
   const happyHourActive = marketingSettings.happyHour?.status === 'active'
   const flowPointsEnabled = Boolean(marketingSettings.flowPointsEnabled)
@@ -164,10 +131,6 @@ function ArtistMarketing() {
     }, 3200)
   }
 
-  const handleToggle = (key, setter, nextValue) => {
-    setter(nextValue)
-    triggerToast(toastLabels[key])
-  }
 
   const loadMarketingSettings = async () => {
     const requestId = marketingSettingsRequestRef.current + 1
@@ -389,118 +352,6 @@ function ArtistMarketing() {
     triggerToast(`✓ Automatización ${name} ${automationStates[name] ? 'desactivada' : 'activada'}`)
   }
 
-  const dynamicInsights = useMemo(() => {
-    const extras = []
-
-    if (happyHour) {
-      extras.push({
-        title: 'Happy Hour activo',
-        message: 'Tu tarifa inteligente se aplica en horarios de baja ocupación.',
-        tone: 'success',
-      })
-    }
-
-    if (lowOccupancy) {
-      extras.push({
-        title: 'Espacios disponibles',
-        message: 'Aprovecha el inventario libre con una oferta exclusiva.',
-        tone: 'warm',
-      })
-    }
-
-    if (silentPromo) {
-      extras.push({
-        title: 'Promoción silenciosa lista',
-        message: 'Clientes frecuentes verán una oferta privada primero.',
-        tone: 'success',
-      })
-    }
-
-    if (priorityAgenda) {
-      extras.push({
-        title: 'Prioridad agenda activa',
-        message: 'Tus clientas VIP saltan a la cima de la lista de reservas.',
-        tone: 'success',
-      })
-    }
-
-    if (privatePromos) {
-      extras.push({
-        title: 'Promociones privadas listas',
-        message: 'Solo las mejores clientas reciben estas ofertas.',
-        tone: 'success',
-      })
-    }
-
-    if (earlyBooking) {
-      extras.push({
-        title: 'Reserva anticipada habilitada',
-        message: 'Tus clientas premium reservan primero los mejores horarios.',
-        tone: 'success',
-      })
-    }
-
-    if (vipBadgeActive) {
-      extras.push({
-        title: 'Badge VIP en uso',
-        message: 'Identifica rápidamente a tus clientas más valiosas.',
-        tone: 'success',
-      })
-    }
-
-    if (preferentialSupport) {
-      extras.push({
-        title: 'Atención preferencial',
-        message: 'Studio Flow prioriza el seguimiento VIP automáticamente.',
-        tone: 'success',
-      })
-    }
-
-    if (loyaltyActive) {
-      extras.push({
-        title: 'Fidelidad en marcha',
-        message: 'Tu programa de lealtad mantiene a las clientas premium conectadas.',
-        tone: 'success',
-      })
-    }
-
-    if (!loyaltyActive) {
-      extras.push({
-        title: 'Lealtad pausada',
-        message: 'Activa el programa para aumentar retención premium.',
-        tone: 'rose',
-      })
-    }
-
-    return [...extras, ...baseInsights].slice(0, 4)
-  }, [happyHour, lowOccupancy, silentPromo, loyaltyActive, priorityAgenda, privatePromos, earlyBooking, vipBadgeActive, preferentialSupport, baseInsights])
-
-  const analyticsRows = [
-    {
-      title: 'Ocupación semanal',
-      description: loadedAppointments.length > 0 ? `${loadedAppointments.length} citas cargadas` : 'Sin citas cargadas esta semana.',
-      tone: happyHour ? 'success' : lowOccupancy ? 'warm' : 'nude',
-      label: loadedAppointments.length > 0 ? 'Con datos' : 'Sin datos',
-    },
-    {
-      title: 'Retorno clientes',
-      description: loyaltyActive ? 'El programa de lealtad impulsa la recurrencia.' : 'Recupera clientas con beneficios adicionales.',
-      tone: loyaltyActive ? 'success' : 'rose',
-      label: loyaltyActive ? 'Fuerte' : 'Reactivar',
-    },
-    {
-      title: 'Promociones activas',
-      description: `${activePromotionsCount} configuraciones activas.`,
-      tone: silentPromo ? 'sage' : 'nude',
-      label: activePromotionsCount > 0 ? 'Activas' : 'Sin activar',
-    },
-    {
-      title: 'Crecimiento mensual',
-      description: loadedServices.length > 0 ? `${loadedServices.length} servicios cargados.` : 'Sin servicios cargados.',
-      tone: happyHour || loyaltyActive ? 'success' : 'rose',
-      label: loadedServices.length > 0 ? 'Con datos' : 'Pendiente',
-    },
-  ]
 
   if (!canUseMarketing) {
     return (
@@ -781,126 +632,6 @@ function ArtistMarketing() {
 
 
 
-      {isPremiumModalOpen && (
-        <div className="marketing-modal-overlay">
-          <div className="marketing-modal-card">
-            <div className="marketing-modal-header">
-              <div>
-                <span className="eyebrow">Premium</span>
-                <h3>Beneficios exclusivos</h3>
-              </div>
-              <button className="marketing-modal-close" type="button" onClick={() => setIsPremiumModalOpen(false)}>
-                ×
-              </button>
-            </div>
-            <div className="marketing-modal-body">
-              <p>Tus mejores clientas merecen beneficios especiales.</p>
-              <p className="marketing-modal-note">Activa ventajas exclusivas para fidelizar y hacer regresar a tus clientas VIP.</p>
-
-              <div className="marketing-modal-benefits">
-                <div className="marketing-benefit-row">
-                  <div>
-                    <strong>Prioridad agenda</strong>
-                    <small>Tus clientas VIP aparecerán primero al reservar.</small>
-                  </div>
-                  <div className="benefit-actions">
-                    <StatusPill tone={priorityAgenda ? 'success' : 'nude'}>{priorityAgenda ? 'Activo' : 'Off'}</StatusPill>
-                    <label className="toggle-row">
-                      <input type="checkbox" checked={priorityAgenda} onChange={() => setPriorityAgenda(!priorityAgenda)} />
-                    </label>
-                  </div>
-                </div>
-                <div className="marketing-benefit-row">
-                  <div>
-                    <strong>Promociones privadas</strong>
-                    <small>Solo tus mejores clientas recibirán promociones exclusivas.</small>
-                  </div>
-                  <div className="benefit-actions">
-                    <StatusPill tone={privatePromos ? 'success' : 'nude'}>{privatePromos ? 'Activo' : 'Off'}</StatusPill>
-                    <label className="toggle-row">
-                      <input type="checkbox" checked={privatePromos} onChange={() => setPrivatePromos(!privatePromos)} />
-                    </label>
-                  </div>
-                </div>
-                <div className="marketing-benefit-row">
-                  <div>
-                    <strong>Reserva anticipada</strong>
-                    <small>Permite reservar horarios premium antes que otras clientas.</small>
-                  </div>
-                  <div className="benefit-actions">
-                    <StatusPill tone={earlyBooking ? 'success' : 'nude'}>{earlyBooking ? 'Activo' : 'Off'}</StatusPill>
-                    <label className="toggle-row">
-                      <input type="checkbox" checked={earlyBooking} onChange={() => setEarlyBooking(!earlyBooking)} />
-                    </label>
-                  </div>
-                </div>
-                <div className="marketing-benefit-row">
-                  <div>
-                    <strong>Badge VIP</strong>
-                    <small>Las clientas VIP tendrán insignia especial.</small>
-                  </div>
-                  <div className="benefit-actions">
-                    <StatusPill tone={vipBadgeActive ? 'success' : 'nude'}>{vipBadgeActive ? 'Activo' : 'Off'}</StatusPill>
-                    <label className="toggle-row">
-                      <input type="checkbox" checked={vipBadgeActive} onChange={() => setVipBadgeActive(!vipBadgeActive)} />
-                    </label>
-                  </div>
-                </div>
-                <div className="marketing-benefit-row">
-                  <div>
-                    <strong>Atención preferencial</strong>
-                    <small>Studio Flow priorizará seguimiento y recordatorios VIP.</small>
-                  </div>
-                  <div className="benefit-actions">
-                    <StatusPill tone={preferentialSupport ? 'success' : 'nude'}>{preferentialSupport ? 'Activo' : 'Off'}</StatusPill>
-                    <label className="toggle-row">
-                      <input type="checkbox" checked={preferentialSupport} onChange={() => setPreferentialSupport(!preferentialSupport)} />
-                    </label>
-                  </div>
-                </div>
-              </div>
-
-              <div className="marketing-modal-vip-section">
-                <div className="modal-section-header">
-                  <div>
-                    <span className="eyebrow">TUS CLIENTAS VIP</span>
-                    <h4>Conecta con quienes regresan más seguido</h4>
-                  </div>
-                  <Button variant="ghost" size="sm">Agregar a VIP</Button>
-                </div>
-                <div className="vip-card-grid">
-                  {premiumClients.length > 0 ? premiumClients.map((client) => (
-                    <div key={client.name} className="vip-card">
-                      <div>
-                        <strong>{client.name}</strong>
-                        <small>{client.tier} / {client.visits} visitas</small>
-                      </div>
-                      <span className="vip-card-badge">{client.tier}</span>
-                    </div>
-                  )) : (
-                    <div className="vip-card">
-                      <div>
-                        <strong>Sin clientas VIP.</strong>
-                        <small>Se mostraran con historial real.</small>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <p className="marketing-modal-note">Studio Flow detecta automáticamente clientas frecuentes según visitas y recurrencia.</p>
-            </div>
-            <div className="marketing-modal-actions">
-              <Button variant="ghost" size="sm" onClick={() => setIsPremiumModalOpen(false)}>
-                Cerrar
-              </Button>
-              <Button size="sm" onClick={() => setIsPremiumModalOpen(false)}>
-                Guardar configuración
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
 
       <div className="premium-toast-container">
         {toasts.map((toast) => (

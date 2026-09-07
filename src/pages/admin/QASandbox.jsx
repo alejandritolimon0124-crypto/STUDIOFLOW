@@ -63,7 +63,7 @@ function QASandbox() {
     try {
       setStudios(await fetchOwnerStudios())
     } catch (error) {
-      setStudios(adminState.studios || [])
+      setStudios([])
       setSystemError(error.message || 'No se pudieron cargar solicitudes de estudios.')
     } finally {
       setIsLoadingStudios(false)
