@@ -530,7 +530,8 @@ function ArtistAppointments() {
                           variant={isSelected ? 'primary' : 'ghost'}
                           onClick={() => updateDraft('time', slot.time)}
                         >
-                          {slot.time} - {slot.end}
+                          <strong>{slot.time}</strong>
+                          <small>Hasta {slot.end}</small>
                         </Button>
                       )
                     })}
