@@ -409,7 +409,7 @@ function ArtistMarketing() {
 
       <MetricCard label="Clientes recurrentes" value={premiumClients.length} trend={loyaltyActive ? 'Programa activo' : 'Programa pausado'} className="mobile-compact" />
       <MetricCard label="Citas cargadas" value={loadedAppointments.length} trend={loadedAppointments.length > 0 ? 'Con agenda' : 'Sin citas'} tone="nude" className="mobile-compact" />
-      <MetricCard label="Promociones activas" value={activePromotionsCount} trend={silentPromo ? 'Silenciosa' : 'Configuradas'} tone="sage" className="mobile-compact" />
+      <MetricCard label="Promociones activas" value={activePromotionsCount} trend="Configuradas" tone="sage" className="mobile-compact" />
       <MetricCard label="Servicios activos" value={loadedServices.filter((service) => service.status === 'Activo').length} trend="Catalogo real" tone="rose" className="mobile-compact" />
 
       <Card className="wide-card mobile-screen primary-panel flow-points-benefits-panel">
