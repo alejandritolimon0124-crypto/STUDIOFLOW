@@ -1054,7 +1054,11 @@ function ClientDashboard({ view = 'inicio' }) {
       listing.listingId === selectedArtistProfile.listingId
     ))
 
-    if (!refreshedArtistProfile) return
+    if (!refreshedArtistProfile) {
+      setSelectedArtistProfile(null)
+      setSelectedArtistPanelMode('')
+      return
+    }
 
     const refreshedServices = Array.isArray(refreshedArtistProfile.marketplaceServiceOptions)
       ? refreshedArtistProfile.marketplaceServiceOptions

@@ -1456,14 +1456,19 @@ function AdminStudioProfile() {
 
     let isActive = true
 
+    setMarketplaceVisibilityOverride('')
+    setOwnStudioMarketplaceState(null)
     fetchOwnStudios()
       .then((studios) => {
         if (!isActive) return
         const ownStudio = studios.find((studio) => studio.id === currentStudio.id || studio.studioId === currentStudio.id)
         setOwnStudioMarketplaceState(ownStudio || null)
       })
-      .catch(() => {
-        if (isActive) setOwnStudioMarketplaceState(null)
+      .catch((error) => {
+        if (isActive) {
+          setOwnStudioMarketplaceState(null)
+          setMarketplaceFeedback({ tone: 'warm', message: error.message || 'No se pudo consultar si el estudio esta publicado.' })
+        }
       })
 
     return () => {
@@ -1691,20 +1696,7 @@ function AdminStudioProfile() {
     || currentStudio?.profile?.marketplace_status
     || '',
   ).toLowerCase()
-  const isStudioMarketplacePublished = Boolean(
-    marketplaceStatus !== 'hidden'
-    && (
-      currentStudio?.marketplaceListingId
-      || currentStudio?.marketplace_listing_id
-      || currentStudio?.marketplaceProfileId
-      || currentStudio?.marketplace_profile_id
-      || ownStudioMarketplaceState?.marketplaceListingId
-      || ownStudioMarketplaceState?.marketplace_listing_id
-      || ownStudioMarketplaceState?.marketplaceProfileId
-      || ownStudioMarketplaceState?.marketplace_profile_id
-      || ['published', 'active', 'visible'].includes(marketplaceStatus)
-    ),
-  )
+  const isStudioMarketplacePublished = ['published', 'active', 'visible'].includes(marketplaceStatus)
 
   const publishMarketplace = async () => {
     if (!currentStudio?.id || !hasMarketplaceMinimumData || isPublishingMarketplace) return

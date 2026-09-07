@@ -1788,6 +1788,25 @@ export function AppProvider({ children }) {
     }
   }, [loadArtistAppointments, loadClientAppointments, session.isMockSession, session.profile?.id, session.role, session.user?.id])
 
+  useEffect(() => {
+    if (!supabase || session.isMockSession || session.role !== ROLES.CLIENT) return undefined
+    const refresh = () => {
+      if (document.visibilityState === 'hidden') return
+      loadMarketplaceListings().catch(() => {})
+    }
+    const channel = supabase.channel('client-marketplace-visibility')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'marketplace_profiles' }, refresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'marketplace_listings' }, refresh)
+      .subscribe()
+    const interval = window.setInterval(refresh, 30000)
+    document.addEventListener('visibilitychange', refresh)
+    return () => {
+      window.clearInterval(interval)
+      document.removeEventListener('visibilitychange', refresh)
+      supabase.removeChannel(channel)
+    }
+  }, [loadMarketplaceListings, session.isMockSession, session.role])
+
   const loadAdminArtists = useCallback(async () => {
     if (session.isMockSession) return null
     if (!sessionHasAnyRole(session, [ROLES.PLATFORM_OWNER, ROLES.STUDIO_OWNER, ROLES.STUDIO_MANAGER])) return null
