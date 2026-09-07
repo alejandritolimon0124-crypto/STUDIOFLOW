@@ -70,6 +70,7 @@ function App() {
             <Route path="/admin/studio" element={<AdminStudioProfile />} />
             <Route path="/admin/studio/clients" element={<AdminClients />} />
           </Route>
+          <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
       </BrowserRouter>
     </AppProvider>
