@@ -30,6 +30,7 @@ export function mapAdminClientsPayload(data) {
     name: client.name || 'Clienta',
     email: client.email || '',
     phone: client.phone || '',
+    photoUrl: client.photoUrl || client.photo_url || client.photo_path || '',
     status: client.status || 'Inactivo',
     dbStatus: client.db_status || client.dbStatus || null,
     segment: client.segment || 'Essential',

@@ -607,16 +607,25 @@ function AdminClients() {
                       </div>
                     )}
                     {inlinePanel.mode === 'profile' && profileClient && (
-                      <div className="form-stack compact-form">
-                        <Input label="Nombre" value={profileClient.name} onChange={(event) => setProfileClient({ ...profileClient, name: event.target.value })} />
-                        <Input label="Correo" value={profileClient.email} onChange={(event) => setProfileClient({ ...profileClient, email: event.target.value })} />
-                        <Input label="Telefono" value={profileClient.phone} onChange={(event) => setProfileClient({ ...profileClient, phone: event.target.value })} />
-                        <label className="input-field">
-                          <span>Notas</span>
-                          <textarea value={profileClient.notes} onChange={(event) => setProfileClient({ ...profileClient, notes: event.target.value })} rows="3" />
-                        </label>
-                        <div className="row-actions">
-                          <button type="button" onClick={saveClientProfile}>Guardar cambios</button>
+                      <div className="compact-list">
+                        <div className="client-profile-summary-card">
+                          <div className="client-profile-avatar">
+                            {profileClient.photoUrl ? (
+                              <img src={profileClient.photoUrl} alt={profileClient.name} />
+                            ) : (
+                              <span>{String(profileClient.name || '').trim().split(/\s+/).slice(0, 2).map((part) => part[0]).join('').toUpperCase()}</span>
+                            )}
+                          </div>
+                          <div className="client-profile-details">
+                            <span className="eyebrow">Nombre completo</span>
+                            <strong>{profileClient.name}</strong>
+                            <small className="client-phone-highlight">{profileClient.phone || 'Sin celular'}</small>
+                            <small>{profileClient.email || 'Sin correo electronico'}</small>
+                          </div>
+                        </div>
+                        <div className="client-profile-notes-card">
+                          <span className="eyebrow">Nota especial</span>
+                          <p>{profileClient.notes || 'Sin nota especial registrada.'}</p>
                         </div>
                       </div>
                     )}
