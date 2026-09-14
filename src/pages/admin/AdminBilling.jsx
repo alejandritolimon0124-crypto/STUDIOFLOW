@@ -286,8 +286,9 @@ function AdminBilling() {
                 {formatCurrency(entity.unpaidCommission || entity.currentMonthUnpaid)}
               </span>
               <StatusPill tone={entity.status === 'overdue' ? 'warm' : 'success'}>
-                {entity.status === 'overdue' ? 'Con atraso' : 'Al corriente'}
+                {entity.status === 'overdue' ? 'Con adeudo' : 'Al corriente'}
               </StatusPill>
+              {entity.artistStatus === 'inactive' && <StatusPill tone="warm">Suspendida</StatusPill>}
               <Button
                 disabled={isMarkingPaid === `${entity.type}-${entity.id}` || !entity.currentMonthCommission}
                 size="sm"

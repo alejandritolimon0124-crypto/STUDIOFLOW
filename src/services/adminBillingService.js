@@ -26,6 +26,7 @@ function normalizeBillingEntity(entity = {}) {
     redeemedPointsYear: normalizeNumber(entity.redeemedPointsYear ?? entity.redeemed_points_year),
     appointmentCount: normalizeNumber(entity.appointmentCount ?? entity.appointment_count),
     status: entity.status || 'current',
+    artistStatus: entity.artistStatus || '',
   }
 }
 
