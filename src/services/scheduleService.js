@@ -35,7 +35,9 @@ function normalizeRule(rule = {}) {
     end: active ? timeValue(rule.endTime || rule.end_time, '18:00') : 'Libre',
     breakStart: breakStart || '-',
     breakEnd: breakEnd || '-',
-    blocks: active && breakStart && breakEnd
+    blocks: active && Array.isArray(rule.blocks)
+      ? rule.blocks.map((block,index)=>({id:block.id || `${day}-break-${index}`,start:timeValue(block.start,''),end:timeValue(block.end,'')}))
+      : active && breakStart && breakEnd
       ? [{ id: `${day}-break`, start: breakStart, end: breakEnd }]
       : [],
   }
@@ -85,7 +87,9 @@ function schedulePayloadFromAgendaSettings(agendaSettings = {}) {
   return {
     timezone: agendaSettings.timezone || 'America/Mexico_City',
     intervalMinutes: Number(agendaSettings.intervalMinutes) || 15,
-    minAdvanceHours: Number(agendaSettings.minAdvanceHours) || 2,
+    minAdvanceHours: agendaSettings.minAdvanceHours === '' || agendaSettings.minAdvanceHours == null
+      ? 2
+      : Number(agendaSettings.minAdvanceHours),
     schedule: asArray(agendaSettings.schedule).map((day) => ({
       day: day.day,
       weekday: day.weekday,
