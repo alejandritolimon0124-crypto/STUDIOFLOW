@@ -66,6 +66,7 @@ const roleNavigation = {
     { label: 'Servicios', path: paths.artistServices },
     { label: 'Clientas', path: paths.artistClients },
     { label: 'Marketplace', path: paths.artistMarketing },
+    { label: 'Contabilidad', path: paths.artistAccounting },
     { label: 'MI PERFIL', path: paths.artistSettings },
   ],
   client: [
@@ -108,6 +109,7 @@ const studioOwnerNavigation = [
   { label: 'Servicios', path: `${paths.adminStudio}?section=services` },
   { label: 'Marketplace', path: `${paths.adminStudio}?section=marketplace` },
   { label: 'Clientes', path: paths.adminStudioClients },
+  { label: 'Contabilidad', path: paths.studioAccounting },
   { label: 'Configuracion', path: `${paths.adminStudio}?section=settings` },
 ]
 

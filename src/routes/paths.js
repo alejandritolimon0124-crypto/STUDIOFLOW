@@ -21,6 +21,8 @@ export const paths = {
   artistSettings: '/artist/settings',
   artistSchedule: '/artist/schedule',
   artistMarketing: '/artist/marketing',
+  artistAccounting: '/artist/accounting',
+  studioAccounting: '/admin/studio/accounting',
   client: '/client',
   clientAppointments: '/client/appointments',
   clientExplore: '/client/search',

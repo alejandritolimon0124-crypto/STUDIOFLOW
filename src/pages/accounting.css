@@ -1,0 +1,15 @@
+.accounting-page { width: 100%; max-width: 900px; margin: 0 auto; min-width: 0; }
+.accounting-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.accounting-heading h1 { margin: 0; font-size: 28px; }
+.accounting-heading p,.accounting-caption { color: var(--muted); }
+.accounting-heading button { width: 44px; height: 44px; flex-shrink: 0; display: grid; place-items: center; background: white; border: 1px solid #d9d1d3; border-radius: 8px; cursor: pointer; }
+.accounting-totals { display: grid; gap: 12px; margin: 20px 0; }
+.accounting-totals article { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; padding: 18px; background: white; border: 1px solid #ded8da; border-radius: 8px; }
+.accounting-page h2 { font-size: 18px; margin: 0; }
+.accounting-totals p { font-size: 13px; margin: 5px 0 0; color: var(--muted); }
+.accounting-totals strong { font-size: 24px; font-variant-numeric: tabular-nums; color: #34594c; }
+.accounting-receipt { padding: 22px 0; border-top: 2px solid #bb9a61; }
+.accounting-receipt dl { margin: 18px 0; }
+.accounting-receipt dl div { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin: 10px 0; }
+.accounting-receipt dd { margin: 0; font-weight: 800; font-variant-numeric: tabular-nums; }
+.accounting-receipt p { font-size: 14px; color: var(--muted); }

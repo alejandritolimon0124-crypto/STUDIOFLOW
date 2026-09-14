@@ -12,6 +12,7 @@ const studioOwnerNavItems = [
   ['Servicios', `${paths.adminStudio}?section=services`],
   ['Marketplace', `${paths.adminStudio}?section=marketplace`],
   ['Clientes', paths.adminStudioClients],
+  ['Contabilidad', paths.studioAccounting],
   ['Config', `${paths.adminStudio}?section=config`],
 ]
 
