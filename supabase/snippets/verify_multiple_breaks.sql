@@ -1,7 +1,7 @@
 -- Run only against the isolated restored audit database. All changes roll back.
 begin;
 do $$
-declare s record; payload jsonb; result jsonb; before_count bigint; slot record; checked integer; rejected boolean; service_id uuid; client_id uuid; booking_date date; client_actor uuid; slot_ids uuid[];
+declare s record; payload jsonb; result jsonb; before_count bigint; slot record; checked integer; rejected boolean; service_id uuid; client_id uuid; booking_date date; client_actor uuid; slot_ids uuid[]; appointment_id uuid;
 begin
  if current_database()<>'studioflow_audit_verified_20260913' then raise exception 'Audit database required'; end if;
  select count(*) into before_count from public.appointments;
@@ -78,6 +78,19 @@ begin
  begin
  perform public.studio_flow_marketplace_book_appointment(slot_ids,service_id,null);
  if (select count(*) from public.appointments)<>before_count+1 then raise exception 'Patient booking missing'; end if;
+ select ap.id into appointment_id from public.appointments ap where ap.service_offering_id=service_id and ap.starts_at=(select starts_at from public.availability_slots where id=slot_ids[1]) and ap.status='scheduled';
+ if appointment_id is null then raise exception 'Booked appointment missing'; end if;
+ perform set_config('request.jwt.claim.sub',s.actor::text,true);
+ perform public.studio_flow_artist_request_appointment_confirmations('artist',booking_date,s.owner_type::text,s.membership_id);
+ if not exists(select 1 from public.appointments where id=appointment_id and confirmation_requested_at is not null) then raise exception 'Confirmation request missing'; end if;
+ perform set_config('request.jwt.claim.sub',client_actor::text,true);
+ perform public.studio_flow_client_update_appointment_response(appointment_id,'confirm');
+ if not exists(select 1 from public.appointments where id=appointment_id and client_confirmed_at is not null and status='scheduled') then raise exception 'Confirmation response missing'; end if;
+ perform public.studio_flow_client_update_appointment_response(appointment_id,'cancel');
+ if exists(select 1 from public.availability_slots where id=any(slot_ids) and status<>'available') then raise exception 'Cancellation did not release all slots'; end if;
+ perform public.studio_flow_marketplace_book_appointment(slot_ids,service_id,null);
+ if (select count(*) from public.appointments)<>before_count+2 then raise exception 'Released slots could not be booked again'; end if;
+ raise notice 'Confirmation request, client response, cancellation and rebooking passed for %',s.owner_type;
  raise exception using errcode='PZ001',message='Rollback successful patient reservation';
  exception when sqlstate 'PZ001' then null;
  end;
