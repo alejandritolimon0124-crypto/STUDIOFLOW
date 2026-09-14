@@ -1,7 +1,8 @@
 import StatusPill from './StatusPill'
+import AppointmentPayment from './AppointmentPayment'
 import { getAppointmentStatusTone } from '../utils/appointmentStatus'
 
-function AgendaCard({ time, title, subtitle, status, accent = 'rose', type = 'appointment', showEconomy = false, economyData = null, action = null }) {
+function AgendaCard({ time, title, subtitle, status, accent = 'rose', type = 'appointment', showEconomy = false, economyData = null, action = null, appointment = null }) {
   const tone = type === 'break' || status === 'Por llegar' || status === 'Anticipo'
     ? 'warm'
     : getAppointmentStatusTone(status)
@@ -14,7 +15,8 @@ function AgendaCard({ time, title, subtitle, status, accent = 'rose', type = 'ap
       <div className="agenda-content">
         <strong>{title}</strong>
         <small>{subtitle}</small>
-        {showEconomy && economyData && (
+        {appointment && <AppointmentPayment appointment={appointment} />}
+        {!appointment && showEconomy && economyData && (
           <div className="agenda-economy">
             <div className="economy-item">
               <span className="economy-label">Monto:</span>

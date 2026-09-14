@@ -1,4 +1,5 @@
 import { requireSupabase } from '../lib/supabaseClient'
+import { withAppointmentPayments } from './appointmentPaymentService'
 import { hasCurrentAttendanceConfirmation } from '../utils/appointmentConfirmation'
 import { getContextRpcParams } from './artistWorkContextService'
 
@@ -118,7 +119,7 @@ export async function fetchClientAppointments() {
 
   if (error) throw error
 
-  return mapAppointmentsPayload(data)
+  return withAppointmentPayments(mapAppointmentsPayload(data))
 }
 
 export async function fetchArtistAppointments({ artistId } = {}) {
@@ -129,7 +130,7 @@ export async function fetchArtistAppointments({ artistId } = {}) {
 
   if (error) throw error
 
-  return mapAppointmentsPayload(data)
+  return withAppointmentPayments(mapAppointmentsPayload(data))
 }
 
 export async function updateClientAppointmentResponse({ appointmentId, action } = {}) {

@@ -899,6 +899,7 @@ function ArtistDashboard({ view = 'agenda' }) {
                     const economyData = calculateAppointmentEconomy(item, serviceData)
                     return (
                       <AgendaCard
+                        appointment={item}
                         accent={index % 2 === 0 ? 'rose' : 'nude'}
                         key={`${item.id}-${item.time}`}
                         time={`${item.time} - ${item.end}`}

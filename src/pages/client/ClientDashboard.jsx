@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { hasCurrentAttendanceConfirmation } from '../../utils/appointmentConfirmation'
 import Button from '../../components/Button'
+import AppointmentPayment from '../../components/AppointmentPayment'
 import Card from '../../components/Card'
 import Input from '../../components/Input'
 import PanelHeader from '../../components/PanelHeader'
@@ -1965,6 +1966,7 @@ function ClientDashboard({ view = 'inicio' }) {
                   </div>
                   <div>
                     <h3>{nextAppointment.service || 'Servicio agendado'}</h3>
+                    <AppointmentPayment appointment={nextAppointment} />
                     <p>{nextAppointment.artist || 'Artista'} / {nextAppointment.contextName || nextAppointment.address || 'Ubicacion por confirmar'}</p>
                     <small className="flow-points-slot-note client-flow-points-highlight">
                       {nextAppointment.pointsGranted > 0
@@ -2098,6 +2100,7 @@ function ClientDashboard({ view = 'inicio' }) {
                     </div>
                     <div>
                       <h3>{appointment.service}</h3>
+                      <AppointmentPayment appointment={appointment} />
                       <p>{appointment.artist} / {appointment.contextName || appointment.address}</p>
                       <small className="flow-points-slot-note">
                         {appointment.pointsGranted > 0

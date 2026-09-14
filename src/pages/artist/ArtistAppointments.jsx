@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import Button from '../../components/Button'
+import AppointmentPayment from '../../components/AppointmentPayment'
 import Card from '../../components/Card'
 import Input from '../../components/Input'
 import PanelHeader from '../../components/PanelHeader'
@@ -603,6 +604,7 @@ function ArtistAppointments() {
               <div>
                 <strong>{appointment.client}</strong>
                 <small>{appointment.service} / {appointment.time}</small>
+                <AppointmentPayment appointment={appointment} />
               </div>
               <div className="row-actions appointment-result-actions" style={{ justifyContent: 'flex-end', gap: 6 }}>
                 <StatusPill tone="neutral">{getAppointmentContextLabel(appointment)}</StatusPill>
@@ -639,6 +641,7 @@ function ArtistAppointments() {
               <div>
                 <strong>{appointment.client}</strong>
                 <small>{appointment.service} / {appointment.time}</small>
+                <AppointmentPayment appointment={appointment} />
               </div>
               <div className="row-actions appointment-result-actions" style={{ justifyContent: 'flex-end', gap: 6 }}>
                 <StatusPill tone="neutral">{getAppointmentContextLabel(appointment)}</StatusPill>

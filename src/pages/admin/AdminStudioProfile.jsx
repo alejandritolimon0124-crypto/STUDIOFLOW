@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Button from '../../components/Button'
+import AppointmentPayment from '../../components/AppointmentPayment'
 import Card from '../../components/Card'
 import Input from '../../components/Input'
 import StatusPill from '../../components/StatusPill'
@@ -379,6 +380,7 @@ function StudioSummarySection({
               <div>
                 <strong>{getAppointmentTime(appointment)} / {appointment.client || 'Clienta'}</strong>
                 <small>{appointment.service || 'Servicio'} / {appointment.contextName || studioName}</small>
+                <AppointmentPayment appointment={appointment} />
               </div>
               <div className="agenda-card-actions">
                 <StatusPill tone={getAppointmentStatusTone(appointment)}>{appointment.status || 'Confirmada'}</StatusPill>
@@ -689,6 +691,7 @@ function StudioScheduleSection({
               <div>
                 <strong>{getAppointmentTime(appointment)} / {appointment.client || 'Clienta'}</strong>
                 <small>{appointment.service || 'Servicio'} / {appointment.contextName || studioName}</small>
+                <AppointmentPayment appointment={appointment} />
               </div>
               <div className="agenda-card-actions">
                 <StatusPill tone={getAppointmentStatusTone(appointment)}>{appointment.status || 'Confirmada'}</StatusPill>

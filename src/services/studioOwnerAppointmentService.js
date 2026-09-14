@@ -1,4 +1,5 @@
 import { requireSupabase } from '../lib/supabaseClient'
+import { withAppointmentPayments } from './appointmentPaymentService'
 import { fetchAdminClients } from './adminClientService'
 
 const studioOwnerTimeZone = 'America/Mexico_City'
@@ -243,7 +244,7 @@ export async function fetchStudioOwnerAppointments({ studioId, membershipIds = [
     ;(artists || []).forEach((artist) => artistsById.set(artist.id, artist))
   }
 
-  return appointments.map((appointment) => {
+  return withAppointmentPayments(appointments.map((appointment) => {
     const appointmentClient = clientsById.get(appointment.client_id)
     const service = servicesById.get(appointment.service_offering_id)
     const artist = artistsById.get(appointment.artist_id)
@@ -263,7 +264,7 @@ export async function fetchStudioOwnerAppointments({ studioId, membershipIds = [
       status: mapAppointmentStatus(appointment.status),
       appointmentStatus: appointment.status,
     })
-  })
+  }))
 }
 
 export async function fetchStudioOwnerClientAppointments({
@@ -319,7 +320,7 @@ export async function fetchStudioOwnerClientAppointments({
     ;(artists || []).forEach((artist) => artistsById.set(artist.id, artist))
   }
 
-  return appointments.map((appointment) => {
+  return withAppointmentPayments(appointments.map((appointment) => {
     const service = servicesById.get(appointment.service_offering_id)
     const artist = artistsById.get(appointment.artist_id)
     const startsAt = appointment.starts_at || ''
@@ -335,7 +336,7 @@ export async function fetchStudioOwnerClientAppointments({
       status: mapAppointmentStatus(appointment.status),
       appointmentStatus: appointment.status,
     })
-  })
+  }))
 }
 
 export async function requestStudioOwnerAppointmentConfirmations({ studioId, date = null } = {}) {
