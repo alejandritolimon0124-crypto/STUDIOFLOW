@@ -15,6 +15,7 @@ export default function Accounting({ studio = false }) {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
   const [refresh, setRefresh] = useState(0)
+  const [cancelledLimit, setCancelledLimit] = useState(10)
   useEffect(() => {
     let active = true
     const load = async () => {
@@ -26,7 +27,7 @@ export default function Accounting({ studio = false }) {
       } catch (failure) { if (active) setError(failure.message) }
       finally { if (active) setLoading(false) }
     }
-    setData(null); setLoading(true); load()
+    setData(null); setCancelledLimit(10); setLoading(true); load()
     const tick = () => { if (document.visibilityState !== 'hidden') load() }
     const timer = window.setInterval(tick, 60000)
     window.addEventListener('focus', tick)
@@ -40,6 +41,21 @@ export default function Accounting({ studio = false }) {
       <p className="accounting-caption">Citas completadas · Importes finales después de descuentos</p>
       <section aria-label="Resumen de ingresos" className="accounting-totals">
         {[['Ingresos de hoy', dateLabel(data.date), data.daily], ['Ingresos de la semana', `Desde el ${dateLabel(data.weekStart)}`, data.weekly], ['Ingresos del mes', `Desde el ${dateLabel(data.monthStart)}`, data.monthly]].map(([label, period, amount]) => <article key={label}><div><h2>{label}</h2><p>{period}</p></div><strong>{money(amount)}</strong></article>)}
+      </section>
+      <section className="accounting-cancellations" aria-label="Citas canceladas del mes">
+        <details>
+          <summary>Citas canceladas del mes <strong>{data.cancelledAppointments?.length || 0}</strong></summary>
+          <p>Por fecha programada · Sin ingresos ni comisión</p>
+          {!data.cancelledAppointments?.length && <p>No hay citas canceladas para este mes.</p>}
+          {(data.cancelledAppointments || []).slice(0, cancelledLimit).map((appointment) => <article key={appointment.id}>
+            <strong>{appointment.client || 'Clienta'}</strong>
+            <span>{appointment.service || 'Servicio'}</span>
+            <span>Cita: {new Intl.DateTimeFormat('es-MX', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'America/Mexico_City' }).format(new Date(appointment.scheduledAt))}</span>
+            <small>Cancelada: {appointment.cancelledAt ? new Intl.DateTimeFormat('es-MX', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'America/Mexico_City' }).format(new Date(appointment.cancelledAt)) : 'Fecha no registrada'}</small>
+            <span>Importe de la reserva: {appointment.amount == null ? 'No registrado' : money(appointment.amount)}</span>
+          </article>)}
+          {(data.cancelledAppointments?.length || 0) > cancelledLimit && <button type="button" className="button" onClick={() => setCancelledLimit((value) => value + 10)}>Mostrar más</button>}
+        </details>
       </section>
       <section className="accounting-receipt" aria-label="Recibo de comisión">
         <h2>Recibo de pago Studio Flow</h2>
