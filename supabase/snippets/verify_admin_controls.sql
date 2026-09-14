@@ -1,7 +1,7 @@
 -- Existing restored accounts only; no production changes or persistent data.
 begin;
 do $$
-declare s record; actor uuid; artist uuid; result jsonb; month_start date; entity_sum numeric; rejected boolean:=false;
+declare s record; actor uuid; artist uuid; result jsonb; month_start date; entity_sum numeric; rejected boolean:=false; h record; expected numeric;
 begin
  if current_database()<>'studioflow_audit_verified_20260913' then raise exception 'Isolated database required'; end if;
  for s in select * from public.studios where studio_status='approved' and archived_at is null loop
@@ -33,6 +33,13 @@ begin
   end;
   if not rejected then raise exception 'Unpaid artist reactivated'; end if;
   perform public.studio_flow_admin_mark_commission_paid('artist',artist,current_date,'manual',null);
+  for h in select * from public.studio_flow_commission_payments where entity_type='artist' and entity_id=artist and billing_month<=date_trunc('month',current_date)::date loop
+   select coalesce(sum(coalesce(c.amount,e.platform_fee_amount,round(so.price_amount*0.10,2),0)),0) into expected
+   from public.appointments ap join public.service_offerings so on so.id=ap.service_offering_id
+   left join public.appointment_economies e on e.appointment_id=ap.id left join public.commissions c on c.appointment_id=ap.id
+   where ap.artist_id=artist and ap.studio_id is null and date_trunc('month',ap.starts_at)::date=h.billing_month;
+   if expected>0 and h.paid_amount<>expected then raise exception 'Payment includes studio appointments'; end if;
+  end loop;
   if public.studio_flow_artist_unpaid_commission(artist)<>0 then raise exception 'Payment not reflected'; end if;
   raise notice 'Debt blocks activation; recorded payment clears debt';
  end if;
@@ -43,10 +50,21 @@ begin
  for month_start in select distinct date_trunc('month',starts_at)::date from public.appointments loop
   result:=public.studio_flow_admin_get_billing_summary(month_start,''::text);
   select sum((e->>'currentMonthCommission')::numeric) into entity_sum from jsonb_array_elements(result->'entities') e;
-  if entity_sum>(result->>'currentMonthCommission')::numeric then
-   raise warning 'CONFIRMED: billing entity commissions exceed global total in %',month_start;
+  if entity_sum is distinct from (result->>'currentMonthCommission')::numeric then
+   raise exception 'Billing entity commissions differ from global total in %',month_start;
   end if;
  end loop;
+ for month_start in select distinct date_trunc('year',starts_at)::date from public.appointments loop
+  result:=public.studio_flow_admin_get_billing_history('%',extract(year from month_start)::int);
+  select sum((m->>'commissionAmount')::numeric) into entity_sum
+  from jsonb_array_elements(result->'entities') e cross join lateral jsonb_array_elements(e->'months') m;
+  select sum(coalesce(c.amount,ec.platform_fee_amount,round(so.price_amount*0.10,2),0)) into expected
+  from public.appointments ap join public.service_offerings so on so.id=ap.service_offering_id
+  left join public.appointment_economies ec on ec.appointment_id=ap.id left join public.commissions c on c.appointment_id=ap.id
+  where date_trunc('year',ap.starts_at)::date=month_start;
+  if entity_sum is distinct from expected then raise exception 'History double counts appointments'; end if;
+ end loop;
+ raise notice 'Monthly summary, annual history and payment ownership reconciled';
  raise notice 'Owner suspension/reactivation and billing summary call passed';
 end;$$;
 rollback;
