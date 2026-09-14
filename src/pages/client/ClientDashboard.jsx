@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { hasCurrentAttendanceConfirmation } from '../../utils/appointmentConfirmation'
 import Button from '../../components/Button'
 import Card from '../../components/Card'
 import Input from '../../components/Input'
@@ -1363,8 +1364,7 @@ function ClientDashboard({ view = 'inicio' }) {
   ))[0]
   const pendingConfirmationAppointments = useMemo(() => upcomingAppointments.filter((appointment) => (
     appointment.confirmationRequestedAt
-    && !appointment.clientConfirmedAt
-    && !appointment.client_confirmed_at
+    && !hasCurrentAttendanceConfirmation(appointment)
   )), [upcomingAppointments])
   const pendingConfirmationCount = pendingConfirmationAppointments.length
   const canRespondToAppointment = (appointment = {}) => (
@@ -1374,8 +1374,7 @@ function ClientDashboard({ view = 'inicio' }) {
   )
   const canConfirmAppointment = (appointment = {}) => (
     canRespondToAppointment(appointment)
-    && !appointment.clientConfirmedAt
-    && !appointment.client_confirmed_at
+    && !hasCurrentAttendanceConfirmation(appointment)
   )
   const respondToAppointment = async (appointmentId, action) => {
     setRespondingAppointmentId(appointmentId)

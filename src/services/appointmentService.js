@@ -1,4 +1,5 @@
 import { requireSupabase } from '../lib/supabaseClient'
+import { hasCurrentAttendanceConfirmation } from '../utils/appointmentConfirmation'
 import { getContextRpcParams } from './artistWorkContextService'
 
 function asArray(value) {
@@ -17,7 +18,7 @@ function normalizeAppointment(appointment = {}) {
   const clientConfirmedAt = appointment.clientConfirmedAt || appointment.client_confirmed_at || null
   const confirmationRequestedAt = appointment.confirmationRequestedAt || appointment.confirmation_requested_at || null
   const displayStatus = appointmentStatus === 'scheduled'
-    ? clientConfirmedAt
+    ? hasCurrentAttendanceConfirmation(appointment)
       ? 'Confirmada'
       : confirmationRequestedAt
         ? 'Pendiente de confirmar'
