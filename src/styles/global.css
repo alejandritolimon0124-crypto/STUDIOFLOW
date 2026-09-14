@@ -2123,7 +2123,33 @@ select:focus,
   align-items: center;
   display: grid;
   gap: 12px;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr);
+}
+
+.client-next-payment {
+  grid-column: 1 / -1;
+  border-top: 1px solid rgba(93, 61, 68, 0.16);
+  padding-top: 10px;
+  min-width: 0;
+}
+
+.client-next-appointment > .row-actions {
+  grid-column: 1 / -1;
+}
+
+.appointment-payment-compact > div + div {
+  margin-top: 5px;
+}
+
+.appointment-payment-compact dt {
+  min-width: 0;
+  text-align: left;
+}
+
+.appointment-payment-compact dd {
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 
 .client-next-appointment h3 {
