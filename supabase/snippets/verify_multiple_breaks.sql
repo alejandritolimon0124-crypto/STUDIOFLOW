@@ -1,7 +1,7 @@
 -- Run only against the isolated restored audit database. All changes roll back.
 begin;
 do $$
-declare s record; payload jsonb; result jsonb; before_count bigint; slot record; checked integer; rejected boolean; service_id uuid; client_id uuid; booking_date date; client_actor uuid; slot_ids uuid[]; appointment_id uuid;
+declare s record; payload jsonb; result jsonb; before_count bigint; slot record; checked integer; rejected boolean; service_id uuid; client_id uuid; booking_date date; client_actor uuid; slot_ids uuid[]; appointment_id uuid; reward_id uuid;
 begin
  if current_database()<>'studioflow_audit_verified_20260913' then raise exception 'Audit database required'; end if;
  select count(*) into before_count from public.appointments;
@@ -66,7 +66,7 @@ begin
  and ((sl.starts_at at time zone s.timezone)::time='14:45' or ((sl.starts_at at time zone s.timezone)::time>='16:00' and (sl.starts_at at time zone s.timezone)::time<'16:45')) and sl.status='available';
  rejected:=false;
  begin
- perform public.studio_flow_marketplace_book_appointment(slot_ids,service_id,null);
+ perform public.studio_flow_marketplace_book_with_reward(slot_ids,service_id,null,null);
  exception when others then
   if sqlerrm not in ('Selected slots are not contiguous','Este horario ya no esta disponible segun las reglas de la agenda.') then raise; end if;
   rejected:=true;
@@ -76,7 +76,20 @@ begin
  where sl.schedule_id=s.id and (sl.starts_at at time zone s.timezone)::date=booking_date
  and (sl.starts_at at time zone s.timezone)::time>='16:00' and (sl.starts_at at time zone s.timezone)::time<'17:00' and sl.status='available';
  begin
- perform public.studio_flow_marketplace_book_appointment(slot_ids,service_id,null);
+ select id into reward_id from public.rewards where status='active' and archived_at is null limit 1;
+ if reward_id is null then raise exception 'Existing reward required'; end if;
+ rejected:=false;
+ begin
+  perform public.studio_flow_marketplace_book_with_reward(slot_ids,service_id,reward_id,null);
+ exception when others then
+  if sqlerrm not in ('Insufficient Flow Points','Active Flow Points reward required','Esta cita ya tiene una promocion aplicada y no admite puntos adicionales.') then raise; end if;
+  rejected:=true;
+ end;
+ if not rejected then raise exception 'Expected unavailable reward rejection'; end if;
+ if (select count(*) from public.appointments)<>before_count then raise exception 'Failed reward left a booking'; end if;
+ if exists(select 1 from public.availability_slots where id=any(slot_ids) and status<>'available') then raise exception 'Failed reward left occupied slots'; end if;
+ raise notice 'Failed reward rolls back booking and slots for %',s.owner_type;
+ perform public.studio_flow_marketplace_book_with_reward(slot_ids,service_id,null,null);
  if (select count(*) from public.appointments)<>before_count+1 then raise exception 'Patient booking missing'; end if;
  select ap.id into appointment_id from public.appointments ap where ap.service_offering_id=service_id and ap.starts_at=(select starts_at from public.availability_slots where id=slot_ids[1]) and ap.status='scheduled';
  if appointment_id is null then raise exception 'Booked appointment missing'; end if;

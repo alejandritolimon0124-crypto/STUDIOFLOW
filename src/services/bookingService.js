@@ -31,6 +31,8 @@ function normalizeBookingPayload(data = {}) {
   return {
     appointment: normalizeAppointment(data.appointment),
     service: data.service || null,
+    reward: data.reward || null,
+    economy: data.economy || null,
     artist: data.artist || null,
     startsAt: data.startsAt || data.starts_at || null,
     endsAt: data.endsAt || data.ends_at || null,
@@ -57,9 +59,10 @@ export async function bookMarketplaceAppointment({
 
 
   const client = requireSupabase()
-  const { data, error } = await client.rpc('studio_flow_marketplace_book_appointment', {
+  const { data, error } = await client.rpc('studio_flow_marketplace_book_with_reward', {
     p_availability_slot_ids: slotIds,
     p_service_offering_id: serviceOfferingId,
+    p_reward_id: rewardId || null,
     p_notes: notes || null,
   })
 
@@ -67,18 +70,5 @@ export async function bookMarketplaceAppointment({
     throw error
   }
 
-  let bookingPayload = data
-
-  if (rewardId && data?.appointment?.id) {
-    const { data: rewardData, error: rewardError } = await client.rpc('studio_flow_client_apply_appointment_reward', {
-      p_appointment_id: data.appointment.id,
-      p_reward_id: rewardId,
-    })
-
-    if (rewardError) throw rewardError
-    bookingPayload = rewardData || data
-  }
-
-
-  return normalizeBookingPayload(bookingPayload)
+  return normalizeBookingPayload(data)
 }
