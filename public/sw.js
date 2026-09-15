@@ -10,4 +10,9 @@ self.addEventListener('activate', (event) => {
   )
 })
 
-self.addEventListener('fetch', () => {})
+// Keep authenticated pages and API responses on the network, never in a cache.
+self.addEventListener('fetch', (event) => {
+  if (event.request.method === 'GET' && new URL(event.request.url).origin === self.location.origin) {
+    event.respondWith(fetch(event.request))
+  }
+})

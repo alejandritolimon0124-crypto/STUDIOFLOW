@@ -18,6 +18,15 @@
 
     <!-- TITLE -->
     <title>Studio Flow</title>
+    <script>
+      window.addEventListener('beforeinstallprompt', (event) => {
+        event.preventDefault()
+        window.studioFlowInstallPrompt = event
+      })
+      window.addEventListener('appinstalled', () => {
+        window.studioFlowInstallPrompt = null
+      })
+    </script>
   </head>
 
   <body>

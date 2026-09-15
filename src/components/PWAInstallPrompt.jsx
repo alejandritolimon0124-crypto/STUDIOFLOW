@@ -18,7 +18,12 @@ function PWAInstallPrompt() {
 
   useEffect(() => {
     if (isAppInstalled()) return undefined
-    setIsVisible(true)
+    if (window.studioFlowInstallPrompt) {
+      setDeferredPrompt(window.studioFlowInstallPrompt)
+      setIsVisible(true)
+    } else if (isIOS) {
+      setIsVisible(true)
+    }
 
     const handleBeforeInstallPrompt = (event) => {
       event.preventDefault()
@@ -38,7 +43,7 @@ function PWAInstallPrompt() {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
       window.removeEventListener('appinstalled', handleAppInstalled)
     }
-  }, [])
+  }, [isIOS])
 
   const handleInstall = async () => {
     if (!deferredPrompt) {
@@ -50,9 +55,11 @@ function PWAInstallPrompt() {
       setInstallError('')
       await deferredPrompt.prompt()
       await deferredPrompt.userChoice
+      window.studioFlowInstallPrompt = null
       setDeferredPrompt(null)
       setIsVisible(false)
     } catch {
+      window.studioFlowInstallPrompt = null
       setDeferredPrompt(null)
       setShowInstructions(true)
       setInstallError('No se pudo abrir la instalación automática.')
@@ -72,7 +79,7 @@ function PWAInstallPrompt() {
       </button>
       <div>
         <span>Instala Studio Flow</span>
-        <p>Agrega Studio Flow a la pantalla de inicio de tu dispositivo.</p>
+        <p>Accede más rápido y disfruta Studio Flow en su propia ventana.</p>
         {installError && <p role="status">{installError}</p>}
         {showInstructions && (
           <p role="status">{isIOS
@@ -80,7 +87,7 @@ function PWAInstallPrompt() {
             : 'Abre este enlace en Chrome o Edge. En el menú del navegador busca Instalar aplicación o Agregar a pantalla de inicio. Si estás dentro de WhatsApp o Facebook, abre primero el enlace en tu navegador.'}</p>
         )}
       </div>
-      <Button size="sm" onClick={handleInstall}>Instalar aplicación</Button>
+      <Button size="sm" onClick={handleInstall}>{deferredPrompt ? 'Instalar aplicación' : 'Cómo instalar en iPhone'}</Button>
     </aside>
   )
 }
