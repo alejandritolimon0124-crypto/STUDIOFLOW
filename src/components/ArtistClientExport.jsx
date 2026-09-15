@@ -4,14 +4,16 @@ import { Download } from 'lucide-react'
 import Button from './Button'
 import { requireSupabase } from '../lib/supabaseClient'
 
-export default function ArtistClientExport() {
+export default function ArtistClientExport({ studioId = null }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   async function download() {
     setBusy(true)
     setError('')
     try {
-      const { data, error: failure } = await requireSupabase().rpc('studio_flow_artist_export_clients')
+      const { data, error: failure } = studioId
+        ? await requireSupabase().rpc('studio_flow_studio_export_clients', { p_studio_id: studioId })
+        : await requireSupabase().rpc('studio_flow_artist_export_clients')
       if (failure) throw failure
       const book = new ExcelJS.Workbook()
       const sheet = book.addWorksheet('Cartera de clientes')

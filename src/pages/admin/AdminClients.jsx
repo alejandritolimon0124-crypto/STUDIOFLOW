@@ -3,6 +3,7 @@ import Button from '../../components/Button'
 import Card from '../../components/Card'
 import Input from '../../components/Input'
 import OwnerStatusMetric from '../../components/OwnerStatusMetric'
+import ArtistClientExport from '../../components/ArtistClientExport'
 import PanelHeader from '../../components/PanelHeader'
 import StatusPill from '../../components/StatusPill'
 import { useApp } from '../../contexts/appContextCore'
@@ -427,6 +428,7 @@ function AdminClients() {
             eyebrow={isStudioOwnerContext ? 'Clientas del estudio' : 'Suspension y reactivacion'}
             action={isStudioOwnerContext ? <Button disabled={!isStudioOwnerContext} size="sm" onClick={() => openOwnerAppointmentFlow()}>Nueva clienta</Button> : null}
           />
+          {isStudioOwnerContext && activeStudioId && <ArtistClientExport key={activeStudioId} studioId={activeStudioId} />}
           <div className="admin-search">
             <div className="location-form-grid">
               <Input
