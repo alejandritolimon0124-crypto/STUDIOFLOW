@@ -3,7 +3,7 @@ import Button from '../../components/Button'
 import OwnerAgenda from '../../components/OwnerAgenda'
 import Card from '../../components/Card'
 import Input from '../../components/Input'
-import MetricCard from '../../components/MetricCard'
+import OwnerStatusMetric from '../../components/OwnerStatusMetric'
 import PanelHeader from '../../components/PanelHeader'
 import StatusPill from '../../components/StatusPill'
 import { fetchOwnerStudios, reviewOwnerStudio, saveOwnerStudioProfile } from '../../services/adminStudioManagementService'
@@ -122,7 +122,7 @@ function AdminStudios() {
 
   return (
     <main className="dashboard-grid admin-grid">
-      <MetricCard label="Estudios activos" value={activeStudios.length} trend={`${suspendedStudios.length} suspendidos`} tone={suspendedStudios.length ? 'warm' : 'success'} />
+      <OwnerStatusMetric positive={activeStudios.length} negative={suspendedStudios.length} positiveLabel="Activos" negativeLabel="Suspendidos" />
 
       <Card className="wide-card executive-card">
         <PanelHeader title="Estudios" eyebrow="Suspension y reactivacion" />
