@@ -272,12 +272,7 @@ async function repairIncompleteAuthContext(authSession, authContext = {}) {
     }
 
 
-    try {
-      const repairedAuthContext = await bootstrapClientProfile({ displayName, phone, birthday })
-      return repairedAuthContext
-    } catch (error) {
-      throw error
-    }
+    return bootstrapClientProfile({ displayName, phone, birthday })
   }
 
   if (role === ROLES.ARTIST && (!authContext.artist || !hasRoleAssignment(authContext, ROLES.ARTIST))) {
@@ -1175,7 +1170,7 @@ export function AppProvider({ children }) {
     setArtistState(createInitialArtistState())
     sessionRef.current = initialSession
     setSession(initialSession)
-  }, [session.isMockSession, session.profile?.id, session.user?.profileId])
+  }, [session.isMockSession])
 
   useEffect(() => {
     if (!hasSupabaseAuth()) {
@@ -1485,7 +1480,7 @@ export function AppProvider({ children }) {
         lastAttempt: attempt,
         successMessage: '',
       }))
-      throw new Error(message)
+      throw new Error(message, { cause: error })
     } finally {
       setIsBookingLoading(false)
     }
@@ -1961,6 +1956,13 @@ export function AppProvider({ children }) {
       })
     }
   }, [loadAdminArtists, loadAdminClients, loadAdminDashboard, loadGovernanceQueue, session])
+
+  useEffect(() => {
+    if (session.role !== ROLES.ARTIST || session.isMockSession) return undefined
+    const refreshCompleted = () => { loadArtistAppointments().catch(() => {}) }
+    window.addEventListener('studio-flow-appointment-completed', refreshCompleted)
+    return () => window.removeEventListener('studio-flow-appointment-completed', refreshCompleted)
+  }, [loadArtistAppointments, session.role, session.isMockSession])
 
   const toggleScheduleDay = useCallback((dayName) => {
     setAgendaSettings((currentSettings) => ({
@@ -2534,19 +2536,15 @@ export function AppProvider({ children }) {
     }
     if (session.role !== ROLES.CLIENT) throw new Error('Ingresa al perfil de clienta para guardar los cambios.')
 
-    try {
-      const savedProfile = await updateOwnClientProfile(updates)
-      setClientState((currentState) => ({
-        ...currentState,
-        profile: {
-          ...currentState.profile,
-          ...savedProfile,
-        },
-      }))
-      return savedProfile
-    } catch (error) {
-      throw error
-    }
+    const savedProfile = await updateOwnClientProfile(updates)
+    setClientState((currentState) => ({
+      ...currentState,
+      profile: {
+        ...currentState.profile,
+        ...savedProfile,
+      },
+    }))
+    return savedProfile
   }, [session.isMockSession, session.role])
 
   const saveArtistService = useCallback(async (service) => {

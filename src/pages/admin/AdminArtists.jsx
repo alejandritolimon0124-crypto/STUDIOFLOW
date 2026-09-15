@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import Button from '../../components/Button'
+import OwnerAgenda from '../../components/OwnerAgenda'
 import Card from '../../components/Card'
 import Input from '../../components/Input'
 import MetricCard from '../../components/MetricCard'
@@ -103,37 +104,26 @@ function AdminArtists() {
   const artistMapsUrl = buildGoogleMapsUrl(effectiveArtistLocation)
   const artistCustomLocationHasCoordinates = hasCoordinates(artistLocationDraft.customLocation)
 
-  useEffect(() => {
-    if (!editingArtist) {
-      setStudioLocationDraft(createProfessionalLocation())
-      setStudioLocationErrors({})
-      setStudioLocationDetection({ status: 'idle', message: '' })
-      setIsStudioLocationConfirmed(false)
-      setArtistLocationDraft(createArtistLocationSettings())
-      setArtistLocationErrors({})
-      setArtistLocationDetection({ status: 'idle', message: '' })
-      setIsArtistLocationConfirmed(false)
-      return
-    }
-
+  const openArtistProfile = (artist) => {
+    setEditingArtist(artist)
     const artistStudio = getStudioForArtist({
-      artistId: editingArtist.id,
+      artistId: artist.id,
       studios: adminState.studios,
       artistStudioMemberships,
     })
     setStudioLocationDraft(createProfessionalLocation({
-      city: artistStudio?.professionalLocation?.city || artistStudio?.city || editingArtist.city,
+      city: artistStudio?.professionalLocation?.city || artistStudio?.city || artist.city,
       ...(artistStudio?.professionalLocation || {}),
       businessName: artistStudio?.profile?.commercialName || '',
     }))
-    setArtistLocationDraft(createArtistLocationSettings(editingArtist.professionalLocation))
+    setArtistLocationDraft(createArtistLocationSettings(artist.professionalLocation))
     setStudioLocationErrors({})
     setArtistLocationErrors({})
     setStudioLocationDetection({ status: 'idle', message: '' })
     setArtistLocationDetection({ status: 'idle', message: '' })
     setIsStudioLocationConfirmed(false)
     setIsArtistLocationConfirmed(false)
-  }, [adminState.studios, artistStudioMemberships, editingArtist?.id])
+  }
 
   const saveArtistProfile = () => {
     if (!editingArtist) return
@@ -312,7 +302,7 @@ function AdminArtists() {
                   <strong>{artist.name}</strong>
                   <small>{artist.email || artist.phone || artist.city || 'Sin contacto'}</small>
                 </div>
-                <button type="button" onClick={() => setEditingArtist(artist)}>Ver perfil</button>
+                <button type="button" onClick={() => openArtistProfile(artist)}>Ver perfil</button>
               </div>
             ))}
           </div>
@@ -356,8 +346,9 @@ function AdminArtists() {
                         {isActive ? 'Suspender' : 'Reactivar'}
                       </button>
                     )}
-                    <button type="button" onClick={() => setEditingArtist(artist)}>Editar perfil</button>
+                    <button type="button" onClick={() => openArtistProfile(artist)}>Editar perfil</button>
                   </div>
+                  {isPlatformOwner && <OwnerAgenda entityType="artist" entityId={artist.id} />}
                 </article>
               )
             })}

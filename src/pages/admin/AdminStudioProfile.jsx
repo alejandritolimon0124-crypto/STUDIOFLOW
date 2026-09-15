@@ -175,7 +175,7 @@ function canAwardFlowPoints(appointment = {}) {
   const status = String(appointment.appointmentStatus || appointment.appointment_status || appointment.status || '').toLowerCase()
   return appointment.flowPointsAwarded > 0
     && appointment.pointsGranted <= 0
-    && !['cancelled', 'canceled', 'cancelada', 'cancelado', 'no_show', 'no show'].some((blockedStatus) => status.includes(blockedStatus))
+    && status === 'completed'
 }
 
 function countAppointmentsBetween(appointments, startDate, endDate) {
@@ -1347,7 +1347,7 @@ function AdminStudioProfile() {
       })
       setStudioOwnerAppointments(appointments)
       return appointments
-    } catch (error) {
+    } catch {
       setStudioOwnerAppointments([])
       return []
     }

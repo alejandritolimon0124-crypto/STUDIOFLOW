@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import Button from '../../components/Button'
+import OwnerAgenda from '../../components/OwnerAgenda'
 import Card from '../../components/Card'
 import Input from '../../components/Input'
 import MetricCard from '../../components/MetricCard'
@@ -25,28 +26,18 @@ const parseMoneyValue = (value) => Number(String(value || '').replace(/[^\d.-]/g
 function AdminStudios() {
   const [studios, setStudios] = useState([])
   const [query, setQuery] = useState('')
-  const [isLoading, setIsLoading] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
   const [actionStudioId, setActionStudioId] = useState('')
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
 
-  const loadStudios = async () => {
-    setIsLoading(true)
-    setError('')
-
-    try {
-      const nextStudios = await fetchOwnerStudios()
-      setStudios(nextStudios)
-    } catch (requestError) {
-      setStudios([])
-      setError(requestError.message || 'No se pudieron cargar los estudios.')
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
   useEffect(() => {
-    loadStudios()
+    let active = true
+    fetchOwnerStudios()
+      .then((nextStudios) => { if (active) setStudios(nextStudios) })
+      .catch((requestError) => { if (active) setError(requestError.message || 'No se pudieron cargar los estudios.') })
+      .finally(() => { if (active) setIsLoading(false) })
+    return () => { active = false }
   }, [])
 
   const activeStudios = studios.filter((studio) => studio.studioStatus === 'approved')
@@ -157,6 +148,7 @@ function AdminStudios() {
                 {statusLabel[studio.studioStatus] || studio.studioStatus}
               </StatusPill>
               <div className="row-actions">{renderActions(studio)}</div>
+              <OwnerAgenda entityType="studio" entityId={studio.id} />
             </div>
           ))}
 

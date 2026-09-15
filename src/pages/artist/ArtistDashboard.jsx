@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import useCurrentTime from '../../hooks/useCurrentTime'
 import AgendaCard from '../../components/AgendaCard'
 import Button from '../../components/Button'
 import Card from '../../components/Card'
@@ -122,6 +123,7 @@ function appointmentMatchesWorkContext(appointment = {}, workContext = {}) {
 }
 
 function ArtistDashboard({ view = 'agenda' }) {
+  const now = useCurrentTime()
   const navigate = useNavigate()
   const {
     adminState,
@@ -345,7 +347,6 @@ function ArtistDashboard({ view = 'agenda' }) {
     : ''
   const studioNameLabel = ''
   const canUseEconomy = canUseOperationalFeature(currentStudio, 'economy')
-  const canUsePublicAgenda = canUseOperationalFeature(currentStudio, 'publicAgenda')
   const artistOperationalStatus = String(session.artist?.status || primaryArtist?.status || 'Activo').toLowerCase()
   const canManageOwnAppointments = ![
     'pending',
@@ -374,7 +375,7 @@ function ArtistDashboard({ view = 'agenda' }) {
       && (
         appointment.status === 'Completada'
         || String(appointment.appointmentStatus || '').toLowerCase() === 'completed'
-        || (appointment.startsAt && new Date(appointment.startsAt).getTime() < Date.now())
+        || (appointment.startsAt && new Date(appointment.startsAt).getTime() < now)
       )
     ))
     .map((appointment) => appointment.clientId))
@@ -423,8 +424,7 @@ function ArtistDashboard({ view = 'agenda' }) {
     setShowDatePicker(false)
   }
   const canAwardFlowPoints = (appointment) => (
-    !['Cancelada', 'No show'].includes(appointment.status)
-    && !['cancelled', 'no_show'].includes(String(appointment.appointmentStatus || '').toLowerCase())
+    String(appointment.appointmentStatus || appointment.appointment_status || '').toLowerCase() === 'completed'
     && appointment.flowPointsAwarded > 0
     && appointment.pointsGranted <= 0
   )

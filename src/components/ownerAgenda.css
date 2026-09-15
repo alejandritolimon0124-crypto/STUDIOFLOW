@@ -1,0 +1,6 @@
+.owner-agenda { min-width: 0; width: 100%; grid-column: 1 / -1; flex-basis: 100%; }
+.owner-agenda-content { margin-top: 12px; text-align: left; }
+.owner-agenda-event { display: grid; gap: 6px; padding: 12px; margin-bottom: 10px; border: 1px solid #d6c7ce; border-radius: 8px; background: #fff; overflow-wrap: anywhere; }
+.owner-agenda-event time { font-weight: 600; }
+.owner-agenda-status-completed { color: #227345; }
+.owner-agenda-status-cancelled, .owner-agenda-status-no_show { color: #a32a37; }

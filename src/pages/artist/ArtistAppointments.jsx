@@ -11,6 +11,7 @@ import { useApp } from '../../contexts/appContextCore'
 import { fetchArtistClients } from '../../services/artistClientService'
 import { fetchManualArtistAvailability } from '../../services/appointmentService'
 import { getAppointmentStatusTone } from '../../utils/appointmentStatus'
+import useCurrentTime from '../../hooks/useCurrentTime'
 
 function getTodayDateValue() {
   const today = new Date()
@@ -54,6 +55,7 @@ function appointmentMatchesWorkContext(appointment = {}, workContext = {}) {
 }
 
 function ArtistAppointments() {
+  const now = useCurrentTime()
   const location = useLocation()
   const selectedClient = location.state?.selectedClient || null
   const {
@@ -203,8 +205,7 @@ function ArtistAppointments() {
     || ['completed', 'cancelled', 'no_show'].includes(appointment.appointmentStatus)
   )
   const canAwardFlowPoints = (appointment) => (
-    !['Cancelada', 'No show'].includes(appointment.status)
-    && !['cancelled', 'no_show'].includes(String(appointment.appointmentStatus || '').toLowerCase())
+    String(appointment.appointmentStatus || appointment.appointment_status || '').toLowerCase() === 'completed'
     && appointment.flowPointsAwarded > 0
     && appointment.pointsGranted <= 0
   )
@@ -223,7 +224,7 @@ function ArtistAppointments() {
       && (
         appointment.status === 'Completada'
         || String(appointment.appointmentStatus || '').toLowerCase() === 'completed'
-        || (appointment.startsAt && new Date(appointment.startsAt).getTime() < Date.now())
+        || (appointment.startsAt && new Date(appointment.startsAt).getTime() < now)
       )
     ))
     .map((appointment) => appointment.clientId))
