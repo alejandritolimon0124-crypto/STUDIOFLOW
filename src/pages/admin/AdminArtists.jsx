@@ -4,6 +4,7 @@ import OwnerAgenda from '../../components/OwnerAgenda'
 import Card from '../../components/Card'
 import Input from '../../components/Input'
 import MetricCard from '../../components/MetricCard'
+import OwnerStatusMetric from '../../components/OwnerStatusMetric'
 import PanelHeader from '../../components/PanelHeader'
 import StatusPill from '../../components/StatusPill'
 import { useApp } from '../../contexts/appContextCore'
@@ -88,6 +89,7 @@ function AdminArtists() {
   )
   const activeArtistsCount = accessibleArtists.filter((artist) => artist.status === 'Activo').length
   const pendingArtistsCount = accessibleArtists.filter((artist) => artist.status === 'Pendiente').length
+  const suspendedArtistsCount = accessibleArtists.filter((artist) => ['suspendido', 'suspendida', 'suspended', 'inactivo', 'inactive'].includes(String(artist.status).toLowerCase())).length
   const rejectedArtists = accessibleArtists.filter((artist) => artist.status === 'Rechazado')
   const rejectedArtistsCount = rejectedArtists.length
   const previewRejectedArtists = rejectedArtists.slice(0, 5)
@@ -278,12 +280,12 @@ function AdminArtists() {
 
   return (
     <main className="dashboard-grid admin-grid">
-        <MetricCard
+        {isPlatformOwner ? <OwnerStatusMetric positive={activeArtistsCount} negative={suspendedArtistsCount} positiveLabel="Activas" negativeLabel="Suspendidas" /> : <MetricCard
           label="Artistas activas"
           value={activeArtistsCount}
           trend={`${pendingArtistsCount} pendientes`}
           tone="success"
-        />
+        />}
         <Card className="wide-card mobile-screen primary-panel">
           <PanelHeader title="Artistas rechazadas" eyebrow="Resumen" />
           <div className="compact-list">
