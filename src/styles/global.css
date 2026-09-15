@@ -4965,9 +4965,9 @@ select:focus,
   color: #2d2527;
   display: block;
   font-family: Georgia, 'Times New Roman', serif;
-  font-size: 36px;
+  font-size: 24px;
   font-weight: 900;
-  line-height: 1.08;
+  line-height: 1.15;
   letter-spacing: 0;
   overflow-wrap: anywhere;
   max-width: 100%;
@@ -5431,7 +5431,7 @@ select:focus,
   }
 
   .client-hero-name {
-    font-size: 48px;
+    font-size: 36px;
   }
 
   .client-action-grid {
