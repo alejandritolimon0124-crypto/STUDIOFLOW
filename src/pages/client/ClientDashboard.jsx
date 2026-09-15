@@ -1818,7 +1818,6 @@ function ClientDashboard({ view = 'inicio' }) {
                 )}
               </div>
                 </div>
-                <h2>Tu universo beauty premium</h2>
                 <div className="hero-actions">
                   <Button onClick={() => navigate(paths.clientExplore)}>Agendar ahora</Button>
                   <Button variant="ghost" onClick={() => navigate(paths.clientAppointments)}>Ver mis citas</Button>
