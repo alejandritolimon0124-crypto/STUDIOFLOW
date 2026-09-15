@@ -78,6 +78,37 @@ begin
      raise exception using errcode='PZ003',message='Rollback owner test';
    exception when sqlstate 'PZ003' then null;
    end;
+   select sl.* into slot from public.availability_slots sl where sl.schedule_id=s.id and (sl.starts_at at time zone s.timezone)::date=booking_date and (sl.starts_at at time zone s.timezone)::time='16:00' and sl.status='available' limit 1;
+   begin
+     update public.clients set status='inactive' where id=client_id;
+     rejected:=false;
+     begin
+       perform public.studio_flow_owner_create_manual_appointment((select studio_id from public.artist_studio_memberships where id=s.membership_id),s.membership_id,service_id,slot.id,client_id);
+     exception when raise_exception then
+       if sqlerrm<>'Active client required' then raise; end if;
+       rejected:=true;
+     end;
+     if not rejected then raise exception 'Owner accepted inactive client'; end if;
+     if (select nullif(trim(email),'') from public.clients where id=client_id) is null then raise exception 'Existing client email required'; end if;
+     rejected:=false;
+     begin
+       perform public.studio_flow_owner_create_manual_appointment((select studio_id from public.artist_studio_memberships where id=s.membership_id),s.membership_id,service_id,slot.id,null,null,null,(select email from public.clients where id=client_id));
+     exception when raise_exception then
+       if sqlerrm<>'Active client required' then raise; end if;
+       rejected:=true;
+     end;
+     if not rejected then raise exception 'Owner accepted inactive client by email'; end if;
+     raise notice 'Owner rejects inactive client';
+     raise exception using errcode='PZ003',message='Rollback inactive client test';
+   exception when sqlstate 'PZ003' then null;
+   end;
+   begin
+     perform public.studio_flow_owner_create_manual_appointment((select studio_id from public.artist_studio_memberships where id=s.membership_id),s.membership_id,service_id,slot.id,client_id);
+     if (select count(*) from public.appointments)<>before_count+1 then raise exception 'Owner valid booking missing'; end if;
+     raise notice 'Owner valid booking passed';
+     raise exception using errcode='PZ003',message='Rollback owner valid booking';
+   exception when sqlstate 'PZ003' then null;
+   end;
    perform set_config('request.jwt.claim.sub',s.actor::text,true);
    begin
      update public.studios set studio_status='suspended' where id=(select studio_id from public.artist_studio_memberships where id=s.membership_id);
