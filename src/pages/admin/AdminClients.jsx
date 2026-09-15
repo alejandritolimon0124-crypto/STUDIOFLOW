@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import Button from '../../components/Button'
 import Card from '../../components/Card'
 import Input from '../../components/Input'
-import MetricCard from '../../components/MetricCard'
+import OwnerStatusMetric from '../../components/OwnerStatusMetric'
 import PanelHeader from '../../components/PanelHeader'
 import StatusPill from '../../components/StatusPill'
 import { useApp } from '../../contexts/appContextCore'
@@ -412,10 +412,13 @@ function AdminClients() {
   return (
     <main className="dashboard-grid admin-grid">
       {!isStudioOwnerContext && (
-        <>
-        <MetricCard label="Clientas activas" value={activeClientsCount} trend={`${suspendedClientsCount} suspendidas`} tone={suspendedClientsCount ? 'warm' : 'success'} />
-        <MetricCard label="Clientas suspendidas" value={suspendedClientsCount} trend={`${activeClientsCount} activas`} tone={suspendedClientsCount ? 'warm' : 'neutral'} />
-        </>
+        <OwnerStatusMetric
+          title="Clientas"
+          positive={activeClientsCount}
+          negative={suspendedClientsCount}
+          positiveLabel="Activas"
+          negativeLabel="Suspendidas"
+        />
       )}
 
         <Card className="wide-card mobile-screen primary-panel">
