@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { hasCurrentAttendanceConfirmation } from '../../utils/appointmentConfirmation'
+import { historyDateTime, newestAppointmentFirst } from '../../utils/appointmentHistory'
 import Button from '../../components/Button'
 import AppointmentPayment from '../../components/AppointmentPayment'
 import Card from '../../components/Card'
@@ -1350,12 +1351,8 @@ function ClientDashboard({ view = 'inicio' }) {
         || ['completed', 'cancelled', 'no_show'].includes(appointment.appointmentStatus)
         || !isFutureAppointmentDate(appointment)
       ))
-      .filter((appointment) => appointmentHistoryDate || isCurrentMonthAppointment(appointment))
       .filter((appointment) => !appointmentHistoryDate || getAppointmentDateKey(appointment) === appointmentHistoryDate)
-      .sort((firstAppointment, secondAppointment) => (
-        String(secondAppointment.date || '').localeCompare(String(firstAppointment.date || ''))
-        || String(secondAppointment.time || '').localeCompare(String(firstAppointment.time || ''))
-      ))
+      .sort(newestAppointmentFirst)
     : []
   const visibleHistoricalAppointments = historicalAppointments.slice(0, visibleHistoryCount)
   const hasMoreHistoricalAppointments = visibleHistoryCount < historicalAppointments.length
@@ -2195,12 +2192,14 @@ function ClientDashboard({ view = 'inicio' }) {
                   )}
                   <div className="compact-list">
                     {visibleHistoricalAppointments.length > 0 ? visibleHistoricalAppointments.map((item) => (
-                      <div className="list-row elevated-row" key={`${item.id || item.service}-${item.date}-${item.time || ''}`}>
-                        <div>
+                      <div className="list-row elevated-row client-history-entry" key={`${item.id || item.service}-${item.date}-${item.time || ''}`}>
+                        <div className="client-history-details">
                           <strong>{item.service}</strong>
-                          <small>{item.artist} / {item.date}</small>
+                          <small>{item.artist}</small>
+                          <time className="client-history-time" dateTime={item.startsAt || item.starts_at || undefined}>{historyDateTime(item)}</time>
+                          <AppointmentPayment appointment={item} compact />
                         </div>
-                        <StatusPill tone="neutral">{item.status || 'Finalizada'}</StatusPill>
+                        <StatusPill tone={getAppointmentStatusTone(item)}>{item.appointmentStatus === 'completed' ? 'Completada' : item.appointmentStatus === 'cancelled' ? 'Cancelada' : item.status || 'Finalizada'}</StatusPill>
                       </div>
                     )) : (
                       <div className="list-row elevated-row">
@@ -2209,7 +2208,7 @@ function ClientDashboard({ view = 'inicio' }) {
                           <small>
                             {appointmentHistoryDate
                               ? 'No hay citas registradas en la fecha seleccionada.'
-                              : 'Solo se muestra historial del mes en curso.'}
+                              : 'No hay citas registradas en tu historial.'}
                           </small>
                         </div>
                         <StatusPill tone="neutral">Vacio</StatusPill>

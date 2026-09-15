@@ -2119,6 +2119,12 @@ select:focus,
   box-shadow: 0 22px 46px rgba(105, 74, 72, 0.1);
 }
 
+.client-history-entry { align-items: start; gap: 12px; }
+.client-history-details { flex: 1; min-width: 0; }
+.client-history-time { display: block; font-size: 15px; font-weight: 700; margin: 6px 0 10px; }
+.client-history-entry > .status-success { color: #216340; background: #e8f4ec; }
+.client-history-entry > .status-danger { color: #a43740; background: #fbecee; }
+
 .client-next-appointment {
   align-items: center;
   display: grid;
