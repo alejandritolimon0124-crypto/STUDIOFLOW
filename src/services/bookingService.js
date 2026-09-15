@@ -67,6 +67,9 @@ export async function bookMarketplaceAppointment({
   })
 
   if (error) {
+    if (error.code === '23P01' && error.message?.includes('appointments_client_active_no_overlap')) {
+      throw new Error('Ya tienes una cita en ese horario. Selecciona otra hora para reservar.')
+    }
     throw error
   }
 
