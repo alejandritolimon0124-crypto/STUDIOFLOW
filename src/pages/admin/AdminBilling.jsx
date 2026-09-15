@@ -3,6 +3,7 @@ import Button from '../../components/Button'
 import Card from '../../components/Card'
 import Input from '../../components/Input'
 import MetricCard from '../../components/MetricCard'
+import OwnerStatusMetric from '../../components/OwnerStatusMetric'
 import PanelHeader from '../../components/PanelHeader'
 import StatusPill from '../../components/StatusPill'
 import { useApp } from '../../contexts/appContextCore'
@@ -141,7 +142,7 @@ function AdminBilling() {
     try {
       const payload = await fetchAdminBillingSummary({ query: nextQuery })
       setBilling(payload)
-    } catch (requestError) {
+    } catch {
       setError('')
       setBilling(buildFallbackBilling(adminState, nextQuery))
     } finally {
@@ -228,17 +229,19 @@ function AdminBilling() {
         trend="10% sobre servicios agendados"
         tone="sage"
       />
-      <MetricCard
-        label="Estudios al corriente"
-        value={billing.currentStudios}
-        trend={`${billing.overdueStudios} con atraso`}
-        tone={billing.overdueStudios ? 'warm' : 'success'}
+      <OwnerStatusMetric
+        title="Estudios"
+        positive={billing.currentStudios}
+        negative={billing.overdueStudios}
+        positiveLabel="Al corriente"
+        negativeLabel="Con adeudo"
       />
-      <MetricCard
-        label="Artistas al corriente"
-        value={billing.currentArtists}
-        trend={`${billing.overdueArtists} con atraso`}
-        tone={billing.overdueArtists ? 'warm' : 'success'}
+      <OwnerStatusMetric
+        title="Artistas"
+        positive={billing.currentArtists}
+        negative={billing.overdueArtists}
+        positiveLabel="Al corriente"
+        negativeLabel="Con adeudo"
       />
 
       <Card className="wide-card executive-card">

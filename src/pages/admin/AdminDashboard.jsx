@@ -6,23 +6,13 @@ import PanelHeader from '../../components/PanelHeader'
 import StatusPill from '../../components/StatusPill'
 import { useApp } from '../../contexts/appContextCore'
 import { paths } from '../../routes/paths'
-import './adminDashboard.css'
+import OwnerStatusMetric from '../../components/OwnerStatusMetric'
 
 function AccountStatusMetric({ title, active, suspended, feminine = false }) {
   return (
-    <Card className="metric-card owner-status-metric">
-      <h2>{title}</h2>
-      <div className="owner-status-columns">
-        <div className="owner-status-half owner-status-active">
-          <span>{feminine ? 'Activas' : 'Activos'}</span>
-          <strong>{active}</strong>
-        </div>
-        <div className="owner-status-half owner-status-suspended">
-          <span>{feminine ? 'Suspendidas' : 'Suspendidos'}</span>
-          <strong>{suspended}</strong>
-        </div>
-      </div>
-    </Card>
+    <OwnerStatusMetric title={title} positive={active} negative={suspended}
+      positiveLabel={feminine ? 'Activas' : 'Activos'}
+      negativeLabel={feminine ? 'Suspendidas' : 'Suspendidos'} />
   )
 }
 
