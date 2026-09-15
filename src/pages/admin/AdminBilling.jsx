@@ -113,6 +113,9 @@ function AdminBilling() {
   const { adminState } = useApp()
   const [query, setQuery] = useState('')
   const [historyQuery, setHistoryQuery] = useState('')
+  const [showHistoryPeriod, setShowHistoryPeriod] = useState(false)
+  const [historyYear, setHistoryYear] = useState(new Date().getFullYear())
+  const [historyMonth, setHistoryMonth] = useState('')
   const [showOverdueOnly, setShowOverdueOnly] = useState(false)
   const [billing, setBilling] = useState({
     month: '',
@@ -180,8 +183,13 @@ function AdminBilling() {
 
   const loadHistory = async () => {
     const nextQuery = historyQuery.trim()
+    const year = Number(historyYear)
+    if (!Number.isInteger(year) || year < 1900 || year > new Date().getFullYear()) {
+      setHistoryStatus('Selecciona un año válido, hasta el año actual.')
+      return
+    }
     if (!nextQuery) {
-      setHistory({ year: new Date().getFullYear(), entities: [] })
+      setHistory({ year, entities: [] })
       setHistoryStatus('Escribe nombre, correo o celular para consultar historial.')
       return
     }
@@ -190,8 +198,13 @@ function AdminBilling() {
     setHistoryStatus('')
 
     try {
-      const payload = await fetchAdminBillingHistory({ query: nextQuery })
-      setHistory(payload)
+      const payload = await fetchAdminBillingHistory({ query: nextQuery, year })
+      setHistory({ ...payload, entities: payload.entities.map((entity) => ({
+        ...entity,
+        months: entity.months
+          .filter((month) => !historyMonth || month.month === `${year}-${historyMonth}`)
+          .sort((first, second) => second.month.localeCompare(first.month)),
+      })) })
       setHistoryStatus(payload.entities.length ? '' : 'Sin resultados para esta busqueda.')
     } catch (requestError) {
       setHistory({ year: new Date().getFullYear(), entities: [] })
@@ -311,6 +324,48 @@ function AdminBilling() {
 
       <Card className="wide-card executive-card">
         <PanelHeader title="Historial" eyebrow="Consulta anual" />
+        <Button
+          size="sm"
+          variant="ghost"
+          aria-expanded={showHistoryPeriod}
+          aria-controls="billing-history-period"
+          onClick={() => setShowHistoryPeriod((value) => !value)}
+        >
+          {showHistoryPeriod ? 'Ocultar filtros de fecha' : 'Mostrar meses previos'}
+        </Button>
+        {showHistoryPeriod && (
+          <div id="billing-history-period" className="location-form-grid" style={{ marginTop: 16 }}>
+            <Input
+              label="Año"
+              type="number"
+              min="1900"
+              max={new Date().getFullYear()}
+              step="1"
+              value={historyYear}
+              disabled={isHistoryLoading}
+              onChange={(event) => {
+                setHistoryYear(event.target.value)
+                setHistory({ year: Number(event.target.value), entities: [] })
+                setHistoryStatus('')
+              }}
+            />
+            <label className="input-field">
+              <span>Mes</span>
+              <select value={historyMonth} disabled={isHistoryLoading} onChange={(event) => {
+                setHistoryMonth(event.target.value)
+                setHistory({ year: Number(historyYear), entities: [] })
+                setHistoryStatus('')
+              }}>
+                <option value="">Todos los meses</option>
+                {Array.from({ length: 12 }, (_, index) => (
+                  <option key={index} value={String(index + 1).padStart(2, '0')}>
+                    {new Date(2000, index, 1).toLocaleDateString('es-MX', { month: 'long' })}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+        )}
         <div className="admin-search">
           <div className="location-form-grid">
             <Input
@@ -348,7 +403,7 @@ function AdminBilling() {
               </div>
             {entity.months.length ? entity.months.map((month) => (
               <div className="table-row" key={`${entity.id}-${month.month}`}>
-                <strong>{month.month}</strong>
+                <strong>{new Date(`${month.month}-01T12:00:00`).toLocaleDateString('es-MX', { month: 'long', year: 'numeric' })}</strong>
                 <span>{formatCurrency(month.grossAmount)} servicios</span>
                 <span>{formatCurrency(month.commissionAmount)} comision</span>
                 <StatusPill tone={month.status === 'paid' ? 'success' : 'warm'}>
@@ -358,7 +413,7 @@ function AdminBilling() {
             )) : (
               <div className="table-row">
                 <strong>Sin movimientos</strong>
-                <span>No hay citas agendadas en el año actual.</span>
+                <span>No hay citas completadas en el periodo consultado.</span>
                 <StatusPill tone="neutral">0</StatusPill>
               </div>
             )}
