@@ -6,6 +6,25 @@ import PanelHeader from '../../components/PanelHeader'
 import StatusPill from '../../components/StatusPill'
 import { useApp } from '../../contexts/appContextCore'
 import { paths } from '../../routes/paths'
+import './adminDashboard.css'
+
+function AccountStatusMetric({ title, active, suspended, feminine = false }) {
+  return (
+    <Card className="metric-card owner-status-metric">
+      <h2>{title}</h2>
+      <div className="owner-status-columns">
+        <div className="owner-status-half owner-status-active">
+          <span>{feminine ? 'Activas' : 'Activos'}</span>
+          <strong>{active}</strong>
+        </div>
+        <div className="owner-status-half owner-status-suspended">
+          <span>{feminine ? 'Suspendidas' : 'Suspendidos'}</span>
+          <strong>{suspended}</strong>
+        </div>
+      </div>
+    </Card>
+  )
+}
 
 function isActiveStatus(value = '') {
   return ['active', 'activo', 'aprobado', 'approved'].includes(String(value).toLowerCase())
@@ -39,9 +58,9 @@ function AdminDashboard() {
 
   return (
     <main className="dashboard-grid admin-grid">
-      <MetricCard label="Estudios activos" value={activeStudios} trend={`${suspendedStudios} suspendidos`} tone={suspendedStudios ? 'warm' : 'success'} />
-      <MetricCard label="Artistas activas" value={activeArtists} trend={`${suspendedArtists} suspendidas`} tone={suspendedArtists ? 'warm' : 'success'} />
-      <MetricCard label="Clientas activas" value={activeClients} trend={`${suspendedClients} suspendidas`} tone={suspendedClients ? 'warm' : 'success'} />
+      <AccountStatusMetric title="Estudios" active={activeStudios} suspended={suspendedStudios} />
+      <AccountStatusMetric title="Artistas" active={activeArtists} suspended={suspendedArtists} feminine />
+      <AccountStatusMetric title="Clientas" active={activeClients} suspended={suspendedClients} feminine />
       <MetricCard label="Comision estimada" value={formatCurrency(monthCommission)} trend={`${formatCurrency(monthGross)} agendado`} tone="sage" />
 
       <Card className="wide-card executive-card">
