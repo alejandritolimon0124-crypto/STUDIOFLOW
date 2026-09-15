@@ -44,7 +44,7 @@ export default function ArtistClientExport() {
     } catch (failure) { setError(failure.message || 'No se pudo descargar la cartera.') }
     finally { setBusy(false) }
   }
-  return <div>
+  return <div style={{ marginBottom: 20 }}>
     <Button onClick={download} disabled={busy}><Download size={16} />{busy ? 'Preparando...' : 'Descargar cartera de clientes'}</Button>
     {error && <p role="alert">{error}</p>}
   </div>
