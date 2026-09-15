@@ -5,6 +5,8 @@
 
     <!-- ICONOS -->
     <link rel="icon" type="image/png" href="/pwa-192.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/pwa-192.png" />
 
     <!-- THEME -->
     <meta name="theme-color" content="#F5E6E0" />
@@ -23,8 +25,7 @@
 
     <script>
       if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.getRegistrations()
-          .then((registrations) => registrations.forEach((registration) => registration.unregister()))
+        navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' })
           .catch(() => {})
       }
     </script>
