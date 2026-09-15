@@ -47,6 +47,50 @@ begin
  select c.id into client_id from public.clients c join public.profiles p on p.id=c.profile_id where c.status='active' and p.status='active' and c.archived_at is null limit 1;
  select (sl.starts_at at time zone s.timezone)::date into booking_date from public.availability_slots sl where sl.schedule_id=s.id and sl.starts_at>now()+interval '21 days' and (sl.starts_at at time zone s.timezone)::time='16:00' and sl.status='available' order by sl.starts_at limit 1;
  if service_id is null or client_id is null or booking_date is null then raise exception 'Existing booking inputs missing'; end if;
+ begin
+   update public.clients set status='inactive' where id=client_id;
+   rejected:=false;
+   begin
+     perform public.studio_flow_artist_create_manual_appointment_core(client_id,service_id,booking_date,'16:00',null);
+   exception when raise_exception then
+     if sqlerrm<>'Active client required' then raise; end if;
+     rejected:=true;
+   end;
+   if not rejected then raise exception 'Manual booking accepted suspended client'; end if;
+   raise notice 'Manual booking rejects inactive client for %',s.owner_type;
+   raise exception using errcode='PZ003',message='Rollback client suspension';
+ exception when sqlstate 'PZ003' then null;
+ end;
+ if s.owner_type='membership' then
+   begin
+     update public.studios set studio_status='suspended' where id=(select studio_id from public.artist_studio_memberships where id=s.membership_id);
+     rejected:=false;
+     begin
+       perform public.studio_flow_artist_create_manual_appointment_core(client_id,service_id,booking_date,'16:00',null);
+     exception when raise_exception then
+       if sqlerrm<>'Studio is not available' then raise; end if;
+       rejected:=true;
+     end;
+     if not rejected then raise exception 'Manual booking accepted suspended studio'; end if;
+     raise notice 'Manual booking rejects suspended studio';
+     raise exception using errcode='PZ003',message='Rollback studio suspension';
+   exception when sqlstate 'PZ003' then null;
+   end;
+   begin
+     update public.artist_studio_memberships set status='inactive' where id=s.membership_id;
+     rejected:=false;
+     begin
+       perform public.studio_flow_artist_create_manual_appointment_core(client_id,service_id,booking_date,'16:00',null);
+     exception when raise_exception then
+       if sqlerrm<>'Service membership does not belong to the authenticated artist' then raise; end if;
+       rejected:=true;
+     end;
+     if not rejected then raise exception 'Inactive membership accepted manual booking'; end if;
+     raise notice 'Manual booking rejects inactive membership';
+     raise exception using errcode='PZ003',message='Rollback membership suspension';
+   exception when sqlstate 'PZ003' then null;
+   end;
+ end if;
  rejected:=false;
  begin
  perform public.studio_flow_artist_create_manual_appointment_core(client_id,service_id,booking_date,'14:45',null);
