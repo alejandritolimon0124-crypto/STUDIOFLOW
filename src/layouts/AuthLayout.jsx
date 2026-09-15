@@ -1,7 +1,7 @@
-function AuthLayout({ children }) {
+function AuthLayout({ children, className = '' }) {
   return (
     <main
-      className="auth-shell"
+      className={`auth-shell ${className}`}
       style={{
         alignItems: 'center',
         display: 'flex',

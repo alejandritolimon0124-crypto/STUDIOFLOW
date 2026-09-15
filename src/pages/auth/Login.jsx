@@ -7,6 +7,7 @@ import Input from '../../components/Input'
 import { useApp } from '../../contexts/appContextCore'
 import { ROLES } from '../../modules/permissions/rolePermissions'
 import { paths } from '../../routes/paths'
+import '../../styles/login.css'
 
 const routeByRole = {
   [ROLES.CLIENT]: paths.client,
@@ -55,8 +56,8 @@ function Login() {
   }
 
   return (
-    <AuthLayout>
-      <div className="auth-card">
+    <AuthLayout className="login-shell">
+      <div className="auth-card login-card">
         <div style={{ display: 'grid', gap: '18px', justifyItems: 'center', textAlign: 'center' }}>
           <BrandLogo hero />
         </div>
