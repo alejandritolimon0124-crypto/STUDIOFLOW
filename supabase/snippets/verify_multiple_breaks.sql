@@ -62,6 +62,23 @@ begin
  exception when sqlstate 'PZ003' then null;
  end;
  if s.owner_type='membership' then
+   perform set_config('request.jwt.claim.sub',(select st.owner_profile_id::text from public.studios st join public.artist_studio_memberships m on m.studio_id=st.id where m.id=s.membership_id),true);
+   begin
+     update public.studios set studio_status='suspended' where id=(select studio_id from public.artist_studio_memberships where id=s.membership_id);
+     perform public.studio_flow_owner_assert_studio_access((select studio_id from public.artist_studio_memberships where id=s.membership_id));
+     rejected:=false;
+     begin
+       perform public.studio_flow_owner_create_manual_appointment((select studio_id from public.artist_studio_memberships where id=s.membership_id),s.membership_id,service_id,null,client_id);
+     exception when raise_exception then
+       if sqlerrm<>'Studio is not available' then raise; end if;
+       rejected:=true;
+     end;
+     if not rejected then raise exception 'Owner booked suspended studio'; end if;
+     raise notice 'Suspended owner booking blocked; own studio access preserved';
+     raise exception using errcode='PZ003',message='Rollback owner test';
+   exception when sqlstate 'PZ003' then null;
+   end;
+   perform set_config('request.jwt.claim.sub',s.actor::text,true);
    begin
      update public.studios set studio_status='suspended' where id=(select studio_id from public.artist_studio_memberships where id=s.membership_id);
      rejected:=false;
