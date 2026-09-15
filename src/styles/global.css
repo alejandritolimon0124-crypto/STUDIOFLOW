@@ -4845,7 +4845,7 @@ select:focus,
 
 .client-hero-heading {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 72px;
+  grid-template-columns: minmax(0, 1fr) 104px;
   align-items: start;
   gap: 12px;
 }
@@ -4865,20 +4865,15 @@ select:focus,
   display: inline-flex;
   font-size: 11px;
   font-weight: 900;
-  height: 72px;
+  height: 104px;
   justify-content: center;
   letter-spacing: 0.08em;
   overflow: hidden;
   position: relative;
   text-align: center;
   text-transform: uppercase;
-  width: 72px;
+  width: 104px;
   z-index: 2;
-}
-
-.client-hero-photo:has(img) {
-  transform: scale(1.25);
-  transform-origin: bottom left;
 }
 
 .artist-hero-photo {
