@@ -58,6 +58,22 @@ export async function fetchOwnerStudios() {
   return normalizePayload(data)
 }
 
+export async function saveOwnerStudioProfile(studio) {
+  const name = studio.commercialName.trim()
+  if (!name) throw new Error('Escribe el nombre del estudio.')
+  const { error } = await requireSupabase().from('studio_profiles').upsert({
+    studio_id: studio.id,
+    commercial_name: name,
+    email: studio.email.trim() || null,
+    phone: studio.phone.trim() || null,
+    city: studio.city.trim() || null,
+    address_line: studio.addressLine.trim() || null,
+    description: studio.description.trim() || null,
+    updated_at: new Date().toISOString(),
+  }, { onConflict: 'studio_id' }).select('studio_id').single()
+  if (error) throw error
+}
+
 export async function reviewOwnerStudio({ studioId, action, reason = '' } = {}) {
   if (!studioId) throw new Error('Estudio requerido.')
   if (!action) throw new Error('Accion requerida.')

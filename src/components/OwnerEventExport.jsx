@@ -22,7 +22,7 @@ export default function OwnerEventExport({ entityType, entityId }) {
       document.body.appendChild(link); link.click(); link.remove(); window.setTimeout(()=>URL.revokeObjectURL(url),60000)
     } catch(failure) { setError(failure.message || 'No se pudo descargar.') } finally { setBusy(false) }
   }
-  return <div className="owner-agenda">
+  return <div className="owner-agenda owner-event-export">
     <Button size="sm" onClick={()=>setOpen(!open)} aria-expanded={open}><Download size={16}/>Descargar eventos XLS</Button>
     {open && <form className="owner-agenda-filter" onSubmit={download}>
       <label>Mes<select value={month} onChange={e=>setMonth(e.target.value)}>{Array.from({length:12},(_,i)=><option key={i} value={i+1}>{new Intl.DateTimeFormat('es-MX',{month:'long'}).format(new Date(2000,i,1))}</option>)}</select></label>

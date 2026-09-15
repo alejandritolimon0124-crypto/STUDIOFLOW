@@ -39,11 +39,11 @@ export default function OwnerAgenda({ entityType, entityId }) {
     } finally { if (request === requestId.current) setLoading(false) }
   }
   return <div className="owner-agenda">
-    <OwnerEventExport entityType={entityType} entityId={entityId} />
     <div className="row-actions">
       <Button size="sm" onClick={() => { setOpen(!open); if (!open) load() }}><CalendarDays size={16} />{open ? 'Cerrar agenda' : 'Ver agenda'}</Button>
       <Button size="sm" aria-expanded={showFilter} onClick={() => setShowFilter(!showFilter)}><Filter size={16} />Filtrar</Button>
     </div>
+    <OwnerEventExport entityType={entityType} entityId={entityId} />
     {showFilter && <form className="owner-agenda-filter" onSubmit={(event) => { event.preventDefault(); setSelectedDate(draftDate); setOpen(true); load(0, draftDate) }}>
       <label>Dia de la cita<input type="date" required value={draftDate} onChange={(event) => setDraftDate(event.target.value)} /></label>
       <Button size="sm" type="submit" disabled={loading || !draftDate}>Aplicar</Button>

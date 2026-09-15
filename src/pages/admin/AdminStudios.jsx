@@ -6,7 +6,7 @@ import Input from '../../components/Input'
 import MetricCard from '../../components/MetricCard'
 import PanelHeader from '../../components/PanelHeader'
 import StatusPill from '../../components/StatusPill'
-import { fetchOwnerStudios, reviewOwnerStudio } from '../../services/adminStudioManagementService'
+import { fetchOwnerStudios, reviewOwnerStudio, saveOwnerStudioProfile } from '../../services/adminStudioManagementService'
 
 const statusTone = {
   pending: 'pending',
@@ -30,6 +30,23 @@ function AdminStudios() {
   const [actionStudioId, setActionStudioId] = useState('')
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [editingStudio, setEditingStudio] = useState(null)
+  const [saving, setSaving] = useState(false)
+
+  const saveProfile = async (event) => {
+    event.preventDefault()
+    setSaving(true)
+    setError('')
+    setSuccess('')
+    try {
+      await saveOwnerStudioProfile(editingStudio)
+      setStudios((current) => current.map((studio) => studio.id === editingStudio.id ? { ...studio, ...editingStudio } : studio))
+      setEditingStudio(null)
+      setSuccess('Perfil del estudio actualizado correctamente.')
+    } catch (failure) {
+      setError(failure.message || 'No se pudo guardar el perfil.')
+    } finally { setSaving(false) }
+  }
 
   useEffect(() => {
     let active = true
@@ -147,7 +164,28 @@ function AdminStudios() {
               <StatusPill tone={statusTone[studio.studioStatus] || 'neutral'}>
                 {statusLabel[studio.studioStatus] || studio.studioStatus}
               </StatusPill>
-              <div className="row-actions">{renderActions(studio)}</div>
+              <div className="row-actions">
+                {renderActions(studio)}
+                <Button size="sm" variant="ghost" disabled={saving} onClick={() => setEditingStudio({ ...studio })}>Editar perfil</Button>
+              </div>
+              {editingStudio?.id === studio.id && <form className="owner-studio-editor" onSubmit={saveProfile}>
+                <PanelHeader title="Editar perfil" eyebrow="Estudio" />
+                <div className="location-form-grid">
+                  {[
+                    ['commercialName', 'Nombre del estudio', 'text'],
+                    ['email', 'Correo electronico', 'email'],
+                    ['phone', 'Celular', 'tel'],
+                    ['city', 'Ciudad', 'text'],
+                    ['addressLine', 'Direccion', 'text'],
+                    ['description', 'Descripcion', 'text'],
+                  ].map(([field, label, type]) => <Input key={field} label={label} type={type} required={field === 'commercialName'} disabled={saving}
+                    value={editingStudio[field]} onChange={(event) => setEditingStudio({ ...editingStudio, [field]: event.target.value })} />)}
+                </div>
+                <div className="row-actions">
+                  <Button type="submit" disabled={saving}>{saving ? 'Guardando...' : 'Guardar cambios'}</Button>
+                  <Button variant="ghost" disabled={saving} onClick={() => setEditingStudio(null)}>Cancelar</Button>
+                </div>
+              </form>}
               <OwnerAgenda entityType="studio" entityId={studio.id} />
             </div>
           ))}
