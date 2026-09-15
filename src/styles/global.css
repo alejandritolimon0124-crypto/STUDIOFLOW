@@ -4876,6 +4876,11 @@ select:focus,
   z-index: 2;
 }
 
+.client-hero-photo:has(img) {
+  transform: scale(1.25);
+  transform-origin: bottom left;
+}
+
 .artist-hero-photo {
   align-items: center;
   background:
