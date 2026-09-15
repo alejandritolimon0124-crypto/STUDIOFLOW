@@ -4,6 +4,7 @@ import { requireSupabase } from '../lib/supabaseClient'
 import { withAppointmentPayments } from '../services/appointmentPaymentService'
 import AppointmentPayment from './AppointmentPayment'
 import Button from './Button'
+import OwnerEventExport from './OwnerEventExport'
 import './ownerAgenda.css'
 
 const labels = { scheduled: 'Agendada', completed: 'Completada', cancelled: 'Cancelada', no_show: 'No asistio', disputed: 'En revision' }
@@ -38,6 +39,7 @@ export default function OwnerAgenda({ entityType, entityId }) {
     } finally { if (request === requestId.current) setLoading(false) }
   }
   return <div className="owner-agenda">
+    <OwnerEventExport entityType={entityType} entityId={entityId} />
     <div className="row-actions">
       <Button size="sm" onClick={() => { setOpen(!open); if (!open) load() }}><CalendarDays size={16} />{open ? 'Cerrar agenda' : 'Ver agenda'}</Button>
       <Button size="sm" aria-expanded={showFilter} onClick={() => setShowFilter(!showFilter)}><Filter size={16} />Filtrar</Button>
