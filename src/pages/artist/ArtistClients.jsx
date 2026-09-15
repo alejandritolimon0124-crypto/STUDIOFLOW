@@ -3,6 +3,7 @@ import Button from '../../components/Button'
 import Card from '../../components/Card'
 import Input from '../../components/Input'
 import PanelHeader from '../../components/PanelHeader'
+import ArtistClientExport from '../../components/ArtistClientExport'
 import StatusPill from '../../components/StatusPill'
 import { useApp } from '../../contexts/appContextCore'
 import { fetchArtistClients } from '../../services/artistClientService'
@@ -59,12 +60,12 @@ function ArtistClients() {
   const [clients, setClients] = useState([])
   const [search, setSearch] = useState('')
   const [selectedPanel, setSelectedPanel] = useState({ client: null, mode: '' })
-  const [appointmentDraft, setAppointmentDraft] = useState({
+  const [appointmentDraft, setAppointmentDraft] = useState(() => ({
     serviceOfferingId: '',
     date: new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10),
     time: '',
     notes: '',
-  })
+  }))
   const [availabilitySlots, setAvailabilitySlots] = useState([])
   const [isAvailabilityLoading, setIsAvailabilityLoading] = useState(false)
   const [appointmentFeedback, setAppointmentFeedback] = useState({ tone: 'neutral', message: '' })
@@ -233,6 +234,7 @@ function ArtistClients() {
     <main className="dashboard-grid artist-grid">
       <Card className="wide-card mobile-screen primary-panel">
         <PanelHeader title="Clientas" eyebrow="Citas reales" />
+        {(artistWorkContext?.contextType || artistWorkContext?.type) === 'artist' && <ArtistClientExport />}
         <div className="form-stack compact-form">
           <Input
             label="Buscar clienta"
