@@ -9,8 +9,13 @@ function isAppInstalled() {
 }
 
 function PWAInstallPrompt() {
-  const [deferredPrompt, setDeferredPrompt] = useState(null)
-  const [isVisible, setIsVisible] = useState(false)
+  const [deferredPrompt, setDeferredPrompt] = useState(() => isAppInstalled() ? null : window.studioFlowInstallPrompt || null)
+  const [isVisible, setIsVisible] = useState(() => !isAppInstalled() && Boolean(
+    window.studioFlowInstallPrompt
+    || /Android/i.test(navigator.userAgent)
+    || /iPad|iPhone|iPod/.test(navigator.userAgent)
+    || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+  ))
   const [showInstructions, setShowInstructions] = useState(false)
   const [installError, setInstallError] = useState('')
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent)
@@ -18,12 +23,6 @@ function PWAInstallPrompt() {
 
   useEffect(() => {
     if (isAppInstalled()) return undefined
-    if (window.studioFlowInstallPrompt) {
-      setDeferredPrompt(window.studioFlowInstallPrompt)
-      setIsVisible(true)
-    } else if (isIOS) {
-      setIsVisible(true)
-    }
 
     const handleBeforeInstallPrompt = (event) => {
       event.preventDefault()
@@ -43,7 +42,7 @@ function PWAInstallPrompt() {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
       window.removeEventListener('appinstalled', handleAppInstalled)
     }
-  }, [isIOS])
+  }, [])
 
   const handleInstall = async () => {
     if (!deferredPrompt) {
@@ -87,7 +86,7 @@ function PWAInstallPrompt() {
             : 'Abre este enlace en Chrome o Edge. En el menú del navegador busca Instalar aplicación o Agregar a pantalla de inicio. Si estás dentro de WhatsApp o Facebook, abre primero el enlace en tu navegador.'}</p>
         )}
       </div>
-      <Button size="sm" onClick={handleInstall}>{deferredPrompt ? 'Instalar aplicación' : 'Cómo instalar en iPhone'}</Button>
+      <Button size="sm" onClick={handleInstall}>{deferredPrompt ? 'Instalar aplicación' : isIOS ? 'Cómo instalar en iPhone' : 'Cómo instalar'}</Button>
     </aside>
   )
 }
