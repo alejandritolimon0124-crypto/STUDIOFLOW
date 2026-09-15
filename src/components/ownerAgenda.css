@@ -1,5 +1,8 @@
 .owner-agenda { min-width: 0; width: 100%; grid-column: 1 / -1; flex-basis: 100%; }
 .owner-agenda-content { margin-top: 12px; text-align: left; }
+.owner-agenda-filter { display: flex; flex-wrap: wrap; align-items: end; gap: 10px; margin-top: 12px; }
+.owner-agenda-filter label { display: grid; gap: 6px; min-width: 0; }
+.owner-agenda-filter input { max-width: 100%; }
 .owner-agenda-event { display: grid; gap: 6px; padding: 12px; margin-bottom: 10px; border: 1px solid #d6c7ce; border-radius: 8px; background: #fff; overflow-wrap: anywhere; }
 .owner-agenda-event time { font-weight: 600; }
 .owner-agenda-status-completed { color: #227345; }
