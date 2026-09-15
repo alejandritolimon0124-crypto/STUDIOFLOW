@@ -1,5 +1,6 @@
 import StatusPill from './StatusPill'
 import AppointmentPayment from './AppointmentPayment'
+import CompleteAppointmentButton from './CompleteAppointmentButton'
 import { getAppointmentStatusTone } from '../utils/appointmentStatus'
 
 function AgendaCard({ time, title, subtitle, status, accent = 'rose', type = 'appointment', showEconomy = false, economyData = null, action = null, appointment = null }) {
@@ -36,6 +37,7 @@ function AgendaCard({ time, title, subtitle, status, accent = 'rose', type = 'ap
       <div className="agenda-card-actions">
         <StatusPill tone={tone}>{status}</StatusPill>
         {action}
+        {appointment && <CompleteAppointmentButton appointment={appointment} />}
       </div>
     </article>
   )
