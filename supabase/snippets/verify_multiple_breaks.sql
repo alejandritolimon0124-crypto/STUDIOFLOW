@@ -75,6 +75,25 @@ begin
  select array_agg(sl.id order by sl.starts_at) into slot_ids from public.availability_slots sl
  where sl.schedule_id=s.id and (sl.starts_at at time zone s.timezone)::date=booking_date
  and (sl.starts_at at time zone s.timezone)::time>='16:00' and (sl.starts_at at time zone s.timezone)::time<'17:00' and sl.status='available';
+ if s.owner_type='membership' then
+   begin
+     update public.studios set studio_status='suspended'
+     where id=(select studio_id from public.artist_studio_memberships where id=s.membership_id);
+     rejected:=false;
+     begin
+       perform public.studio_flow_marketplace_book_with_reward(slot_ids,service_id,null,null);
+     exception when raise_exception then
+       if sqlerrm<>'Studio is not available' then raise; end if;
+       rejected:=true;
+     end;
+     if not rejected then raise exception 'Suspended studio accepted booking'; end if;
+     if (select count(*) from public.appointments)<>before_count then raise exception 'Suspended booking changed appointments'; end if;
+     if exists(select 1 from public.availability_slots where id=any(slot_ids) and status<>'available') then raise exception 'Suspended booking occupied slots'; end if;
+     raise notice 'Suspended studio rejects booking without occupying slots';
+     raise exception using errcode='PZ002',message='Rollback studio suspension';
+   exception when sqlstate 'PZ002' then null;
+   end;
+ end if;
  begin
  select id into reward_id from public.rewards where status='active' and archived_at is null limit 1;
  if reward_id is null then raise exception 'Existing reward required'; end if;
