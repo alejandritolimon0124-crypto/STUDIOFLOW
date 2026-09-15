@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import Button from '../../components/Button'
 import Card from '../../components/Card'
-import MetricCard from '../../components/MetricCard'
+import '../../components/ownerStatusMetric.css'
 import PanelHeader from '../../components/PanelHeader'
 import StatusPill from '../../components/StatusPill'
 import { useApp } from '../../contexts/appContextCore'
@@ -55,6 +55,7 @@ function QASandbox() {
   const [reviewedArtistIds, setReviewedArtistIds] = useState([])
   const [systemError, setSystemError] = useState('')
   const [systemStatus, setSystemStatus] = useState('')
+  const [showRejected, setShowRejected] = useState({ studio: false, artist: false })
 
   const loadStudios = async () => {
     setIsLoadingStudios(true)
@@ -83,10 +84,11 @@ function QASandbox() {
     () => adminState.artists.filter((artist) => artist.status === 'Pendiente' && !reviewedArtistIds.includes(artist.id)),
     [adminState.artists, reviewedArtistIds],
   )
-  const rejectedArtistsCount = useMemo(
-    () => adminState.artists.filter((artist) => artist.status === 'Rechazado').length,
+  const rejectedArtists = useMemo(
+    () => adminState.artists.filter((artist) => ['rechazado', 'rejected'].includes(String(artist.status).toLowerCase())),
     [adminState.artists],
   )
+  const rejectedStudios = studios.filter((studio) => studio.studioStatus === 'rejected')
 
   const runStudioAction = async (studio, action) => {
     setActionId(`studio-${studio.id}`)
@@ -138,24 +140,46 @@ function QASandbox() {
 
   return (
     <main className="dashboard-grid admin-grid">
-      <MetricCard
-        label="Estudios pendientes"
-        value={pendingStudios.length}
-        trend="Solicitudes por aprobar"
-        tone={pendingStudios.length ? 'warm' : 'success'}
-      />
-      <MetricCard
-        label="Artistas pendientes"
-        value={pendingArtists.length}
-        trend="Solicitudes por aprobar"
-        tone={pendingArtists.length ? 'warm' : 'success'}
-      />
-      <MetricCard
-        label="Artistas rechazadas"
-        value={rejectedArtistsCount}
-        trend="No aparecen en Studio Flow"
-        tone={rejectedArtistsCount ? 'warm' : 'neutral'}
-      />
+      <Card className="metric-card owner-status-metric">
+        <h2>Solicitudes pendientes</h2>
+        <div className="owner-status-columns">
+          <div className="owner-status-half"><span>Estudios</span><strong>{pendingStudios.length}</strong></div>
+          <div className="owner-status-half"><span>Artistas</span><strong>{pendingArtists.length}</strong></div>
+        </div>
+      </Card>
+      <Card className="metric-card owner-status-metric">
+        <h2>Perfiles rechazados</h2>
+        <div className="owner-status-columns">
+          {[
+            ['studio', 'Estudios', rejectedStudios.length],
+            ['artist', 'Artistas', rejectedArtists.length],
+          ].map(([type, label, count]) => <div className="owner-status-half owner-status-suspended" key={type}>
+            <span>{label}</span><strong>{count}</strong>
+            <Button size="sm" variant="ghost" aria-expanded={showRejected[type]} aria-controls={`rejected-${type}`}
+              onClick={() => setShowRejected((current) => ({ ...current, [type]: !current[type] }))}>
+              {showRejected[type] ? 'Ocultar' : 'Ver'} {label.toLowerCase()}
+            </Button>
+          </div>)}
+        </div>
+      </Card>
+
+      {[
+        ['studio', 'Estudios rechazados', rejectedStudios],
+        ['artist', 'Artistas rechazadas', rejectedArtists],
+      ].map(([type, title, items]) => showRejected[type] && <section className="wide-card" id={`rejected-${type}`} key={type}>
+        <PanelHeader title={title} />
+        <div className="studio-review-stack">
+          {items.length === 0 && <p>No hay perfiles rechazados en esta categoria.</p>}
+          {items.map((item) => <Card key={item.id} className="studio-review-row">
+            <div>
+              <strong>{type === 'studio' ? getStudioName(item) : getArtistName(item)}</strong>
+              <small>{item.email || item.ownerEmail || item.phone || item.ownerPhone || 'Sin contacto'}</small>
+            </div>
+            <StatusPill tone="rejected">Rechazado</StatusPill>
+            <Button size="sm" variant="ghost" onClick={() => setProfilePreview({ type, item })}>Ver perfil</Button>
+          </Card>)}
+        </div>
+      </section>)}
 
       <Card className="wide-card executive-card">
         <PanelHeader title="Panel de aprobacion" eyebrow="Sistema" />
