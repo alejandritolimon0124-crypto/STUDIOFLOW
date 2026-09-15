@@ -1,6 +1,6 @@
 .login-card > div:first-child {
-  width: calc(100% + 16px);
-  margin-inline: -8px;
+  width: 92%;
+  margin-inline: auto;
 }
 
 .login-card .brand-logo-hero {
@@ -40,7 +40,7 @@
   }
 
   .login-card > div:first-child {
-    width: calc(100% + 16px);
+    width: 92%;
     max-width: 540px;
     align-self: center;
   }
