@@ -183,7 +183,7 @@ export async function fetchStudioOwnerAppointments({ studioId, membershipIds = [
   if (!studioId && normalizedMembershipIds.length === 0) return []
 
   const client = requireSupabase()
-  const selectColumns = 'id, client_id, artist_id, studio_id, membership_id, service_offering_id, availability_slot_id, starts_at, ends_at, status, booking_source, client_notes, created_at'
+  const selectColumns = 'id, client_id, artist_id, studio_id, membership_id, service_offering_id, availability_slot_id, starts_at, ends_at, status, booking_source, cancelled_by_provider, client_notes, created_at'
   const appointmentRows = []
 
   if (studioId) {

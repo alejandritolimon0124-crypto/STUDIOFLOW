@@ -49,7 +49,7 @@ function AccountingReport({ studio, studioId, onRefresh }) {
       <section className="accounting-cancellations" aria-label="Citas canceladas del mes">
         <details>
           <summary>Citas canceladas del mes <strong>{data.cancelledAppointments?.length || 0}</strong></summary>
-          <p>Por fecha programada · Sin ingresos ni comisión</p>
+          <p>Por fecha programada · Las canceladas por artista o estudio generan comisión; las canceladas por la clienta no.</p>
           {!data.cancelledAppointments?.length && <p>No hay citas canceladas para este mes.</p>}
           {(data.cancelledAppointments || []).slice(0, cancelledLimit).map((appointment) => <article key={appointment.id}>
             <strong>{appointment.client || 'Clienta'}</strong>
@@ -57,6 +57,8 @@ function AccountingReport({ studio, studioId, onRefresh }) {
             <span>Cita: {new Intl.DateTimeFormat('es-MX', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'America/Mexico_City' }).format(new Date(appointment.scheduledAt))}</span>
             <small>Cancelada: {appointment.cancelledAt ? new Intl.DateTimeFormat('es-MX', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'America/Mexico_City' }).format(new Date(appointment.cancelledAt)) : 'Fecha no registrada'}</small>
             <span>Importe de la reserva: {appointment.amount == null ? 'No registrado' : money(appointment.amount)}</span>
+            <span>{appointment.providerCancelled ? 'Cancelada por artista o estudio' : 'Cancelada por la clienta'}</span>
+            <strong>Comisión Studio Flow: {money(appointment.commissionAmount || 0)}</strong>
           </article>)}
           {(data.cancelledAppointments?.length || 0) > cancelledLimit && <button type="button" className="button" onClick={() => setCancelledLimit((value) => value + 10)}>Mostrar más</button>}
         </details>
