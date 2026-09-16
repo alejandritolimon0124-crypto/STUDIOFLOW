@@ -32,7 +32,6 @@ const LOW_OCCUPANCY_VISIBLE = false
 
 function ArtistMarketing() {
   const { adminState, artistState, session } = useApp()
-  const [happyHour, setHappyHour] = useState(false)
   const [toasts, setToasts] = useState([])
   const [marketingSettings, setMarketingSettings] = useState({ rewards: [], doublePoints: { status: 'paused', rules: {} }, happyHour: { status: 'paused', rules: {} } })
   const [rewardDraft, setRewardDraft] = useState({ discountPercent: 10, pointsCost: '' })
@@ -119,7 +118,6 @@ function ArtistMarketing() {
         period: settings.lowOccupancy?.period || 'week',
         threshold: Math.min(Number(settings.lowOccupancy?.threshold || 40), 40),
       })
-      setHappyHour(settings.happyHour?.status === 'active')
       setHappyHourDraft({
         discountPercent: Number(rules.discountPercent || 10),
         weekdays: Array.isArray(rules.weekdays) ? rules.weekdays.map(Number) : [1, 2, 3, 4, 5],
@@ -262,7 +260,6 @@ function ArtistMarketing() {
     try {
       const settings = await saveArtistHappyHourPromotion({ ...happyHourDraft, active, artistId: marketingArtistId })
       setMarketingSettings(settings)
-      setHappyHour(active)
       triggerToast(active ? 'Happy Hour actualizado' : 'Happy Hour pausado')
     } catch (error) {
       setMarketingSettings(previousSettings)
@@ -347,19 +344,6 @@ function ArtistMarketing() {
 
   return (
     <main className="dashboard-grid artist-grid">
-      <section className="hero-panel studio-hero mobile-screen premium-hero">
-        <div>
-          <span className="eyebrow">Studio Flow</span>
-          <h2>Modulo Marketplace</h2>
-          <p>Configura beneficios Flow Points, puntos dobles y Happy Hour.</p>
-        </div>
-        <div className="hero-summary">
-          <span>{happyHour ? 'Horario activo' : 'Lista para lanzar'}</span>
-          <strong>Premium</strong>
-          <small>{flowPointsEnabled ? 'Flow Points activo' : 'Configura tus beneficios'}</small>
-        </div>
-      </section>
-
       <Card className="wide-card mobile-screen primary-panel flow-points-benefits-panel">
         <PanelHeader
           title="Beneficios Flow Points"
