@@ -302,8 +302,9 @@ function ArtistAppointments() {
     setFormErrors((currentErrors) => ({ ...currentErrors, [field]: '' }))
   }
 
-  const cancelGoogleAppointment = async (appointment) => {
-    if (!window.confirm('Confirma que deseas cancelar esta reserva de Google. El horario volvera a quedar disponible si aun cumple las reglas de tu agenda.')) return
+  const cancelAppointment = async (appointment) => {
+    const sourceLabel = appointment.bookingSource === 'google' ? ' reserva de Google' : ' cita'
+    if (!window.confirm(`Confirma que deseas cancelar esta${sourceLabel}. El horario volvera a quedar disponible si aun cumple las reglas de tu agenda.`)) return
     setCancellingAppointmentId(appointment.id)
     try {
       await cancelArtistAppointment({ appointmentId: appointment.id })
@@ -648,8 +649,8 @@ function ArtistAppointments() {
                 <StatusPill tone="neutral">{getAppointmentContextLabel(appointment)}</StatusPill>
                 {appointment.bookingSource === 'google' && <StatusPill tone="warm">Reserva Google</StatusPill>}
                 <StatusPill tone={getAppointmentStatusTone(appointment)}>{appointment.status}</StatusPill>
-                {appointment.bookingSource === 'google' && appointment.appointmentStatus === 'scheduled' && (
-                  <Button size="sm" variant="danger" disabled={cancellingAppointmentId === appointment.id} onClick={() => cancelGoogleAppointment(appointment)}>
+                {appointment.appointmentStatus === 'scheduled' && (
+                  <Button size="sm" variant="danger" disabled={cancellingAppointmentId === appointment.id} onClick={() => cancelAppointment(appointment)}>
                     {cancellingAppointmentId === appointment.id ? 'Cancelando...' : 'Cancelar cita'}
                   </Button>
                 )}

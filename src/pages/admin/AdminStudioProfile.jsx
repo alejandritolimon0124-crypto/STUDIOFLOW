@@ -21,7 +21,7 @@ import {
   requestStudioOwnerAppointmentConfirmations,
   searchStudioOwnerClients,
 } from '../../services/studioOwnerAppointmentService'
-import { awardAppointmentFlowPoints } from '../../services/appointmentService'
+import { awardAppointmentFlowPoints, cancelArtistAppointment } from '../../services/appointmentService'
 import {
   cancelStudioArtistInvitation,
   fetchStudioMembershipOperations,
@@ -242,10 +242,12 @@ function StudioSummarySection({
   membershipOperationsById,
   navigate,
   onAwardFlowPoints,
+  onCancelAppointment,
   onRequestConfirmations,
   ownerAppointments,
   ownStudio,
   profileDraft,
+  cancellingAppointmentId,
 }) {
   const [showMetrics, setShowMetrics] = useState(false)
   const [showCalendarFilter, setShowCalendarFilter] = useState(false)
@@ -387,6 +389,17 @@ function StudioSummarySection({
               </div>
               <div className="agenda-card-actions">
                 <StatusPill tone={getAppointmentStatusTone(appointment)}>{appointment.status || 'Confirmada'}</StatusPill>
+                {appointment.bookingSource === 'google' && <StatusPill tone="warm">Reserva Google</StatusPill>}
+                {appointment.appointmentStatus === 'scheduled' && (
+                  <Button
+                    disabled={cancellingAppointmentId === appointment.id}
+                    size="sm"
+                    variant="danger"
+                    onClick={() => onCancelAppointment(appointment)}
+                  >
+                    {cancellingAppointmentId === appointment.id ? 'Cancelando...' : 'Cancelar cita'}
+                  </Button>
+                )}
                 <Button
                   className="flow-points-award-button"
                   disabled={!canAwardFlowPoints(appointment)}
@@ -621,11 +634,13 @@ function StudioScheduleSection({
   membershipOperationsLoadingId,
   onOpenAppointmentModal,
   onAwardFlowPoints,
+  onCancelAppointment,
   onRequestConfirmations,
   ownerAppointments,
   profileDraft,
   renderOwnerAppointmentForm,
   toggleMembershipOperations,
+  cancellingAppointmentId,
 }) {
   const [showCalendarFilter, setShowCalendarFilter] = useState(false)
   const [selectedAgendaDate, setSelectedAgendaDate] = useState(getTodayDateValue)
@@ -699,6 +714,17 @@ function StudioScheduleSection({
               </div>
               <div className="agenda-card-actions">
                 <StatusPill tone={getAppointmentStatusTone(appointment)}>{appointment.status || 'Confirmada'}</StatusPill>
+                {appointment.bookingSource === 'google' && <StatusPill tone="warm">Reserva Google</StatusPill>}
+                {appointment.appointmentStatus === 'scheduled' && (
+                  <Button
+                    disabled={cancellingAppointmentId === appointment.id}
+                    size="sm"
+                    variant="danger"
+                    onClick={() => onCancelAppointment(appointment)}
+                  >
+                    {cancellingAppointmentId === appointment.id ? 'Cancelando...' : 'Cancelar cita'}
+                  </Button>
+                )}
                 <Button
                   className="flow-points-award-button"
                   disabled={!canAwardFlowPoints(appointment)}
@@ -1198,6 +1224,7 @@ function AdminStudioProfile() {
   const [isOwnerClientSearchLoading, setIsOwnerClientSearchLoading] = useState(false)
   const [ownerClientSearchStatus, setOwnerClientSearchStatus] = useState({ tone: 'neutral', message: '' })
   const [studioOwnerAppointments, setStudioOwnerAppointments] = useState([])
+  const [cancellingAppointmentId, setCancellingAppointmentId] = useState('')
   const [studioMarketingSettings, setStudioMarketingSettings] = useState(emptyStudioMarketingSettings)
   const [studioRewardDraft, setStudioRewardDraft] = useState({ discountPercent: 10, pointsCost: '' })
   const [studioHappyHourDraft, setStudioHappyHourDraft] = useState({ discountPercent: 10, weekdays: [1, 2, 3, 4, 5], startTime: '14:00', endTime: '17:00' })
@@ -1394,6 +1421,24 @@ function AdminStudioProfile() {
       await loadStudioOwnerAppointments()
     } catch (error) {
       setConfirmationFeedback({ tone: 'warm', message: error.message || 'No se pudieron otorgar Flow Points.' })
+    }
+  }, [loadStudioOwnerAppointments])
+
+  const cancelStudioAppointment = useCallback(async (appointment = {}) => {
+    if (!appointment.id) return
+    const sourceLabel = appointment.bookingSource === 'google' ? ' reserva de Google' : ' cita'
+    if (!window.confirm(`Confirma que deseas cancelar esta${sourceLabel}. El horario volvera a quedar disponible si aun cumple las reglas de la agenda.`)) return
+
+    setCancellingAppointmentId(appointment.id)
+    setConfirmationFeedback({ tone: 'neutral', message: '' })
+    try {
+      await cancelArtistAppointment({ appointmentId: appointment.id })
+      setConfirmationFeedback({ tone: 'success', message: 'Cita cancelada. El horario disponible fue actualizado.' })
+      await loadStudioOwnerAppointments()
+    } catch (error) {
+      setConfirmationFeedback({ tone: 'warm', message: error.message || 'No se pudo cancelar la cita.' })
+    } finally {
+      setCancellingAppointmentId('')
     }
   }, [loadStudioOwnerAppointments])
 
@@ -2313,10 +2358,12 @@ function AdminStudioProfile() {
               membershipOperationsById={membershipOperationsById}
               navigate={navigate}
               onAwardFlowPoints={awardStudioAppointmentPoints}
+              onCancelAppointment={cancelStudioAppointment}
               onRequestConfirmations={sendStudioConfirmationRequests}
               ownerAppointments={ownerAppointments}
               ownStudio={ownStudioMarketplaceState}
               profileDraft={profileDraft}
+              cancellingAppointmentId={cancellingAppointmentId}
             />
           )}
 
@@ -2834,11 +2881,13 @@ function AdminStudioProfile() {
               membershipOperationsLoadingId={membershipOperationsLoadingId}
               onOpenAppointmentModal={openOwnerAppointmentModal}
               onAwardFlowPoints={awardStudioAppointmentPoints}
+              onCancelAppointment={cancelStudioAppointment}
               onRequestConfirmations={sendStudioConfirmationRequests}
               ownerAppointments={ownerAppointments}
               profileDraft={profileDraft}
               renderOwnerAppointmentForm={isOwnerAppointmentOpen ? renderOwnerAppointmentForm : null}
               toggleMembershipOperations={toggleMembershipOperations}
+              cancellingAppointmentId={cancellingAppointmentId}
             />
           )}
 

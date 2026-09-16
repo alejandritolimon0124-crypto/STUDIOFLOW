@@ -77,6 +77,7 @@ function normalizeAppointment(appointment = {}) {
     appointmentStatus,
     clientConfirmedAt,
     confirmationRequestedAt,
+    bookingSource: appointment.bookingSource || appointment.booking_source || null,
     pointsGranted: normalizeNumber(appointment.pointsGranted || appointment.points_granted),
     flowPointsAwarded: normalizeNumber(appointment.flowPointsAwarded || appointment.flow_points_awarded),
   }
