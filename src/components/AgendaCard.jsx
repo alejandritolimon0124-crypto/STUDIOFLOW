@@ -35,6 +35,9 @@ function AgendaCard({ time, title, subtitle, status, accent = 'rose', type = 'ap
         )}
       </div>
       <div className="agenda-card-actions">
+        {appointment && (appointment.bookingSource || appointment.booking_source) === 'google' && (
+          <StatusPill tone="warm">Reserva Google</StatusPill>
+        )}
         <StatusPill tone={tone}>{status}</StatusPill>
         {action}
         {appointment && <CompleteAppointmentButton appointment={appointment} />}

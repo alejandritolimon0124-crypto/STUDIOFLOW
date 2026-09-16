@@ -23,6 +23,7 @@ import Login from './pages/auth/Login'
 import Register from './pages/auth/Register'
 import ForgotPassword from './pages/auth/ForgotPassword'
 import ResetPassword from './pages/auth/ResetPassword'
+import PublicBooking from './pages/public/PublicBooking'
 import Onboarding from './pages/auth/Onboarding'
 import ClientDashboard from './pages/client/ClientDashboard'
 import ProtectedRoute from './routes/ProtectedRoute'
@@ -38,6 +39,7 @@ function App() {
           <Route path="/register" element={<Register />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/reservar/:slug?/:serviceSlug?" element={<PublicBooking />} />
           <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
 
           <Route path="/client" element={<ProtectedRoute allowedRole="client"><ClientLayout /></ProtectedRoute>}>

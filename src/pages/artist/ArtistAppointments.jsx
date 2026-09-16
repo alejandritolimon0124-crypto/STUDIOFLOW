@@ -9,7 +9,7 @@ import PanelHeader from '../../components/PanelHeader'
 import StatusPill from '../../components/StatusPill'
 import { useApp } from '../../contexts/appContextCore'
 import { fetchArtistClients } from '../../services/artistClientService'
-import { fetchManualArtistAvailability } from '../../services/appointmentService'
+import { cancelArtistAppointment, fetchManualArtistAvailability } from '../../services/appointmentService'
 import { getAppointmentStatusTone } from '../../utils/appointmentStatus'
 import useCurrentTime from '../../hooks/useCurrentTime'
 
@@ -87,6 +87,7 @@ function ArtistAppointments() {
   const [isClientSearchLoading, setIsClientSearchLoading] = useState(false)
   const [clientSearchError, setClientSearchError] = useState('')
   const [selectedClientRecord, setSelectedClientRecord] = useState(selectedClient)
+  const [cancellingAppointmentId, setCancellingAppointmentId] = useState('')
 
   const selectedClientFromSearch = selectedClientRecord || clientResults.find((client) => client.id === draft.clientId) || null
 
@@ -299,6 +300,19 @@ function ArtistAppointments() {
     }))
     if (field === 'phone') setSelectedClientRecord(null)
     setFormErrors((currentErrors) => ({ ...currentErrors, [field]: '' }))
+  }
+
+  const cancelGoogleAppointment = async (appointment) => {
+    if (!window.confirm('Confirma que deseas cancelar esta reserva de Google. El horario volvera a quedar disponible si aun cumple las reglas de tu agenda.')) return
+    setCancellingAppointmentId(appointment.id)
+    try {
+      await cancelArtistAppointment({ appointmentId: appointment.id })
+      await loadArtistAppointments()
+    } catch (error) {
+      window.alert(error.message || 'No se pudo cancelar la cita.')
+    } finally {
+      setCancellingAppointmentId('')
+    }
   }
 
   const saveAppointment = async () => {
@@ -632,7 +646,13 @@ function ArtistAppointments() {
               </div>
               <div className="row-actions appointment-result-actions" style={{ justifyContent: 'flex-end', gap: 6 }}>
                 <StatusPill tone="neutral">{getAppointmentContextLabel(appointment)}</StatusPill>
+                {appointment.bookingSource === 'google' && <StatusPill tone="warm">Reserva Google</StatusPill>}
                 <StatusPill tone={getAppointmentStatusTone(appointment)}>{appointment.status}</StatusPill>
+                {appointment.bookingSource === 'google' && appointment.appointmentStatus === 'scheduled' && (
+                  <Button size="sm" variant="danger" disabled={cancellingAppointmentId === appointment.id} onClick={() => cancelGoogleAppointment(appointment)}>
+                    {cancellingAppointmentId === appointment.id ? 'Cancelando...' : 'Cancelar cita'}
+                  </Button>
+                )}
                 <Button
                   className="flow-points-award-button"
                   disabled={!canAwardFlowPoints(appointment)}

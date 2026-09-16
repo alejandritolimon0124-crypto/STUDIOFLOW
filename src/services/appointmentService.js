@@ -148,6 +148,14 @@ export async function updateClientAppointmentResponse({ appointmentId, action } 
   return normalizeAppointment(data?.appointment)
 }
 
+export async function cancelArtistAppointment({ appointmentId } = {}) {
+  if (!appointmentId) throw new Error('Cita requerida.')
+  const client = requireSupabase()
+  const { data, error } = await client.rpc('studio_flow_artist_cancel_appointment', { p_appointment_id: appointmentId })
+  if (error) throw error
+  return data
+}
+
 export async function awardAppointmentFlowPoints({ appointmentId } = {}) {
   if (!appointmentId) throw new Error('Cita requerida.')
 
