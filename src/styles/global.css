@@ -2801,6 +2801,7 @@ select:focus,
 .public-registration-invite small { color: var(--muted); }
 .public-booking-form { display: grid; gap: 12px; padding-top: 16px; border-top: 1px solid var(--line); }
 .public-booking-form h2 { margin: 0; font-size: 22px; }
+.public-service-instruction { margin: 2px 0 -6px; color: var(--muted); font-size: 13px; font-weight: 700; line-height: 1.35; white-space: nowrap; }
 .public-booking-page .public-slot-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
 .public-booking-page .public-slot-button { width: 100%; min-width: 0; min-height: 72px; padding: 9px 6px; }
 .public-booking-page .public-slot-button strong { font-size: 17px; }
@@ -2818,6 +2819,7 @@ select:focus,
   .public-booking-logo { height: 162px; margin: -18px auto -28px; width: 100%; }
   .public-registration-invite strong { font-size: 18px; }
   .public-registration-invite .button { width: 100%; }
+  .public-service-instruction { font-size: 12px; white-space: normal; }
 }
 
 .happy-hour-calendar-hint {
