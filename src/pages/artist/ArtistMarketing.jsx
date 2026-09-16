@@ -5,6 +5,7 @@ import Card from '../../components/Card'
 import Input from '../../components/Input'
 import MetricCard from '../../components/MetricCard'
 import PanelHeader from '../../components/PanelHeader'
+import { MarketingReminderSettings } from '../../components/MarketingReminders'
 import StatusPill from '../../components/StatusPill'
 import { useApp } from '../../contexts/appContextCore'
 import { calculateWeeklyOccupancy } from '../../modules/marketing/occupancyEngine'
@@ -25,16 +26,8 @@ import {
   setArtistFlowPointRedemptionScope,
   setArtistDoublePointsPromotion,
   setArtistLowOccupancyAutomation,
-  sendArtistMarketingNotification,
 } from '../../services/artistMarketingService'
 
-const automations = [
-  { name: 'Recordatorio cumpleaños', active: true },
-  { name: 'Reactivación 30 días', active: false },
-  { name: 'Mensaje post cita', active: true },
-  { name: 'Recordatorio mantenimiento', active: false },
-  { name: 'Campañas automáticas', active: true },
-]
 
 
 function ArtistMarketing() {
@@ -42,15 +35,11 @@ function ArtistMarketing() {
   const [happyHour, setHappyHour] = useState(false)
   const loyaltyActive = true
   const visitsRequired = 5
-  const [automationStates, setAutomationStates] = useState(
-    automations.reduce((acc, auto) => ({ ...acc, [auto.name]: auto.active }), {})
-  )
   const [toasts, setToasts] = useState([])
   const [marketingSettings, setMarketingSettings] = useState({ rewards: [], doublePoints: { status: 'paused', rules: {} }, happyHour: { status: 'paused', rules: {} } })
   const [rewardDraft, setRewardDraft] = useState({ discountPercent: 10, pointsCost: '' })
   const [happyHourDraft, setHappyHourDraft] = useState({ discountPercent: 10, weekdays: [1, 2, 3, 4, 5], startTime: '14:00', endTime: '17:00' })
   const [lowOccupancyDraft, setLowOccupancyDraft] = useState({ active: false, period: 'week', threshold: 40 })
-  const [maintenanceDays, setMaintenanceDays] = useState(14)
   const [isMarketingSaving, setIsMarketingSaving] = useState(false)
   const toastIdRef = useRef(0)
   const marketingSettingsRequestRef = useRef(0)
@@ -147,7 +136,6 @@ function ArtistMarketing() {
         period: settings.lowOccupancy?.period || 'week',
         threshold: Math.min(Number(settings.lowOccupancy?.threshold || 40), 40),
       })
-      setMaintenanceDays(Number(settings.maintenanceReminderDays || 14))
       setHappyHour(settings.happyHour?.status === 'active')
       setHappyHourDraft({
         discountPercent: Number(rules.discountPercent || 10),
@@ -334,24 +322,6 @@ function ArtistMarketing() {
       setIsMarketingSaving(false)
     }
   }
-
-  const sendMarketingNotification = async (type) => {
-    setIsMarketingSaving(true)
-    try {
-      const result = await sendArtistMarketingNotification({ type, maintenanceDays, artistId: marketingArtistId })
-      triggerToast(result.insertedCount > 0 ? `Aviso enviado a ${result.insertedCount} clientas` : 'No hay clientas elegibles para este aviso')
-    } catch (error) {
-      triggerToast(error.message || 'No se pudo enviar el aviso')
-    } finally {
-      setIsMarketingSaving(false)
-    }
-  }
-
-  const toggleAutomation = (name) => {
-    setAutomationStates((prev) => ({ ...prev, [name]: !prev[name] }))
-    triggerToast(`✓ Automatización ${name} ${automationStates[name] ? 'desactivada' : 'activada'}`)
-  }
-
 
   if (!canUseMarketing) {
     return (
@@ -579,52 +549,7 @@ function ArtistMarketing() {
         </div>
       </Card>
 
-      <Card className="wide-card mobile-screen primary-panel">
-        <PanelHeader title="Marketing inteligente" eyebrow="Solo clientas atendidas" />
-        <div className="compact-list">
-          <div className="list-row elevated-row">
-            <div>
-              <strong>Recordatorio de cumpleaños</strong>
-              <small>Envia una felicitacion firmada por la artista o estudio solo a clientas que ya asistieron.</small>
-            </div>
-            <label className="toggle-row">
-              <input type="checkbox" checked={automationStates['Recordatorio cumpleaños']} onChange={() => toggleAutomation('Recordatorio cumpleaños')} />
-            </label>
-            <Button disabled={isMarketingSaving || !automationStates['Recordatorio cumpleaños']} size="sm" variant="ghost" onClick={() => sendMarketingNotification('birthday')}>
-              Enviar ahora
-            </Button>
-          </div>
-          <div className="list-row elevated-row">
-            <div>
-              <strong>Reactivacion 30 dias</strong>
-              <small>Invita a regresar a clientas sin cita nueva despues de 30 dias.</small>
-            </div>
-            <label className="toggle-row">
-              <input type="checkbox" checked={automationStates['Reactivación 30 días']} onChange={() => toggleAutomation('Reactivación 30 días')} />
-            </label>
-            <Button disabled={isMarketingSaving || !automationStates['Reactivación 30 días']} size="sm" variant="ghost" onClick={() => sendMarketingNotification('reactivation')}>
-              Enviar ahora
-            </Button>
-          </div>
-          <div className="list-row elevated-row">
-            <div>
-              <strong>Recordatorio de mantenimiento</strong>
-              <small>Se envia despues de la ultima cita, solo si la clienta ya asistio.</small>
-            </div>
-            <label className="input-field inline-select">
-              <span>Dias</span>
-              <select value={maintenanceDays} onChange={(event) => setMaintenanceDays(Number(event.target.value))}>
-                <option value={7}>7</option>
-                <option value={14}>14</option>
-                <option value={30}>30</option>
-              </select>
-            </label>
-            <Button disabled={isMarketingSaving} size="sm" variant="ghost" onClick={() => sendMarketingNotification('maintenance')}>
-              Enviar ahora
-            </Button>
-          </div>
-        </div>
-      </Card>
+      <MarketingReminderSettings key={marketingArtistId} artistId={marketingArtistId} />
 
 
 

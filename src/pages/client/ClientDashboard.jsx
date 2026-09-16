@@ -7,6 +7,7 @@ import AppointmentPayment from '../../components/AppointmentPayment'
 import Card from '../../components/Card'
 import Input from '../../components/Input'
 import PanelHeader from '../../components/PanelHeader'
+import { ClientMarketingNotices } from '../../components/MarketingReminders'
 import StatusPill from '../../components/StatusPill'
 import { useApp } from '../../contexts/appContextCore'
 import { paths } from '../../routes/paths'
@@ -1707,6 +1708,7 @@ function ClientDashboard({ view = 'inicio' }) {
     <main className={`dashboard-grid client-grid view-${view}`}>
         {view === 'inicio' && (
           <>
+            {hasRealClientSession && <ClientMarketingNotices key={currentClient.id} />}
             <section className="hero-panel client-hero mobile-screen">
               <div>
                 <div className="client-hero-heading">
