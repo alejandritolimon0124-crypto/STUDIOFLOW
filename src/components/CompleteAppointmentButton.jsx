@@ -3,7 +3,7 @@ import Button from './Button'
 import { requireSupabase } from '../lib/supabaseClient'
 
 export default function CompleteAppointmentButton({ appointment }) {
-  const [now, setNow] = useState(Date.now())
+  const [now, setNow] = useState(() => Date.now())
   const [saving, setSaving] = useState(false)
   const [done, setDone] = useState(false)
   const [error, setError] = useState('')

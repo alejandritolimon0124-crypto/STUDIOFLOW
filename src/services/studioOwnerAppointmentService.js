@@ -130,15 +130,22 @@ export async function fetchStudioOwnerAppointmentClients({ studioId, query = '',
   if (!studioId) return []
 
   const client = requireSupabase()
-  const { data, error } = await client
-    .from('appointments')
-    .select('id, client_id, starts_at, status, client:clients(id, display_name, email, phone, status, created_at)')
-    .eq('studio_id', studioId)
-    .in('status', ['scheduled', 'completed', 'disputed'])
-    .order('starts_at', { ascending: false })
-    .limit(100)
+  const data = []
+  const pageSize = 500
+  // Include every status and page so older clients remain in the studio portfolio.
+  for (let offset = 0; ; offset += pageSize) {
+    const { data: page, error } = await client
+      .from('appointments')
+      .select('id, client_id, starts_at, status, client:clients(id, display_name, email, phone, status, created_at)')
+      .eq('studio_id', studioId)
+      .order('starts_at', { ascending: false })
+      .order('id', { ascending: false })
+      .range(offset, offset + pageSize - 1)
 
-  if (error) throw error
+    if (error) throw error
+    data.push(...(page || []))
+    if (!page || page.length < pageSize) break
+  }
 
   const profiles = await fetchAdminClients()
   const profilesById = new Map(profiles.map((profile) => [profile.id, profile]))
@@ -269,21 +276,22 @@ export async function fetchStudioOwnerAppointments({ studioId, membershipIds = [
 
 export async function fetchStudioOwnerClientAppointments({
   studioId,
+  allStudios = false,
   clientId,
   upcomingOnly = false,
   limit = 10,
 } = {}) {
-  if (!studioId || !clientId) return []
+  if ((!studioId && !allStudios) || !clientId) return []
 
   const client = requireSupabase()
   let request = client
     .from('appointments')
     .select('id, client_id, artist_id, studio_id, membership_id, service_offering_id, availability_slot_id, starts_at, ends_at, status, booking_source, client_notes, created_at')
-    .eq('studio_id', studioId)
     .eq('client_id', clientId)
     .order('starts_at', { ascending: upcomingOnly })
     .limit(limit)
 
+  if (!allStudios) request = request.eq('studio_id', studioId)
   if (upcomingOnly) {
     request = request
       .gte('starts_at', new Date().toISOString())

@@ -51,7 +51,7 @@ function StudioBootstrapPanel({
   onOpenOwnerPanel,
 }) {
   const [ownStudios, setOwnStudios] = useState([])
-  const [isOwnStudiosLoading, setIsOwnStudiosLoading] = useState(false)
+  const [isOwnStudiosLoading, setIsOwnStudiosLoading] = useState(true)
   const [ownStudiosError, setOwnStudiosError] = useState('')
   const [showCreateStudioForm, setShowCreateStudioForm] = useState(false)
   const [showDetails, setShowDetails] = useState(false)
@@ -65,8 +65,8 @@ function StudioBootstrapPanel({
   const { refreshAuthContext } = useApp()
 
   const isArtistMode = mode === 'artist'
-  const operationalStudio = ownStudios.find((studio) => ['pending', 'approved'].includes(studio.studioStatus))
-  const shouldShowCreateStudio = !operationalStudio
+  const operationalStudio = ownStudios[0]
+  const shouldShowCreateStudio = !isOwnStudiosLoading && !ownStudiosError && ownStudios.length === 0
   const studioFormHasCoordinates = hasCoordinates(studioForm)
   const studioMapsUrl = buildGoogleMapsUrl(studioForm)
 
@@ -89,9 +89,6 @@ function StudioBootstrapPanel({
 
   useEffect(() => {
     let isMounted = true
-
-    setIsOwnStudiosLoading(true)
-    setOwnStudiosError('')
 
     fetchOwnStudios()
       .then((studios) => {

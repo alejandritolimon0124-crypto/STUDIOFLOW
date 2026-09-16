@@ -3,6 +3,7 @@ import Button from '../../components/Button'
 import Card from '../../components/Card'
 import Input from '../../components/Input'
 import OwnerStatusMetric from '../../components/OwnerStatusMetric'
+import OwnerAppointmentCard from '../../components/OwnerAppointmentCard'
 import ArtistClientExport from '../../components/ArtistClientExport'
 import PanelHeader from '../../components/PanelHeader'
 import StatusPill from '../../components/StatusPill'
@@ -26,19 +27,6 @@ import {
 import { useNavigate } from 'react-router-dom'
 
 const uniqueById = (items = []) => Array.from(new Map(items.filter(Boolean).map((item) => [item.id, item])).values())
-function formatAppointmentDate(value = '') {
-  if (!value) return 'Fecha por confirmar'
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return String(value).slice(0, 10)
-  return date.toLocaleDateString('es-MX', { day: 'numeric', month: 'long' })
-}
-
-function formatAppointmentTime(value = '') {
-  if (!value) return 'Hora por confirmar'
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return String(value).slice(11, 16)
-  return date.toLocaleTimeString('es-MX', { hour: 'numeric', minute: '2-digit' })
-}
 
 function AdminClients() {
   const navigate = useNavigate()
@@ -50,6 +38,7 @@ function AdminClients() {
     updateManagedClientProfile,
   } = useApp()
   const [query, setQuery] = useState('')
+  const [submittedQuery, setSubmittedQuery] = useState('')
   const [realClientResults, setRealClientResults] = useState([])
   const [isSearchingClients, setIsSearchingClients] = useState(false)
   const [clientSearchStatus, setClientSearchStatus] = useState('')
@@ -144,6 +133,7 @@ function AdminClients() {
     }))).map((studio) => studio.id)
 
   const searchClients = async (nextQuery = query) => {
+    setSubmittedQuery(String(nextQuery || '').trim())
     if (!isStudioOwnerContext) return
     if (!activeStudioId) {
       setRealClientResults([])
@@ -181,6 +171,7 @@ function AdminClients() {
   }
 
   const filteredClients = useMemo(() => {
+    if (submittedQuery.length < 2 || submittedQuery !== query.trim()) return []
     if (isStudioOwnerContext) {
       if (query.trim().length < 2) return []
       return realClientResults.slice(0, 5)
@@ -197,7 +188,7 @@ function AdminClients() {
           return String(secondDate).localeCompare(String(firstDate))
         })
         .slice(0, 5)
-  }, [accessibleClientStudioIds, adminState.clients, isStudioOwnerContext, query, realClientResults, session.user])
+  }, [accessibleClientStudioIds, adminState.clients, isStudioOwnerContext, query, submittedQuery, realClientResults, session.user])
   const activeClientsCount = adminState.clients.filter((client) => client.status === 'Activo').length
   const suspendedClientsCount = adminState.clients.filter((client) => client.status !== 'Activo').length
   const selectedMembershipOperations = membershipOperationsById[ownerAppointmentDraft.membershipId] || null
@@ -246,11 +237,9 @@ function AdminClients() {
     }
   }, [activeStudioId, membershipOperationsById, ownerAppointmentDraft.membershipId])
 
-  useEffect(() => {
-    if (!ownerAppointmentDraft.serviceOfferingId && selectedOwnerServices[0]?.id) {
-      setOwnerAppointmentDraft((currentDraft) => ({ ...currentDraft, serviceOfferingId: selectedOwnerServices[0].id }))
-    }
-  }, [ownerAppointmentDraft.serviceOfferingId, selectedOwnerServices])
+  if (!ownerAppointmentDraft.serviceOfferingId && selectedOwnerServices[0]?.id) {
+    setOwnerAppointmentDraft({ ...ownerAppointmentDraft, serviceOfferingId: selectedOwnerServices[0].id })
+  }
 
   const openOwnerAppointmentFlow = (client = null) => {
     if (!isStudioOwnerContext) return
@@ -360,7 +349,7 @@ function AdminClients() {
   }
 
   const openClientAppointments = async (client, mode) => {
-    if (!isStudioOwnerContext || !activeStudioId || !client?.id) return
+    if (!client?.id || (!isPlatformOwner && (!isStudioOwnerContext || !activeStudioId))) return
     if (inlinePanel.clientId === client.id && inlinePanel.mode === mode) {
       closeInlinePanel()
       return
@@ -382,7 +371,8 @@ function AdminClients() {
 
     try {
       const items = await fetchStudioOwnerClientAppointments({
-        studioId: activeStudioId,
+        studioId: isPlatformOwner ? null : activeStudioId,
+        allStudios: isPlatformOwner,
         clientId: client.id,
         upcomingOnly: mode === 'upcoming',
         limit: mode === 'upcoming' ? 5 : 20,
@@ -395,8 +385,8 @@ function AdminClients() {
         isLoading: false,
         message: items.length === 0
           ? mode === 'upcoming'
-            ? 'Esta clienta no tiene proximas citas en este estudio.'
-            : 'Esta clienta no tiene historial de citas en este estudio.'
+            ? 'Esta clienta no tiene proximas citas en el ambito consultado.'
+            : 'Esta clienta no tiene historial de citas en el ambito consultado.'
           : '',
       })
     } catch (error) {
@@ -438,13 +428,14 @@ function AdminClients() {
                 value={query}
                 onChange={(event) => {
                   setQuery(event.target.value)
+                  setSubmittedQuery('')
                   setClientSearchStatus('')
                   setRealClientResults([])
                   closeInlinePanel()
                 }}
               />
               <div style={{ alignSelf: 'end' }}>
-                <Button disabled={!isStudioOwnerContext || isSearchingClients} size="sm" onClick={() => searchClients()}>
+                <Button disabled={query.trim().length < 2 || isSearchingClients} size="sm" onClick={() => searchClients()}>
                   {isSearchingClients ? 'Buscando...' : 'Buscar'}
                 </Button>
               </div>
@@ -455,8 +446,7 @@ function AdminClients() {
             {filteredClients.length === 0 ? (
               <article className="master-row">
                 <div>
-                  <strong>{clientSearchStatus || 'Este estudio aun no tiene clientas con citas.'}</strong>
-                  <small>Las clientas apareceran aqui cuando existan citas reales dentro del estudio activo.</small>
+                  <strong>{clientSearchStatus || (submittedQuery ? 'No se encontraron clientas.' : 'Busca una clienta por nombre, correo o celular.')}</strong>
                 </div>
               </article>
             ) : filteredClients.map((client) => (
@@ -484,7 +474,7 @@ function AdminClients() {
                     <button type="button" onClick={() => openInlineProfile(client)}>Ver perfil</button>
                   </div>
                 </article>
-                {isStudioOwnerContext && inlinePanel.clientId === client.id && (
+                {inlinePanel.clientId === client.id && (isStudioOwnerContext || inlinePanel.mode !== 'profile') && (
                   <div className="client-inline-info-panel">
                     <PanelHeader
                       title={inlinePanel.mode === 'appointment' ? 'Generar cita' : inlinePanel.mode === 'upcoming' ? 'Proximas citas' : inlinePanel.mode === 'history' ? 'Historial cliente' : 'Perfil cliente'}
@@ -588,24 +578,17 @@ function AdminClients() {
                           <div className="list-row elevated-row">
                             <div>
                               <strong>Cargando citas...</strong>
-                              <small>Consultando citas reales del estudio activo.</small>
+                              <small>Consultando citas de la clienta.</small>
                             </div>
                           </div>
                         )}
                         {!appointmentPanel.isLoading && appointmentPanel.items.map((item) => (
-                          <div className="list-row elevated-row" key={item.id}>
-                            <div>
-                              <strong>{formatAppointmentDate(item.startsAt)} / {formatAppointmentTime(item.startsAt)}</strong>
-                              <small>{item.service} / {item.artist}</small>
-                            </div>
-                            <small>{item.status}</small>
-                          </div>
+                          <OwnerAppointmentCard key={item.id} appointment={item} clientName={client.name} />
                         ))}
                         {!appointmentPanel.isLoading && appointmentPanel.items.length === 0 && (
                           <div className="list-row elevated-row">
                             <div>
-                              <strong>{appointmentPanel.message || 'Sin citas en este estudio.'}</strong>
-                              <small>Solo se muestran citas vinculadas al estudio activo.</small>
+                              <strong>{appointmentPanel.message || 'Sin citas para esta consulta.'}</strong>
                             </div>
                           </div>
                         )}
@@ -644,6 +627,16 @@ function AdminClients() {
         {profileClient && !isStudioOwnerContext && (
           <Card className="mobile-screen">
             <PanelHeader title="Perfil cliente" eyebrow="Edicion" />
+            <div className="client-profile-summary-card">
+              <div className="client-profile-avatar">
+                {profileClient.photoUrl ? <img src={profileClient.photoUrl} alt={`Foto de ${profileClient.name}`} /> : <span>{String(profileClient.name || '').trim().split(/\s+/).slice(0, 2).map((part) => part[0]).join('').toUpperCase()}</span>}
+              </div>
+              <div className="client-profile-details">
+                <strong>{profileClient.name}</strong>
+                <small>{profileClient.phone || 'Sin celular'}</small>
+                <small>{profileClient.email || 'Sin correo electronico'}</small>
+              </div>
+            </div>
             <div className="form-stack compact-form">
               <Input
                 label="Nombre"
@@ -676,50 +669,6 @@ function AdminClients() {
           </Card>
         )}
 
-        {appointmentPanel.client && !isStudioOwnerContext && (
-          <Card className="mobile-screen">
-            <PanelHeader
-              title={appointmentPanel.mode === 'upcoming' ? 'Proximas citas' : 'Historial cliente'}
-              eyebrow={appointmentPanel.client.name}
-            />
-            <div className="compact-list">
-              {appointmentPanel.isLoading && (
-                <div className="list-row elevated-row">
-                  <div>
-                    <strong>Cargando citas...</strong>
-                    <small>Consultando citas reales del estudio activo.</small>
-                  </div>
-                </div>
-              )}
-              {!appointmentPanel.isLoading && appointmentPanel.items.map((item) => (
-                <div className="list-row elevated-row" key={item.id}>
-                  <div>
-                    <strong>{formatAppointmentDate(item.startsAt)} / {formatAppointmentTime(item.startsAt)}</strong>
-                    <small>{item.service} / {item.artist}</small>
-                  </div>
-                  <small>{item.status}</small>
-                </div>
-              ))}
-              {!appointmentPanel.isLoading && appointmentPanel.items.length === 0 && (
-                <div className="list-row elevated-row">
-                  <div>
-                    <strong>{appointmentPanel.message || 'Sin citas en este estudio.'}</strong>
-                    <small>Solo se muestran citas vinculadas al estudio activo.</small>
-                  </div>
-                </div>
-              )}
-            </div>
-            <div className="row-actions">
-              <button type="button" onClick={() => setAppointmentPanel({
-                client: null,
-                mode: '',
-                items: [],
-                isLoading: false,
-                message: '',
-              })}>Cerrar</button>
-            </div>
-          </Card>
-        )}
     </main>
   )
 }

@@ -10,6 +10,7 @@ import { useApp } from '../../contexts/appContextCore'
 import { getCurrentBrowserCoordinates } from '../../utils/browserGeolocation'
 import { buildGoogleMapsUrl, createProfessionalLocation, hasCoordinates, validateProfessionalLocation } from '../../utils/locationHelpers'
 import { getAppointmentStatusTone } from '../../utils/appointmentStatus'
+import { serviceSlotCoverage } from '../../utils/serviceSlotCoverage'
 import { getCurrentProfile, getCurrentStudio } from '../../modules/entities/entitySelectors'
 import { paths } from '../../routes/paths'
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
@@ -901,7 +902,7 @@ function OwnerAppointmentModal({
   const selectedOperations = selectedOperationsKey ? membershipOperationsById[selectedOperationsKey] : null
   const services = (selectedOperations?.services || []).filter((service) => ['active', 'activo'].includes(String(service.status || '').toLowerCase()))
   const selectedService = services.find((service) => service.id === draft.serviceOfferingId)
-  const slots = (selectedOperations?.upcomingSlots || []).filter((slot) => slot.status === 'available')
+  const slots = serviceSlotCoverage(selectedOperations?.upcomingSlots || [], selectedService?.durationMinutes)
   const selectedSlot = slots.find((slot) => slot.id === draft.availabilitySlotId)
   const search = draft.clientSearch.trim().toLowerCase()
   const matchingClients = search
@@ -1029,7 +1030,7 @@ function OwnerAppointmentModal({
             <span>Servicio</span>
             <select
               value={draft.serviceOfferingId}
-              onChange={(event) => onDraftChange({ serviceOfferingId: event.target.value })}
+              onChange={(event) => onDraftChange({ serviceOfferingId: event.target.value, availabilitySlotId: '' })}
             >
               <option value="">Selecciona servicio</option>
               {services.map((service) => (
@@ -1059,6 +1060,9 @@ function OwnerAppointmentModal({
           {selectedMembership && selectedSlot && (
             <small>{selectedMembership.name} / {selectedSlot.date} {selectedSlot.time}</small>
           )}
+          {selectedService && slots.length === 0 && (
+            <small>No hay horarios con tiempo continuo suficiente para este servicio entre los bloques cargados.</small>
+          )}
           <label className="input-field">
             <span>Notas</span>
             <textarea
@@ -1075,7 +1079,7 @@ function OwnerAppointmentModal({
         </div>
         <div className="modal-actions">
           <Button variant="ghost" size="sm" onClick={onClose}>Cancelar</Button>
-          <Button size="sm" disabled={isSaving} onClick={onSave}>
+          <Button size="sm" disabled={isSaving || !selectedSlot || !selectedService} onClick={onSave}>
             {isSaving ? 'Guardando...' : 'Guardar cita'}
           </Button>
         </div>
@@ -1337,12 +1341,13 @@ function AdminStudioProfile() {
     [operationalMemberships],
   )
 
+  const currentStudioId = currentStudio?.id
   const loadStudioOwnerAppointments = useCallback(async () => {
-    if (!currentStudio?.id) return []
+    if (!currentStudioId) return []
 
     try {
       const appointments = await fetchStudioOwnerAppointments({
-        studioId: currentStudio.id,
+        studioId: currentStudioId,
         membershipIds: activeMembershipIds,
       })
       setStudioOwnerAppointments(appointments)
@@ -1351,16 +1356,16 @@ function AdminStudioProfile() {
       setStudioOwnerAppointments([])
       return []
     }
-  }, [activeMembershipIds, currentStudio?.id])
+  }, [activeMembershipIds, currentStudioId])
 
   const sendStudioConfirmationRequests = useCallback(async (date = null) => {
-    if (!currentStudio?.id) return
+    if (!currentStudioId) return
 
     setConfirmationFeedback({ tone: 'neutral', message: '' })
 
     try {
       const updatedCount = await requestStudioOwnerAppointmentConfirmations({
-        studioId: currentStudio.id,
+        studioId: currentStudioId,
         date,
       })
       setConfirmationFeedback({
@@ -1373,7 +1378,7 @@ function AdminStudioProfile() {
     } catch (error) {
       setConfirmationFeedback({ tone: 'warm', message: error.message || 'No se pudo enviar el aviso.' })
     }
-  }, [currentStudio?.id, loadStudioOwnerAppointments])
+  }, [currentStudioId, loadStudioOwnerAppointments])
 
   const awardStudioAppointmentPoints = useCallback(async (appointment = {}) => {
     if (!appointment.id) return
@@ -1393,7 +1398,7 @@ function AdminStudioProfile() {
   }, [loadStudioOwnerAppointments])
 
   const loadStudioMemberships = useCallback(async ({ silent = false, successMessage = '' } = {}) => {
-    if (!currentStudio?.id) return null
+    if (!currentStudioId) return null
 
     if (!silent) {
       setIsMembershipsLoading(true)
@@ -1401,7 +1406,7 @@ function AdminStudioProfile() {
     }
 
     try {
-      const payload = await fetchStudioMemberships(currentStudio.id)
+      const payload = await fetchStudioMemberships(currentStudioId)
       setMembershipState(payload)
       if (successMessage) {
         setMembershipFeedback({ tone: 'success', message: successMessage })
@@ -1415,16 +1420,16 @@ function AdminStudioProfile() {
     } finally {
       if (!silent) setIsMembershipsLoading(false)
     }
-  }, [currentStudio?.id])
+  }, [currentStudioId])
 
   const loadMembershipOperations = useCallback(async (membershipId) => {
-    if (!currentStudio?.id || !membershipId) return null
+    if (!currentStudioId || !membershipId) return null
 
     setMembershipOperationsLoadingId(membershipId)
 
     try {
       const payload = await fetchStudioMembershipOperations({
-        studioId: currentStudio.id,
+        studioId: currentStudioId,
         membershipId,
       })
       setMembershipOperationsById((currentState) => ({
@@ -1438,7 +1443,7 @@ function AdminStudioProfile() {
     } finally {
       setMembershipOperationsLoadingId('')
     }
-  }, [currentStudio?.id])
+  }, [currentStudioId])
 
   useEffect(() => {
     queueMicrotask(() => {
@@ -1449,24 +1454,46 @@ function AdminStudioProfile() {
     })
   }, [currentStudio?.id, currentStudio?.professionalLocation, currentStudio?.profile])
 
+  const [previousMembershipStudioId, setPreviousMembershipStudioId] = useState(null)
+  if (previousMembershipStudioId !== currentStudioId) {
+    setPreviousMembershipStudioId(currentStudioId)
+    setMembershipState({ memberships: [], invitations: [], artistCandidates: [], lastInvitation: null })
+    setMembershipOperationsById({})
+    setExpandedMembershipId('')
+    setStudioOwnerAppointments([])
+    setOwnerAppointmentDraft(emptyOwnerAppointmentDraft)
+    setIsOwnerAppointmentOpen(false)
+    setOwnerClientResults([])
+    setSearchedArtist(null)
+    setInviteEmail('')
+    setStudioMarketingSettings(emptyStudioMarketingSettings)
+    setIsMembershipsLoading(Boolean(currentStudioId))
+    setMembershipFeedback({ tone: 'neutral', message: '' })
+  }
   useEffect(() => {
-    if (!currentStudio?.id) return
-
-    loadStudioMemberships()
+    if (!currentStudioId) return undefined
+    let active = true
+    fetchStudioMemberships(currentStudioId)
+      .then((payload) => { if (active) setMembershipState(payload) })
+      .catch((error) => { if (active) setMembershipFeedback({ tone: 'warm', message: error.message || 'No se pudieron cargar artistas del estudio.' }) })
+      .finally(() => { if (active) setIsMembershipsLoading(false) })
     loadAdminArtists?.().catch(() => null)
-  }, [currentStudio?.id, loadAdminArtists, loadStudioMemberships])
+    return () => { active = false }
+  }, [currentStudioId, loadAdminArtists])
 
-  useEffect(() => {
-    if (!currentStudio?.id) return
-
-    let isActive = true
-
+  const [previousMarketplaceStudioId, setPreviousMarketplaceStudioId] = useState(currentStudioId)
+  if (previousMarketplaceStudioId !== currentStudioId) {
+    setPreviousMarketplaceStudioId(currentStudioId)
     setMarketplaceVisibilityOverride('')
     setOwnStudioMarketplaceState(null)
+  }
+  useEffect(() => {
+    if (!currentStudioId) return undefined
+    let isActive = true
     fetchOwnStudios()
       .then((studios) => {
         if (!isActive) return
-        const ownStudio = studios.find((studio) => studio.id === currentStudio.id || studio.studioId === currentStudio.id)
+        const ownStudio = studios.find((studio) => studio.id === currentStudioId || studio.studioId === currentStudioId)
         setOwnStudioMarketplaceState(ownStudio || null)
       })
       .catch((error) => {
@@ -1479,15 +1506,20 @@ function AdminStudioProfile() {
     return () => {
       isActive = false
     }
-  }, [currentStudio?.id])
+  }, [currentStudioId])
 
   useEffect(() => {
-    if (!currentStudio?.id) return
-
-    loadStudioOwnerAppointments()
+    if (!currentStudioId) return undefined
+    let active = true
+    fetchStudioOwnerAppointments({ studioId: currentStudioId, membershipIds: activeMembershipIds })
+      .then((appointments) => { if (active) setStudioOwnerAppointments(appointments) })
+      .catch(() => { if (active) setStudioOwnerAppointments([]) })
     window.addEventListener('studio-flow-appointment-completed', loadStudioOwnerAppointments)
-    return () => window.removeEventListener('studio-flow-appointment-completed', loadStudioOwnerAppointments)
-  }, [currentStudio?.id, loadStudioOwnerAppointments])
+    return () => {
+      active = false
+      window.removeEventListener('studio-flow-appointment-completed', loadStudioOwnerAppointments)
+    }
+  }, [currentStudioId, activeMembershipIds, loadStudioOwnerAppointments])
 
   useEffect(() => {
     if (!supabase || !currentStudio?.id) return undefined
@@ -1753,16 +1785,21 @@ function AdminStudioProfile() {
     }
   }
 
-  const loadStudioMarketingSettings = useCallback(async () => {
-    if (!currentStudio?.id) return
-
+  const marketingLoadKey = JSON.stringify([currentStudioId, selectedSection])
+  const [previousMarketingLoadKey, setPreviousMarketingLoadKey] = useState(null)
+  if (previousMarketingLoadKey !== marketingLoadKey) {
+    setPreviousMarketingLoadKey(marketingLoadKey)
+    setIsStudioMarketingLoading(Boolean(currentStudioId && selectedSection === 'marketplace'))
+  }
+  useEffect(() => {
+    if (!currentStudioId || selectedSection !== 'marketplace') return undefined
+    let active = true
     const requestId = studioMarketingRequestRef.current + 1
     studioMarketingRequestRef.current = requestId
-    setIsStudioMarketingLoading(true)
-
+    async function load() {
     try {
-      const settings = await fetchStudioMarketingSettings({ studioId: currentStudio.id })
-      if (requestId !== studioMarketingRequestRef.current) return
+      const settings = await fetchStudioMarketingSettings({ studioId: currentStudioId })
+      if (!active || requestId !== studioMarketingRequestRef.current) return
 
       const happyHourRules = settings.happyHour?.rules || {}
       setStudioMarketingSettings(settings)
@@ -1774,17 +1811,14 @@ function AdminStudioProfile() {
       })
       setStudioMarketingFeedback({ tone: 'neutral', message: '' })
     } catch (error) {
-      setStudioMarketingFeedback({ tone: 'warm', message: error.message || 'No se pudo cargar Marketplace.' })
+      if (active) setStudioMarketingFeedback({ tone: 'warm', message: error.message || 'No se pudo cargar Marketplace.' })
     } finally {
-      setIsStudioMarketingLoading(false)
+      if (active) setIsStudioMarketingLoading(false)
     }
-  }, [currentStudio?.id])
-
-  useEffect(() => {
-    if (selectedSection === 'marketplace') {
-      loadStudioMarketingSettings()
     }
-  }, [loadStudioMarketingSettings, selectedSection])
+    load()
+    return () => { active = false }
+  }, [currentStudioId, selectedSection])
 
   const updateStudioMarketingSettings = (settings, fallbackMessage = 'Marketplace actualizado.') => {
     setStudioMarketingSettings(settings)
@@ -2171,13 +2205,51 @@ function AdminStudioProfile() {
     }
   }
 
-  useEffect(() => {
-    const ownerAppointmentState = location.state?.ownerAppointment || null
-    if (!ownerAppointmentState) return
+  const routedAppointment = location.state?.ownerAppointment || null
+  const [handledAppointmentRoute, setHandledAppointmentRoute] = useState(null)
+  const [routedMembershipRequest, setRoutedMembershipRequest] = useState(null)
+  if (routedAppointment && handledAppointmentRoute !== location.key && currentStudioId && !isMembershipsLoading) {
+    const client = routedAppointment.client ? normalizeOwnerClient(routedAppointment.client) : null
+    const membershipId = getMembershipRecordId(operationalMemberships[0] || null)
+    setHandledAppointmentRoute(location.key)
+    setOwnerAppointmentDraft({
+      ...emptyOwnerAppointmentDraft,
+      clientSearch: client?.name || client?.email || '',
+      clientId: client?.id || '',
+      clientName: client?.name || '',
+      clientPhone: client?.phone || '',
+      clientEmail: client?.email || '',
+      membershipId,
+    })
+    setOwnerClientResults(client ? [client] : [])
+    setOwnerClientSearchStatus({ tone: 'neutral', message: '' })
+    setOwnerAppointmentFeedback({ tone: 'neutral', message: '' })
+    setIsOwnerAppointmentOpen(true)
+    setRoutedMembershipRequest(membershipId && !membershipOperationsById[membershipId]
+      ? { studioId: currentStudioId, membershipId } : null)
+  }
 
-    openOwnerAppointmentModal({ client: ownerAppointmentState.client || null })
+  useEffect(() => {
+    if (!routedAppointment || handledAppointmentRoute !== location.key) return
     navigate(`${paths.adminStudio}?section=schedule`, { replace: true, state: null })
-  }, [location.state])
+    ownerAppointmentFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }, [routedAppointment, handledAppointmentRoute, location.key, navigate])
+
+  useEffect(() => {
+    if (!routedMembershipRequest || routedMembershipRequest.studioId !== currentStudioId) return undefined
+    let active = true
+    fetchStudioMembershipOperations(routedMembershipRequest)
+      .then((payload) => {
+        if (active) setMembershipOperationsById((current) => ({
+          ...current,
+          [routedMembershipRequest.membershipId]: payload,
+        }))
+      })
+      .catch((error) => {
+        if (active) setOwnerAppointmentFeedback({ tone: 'warm', message: error.message || 'No se pudo cargar la disponibilidad.' })
+      })
+    return () => { active = false }
+  }, [routedMembershipRequest, currentStudioId])
 
   if (!currentStudio?.id) {
     return (

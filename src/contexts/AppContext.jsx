@@ -764,9 +764,12 @@ export function AppProvider({ children }) {
     sessionRef.current = session
   }, [session])
 
-  useEffect(() => {
+  const [workContextProfileId, setWorkContextProfileId] = useState(activeProfileId)
+  if (workContextProfileId !== activeProfileId) {
+    setWorkContextProfileId(activeProfileId)
     setArtistWorkContextId(getStoredArtistWorkContextId(activeProfileId))
-  }, [activeProfileId])
+    setArtistWorkContexts([])
+  }
 
   useEffect(() => {
     const scopedStorageKey = getArtistWorkContextStorageKey(activeProfileId)
@@ -779,21 +782,23 @@ export function AppProvider({ children }) {
     }
   }, [activeProfileId, artistWorkContextId])
 
-  useEffect(() => {
-    if (session.role !== ROLES.ARTIST) {
-      setArtistWorkContexts([])
-      return
-    }
-
-    if (session.isMockSession) {
+  const contextModeKey = JSON.stringify([session.role, session.isMockSession, fallbackArtistWorkContext])
+  const [previousContextModeKey, setPreviousContextModeKey] = useState(null)
+  if (previousContextModeKey !== contextModeKey) {
+    setPreviousContextModeKey(contextModeKey)
+    setArtistWorkContexts([])
+    if (session.role === ROLES.ARTIST && session.isMockSession) {
       const mockContext = createIndependentWorkContext(session.artist || {
         id: session.user?.artistId,
         name: session.user?.name,
       })
       setArtistWorkContexts([mockContext])
       setArtistWorkContextId((currentId) => currentId || mockContext.id)
-      return
     }
+  }
+
+  useEffect(() => {
+    if (session.role !== ROLES.ARTIST || session.isMockSession) return undefined
 
     let isMounted = true
 
@@ -823,7 +828,10 @@ export function AppProvider({ children }) {
     }
   }, [activeProfileId, fallbackArtistWorkContext, session.artist, session.isMockSession, session.role, session.user?.artistId, session.user?.name])
 
-  useEffect(() => {
+  const sessionDataKey = JSON.stringify([session.artist?.id, session.client?.id, session.isMockSession, session.profile?.id, session.role])
+  const [previousSessionDataKey, setPreviousSessionDataKey] = useState(sessionDataKey)
+  if (previousSessionDataKey !== sessionDataKey) {
+    setPreviousSessionDataKey(sessionDataKey)
     setAppointmentState({
       clientAppointments: [],
       artistAppointments: [],
@@ -868,13 +876,7 @@ export function AppProvider({ children }) {
       lastPublication: null,
     })
     setPublicationError('')
-  }, [
-    session.artist?.id,
-    session.client?.id,
-    session.isMockSession,
-    session.profile?.id,
-    session.role,
-  ])
+  }
 
   useEffect(() => {
     if (adminStorageKeyRef.current === adminStorageKey) return
@@ -1649,43 +1651,97 @@ export function AppProvider({ children }) {
     }
   }, [session.artist?.id, session.isMockSession, session.role, session.user?.artistId])
 
+  const initialArtistId = session.artist?.id || session.user?.artistId
+  const canLoadArtist = session.role === ROLES.ARTIST && !session.isMockSession && Boolean(initialArtistId)
+  const artistSetupKey = JSON.stringify([initialArtistId, canLoadArtist, activeArtistWorkContext])
+  const [previousArtistSetupKey, setPreviousArtistSetupKey] = useState(null)
+  if (previousArtistSetupKey !== artistSetupKey) {
+    setPreviousArtistSetupKey(artistSetupKey)
+    setIsArtistServicesLoading(canLoadArtist)
+    setIsArtistScheduleLoading(canLoadArtist)
+    setArtistServicesError('')
+    setArtistScheduleError('')
+  }
   useEffect(() => {
-    if (session.role !== ROLES.ARTIST || session.isMockSession) return
+    if (!canLoadArtist) return undefined
+    let active = true
+    fetchArtistServices({ artistId: initialArtistId, workContext: activeArtistWorkContext })
+      .then((services) => { if (active) setArtistState((current) => ({ ...current, services })) })
+      .catch((error) => { if (active) setArtistServicesError(error.message || 'No se pudieron cargar los servicios.') })
+      .finally(() => { if (active) setIsArtistServicesLoading(false) })
+    fetchArtistScheduleSettings(activeArtistWorkContext)
+      .then((settings) => { if (active) setAgendaSettings((current) => ({ ...current, ...settings, bookedSlots: current.bookedSlots })) })
+      .catch((error) => { if (active) setArtistScheduleError(error.message || 'No se pudo cargar la agenda real.') })
+      .finally(() => { if (active) setIsArtistScheduleLoading(false) })
+    return () => { active = false }
+  }, [activeArtistWorkContext, initialArtistId, canLoadArtist])
 
-    const artistId = session.artist?.id || session.user?.artistId
-    if (!artistId) return
-
-    loadArtistServices(artistId, activeArtistWorkContext).catch(() => {
-      // artistServicesError already exposes the failure to the UI.
-    })
-    loadArtistScheduleSettings(activeArtistWorkContext).catch(() => {
-      // artistScheduleError already exposes the failure to the UI.
-    })
-  }, [activeArtistWorkContext, loadArtistScheduleSettings, loadArtistServices, session.artist?.id, session.isMockSession, session.role, session.user?.artistId])
-
+  const artistAppointmentsKey = JSON.stringify([initialArtistId, canLoadArtist])
+  const [previousArtistAppointmentsKey, setPreviousArtistAppointmentsKey] = useState(null)
+  if (previousArtistAppointmentsKey !== artistAppointmentsKey) {
+    setPreviousArtistAppointmentsKey(artistAppointmentsKey)
+    setIsArtistAppointmentsLoading(canLoadArtist)
+    setArtistAppointmentsError('')
+    setIsPublicationLoading(canLoadArtist)
+    setPublicationError('')
+  }
   useEffect(() => {
-    if (session.role !== ROLES.ARTIST || session.isMockSession) return
-    const artistId = session.artist?.id || session.user?.artistId
-    if (!artistId) return
+    if (!canLoadArtist) return undefined
+    let active = true
+    fetchArtistAppointments({ artistId: initialArtistId })
+      .then((appointments) => { if (active) setAppointmentState((current) => ({ ...current, artistAppointments: appointments, artistLoaded: true })) })
+      .catch((error) => {
+        if (!active) return
+        setArtistAppointmentsError(error.message || 'No se pudieron cargar las citas.')
+        setAppointmentState((current) => ({ ...current, artistAppointments: [], artistLoaded: true }))
+      })
+      .finally(() => { if (active) setIsArtistAppointmentsLoading(false) })
+    fetchIndependentArtistPublicationReadiness(initialArtistId)
+      .then((readiness) => {
+        if (active) setPublicationState((current) => ({ ...current, loaded: true, readinessByArtistId: { ...current.readinessByArtistId, [readiness.artist?.id || initialArtistId]: readiness } }))
+      })
+      .catch((error) => {
+        if (!active) return
+        setPublicationError(error.message || 'No se pudo cargar la publicacion del artista.')
+        setPublicationState((current) => ({ ...current, loaded: true }))
+      })
+      .finally(() => { if (active) setIsPublicationLoading(false) })
+    return () => { active = false }
+  }, [initialArtistId, canLoadArtist])
 
-    loadArtistAppointments(artistId).catch(() => {
-      // artistAppointmentsError already exposes the failure to the UI.
-    })
-    loadIndependentArtistPublicationReadiness(artistId).catch(() => {
-      // publicationError already exposes the failure to the UI.
-    })
-  }, [loadArtistAppointments, loadIndependentArtistPublicationReadiness, session.artist?.id, session.isMockSession, session.role, session.user?.artistId])
-
+  const clientLoadKey = JSON.stringify([activeProfileId, session.role, session.isMockSession])
+  const [previousClientLoadKey, setPreviousClientLoadKey] = useState(null)
+  if (previousClientLoadKey !== clientLoadKey) {
+    setPreviousClientLoadKey(clientLoadKey)
+    const shouldLoad = session.role === ROLES.CLIENT && !session.isMockSession
+    setIsClientAppointmentsLoading(shouldLoad)
+    setIsMarketplaceLoading(shouldLoad)
+    setClientAppointmentsError('')
+    setMarketplaceError('')
+  }
   useEffect(() => {
-    if (session.role !== ROLES.CLIENT || session.isMockSession) return
-
-    loadClientAppointments().catch(() => {
-      // clientAppointmentsError already exposes the failure to the UI.
-    })
-    loadMarketplaceListings().catch(() => {
-      // marketplaceError already exposes the failure to the UI.
-    })
-  }, [loadClientAppointments, loadMarketplaceListings, session.isMockSession, session.role])
+    if (session.role !== ROLES.CLIENT || session.isMockSession) return undefined
+    let active = true
+    fetchClientAppointments()
+      .then((appointments) => {
+        if (active) setAppointmentState((current) => ({ ...current, clientAppointments: appointments, clientLoaded: true }))
+      })
+      .catch((error) => {
+        if (!active) return
+        setClientAppointmentsError(error.message || 'No se pudieron cargar tus citas.')
+        setAppointmentState((current) => ({ ...current, clientAppointments: [], clientLoaded: true }))
+      })
+      .finally(() => { if (active) setIsClientAppointmentsLoading(false) })
+    fetchMarketplaceListings()
+      .then((listings) => { if (active) setMarketplaceState({ listings, loaded: true }) })
+      .catch((error) => {
+        if (!active) return
+        setMarketplaceError(error.message || 'No se pudieron cargar los perfiles publicados.')
+        setMarketplaceState({ listings: [], loaded: true })
+      })
+      .finally(() => { if (active) setIsMarketplaceLoading(false) })
+    return () => { active = false }
+  }, [activeProfileId, session.isMockSession, session.role])
 
   useEffect(() => {
     if (!supabase || session.isMockSession) return undefined
@@ -1937,25 +1993,60 @@ export function AppProvider({ children }) {
     }
   }, [loadAdminArtists, loadGovernanceQueue, session.isMockSession, session.role])
 
+  const canLoadAdmin = !session.isMockSession && sessionHasAnyRole(session, [ROLES.PLATFORM_OWNER, ROLES.STUDIO_OWNER, ROLES.STUDIO_MANAGER])
+  const canLoadOwner = canLoadAdmin && sessionHasRole(session, ROLES.PLATFORM_OWNER)
+  const adminLoadKey = JSON.stringify([activeProfileId, session.activeSessionContext, canLoadAdmin, canLoadOwner])
+  const [previousAdminLoadKey, setPreviousAdminLoadKey] = useState(null)
+  if (previousAdminLoadKey !== adminLoadKey) {
+    setPreviousAdminLoadKey(adminLoadKey)
+    setIsAdminArtistsLoading(canLoadAdmin)
+    setIsAdminClientsLoading(canLoadAdmin)
+    setIsAdminDashboardLoading(canLoadOwner)
+    setIsGovernanceLoading(canLoadOwner)
+    setAdminArtistsError('')
+    setAdminClientsError('')
+    setAdminDashboardError('')
+    setGovernanceError('')
+  }
   useEffect(() => {
-    if (session.isMockSession) return
-    if (!sessionHasAnyRole(session, [ROLES.PLATFORM_OWNER, ROLES.STUDIO_OWNER, ROLES.STUDIO_MANAGER])) return
-
-    loadAdminArtists().catch(() => {
-      // adminArtistsError keeps the failure available to admin screens.
-    })
-    loadAdminClients().catch(() => {
-      // adminClientsError keeps the failure available to admin screens.
-    })
-    if (sessionHasRole(session, ROLES.PLATFORM_OWNER)) {
-      loadAdminDashboard().catch(() => {
-        // adminDashboardError keeps the failure available to admin screens.
+    if (!canLoadAdmin) return undefined
+    let active = true
+    fetchAdminArtists()
+      .then((payload) => { if (active) setAdminState((current) => ({ ...current, artists: payload.artists, studios: payload.studios })) })
+      .catch((error) => {
+        if (!active) return
+        setAdminArtistsError(error.message || 'No se pudieron cargar los artistas.')
+        setAdminState((current) => ({ ...current, artists: [], studios: [] }))
       })
-      loadGovernanceQueue().catch(() => {
-        // governanceError keeps the failure available to admin screens.
+      .finally(() => { if (active) setIsAdminArtistsLoading(false) })
+    fetchAdminClients()
+      .then((clients) => { if (active) setAdminState((current) => ({ ...current, clients })) })
+      .catch((error) => {
+        if (!active) return
+        setAdminClientsError(error.message || 'No se pudieron cargar los clientes.')
+        setAdminState((current) => ({ ...current, clients: [] }))
       })
+      .finally(() => { if (active) setIsAdminClientsLoading(false) })
+    if (canLoadOwner) {
+      fetchAdminDashboardSummary()
+        .then((dashboard) => { if (active) setAdminState((current) => ({ ...current, dashboard })) })
+        .catch((error) => {
+          if (!active) return
+          setAdminDashboardError(error.message || 'No se pudo cargar el dashboard administrativo.')
+          setAdminState((current) => ({ ...current, dashboard: { source: 'supabase', studios: [], artists: [], clients: [], appointments: [], users: [], systemStatus: [] } }))
+        })
+        .finally(() => { if (active) setIsAdminDashboardLoading(false) })
+      fetchGovernanceQueue()
+        .then((queue) => { if (active) setGovernanceState((current) => ({ ...current, queue, loaded: true })) })
+        .catch((error) => {
+          if (!active) return
+          setGovernanceError(error.message || 'No se pudo cargar governance.')
+          setGovernanceState((current) => ({ ...current, queue: [], loaded: true }))
+        })
+        .finally(() => { if (active) setIsGovernanceLoading(false) })
     }
-  }, [loadAdminArtists, loadAdminClients, loadAdminDashboard, loadGovernanceQueue, session])
+    return () => { active = false }
+  }, [adminLoadKey, canLoadAdmin, canLoadOwner])
 
   useEffect(() => {
     if (session.role !== ROLES.ARTIST || session.isMockSession) return undefined

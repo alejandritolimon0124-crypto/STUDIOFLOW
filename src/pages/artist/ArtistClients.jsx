@@ -72,23 +72,25 @@ function ArtistClients() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
   const activeArtistServices = artistServices.filter((service) => ['activo', 'active'].includes(String(service.status || '').toLowerCase()))
+  const searchKey = JSON.stringify([artistWorkContext, search.trim()])
+  const [previousSearchKey, setPreviousSearchKey] = useState(searchKey)
+  if (previousSearchKey !== searchKey) {
+    setPreviousSearchKey(searchKey)
+    setClients([])
+    setSelectedPanel({ client: null, mode: '' })
+    setError('')
+    setIsLoading(search.trim().length >= 2)
+  }
 
   useEffect(() => {
     let isActive = true
     const query = search.trim()
 
     if (query.length < 2) {
-      setClients([])
-      setSelectedPanel({ client: null, mode: '' })
-      setError('')
-      setIsLoading(false)
       return () => {
         isActive = false
       }
     }
-
-    setIsLoading(true)
-    setError('')
 
     fetchArtistClients({ search: query, limit: 5, workContext: artistWorkContext })
       .then((nextClients) => {
@@ -131,21 +133,24 @@ function ArtistClients() {
 
   const closePanel = () => setSelectedPanel({ client: null, mode: '' })
 
-  useEffect(() => {
-    if (!appointmentDraft.serviceOfferingId && activeArtistServices[0]?.id) {
-      setAppointmentDraft((currentDraft) => ({ ...currentDraft, serviceOfferingId: activeArtistServices[0].id }))
-    }
-  }, [activeArtistServices, appointmentDraft.serviceOfferingId])
+  if (!appointmentDraft.serviceOfferingId && activeArtistServices[0]?.id) {
+    setAppointmentDraft({ ...appointmentDraft, serviceOfferingId: activeArtistServices[0].id })
+  }
+
+  const availabilityEnabled = selectedPanel.mode === 'appointment' && Boolean(appointmentDraft.serviceOfferingId && appointmentDraft.date)
+  const availabilityKey = JSON.stringify([appointmentDraft.date, appointmentDraft.serviceOfferingId, artistWorkContext, selectedPanel.mode])
+  const [previousAvailabilityKey, setPreviousAvailabilityKey] = useState(availabilityKey)
+  if (previousAvailabilityKey !== availabilityKey) {
+    setPreviousAvailabilityKey(availabilityKey)
+    setAvailabilitySlots([])
+    setIsAvailabilityLoading(availabilityEnabled)
+    setAppointmentFeedback({ tone: 'neutral', message: '' })
+  }
 
   useEffect(() => {
-    if (selectedPanel.mode !== 'appointment' || !appointmentDraft.serviceOfferingId || !appointmentDraft.date) {
-      setAvailabilitySlots([])
-      return undefined
-    }
+    if (!availabilityEnabled) return undefined
 
     let isActive = true
-    setIsAvailabilityLoading(true)
-    setAppointmentFeedback({ tone: 'neutral', message: '' })
 
     fetchManualArtistAvailability({
       serviceOfferingId: appointmentDraft.serviceOfferingId,
@@ -167,7 +172,7 @@ function ArtistClients() {
     return () => {
       isActive = false
     }
-  }, [appointmentDraft.date, appointmentDraft.serviceOfferingId, artistWorkContext, selectedPanel.mode])
+  }, [appointmentDraft.date, appointmentDraft.serviceOfferingId, artistWorkContext, availabilityEnabled])
 
   const updateAppointmentDraft = (field, value) => {
     setAppointmentDraft((currentDraft) => ({

@@ -11,10 +11,14 @@ export default function Accounting({ studio = false }) {
   const { session } = useApp()
   const assignment = (session.roles || []).find((item) => item.role === 'studio_owner' && !['inactive', 'revoked'].includes(item.status))
   const studioId = studio ? session.activeSessionContext?.studioId || session.activeSessionContext?.studio_id || session.user?.studioId || session.user?.studio_id || assignment?.studioId || assignment?.studio_id : null
+  const [refresh, setRefresh] = useState(0)
+  return <AccountingReport key={`${studio ? studioId || 'missing' : 'artist'}:${session.profile?.id || session.user?.id}:${refresh}`} studio={studio} studioId={studioId} onRefresh={() => setRefresh((value) => value + 1)} />
+}
+
+function AccountingReport({ studio, studioId, onRefresh }) {
   const [data, setData] = useState(null)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
-  const [refresh, setRefresh] = useState(0)
   const [cancelledLimit, setCancelledLimit] = useState(10)
   useEffect(() => {
     let active = true
@@ -27,14 +31,14 @@ export default function Accounting({ studio = false }) {
       } catch (failure) { if (active) setError(failure.message) }
       finally { if (active) setLoading(false) }
     }
-    setData(null); setCancelledLimit(10); setLoading(true); load()
+    load()
     const tick = () => { if (document.visibilityState !== 'hidden') load() }
     const timer = window.setInterval(tick, 60000)
     window.addEventListener('focus', tick)
     return () => { active = false; window.clearInterval(timer); window.removeEventListener('focus', tick) }
-  }, [studio, studioId, refresh])
+  }, [studio, studioId])
   return <main className="accounting-page">
-    <header className="accounting-heading"><div><h1>Contabilidad</h1><p>{studio ? 'Ingresos del estudio' : 'Actividad independiente'}</p></div><button type="button" title="Actualizar contabilidad" aria-label="Actualizar contabilidad" disabled={loading} onClick={() => setRefresh((value) => value + 1)}><RefreshCw size={20} /></button></header>
+    <header className="accounting-heading"><div><h1>Contabilidad</h1><p>{studio ? 'Ingresos del estudio' : 'Actividad independiente'}</p></div><button type="button" title="Actualizar contabilidad" aria-label="Actualizar contabilidad" disabled={loading} onClick={onRefresh}><RefreshCw size={20} /></button></header>
     {error && <p role="alert">{error}</p>}
     {loading && <p role="status">Consultando ingresos...</p>}
     {data && <>

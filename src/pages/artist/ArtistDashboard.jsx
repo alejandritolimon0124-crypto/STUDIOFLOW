@@ -6,6 +6,7 @@ import Button from '../../components/Button'
 import Card from '../../components/Card'
 import Input from '../../components/Input'
 import MetricCard from '../../components/MetricCard'
+import { summarizeDay } from '../../utils/daySummary'
 import PanelHeader from '../../components/PanelHeader'
 import StatusPill from '../../components/StatusPill'
 import { useApp } from '../../contexts/appContextCore'
@@ -127,6 +128,7 @@ function ArtistDashboard({ view = 'agenda' }) {
   const navigate = useNavigate()
   const {
     adminState,
+    agendaSettings,
     artistServices,
     artistState,
     artistAppointments: realArtistAppointments,
@@ -173,35 +175,39 @@ function ArtistDashboard({ view = 'agenda' }) {
   const [newClient, setNewClient] = useState({ name: '', phone: '', notes: '' })
   const [hideMetrics, setHideMetrics] = useState(getStoredMetricsPrivacy)
   const safeSelectedDate = getSafeDateValue(selectedDate)
+  const [previousSelectedDate, setPreviousSelectedDate] = useState(safeSelectedDate)
 
-  useEffect(() => {
-    if (!appointmentDraft.serviceOfferingId) {
+  if (!appointmentDraft.serviceOfferingId) {
       const firstActiveService = artistServices.find((service) => service.status === 'Activo')
       if (firstActiveService?.id) {
         setAppointmentDraft((currentDraft) => ({ ...currentDraft, serviceOfferingId: firstActiveService.id }))
       }
-    }
-  }, [artistServices, appointmentDraft.serviceOfferingId])
+  }
 
-  useEffect(() => {
+  if (previousSelectedDate !== safeSelectedDate) {
+    setPreviousSelectedDate(safeSelectedDate)
     setAppointmentDraft((currentDraft) => ({
       ...currentDraft,
       date: safeSelectedDate,
       time: currentDraft.date === safeSelectedDate ? currentDraft.time : '',
     }))
-  }, [safeSelectedDate])
+  }
 
+  const availabilityKey = JSON.stringify([appointmentDraft.date, appointmentDraft.serviceOfferingId, artistWorkContext, showAppointmentForm])
+  const [previousAvailabilityKey, setPreviousAvailabilityKey] = useState('')
+  if (previousAvailabilityKey !== availabilityKey) {
+    setPreviousAvailabilityKey(availabilityKey)
+    setAvailabilitySlots([])
+    setAvailabilityMeta({ durationMinutes: 0 })
+    setAvailabilityError('')
+    setIsAvailabilityLoading(Boolean(showAppointmentForm && appointmentDraft.serviceOfferingId && appointmentDraft.date))
+  }
   useEffect(() => {
     if (!showAppointmentForm || !appointmentDraft.serviceOfferingId || !appointmentDraft.date) {
-      setAvailabilitySlots([])
-      setAvailabilityMeta({ durationMinutes: 0 })
-      setAvailabilityError('')
       return undefined
     }
 
     let isActive = true
-    setIsAvailabilityLoading(true)
-    setAvailabilityError('')
 
     fetchManualArtistAvailability({
       serviceOfferingId: appointmentDraft.serviceOfferingId,
@@ -233,19 +239,22 @@ function ArtistDashboard({ view = 'agenda' }) {
     }
   }, [appointmentDraft.date, appointmentDraft.serviceOfferingId, artistWorkContext, showAppointmentForm])
 
+  const clientSearchKey = JSON.stringify([clientSearch, artistWorkContext])
+  const [previousClientSearchKey, setPreviousClientSearchKey] = useState(clientSearchKey)
+  if (previousClientSearchKey !== clientSearchKey) {
+    setPreviousClientSearchKey(clientSearchKey)
+    setRemoteClientResults([])
+    setIsClientSearchLoading(clientSearch.trim().length >= 2)
+    setClientSearchError('')
+  }
   useEffect(() => {
     const search = clientSearch.trim()
 
     if (search.length < 2) {
-      setRemoteClientResults([])
-      setIsClientSearchLoading(false)
-      setClientSearchError('')
       return undefined
     }
 
     let isActive = true
-    setIsClientSearchLoading(true)
-    setClientSearchError('')
 
     fetchArtistClients({ search, limit: 5, workContext: artistWorkContext })
       .then((clients) => {
@@ -404,16 +413,9 @@ function ArtistDashboard({ view = 'agenda' }) {
     ))
   const hasAppointments = appointmentsForSelectedDate.length > 0
   
-  const appointmentCount = appointmentsForSelectedDate.length
-  const totalDuration = appointmentsForSelectedDate.reduce((sum, apt) => {
-    const minutes = parseInt(apt.duration) || 60
-    return sum + minutes
-  }, 0)
-  const occupancy = Math.round((totalDuration / 480) * 100) // 480 min = 8 horas
-  const estimatedRevenue = appointmentsForSelectedDate.reduce((sum, apt) => {
-    const service = artistServices.find(s => s.name === apt.service)
-    return sum + (service?.price || 0)
-  }, 0)
+  const summary = summarizeDay(activeContextAppointments.filter((item) => item.date === safeSelectedDate && item.type === 'appointment'), agendaSettings, safeSelectedDate)
+  const occupancy = summary.occupancy
+  const occupancyLabel = occupancy == null ? 'Sin jornada' : `${occupancy}%`
 
   // Determinar el día de la semana
   const dayOfWeek = getSafeDayLabel(safeSelectedDate)
@@ -562,8 +564,8 @@ function ArtistDashboard({ view = 'agenda' }) {
               {!hideMetrics && (
                 <div className="hero-summary">
                   <span>{primaryArtist?.plan || 'Perfil profesional'}</span>
-                  <strong>{`${occupancy}%`}</strong>
-                  <small>ocupacion de hoy</small>
+                  <strong>{occupancyLabel}</strong>
+                  <small>ocupacion del {safeSelectedDate}</small>
                 </div>
               )}
             </section>
@@ -577,9 +579,9 @@ function ArtistDashboard({ view = 'agenda' }) {
 
             {!hideMetrics && (
               <>
-                <MetricCard label="Citas" value={appointmentCount} trend={appointmentCount === 0 ? 'Agenda libre' : `+${appointmentCount} vs promedio`} className="mobile-compact" />
-                <MetricCard label="Ocupación" value={`${occupancy}%`} trend={occupancy > 80 ? 'Día full' : 'Oportunidad'} tone={occupancy > 80 ? 'sage' : 'rose'} className="mobile-compact" />
-                <MetricCard label="Ingresos estimados" value={canUseEconomy ? formatCurrency(estimatedRevenue) : 'Preparacion'} trend={canUseEconomy ? (estimatedRevenue === 0 ? 'Sin reservas' : 'Con reservas') : 'Modo validacion'} tone="nude" className="mobile-compact" />
+                <MetricCard label="Citas pendientes" value={summary.pending} trend={`${summary.completed} completadas · ${summary.cancelled} canceladas`} className="mobile-compact" />
+                <MetricCard label="Ocupación" value={occupancyLabel} trend={safeSelectedDate} tone={occupancy > 80 ? 'sage' : 'rose'} className="mobile-compact" />
+                <MetricCard label="Ingresos completados" value={summary.income == null ? 'Por confirmar' : formatCurrency(summary.income)} trend={safeSelectedDate} tone="nude" className="mobile-compact" />
               </>
             )}
 

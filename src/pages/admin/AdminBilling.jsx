@@ -128,7 +128,7 @@ function AdminBilling() {
     overdueArtists: 0,
     entities: [],
   })
-  const [isLoading, setIsLoading] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
   const [isMarkingPaid, setIsMarkingPaid] = useState('')
   const [isHistoryLoading, setIsHistoryLoading] = useState(false)
   const [error, setError] = useState('')
@@ -151,7 +151,12 @@ function AdminBilling() {
   }
 
   useEffect(() => {
-    loadBilling('')
+    let active = true
+    fetchAdminBillingSummary({ query: '' })
+      .then((payload) => { if (active) setBilling(payload) })
+      .catch((failure) => { if (active) setError(failure.message || 'No se pudo cargar cobranza.') })
+      .finally(() => { if (active) setIsLoading(false) })
+    return () => { active = false }
   }, [])
 
   const visibleEntities = useMemo(() => {
@@ -220,13 +225,13 @@ function AdminBilling() {
       <MetricCard
         label="Ingresos este mes"
         value={formatCurrency(billing.currentMonthGross)}
-        trend="Servicios agendados en Studio Flow"
+        trend="Servicios completados en Studio Flow"
         tone="rose"
       />
       <MetricCard
         label="Comision este mes"
         value={formatCurrency(billing.currentMonthCommission)}
-        trend="10% sobre servicios agendados"
+        trend="10% sobre servicios completados"
         tone="sage"
       />
       <OwnerStatusMetric

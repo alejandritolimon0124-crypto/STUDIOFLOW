@@ -64,5 +64,6 @@ export async function fetchMarketplaceAvailability({
 
   if (error) throw error
 
+
   return normalizeAvailabilityPayload(data)
 }

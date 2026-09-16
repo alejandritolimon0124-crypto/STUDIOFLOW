@@ -90,9 +90,9 @@ function ArtistAppointments() {
 
   const selectedClientFromSearch = selectedClientRecord || clientResults.find((client) => client.id === draft.clientId) || null
 
-  useEffect(() => {
-    if (!selectedClient?.id) return
-
+  const [previousSelectedClientId, setPreviousSelectedClientId] = useState(null)
+  if (selectedClient?.id && previousSelectedClientId !== selectedClient.id) {
+    setPreviousSelectedClientId(selectedClient.id)
     setShowForm(true)
     setSelectedClientRecord(selectedClient)
     setDraft((currentDraft) => ({
@@ -103,21 +103,25 @@ function ArtistAppointments() {
       phone: '',
     }))
     setFormErrors({})
-  }, [selectedClient?.id])
+  }
+
+  const searchKey = JSON.stringify([artistWorkContext, clientSearch, draft.phone])
+  const [previousSearchKey, setPreviousSearchKey] = useState(searchKey)
+  if (previousSearchKey !== searchKey) {
+    setPreviousSearchKey(searchKey)
+    setClientResults([])
+    setIsClientSearchLoading((clientSearch.trim() || draft.phone.trim()).length >= 2)
+    setClientSearchError('')
+  }
 
   useEffect(() => {
     const search = clientSearch.trim() || draft.phone.trim()
 
     if (search.length < 2) {
-      setClientResults([])
-      setIsClientSearchLoading(false)
-      setClientSearchError('')
       return undefined
     }
 
     let isActive = true
-    setIsClientSearchLoading(true)
-    setClientSearchError('')
 
     fetchArtistClients({ search, limit: 5, workContext: artistWorkContext })
       .then((clients) => {
@@ -158,11 +162,9 @@ function ArtistAppointments() {
     }
   }, [artistWorkContext, clientSearch, draft.phone])
 
-  useEffect(() => {
-    if (!draft.serviceOfferingId && artistServices[0]?.id) {
-      setDraft((currentDraft) => ({ ...currentDraft, serviceOfferingId: artistServices[0].id }))
-    }
-  }, [artistServices, draft.serviceOfferingId])
+  if (!draft.serviceOfferingId && artistServices[0]?.id) {
+    setDraft({ ...draft, serviceOfferingId: artistServices[0].id })
+  }
 
   const loadManualAvailability = useCallback(async ({
     serviceOfferingId = draft.serviceOfferingId,
@@ -196,9 +198,28 @@ function ArtistAppointments() {
     }
   }, [artistWorkContext, draft.date, draft.serviceOfferingId, showForm])
 
+  const availabilityKey = JSON.stringify([artistWorkContext, draft.date, draft.serviceOfferingId, showForm])
+  const [previousAvailabilityKey, setPreviousAvailabilityKey] = useState('')
+  if (previousAvailabilityKey !== availabilityKey) {
+    setPreviousAvailabilityKey(availabilityKey)
+    setAvailabilitySlots([])
+    setAvailabilityMeta({ durationMinutes: 0 })
+    setAvailabilityError('')
+    setIsAvailabilityLoading(Boolean(showForm && draft.serviceOfferingId && draft.date))
+  }
   useEffect(() => {
-    loadManualAvailability()
-  }, [loadManualAvailability])
+    if (!showForm || !draft.serviceOfferingId || !draft.date) return undefined
+    let active = true
+    fetchManualArtistAvailability({ serviceOfferingId: draft.serviceOfferingId, date: draft.date, workContext: artistWorkContext })
+      .then((availability) => {
+        if (!active) return
+        setAvailabilitySlots(availability.slots)
+        setAvailabilityMeta({ durationMinutes: availability.durationMinutes })
+      })
+      .catch((error) => { if (active) setAvailabilityError(error.message || 'No se pudieron cargar horarios disponibles.') })
+      .finally(() => { if (active) setIsAvailabilityLoading(false) })
+    return () => { active = false }
+  }, [artistWorkContext, draft.date, draft.serviceOfferingId, showForm])
 
   const isHistoryAppointment = (appointment) => (
     ['Completada', 'Cancelada', 'No show'].includes(appointment.status)

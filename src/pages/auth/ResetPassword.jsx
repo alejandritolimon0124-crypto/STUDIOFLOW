@@ -18,13 +18,17 @@ function ResetPassword() {
   const handleSubmit = async (event) => {
     event.preventDefault()
 
-    if (password !== confirmPassword) return
+    if (isSubmitting || updated || password !== confirmPassword) return
 
     setIsSubmitting(true)
 
     try {
       await updatePassword(password)
+      setPassword('')
+      setConfirmPassword('')
       setUpdated(true)
+    } catch {
+      // The shared auth error displays the failed request.
     } finally {
       setIsSubmitting(false)
     }
@@ -63,7 +67,7 @@ function ResetPassword() {
           {authError && <small style={{ color: 'var(--rose-dark)', fontWeight: 800 }}>{authError}</small>}
           {updated && <small style={{ color: 'var(--muted)', fontWeight: 800 }}>Contrasena actualizada.</small>}
 
-          <Button className="full-width" type="submit" disabled={isSubmitting || password !== confirmPassword}>
+          <Button className="full-width" type="submit" disabled={isSubmitting || updated || password !== confirmPassword}>
             {isSubmitting ? 'Actualizando...' : 'Actualizar contrasena'}
           </Button>
           <button className="text-link center-link" type="button" onClick={() => navigate(paths.login)}>

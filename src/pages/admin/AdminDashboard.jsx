@@ -84,7 +84,7 @@ function AdminDashboard() {
             <div>
               <span className="eyebrow">Cobranza</span>
               <h3>Comisiones Studio Flow</h3>
-              <small>10% por servicio agendado, con consulta por estudio o artista.</small>
+              <small>10% por servicio completado, con consulta por estudio o artista.</small>
             </div>
             <StatusPill tone="sage">Mes actual</StatusPill>
             <Button size="sm" onClick={() => navigate(paths.adminBilling)}>Abrir panel</Button>

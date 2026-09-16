@@ -1,6 +1,7 @@
-import ExcelJS from 'exceljs'
+import { loadExcelRuntime } from './excelRuntime.js'
 
 export async function buildEventWorkbook(payload, year, month) {
+  const ExcelJS = await loadExcelRuntime()
   const book = new ExcelJS.Workbook()
   const sheet = book.addWorksheet('Eventos')
   const profile = payload.profile

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import ExcelJS from 'exceljs'
+import { loadExcelRuntime } from '../services/excelRuntime'
 import { Download } from 'lucide-react'
 import Button from './Button'
 import { requireSupabase } from '../lib/supabaseClient'
@@ -15,6 +15,7 @@ export default function ArtistClientExport({ studioId = null }) {
         ? await requireSupabase().rpc('studio_flow_studio_export_clients', { p_studio_id: studioId })
         : await requireSupabase().rpc('studio_flow_artist_export_clients')
       if (failure) throw failure
+      const ExcelJS = await loadExcelRuntime()
       const book = new ExcelJS.Workbook()
       const sheet = book.addWorksheet('Cartera de clientes')
       const p = data.profile

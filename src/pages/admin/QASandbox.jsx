@@ -48,7 +48,7 @@ function QASandbox() {
     reviewManagedArtist,
   } = useApp()
   const [studios, setStudios] = useState([])
-  const [isLoadingStudios, setIsLoadingStudios] = useState(false)
+  const [isLoadingStudios, setIsLoadingStudios] = useState(true)
   const [actionId, setActionId] = useState('')
   const [profilePreview, setProfilePreview] = useState(null)
   const [reviewedStudioIds, setReviewedStudioIds] = useState([])
@@ -57,24 +57,15 @@ function QASandbox() {
   const [systemStatus, setSystemStatus] = useState('')
   const [showRejected, setShowRejected] = useState({ studio: false, artist: false })
 
-  const loadStudios = async () => {
-    setIsLoadingStudios(true)
-    setSystemError('')
-
-    try {
-      setStudios(await fetchOwnerStudios())
-    } catch (error) {
-      setStudios([])
-      setSystemError(error.message || 'No se pudieron cargar solicitudes de estudios.')
-    } finally {
-      setIsLoadingStudios(false)
-    }
-  }
-
   useEffect(() => {
-    loadStudios()
+    let active = true
+    fetchOwnerStudios()
+      .then((items) => { if (active) setStudios(items) })
+      .catch((error) => { if (active) setSystemError(error.message || 'No se pudieron cargar solicitudes de estudios.') })
+      .finally(() => { if (active) setIsLoadingStudios(false) })
     loadAdminArtists?.().catch(() => null)
-  }, [])
+    return () => { active = false }
+  }, [loadAdminArtists])
 
   const pendingStudios = useMemo(
     () => studios.filter((studio) => studio.studioStatus === 'pending' && !reviewedStudioIds.includes(studio.id)),

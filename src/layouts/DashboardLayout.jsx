@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
+import { summarizeDay } from '../utils/daySummary'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { paths } from '../routes/paths'
 import { isActivePath } from '../routes/routerUtils'
@@ -127,6 +128,9 @@ function DashboardLayout({ children, role, title, subtitle, showMobileAppbar = t
   const navigate = useNavigate()
   const {
     adminState,
+    agendaSettings,
+    artistAppointments,
+    artistWorkContext,
     appointmentState,
     artistState,
     artistWorkContextId,
@@ -143,15 +147,13 @@ function DashboardLayout({ children, role, title, subtitle, showMobileAppbar = t
   const assignedRoles = Array.isArray(session.roles) ? session.roles : []
   const activeContextRole = session.activeSessionContext?.role || null
   const activeContextStudioId = session.activeSessionContext?.studioId || session.activeSessionContext?.studio_id || null
-  useEffect(() => {
-    if (
+  if (
       pendingStudioWorkspace
       && activeContextRole === ROLES.STUDIO_OWNER
       && activeContextStudioId === pendingStudioWorkspace.studioId
-    ) {
-      setPendingStudioWorkspace(null)
-    }
-  }, [activeContextRole, activeContextStudioId, pendingStudioWorkspace])
+  ) {
+    setPendingStudioWorkspace(null)
+  }
   const isStudioWorkspacePending = pendingStudioWorkspace
     && (activeContextRole !== ROLES.STUDIO_OWNER || activeContextStudioId !== pendingStudioWorkspace.studioId)
   const isAdminContextResolving = role === 'admin'
@@ -329,14 +331,13 @@ function DashboardLayout({ children, role, title, subtitle, showMobileAppbar = t
         : session.user?.name || 'Studio Flow'
   const sidebarSubtitle = role === 'artist' ? '' : isStudioOwnerWorkspace ? 'Studio Owner' : getRoleLabel(session.user?.role)
   const appointmentsForSelectedDate = role === 'artist'
-    ? artistState.appointments.filter((appointment) => appointment.date === selectedDate && appointment.type === 'appointment')
+    ? (session.isMockSession ? artistState.appointments : artistAppointments).filter((appointment) => appointment.date === selectedDate && appointment.type === 'appointment' && (artistWorkContext?.contextType === 'membership'
+      ? (appointment.membershipId || appointment.membership_id) === artistWorkContext.membershipId
+      : !(appointment.studioId || appointment.studio_id || appointment.membershipId || appointment.membership_id)))
     : []
-  const appointmentCount = appointmentsForSelectedDate.length
-  const totalDuration = appointmentsForSelectedDate.reduce((sum, appointment) => {
-    const minutes = parseInt(appointment.duration, 10) || 60
-    return sum + minutes
-  }, 0)
-  const occupancy = Math.round((totalDuration / 480) * 100)
+  const daySummary = summarizeDay(appointmentsForSelectedDate, agendaSettings, selectedDate)
+  const appointmentCount = daySummary.pending
+  const occupancy = daySummary.occupancy
   const adminDashboard = adminState.dashboard || {}
   const hasRealAdminDashboard = role === 'admin' && adminDashboard.source === 'supabase' && !session.isMockSession
   const adminReservationCount = hasRealAdminDashboard && Array.isArray(adminDashboard.appointments)
@@ -369,7 +370,7 @@ function DashboardLayout({ children, role, title, subtitle, showMobileAppbar = t
       ? hasRealAdminDashboard ? 'Datos Supabase' : 'Sin datos reales'
     : role === 'client'
       ? 'Tu agenda beauty'
-      : `Ocupación al ${occupancy}%`
+      : occupancy == null ? 'Sin jornada' : `Ocupación al ${occupancy}%`
   const fallbackAvatar = getInitials(sidebarDisplayName) || 'SF'
   const renderAvatarContent = () => (
     profilePhotoUrl ? <img src={profilePhotoUrl} alt="Foto de perfil" /> : fallbackAvatar
@@ -570,7 +571,7 @@ function DashboardLayout({ children, role, title, subtitle, showMobileAppbar = t
         </div>
 
         <div className="sidebar-insight">
-          <span>Hoy</span>
+          <span>{role === 'artist' ? selectedDate : 'Hoy'}</span>
           <strong>{sidebarAppointmentsLabel}</strong>
           <small>{sidebarOccupancyLabel}</small>
         </div>

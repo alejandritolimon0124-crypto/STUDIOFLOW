@@ -2,13 +2,11 @@ import { useRef, useState } from 'react'
 import { CalendarDays, Filter } from 'lucide-react'
 import { requireSupabase } from '../lib/supabaseClient'
 import { withAppointmentPayments } from '../services/appointmentPaymentService'
-import AppointmentPayment from './AppointmentPayment'
+import OwnerAppointmentCard from './OwnerAppointmentCard'
 import Button from './Button'
 import OwnerEventExport from './OwnerEventExport'
 import './ownerAgenda.css'
 
-const labels = { scheduled: 'Agendada', completed: 'Completada', cancelled: 'Cancelada', no_show: 'No asistio', disputed: 'En revision' }
-const date = (value) => new Intl.DateTimeFormat('es-MX', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'America/Mexico_City' }).format(new Date(value))
 
 export default function OwnerAgenda({ entityType, entityId }) {
   const [open, setOpen] = useState(false)
@@ -53,13 +51,7 @@ export default function OwnerAgenda({ entityType, entityId }) {
       {loading && <p role="status">Cargando agenda...</p>}
       {error && <p role="alert">{error} <button onClick={() => load(offset)} type="button">Reintentar</button></p>}
       {!loading && !error && rows.length === 0 && <p>Sin eventos en esta pagina.</p>}
-      {!loading && !error && rows.map((item) => <article className="owner-agenda-event" key={item.id}>
-        <strong>{item.client}</strong><span>{item.artist} · {item.service}</span>
-        {item.studio && <span>{item.studio}</span>}
-        <time dateTime={item.startsAt}>{date(item.startsAt)} – {date(item.endsAt)}</time>
-        <strong className={`owner-agenda-status-${item.appointmentStatus}`}>{labels[item.appointmentStatus] || item.appointmentStatus}</strong>
-        <AppointmentPayment appointment={item} compact />
-      </article>)}
+      {!loading && !error && rows.map((item) => <OwnerAppointmentCard key={item.id} appointment={item} />)}
       <div className="row-actions">
         <Button size="sm" disabled={loading || offset === 0} onClick={() => load(Math.max(0, offset - 10))}>Anterior</Button>
         <Button size="sm" disabled={loading || !more} onClick={() => load(offset + 10)}>Siguiente</Button>

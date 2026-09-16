@@ -258,18 +258,6 @@ function isFutureAppointmentDate(dateValue) {
   return Boolean(appointmentDate && appointmentDate > new Date())
 }
 
-function isCurrentMonthAppointment(dateValue) {
-  const appointmentDate = parseAppointmentDateValue(dateValue)
-  const today = parseAppointmentDateValue(getTodayDateValue())
-
-  return Boolean(
-    appointmentDate
-    && today
-    && appointmentDate.getFullYear() === today.getFullYear()
-    && appointmentDate.getMonth() === today.getMonth()
-  )
-}
-
 function buildServiceGroupsFromListings(listings = []) {
   return listings.reduce((groups, listing) => {
     const services = getArtistServiceOptions(listing)
@@ -300,30 +288,6 @@ function buildServiceGroupsForArtist(artist = {}) {
     groups[category] = [...(groups[category] || []), service]
     return groups
   }, {})
-}
-
-function getServiceOptionsForArtist(artist = {}) {
-  const serviceOptions = getArtistServiceOptions(artist)
-
-  if (serviceOptions.length > 0) {
-    return serviceOptions.map((service) => ({
-      value: service.name,
-      label: service.name,
-      meta: `${service.durationMinutes || 60} min`,
-    }))
-  }
-
-  return (artist.marketplaceServices || []).map((serviceName) => {
-    const service =
-      allSearchServices.find((item) => item.name === serviceName)
-      || { name: serviceName, durationMinutes: 60 }
-
-    return {
-      value: service.name,
-      label: service.name,
-      meta: `${service.durationMinutes} min`,
-    }
-  })
 }
 
 function PremiumDropdown({ label, value, options, open, onToggle, onChange, compact = false }) {
@@ -832,7 +796,7 @@ function ClientDashboard({ view = 'inicio' }) {
     })
 
     return mergedGroups
-  }, [activeArtists, isRealMarketplace])
+  }, [activeArtists])
   const primaryServiceOptions = Object.keys(marketplaceSearchServices)
   const currentServiceGroup = marketplaceSearchServices[primaryService]
     || marketplaceSearchServices[primaryServiceOptions[0]]
@@ -925,11 +889,7 @@ function ClientDashboard({ view = 'inicio' }) {
     selectedServiceOfferingId,
   ])
 
-  useEffect(() => {
-    if (searchMode !== 'Servicio') return
-    if (primaryServiceOptions.length === 0) return
-    if (selectedArtistProfile && selectedMarketplaceServiceId) return
-
+  if (searchMode === 'Servicio' && primaryServiceOptions.length > 0 && !(selectedArtistProfile && selectedMarketplaceServiceId)) {
     const hasPrimaryService = Boolean(marketplaceSearchServices[primaryService])
     const nextPrimaryService = hasPrimaryService ? primaryService : primaryServiceOptions[0]
     const nextServiceGroup = marketplaceSearchServices[nextPrimaryService] || []
@@ -942,15 +902,7 @@ function ClientDashboard({ view = 'inicio' }) {
     if (!hasSecondaryService && nextServiceGroup[0]?.name) {
       setSecondaryService(nextServiceGroup[0].name)
     }
-  }, [
-    marketplaceSearchServices,
-    primaryService,
-    primaryServiceOptions,
-    searchMode,
-    secondaryService,
-    selectedArtistProfile,
-    selectedMarketplaceServiceId,
-  ])
+  }
 
   const availableSlots = useMemo(
     () => {
@@ -1025,14 +977,13 @@ function ClientDashboard({ view = 'inicio' }) {
       selectedServiceOfferingId,
       happyHourOnly,
       selectedArtistMembership?.id,
-      selectedArtistProfile?.id,
       selectedArtistProfile,
       selectedArtistStudio?.id,
     ],
   )
   const noAvailabilityMessage = happyHourOnly
     ? `No hay espacio suficiente dentro de Happy Hour para ${selectedMarketplaceServiceName || 'este servicio'} en esta fecha. Prueba otro dia marcado o un servicio de menor duracion.`
-    : 'La agenda del artista no permite reservas en esta fecha.'
+    : `No hay horarios reservables para ${selectedMarketplaceServiceName || 'este servicio'} el ${bookingDate}. Prueba otra fecha; se consideran la duracion, los descansos y la anticipacion minima.`
   const getVisibleSlotCountForArtist = (artist) => {
     if (isRealMarketplace) return artist?.availability?.availableCount || 0
 
@@ -1046,9 +997,7 @@ function ClientDashboard({ view = 'inicio' }) {
       durationMinutes: effectiveMarketplaceService.durationMinutes || 60,
     }).filter((slot) => slot.available).length
   }
-  useEffect(() => {
-    if (!isRealMarketplace || !selectedArtistProfile) return
-
+  if (isRealMarketplace && selectedArtistProfile) {
     const refreshedArtistProfile = marketplaceListings.find((listing) => (
       listing.listingId === selectedArtistProfile.listingId
     ))
@@ -1056,9 +1005,7 @@ function ClientDashboard({ view = 'inicio' }) {
     if (!refreshedArtistProfile) {
       setSelectedArtistProfile(null)
       setSelectedArtistPanelMode('')
-      return
-    }
-
+    } else {
     const refreshedServices = Array.isArray(refreshedArtistProfile.marketplaceServiceOptions)
       ? refreshedArtistProfile.marketplaceServiceOptions
       : []
@@ -1074,12 +1021,8 @@ function ClientDashboard({ view = 'inicio' }) {
       setSelectedMarketplaceServiceId(fallbackService?.id || '')
       if (fallbackService?.name) setSecondaryService(fallbackService.name)
     }
-  }, [
-    isRealMarketplace,
-    marketplaceListings,
-    selectedArtistProfile,
-    selectedMarketplaceServiceId,
-  ])
+    }
+  }
 
   const favoriteArtists = activeArtists
     .filter((artist) => (
@@ -1127,9 +1070,15 @@ function ClientDashboard({ view = 'inicio' }) {
   }
   const clientLocation = getClientLocation(currentClient)
 
-  useEffect(() => {
-    if (!hasRealClientSession) return
-
+  const clientProfileSourceKey = JSON.stringify([
+    hasRealClientSession, currentClient.id, currentClient.profileId, currentClient.name,
+    currentClient.email, currentClient.phone, currentClient.birthday, currentClient.latitude,
+    currentClient.longitude, currentClient.city, currentClient.state, currentClient.postalCode,
+    currentClient.notes, currentClient.photoUrl,
+  ])
+  const [previousClientProfileSourceKey, setPreviousClientProfileSourceKey] = useState(null)
+  if (hasRealClientSession && previousClientProfileSourceKey !== clientProfileSourceKey) {
+    setPreviousClientProfileSourceKey(clientProfileSourceKey)
     setProfileDraft((currentDraft) => ({
       ...currentDraft,
       id: currentClient.id,
@@ -1146,22 +1095,7 @@ function ClientDashboard({ view = 'inicio' }) {
       notes: currentClient.notes || '',
       photoUrl: currentClient.photoUrl || '',
     }))
-  }, [
-    hasRealClientSession,
-    currentClient.id,
-    currentClient.profileId,
-    currentClient.name,
-    currentClient.email,
-    currentClient.phone,
-    currentClient.birthday,
-    currentClient.latitude,
-    currentClient.longitude,
-    currentClient.city,
-    currentClient.state,
-    currentClient.postalCode,
-    currentClient.notes,
-    currentClient.photoUrl,
-  ])
+  }
   const handleClientPhotoChange = (event) => {
     const file = event.target.files?.[0]
     if (!file) return
@@ -1227,8 +1161,7 @@ function ClientDashboard({ view = 'inicio' }) {
   // Generar automatizaciones inteligentes
   const clientAutomations = hasRealClientSession ? [] : generateClientAutomations(currentClient, artistServices)
 
-  const marketplaceArtists = useMemo(
-    () => {
+  const marketplaceArtists = (() => {
       const directSearchQuery = studioQuery.trim().toLowerCase()
       const hasActiveRecommendationFilters = nearbyOnly || todayOnly || happyHourOnly || doublePointsOnly
 
@@ -1303,26 +1236,7 @@ function ClientDashboard({ view = 'inicio' }) {
           return secondArtist.availabilityScore - firstArtist.availabilityScore
             || firstArtist.occupancy - secondArtist.occupancy
         })
-    },
-    [
-      activeArtists,
-      adminState.studios,
-      artistStudioMemberships,
-      artistState,
-      bookingDate,
-      clientLocation,
-      getAvailableSlots,
-      isRealMarketplace,
-      effectiveMarketplaceService.durationMinutes,
-      nearbyOnly,
-      todayOnly,
-      searchMode,
-      secondaryService,
-      studioQuery,
-      happyHourOnly,
-      doublePointsOnly,
-    ],
-  )
+  })()
   const visibleMarketplaceArtists = marketplaceArtists.slice(0, visibleMarketplaceCount)
   const hasMoreMarketplaceArtists = marketplaceArtists.length > visibleMarketplaceArtists.length
   const bookedAppointments = realAppointmentSourceReady ? [] : agendaSettings.bookedSlots.map((slot) => ({
@@ -1360,10 +1274,10 @@ function ClientDashboard({ view = 'inicio' }) {
     String(firstAppointment.date || '').localeCompare(String(secondAppointment.date || ''))
     || String(firstAppointment.time || '').localeCompare(String(secondAppointment.time || ''))
   ))[0]
-  const pendingConfirmationAppointments = useMemo(() => upcomingAppointments.filter((appointment) => (
+  const pendingConfirmationAppointments = upcomingAppointments.filter((appointment) => (
     appointment.confirmationRequestedAt
     && !hasCurrentAttendanceConfirmation(appointment)
-  )), [upcomingAppointments])
+  ))
   const pendingConfirmationCount = pendingConfirmationAppointments.length
   const canRespondToAppointment = (appointment = {}) => (
     appointment.id
@@ -1491,16 +1405,6 @@ function ClientDashboard({ view = 'inicio' }) {
       })
     }
   }
-
-  useEffect(() => {
-    setVisibleHistoryCount(5)
-  }, [appointmentHistoryDate, showPastAppointments])
-
-  useEffect(() => {
-    if (!canUseBrowserNotifications()) return
-
-    setNotificationPermission(Notification.permission)
-  }, [])
 
   useEffect(() => {
     if (!canUseBrowserNotifications() || Notification.permission !== 'granted') return
@@ -2154,7 +2058,7 @@ function ClientDashboard({ view = 'inicio' }) {
                 title="Citas pasadas"
                 eyebrow="Historial"
                 action={(
-                  <Button size="sm" variant="ghost" onClick={() => setShowPastAppointments((current) => !current)}>
+                  <Button size="sm" variant="ghost" onClick={() => { setShowPastAppointments((current) => !current); setVisibleHistoryCount(5) }}>
                     {showPastAppointments ? 'Ocultar' : 'Mostrar mis citas pasadas'}
                   </Button>
                 )}
@@ -2173,7 +2077,7 @@ function ClientDashboard({ view = 'inicio' }) {
                       <Button
                         size="sm"
                         variant="ghost"
-                        onClick={() => setAppointmentHistoryDate('')}
+                        onClick={() => { setAppointmentHistoryDate(''); setVisibleHistoryCount(5) }}
                       >
                         Limpiar filtro
                       </Button>
@@ -2185,7 +2089,7 @@ function ClientDashboard({ view = 'inicio' }) {
                       <input
                         type="date"
                         value={appointmentHistoryDate}
-                        onChange={(event) => setAppointmentHistoryDate(event.target.value)}
+                        onChange={(event) => { setAppointmentHistoryDate(event.target.value); setVisibleHistoryCount(5) }}
                       />
                     </label>
                   )}
@@ -2716,11 +2620,9 @@ function ClientDashboard({ view = 'inicio' }) {
               {marketplaceArtists.length === 0 && (
                 <div className="artist-result">
                   <div>
-                    <strong>{isRealMarketplace ? 'No hay perfiles publicados' : 'Sin resultados disponibles'}</strong>
+                    <strong>{isMarketplaceLoading ? 'Buscando perfiles...' : marketplaceError ? 'No se pudo cargar la busqueda' : 'Sin coincidencias con esta busqueda'}</strong>
                     <small>
-                      {isRealMarketplace
-                        ? 'Cuando existan listings visibles apareceran aqui.'
-                        : 'Prueba otro servicio o nombre de estudio.'}
+                      Prueba otro servicio, nombre de estudio o filtro.
                     </small>
                     {isRealMarketplace && marketplaceError && (
                       <small>{marketplaceError}</small>

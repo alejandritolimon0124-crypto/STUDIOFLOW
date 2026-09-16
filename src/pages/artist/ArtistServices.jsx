@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useState } from 'react'
+import { Fragment, useState } from 'react'
 import Button from '../../components/Button'
 import Card from '../../components/Card'
 import Input from '../../components/Input'
@@ -35,10 +35,6 @@ function ArtistServices() {
   const [feedback, setFeedback] = useState('')
   const [isSaving, setIsSaving] = useState(false)
   const visibleArtistServices = filterServicesForWorkContext(artistServices, artistWorkContext)
-
-  useEffect(() => {
-    if (artistServicesError) showFeedback(artistServicesError)
-  }, [artistServicesError])
 
   const handlePrimary = (service) => {
     setPrimary(service)
@@ -234,6 +230,7 @@ function ArtistServices() {
               onChange={(event) => setFlowPointsAwarded(event.target.value)}
             />
 
+            {artistServicesError && <StatusPill tone="warm">{artistServicesError}</StatusPill>}
             {feedback && <StatusPill tone={feedback.includes('No se pudo') || feedback.includes('Completa') ? 'warm' : 'success'}>{feedback}</StatusPill>}
             {isArtistServicesLoading && <StatusPill tone="neutral">Cargando servicios</StatusPill>}
             <Button className="full-width" type="submit" disabled={isSaving || isArtistServicesLoading}>

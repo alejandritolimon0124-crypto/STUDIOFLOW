@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import Button from '../../components/Button'
 import Card from '../../components/Card'
@@ -72,14 +72,14 @@ function ArtistProfileSettings() {
   const requestedProfileContext = searchParams.get('context') || 'independent'
   const hasActiveStudioArtistContext = activeContextType === 'membership' || Boolean(activeMembershipId)
   const isStudioArtistContext = requestedProfileContext === 'studio' && hasActiveStudioArtistContext
-  const currentStudio = activeStudioId
+  const currentStudio = useMemo(() => activeStudioId
     ? {
       id: activeStudioId,
       name: activeStudioName,
       professionalLocation: {},
       city: '',
     }
-    : null
+    : null, [activeStudioId, activeStudioName])
   const artistProfileBelongsToSession = Boolean(
     session.artist?.id
     && (
@@ -120,7 +120,14 @@ function ArtistProfileSettings() {
     [currentStudio],
   )
 
-  useEffect(() => {
+  const profileSourceKey = JSON.stringify([
+    activeStudioId, session.artist?.id, session.profile?.id,
+    sessionArtistProfile.artistId, sessionArtistProfile.artistProfileId,
+    sessionArtistProfile.photoUrl, studioPhotoSignature,
+  ])
+  const [previousProfileSourceKey, setPreviousProfileSourceKey] = useState(profileSourceKey)
+  if (previousProfileSourceKey !== profileSourceKey) {
+    setPreviousProfileSourceKey(profileSourceKey)
     setProfileDraft({
       ...sessionArtistProfile,
       professionalLocation: createArtistLocationSettings(sessionArtistProfile?.professionalLocation),
@@ -129,15 +136,7 @@ function ArtistProfileSettings() {
     setLocationDetection({ status: 'idle', message: '' })
     setIsArtistLocationConfirmed(false)
     setSaveFeedback('')
-  }, [
-    activeStudioId,
-    session.artist?.id,
-    session.profile?.id,
-    sessionArtistProfile.artistId,
-    sessionArtistProfile.artistProfileId,
-    sessionArtistProfile.photoUrl,
-    studioPhotoSignature,
-  ])
+  }
 
   const updateDraftSection = (section, field, value) => {
     setProfileDraft((currentDraft) => ({

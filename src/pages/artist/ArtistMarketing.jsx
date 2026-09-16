@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import Button from '../../components/Button'
 import { useRef } from 'react'
 import Card from '../../components/Card'
@@ -40,8 +40,8 @@ const automations = [
 function ArtistMarketing() {
   const { adminState, artistState, session } = useApp()
   const [happyHour, setHappyHour] = useState(false)
-  const [loyaltyActive, setLoyaltyActive] = useState(true)
-  const [visitsRequired, setVisitsRequired] = useState(5)
+  const loyaltyActive = true
+  const visitsRequired = 5
   const [automationStates, setAutomationStates] = useState(
     automations.reduce((acc, auto) => ({ ...acc, [auto.name]: auto.active }), {})
   )
@@ -79,7 +79,7 @@ function ArtistMarketing() {
   const canUseMarketing = !primaryMembership?.studioId || canUseOperationalFeature(currentStudio, 'marketing')
   const marketingArtistId = primaryArtist?.id || session.artist?.id || session.user?.artistId || null
   const loadedClients = Array.isArray(artistState.clients) ? artistState.clients : []
-  const loadedAppointments = Array.isArray(artistState.appointments) ? artistState.appointments : []
+  const loadedAppointments = useMemo(() => Array.isArray(artistState.appointments) ? artistState.appointments : [], [artistState.appointments])
   const loadedServices = Array.isArray(artistState.services) ? artistState.services : []
   const premiumClients = loadedClients
     .map((client) => ({
@@ -122,20 +122,20 @@ function ArtistMarketing() {
     { value: 0, label: 'Dom' },
   ]
 
-  const triggerToast = (message) => {
+  const triggerToast = useCallback((message) => {
     toastIdRef.current += 1
     const id = toastIdRef.current
     setToasts((prev) => [...prev, { id, message }])
     setTimeout(() => {
       setToasts((current) => current.filter((toast) => toast.id !== id))
     }, 3200)
-  }
+  }, [])
 
 
-  const loadMarketingSettings = async () => {
+  useEffect(() => {
     const requestId = marketingSettingsRequestRef.current + 1
     marketingSettingsRequestRef.current = requestId
-
+    async function load() {
     try {
       const settings = await fetchArtistMarketingSettings({ artistId: marketingArtistId })
       if (requestId !== marketingSettingsRequestRef.current) return
@@ -156,13 +156,13 @@ function ArtistMarketing() {
         endTime: rules.endTime || '17:00',
       })
     } catch (error) {
+      if (requestId !== marketingSettingsRequestRef.current) return
       triggerToast(error.message || 'No se pudo cargar marketing.')
     }
-  }
-
-  useEffect(() => {
-    loadMarketingSettings()
-  }, [marketingArtistId])
+    }
+    load()
+    return () => { marketingSettingsRequestRef.current += 1 }
+  }, [marketingArtistId, triggerToast])
 
   const addFlowPointReward = async () => {
     setIsMarketingSaving(true)

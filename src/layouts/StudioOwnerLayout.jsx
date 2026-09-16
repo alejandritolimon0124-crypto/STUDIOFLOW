@@ -90,7 +90,6 @@ function StudioOwnerLayout() {
     || ''
   const studioStatus = activeStudio?.studioStatus === 'approved' ? 'Estudio aprobado' : activeStudio?.studioStatus || 'Estudio activo'
   const avatar = getInitials(studioName) || 'SO'
-  const currentLocation = `${location.pathname}${location.search || ''}`
   const currentSection = location.pathname === paths.adminStudio
     ? new URLSearchParams(location.search).get('section') || 'summary'
     : ''
