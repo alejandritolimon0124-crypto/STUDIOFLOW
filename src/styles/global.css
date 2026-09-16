@@ -2802,6 +2802,13 @@ select:focus,
 .public-booking-form { display: grid; gap: 12px; padding-top: 16px; border-top: 1px solid var(--line); }
 .public-booking-form h2 { margin: 0; font-size: 22px; }
 .public-service-instruction { margin: 2px 0 -6px; color: var(--muted); font-size: 13px; font-weight: 700; line-height: 1.35; white-space: nowrap; }
+.public-booking-page .input-field > span { color: var(--text); font-size: 15px; font-weight: 900; }
+.public-booking-page .input-field select,
+.public-booking-page .input-field input[type="date"] { min-height: 58px; background: #fff; border: 2px solid var(--rose); box-shadow: 0 10px 24px rgba(141, 79, 90, .12); color: var(--text); font-size: 16px; font-weight: 750; }
+.public-booking-page .input-field select:hover,
+.public-booking-page .input-field input[type="date"]:hover { border-color: var(--rose-dark); box-shadow: 0 12px 28px rgba(141, 79, 90, .18); }
+.public-booking-page .input-field select:focus,
+.public-booking-page .input-field input[type="date"]:focus { border-color: var(--rose-dark); box-shadow: 0 0 0 4px rgba(201, 135, 145, .2), 0 12px 28px rgba(141, 79, 90, .14); }
 .public-booking-page .public-slot-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
 .public-booking-page .public-slot-button { width: 100%; min-width: 0; min-height: 72px; padding: 9px 6px; }
 .public-booking-page .public-slot-button strong { font-size: 17px; }
