@@ -301,21 +301,22 @@ function PremiumDropdown({ label, value, options, open, onToggle, onChange, comp
     <div className="input-field premium-dropdown-field" style={{ position: 'relative' }}>
       <span>{label}</span>
       <button
+        className="premium-dropdown-trigger"
         type="button"
         aria-expanded={open}
         onClick={onToggle}
         style={{
           alignItems: 'center',
-          background: 'rgba(255, 250, 247, 0.96)',
-          border: '1px solid rgba(214, 186, 177, 0.72)',
-          borderRadius: '18px',
-          boxShadow: open ? '0 16px 34px rgba(118, 77, 67, 0.14)' : '0 10px 24px rgba(118, 77, 67, 0.08)',
+          background: '#fff',
+          border: open ? '2px solid var(--rose-dark)' : '2px solid var(--rose)',
+          borderRadius: 'var(--radius)',
+          boxShadow: open ? '0 0 0 4px rgba(201, 135, 145, 0.18), 0 12px 28px rgba(141, 79, 90, 0.16)' : '0 8px 20px rgba(141, 79, 90, 0.1)',
           color: 'var(--ink)',
           display: 'flex',
           font: 'inherit',
           fontWeight: 800,
           justifyContent: 'space-between',
-          minHeight: '48px',
+          minHeight: '58px',
           padding: '0 14px',
           textAlign: 'left',
           transition: 'box-shadow 180ms ease, transform 180ms ease, border-color 180ms ease',
@@ -375,6 +376,7 @@ function PremiumDropdown({ label, value, options, open, onToggle, onChange, comp
                 <small style={{ color: 'var(--muted)', fontWeight: 800 }}>Selecciona una opción</small>
               </div>
               <button
+                className="premium-dropdown-option"
                 type="button"
                 onClick={onToggle}
                 style={{
@@ -403,9 +405,10 @@ function PremiumDropdown({ label, value, options, open, onToggle, onChange, comp
                   onToggle()
                 }}
                 style={{
-                  background: option.value === value ? 'rgba(229, 177, 168, 0.2)' : 'transparent',
-                  border: option.value === value ? '1px solid rgba(141, 79, 90, 0.28)' : '1px solid rgba(234, 223, 218, 0.78)',
-                  borderRadius: '16px',
+                  background: option.value === value ? 'rgba(245, 221, 223, 0.7)' : '#fff',
+                  border: option.value === value ? '2px solid var(--rose-dark)' : '2px solid var(--rose)',
+                  borderRadius: 'var(--radius)',
+                  boxShadow: option.value === value ? '0 8px 20px rgba(141, 79, 90, 0.14)' : '0 6px 16px rgba(141, 79, 90, 0.08)',
                   color: 'var(--ink)',
                   alignContent: 'center',
                   display: 'grid',

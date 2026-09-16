@@ -485,6 +485,19 @@ p {
   line-height: 1.25;
 }
 
+.premium-dropdown-trigger:hover,
+.premium-dropdown-option:hover:not(:disabled) {
+  border-color: var(--rose-dark) !important;
+  box-shadow: 0 10px 24px rgba(141, 79, 90, 0.17) !important;
+}
+
+.premium-dropdown-trigger:focus-visible,
+.premium-dropdown-option:focus-visible {
+  outline: 0;
+  border-color: var(--rose-dark) !important;
+  box-shadow: 0 0 0 4px rgba(201, 135, 145, 0.2), 0 10px 24px rgba(141, 79, 90, 0.14) !important;
+}
+
 input,
 select,
 .input-field textarea {
