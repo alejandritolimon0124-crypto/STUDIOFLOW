@@ -3,13 +3,11 @@ import Button from '../../components/Button'
 import { useRef } from 'react'
 import Card from '../../components/Card'
 import Input from '../../components/Input'
-import MetricCard from '../../components/MetricCard'
 import PanelHeader from '../../components/PanelHeader'
 import { MarketingReminderSettings } from '../../components/MarketingReminders'
 import StatusPill from '../../components/StatusPill'
 import { useApp } from '../../contexts/appContextCore'
 import { calculateWeeklyOccupancy } from '../../modules/marketing/occupancyEngine'
-import { calculateClientTier } from '../../modules/marketing/loyaltyEngine'
 import { canUseOperationalFeature, getStudioStatusLabel, getStudioStatusTone } from '../../modules/governance/studioGovernance'
 import {
   deriveMembershipsFromLegacyData,
@@ -35,8 +33,6 @@ const LOW_OCCUPANCY_VISIBLE = false
 function ArtistMarketing() {
   const { adminState, artistState, session } = useApp()
   const [happyHour, setHappyHour] = useState(false)
-  const loyaltyActive = true
-  const visitsRequired = 5
   const [toasts, setToasts] = useState([])
   const [marketingSettings, setMarketingSettings] = useState({ rewards: [], doublePoints: { status: 'paused', rules: {} }, happyHour: { status: 'paused', rules: {} } })
   const [rewardDraft, setRewardDraft] = useState({ discountPercent: 10, pointsCost: '' })
@@ -69,22 +65,7 @@ function ArtistMarketing() {
   }) || adminState.studios[0]
   const canUseMarketing = !primaryMembership?.studioId || canUseOperationalFeature(currentStudio, 'marketing')
   const marketingArtistId = primaryArtist?.id || session.artist?.id || session.user?.artistId || null
-  const loadedClients = Array.isArray(artistState.clients) ? artistState.clients : []
   const loadedAppointments = useMemo(() => Array.isArray(artistState.appointments) ? artistState.appointments : [], [artistState.appointments])
-  const loadedServices = Array.isArray(artistState.services) ? artistState.services : []
-  const premiumClients = loadedClients
-    .map((client) => ({
-      ...client,
-      visits: Number(client.visits || client.history?.length || 0),
-      tier: calculateClientTier(Number(client.visits || client.history?.length || 0)),
-    }))
-    .filter((client) => client.visits >= visitsRequired)
-  const activePromotionsCount = [
-    marketingSettings.flowPointsEnabled,
-    marketingSettings.doublePoints?.status === 'active',
-    marketingSettings.happyHour?.status === 'active',
-    LOW_OCCUPANCY_VISIBLE && lowOccupancyDraft.active,
-  ].filter(Boolean).length
 
   const { weeklyOccupancy } = calculateWeeklyOccupancy(loadedAppointments)
   const monthlyOccupancy = useMemo(() => {
@@ -378,11 +359,6 @@ function ArtistMarketing() {
           <small>{flowPointsEnabled ? 'Flow Points activo' : 'Configura tus beneficios'}</small>
         </div>
       </section>
-
-      <MetricCard label="Clientes recurrentes" value={premiumClients.length} trend={loyaltyActive ? 'Programa activo' : 'Programa pausado'} className="mobile-compact" />
-      <MetricCard label="Citas cargadas" value={loadedAppointments.length} trend={loadedAppointments.length > 0 ? 'Con agenda' : 'Sin citas'} tone="nude" className="mobile-compact" />
-      <MetricCard label="Promociones activas" value={activePromotionsCount} trend="Configuradas" tone="sage" className="mobile-compact" />
-      <MetricCard label="Servicios activos" value={loadedServices.filter((service) => service.status === 'Activo').length} trend="Catalogo real" tone="rose" className="mobile-compact" />
 
       <Card className="wide-card mobile-screen primary-panel flow-points-benefits-panel">
         <PanelHeader
