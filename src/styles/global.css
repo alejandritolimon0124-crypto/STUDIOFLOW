@@ -511,6 +511,40 @@ select:focus,
   width: 100%;
 }
 
+/* Keep every editable field visually discoverable across StudioFlow. */
+.input-field > input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]):not([type="color"]),
+.input-field > select,
+.input-field > textarea,
+.password-input-wrapper > input,
+.admin-search .input-field input {
+  background: #fff;
+  border: 2px solid var(--rose);
+  box-shadow: 0 8px 20px rgba(141, 79, 90, 0.1);
+}
+
+.input-field > input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]):not([type="color"]):hover,
+.input-field > select:hover,
+.input-field > textarea:hover,
+.password-input-wrapper > input:hover,
+.admin-search .input-field input:hover {
+  border-color: var(--rose-dark);
+  box-shadow: 0 10px 24px rgba(141, 79, 90, 0.16);
+}
+
+.input-field > input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]):not([type="color"]):focus,
+.input-field > select:focus,
+.input-field > textarea:focus,
+.password-input-wrapper > input:focus,
+.admin-search .input-field input:focus {
+  border-color: var(--rose-dark);
+  box-shadow: 0 0 0 4px rgba(201, 135, 145, 0.18), 0 10px 24px rgba(141, 79, 90, 0.12);
+}
+
+.input-field > span:first-child {
+  color: var(--text);
+  font-weight: 850;
+}
+
 .location-foundation-card {
   background: linear-gradient(145deg, rgba(255, 255, 255, 0.94), rgba(255, 250, 247, 0.86));
   border: 1px solid rgba(234, 223, 218, 0.9);
