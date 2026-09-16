@@ -498,6 +498,29 @@ p {
   box-shadow: 0 0 0 4px rgba(201, 135, 145, 0.2), 0 10px 24px rgba(141, 79, 90, 0.14) !important;
 }
 
+.availability-empty-row {
+  display: block;
+  width: 100%;
+}
+
+.availability-empty-copy {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  width: 100%;
+}
+
+.availability-empty-copy strong,
+.availability-empty-copy small {
+  display: block;
+  max-width: none;
+  width: 100%;
+}
+
+.availability-empty-copy small {
+  line-height: 1.45;
+}
+
 input,
 select,
 .input-field textarea {

@@ -213,6 +213,17 @@ function getTodayDateValue() {
   return today.toISOString().slice(0, 10)
 }
 
+function formatBookingDate(dateValue) {
+  if (!dateValue) return 'la fecha seleccionada'
+
+  return new Intl.DateTimeFormat('es-MX', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'UTC',
+  }).format(new Date(`${dateValue}T12:00:00Z`))
+}
+
 function getAppointmentDateKey(appointmentOrDate) {
   const rawValue = typeof appointmentOrDate === 'object' && appointmentOrDate !== null
     ? appointmentOrDate.date || appointmentOrDate.startsAt || appointmentOrDate.starts_at
@@ -987,7 +998,7 @@ function ClientDashboard({ view = 'inicio' }) {
   )
   const noAvailabilityMessage = happyHourOnly
     ? `No hay espacio suficiente dentro de Happy Hour para ${selectedMarketplaceServiceName || 'este servicio'} en esta fecha. Prueba otro dia marcado o un servicio de menor duracion.`
-    : `No hay horarios reservables para ${selectedMarketplaceServiceName || 'este servicio'} el ${bookingDate}. Prueba otra fecha; se consideran la duracion, los descansos y la anticipacion minima.`
+    : `No encontramos un horario continuo para ${selectedMarketplaceServiceName || 'este servicio'} el ${formatBookingDate(bookingDate)}. Prueba otra fecha; la búsqueda considera la duración, los descansos, las citas ocupadas y la anticipación mínima.`
   const getVisibleSlotCountForArtist = (artist) => {
     if (isRealMarketplace) return artist?.availability?.availableCount || 0
 
@@ -1661,12 +1672,11 @@ function ClientDashboard({ view = 'inicio' }) {
             </button>
           ))
         ) : (
-          <div className="list-row elevated-row">
-            <div>
+          <div className="list-row elevated-row availability-empty-row">
+            <div className="availability-empty-copy">
               <strong>{isAvailabilityLoading ? 'Cargando horarios...' : happyHourOnly ? 'Sin horarios disponibles para Happy Hour' : 'Sin horarios disponibles'}</strong>
               <small>{availabilityError || noAvailabilityMessage}</small>
             </div>
-            <StatusPill tone="neutral">No disponible</StatusPill>
           </div>
         )}
       </div>
@@ -2550,12 +2560,11 @@ function ClientDashboard({ view = 'inicio' }) {
                               </div>
                             ))
                           ) : (
-                            <div className="list-row elevated-row">
-                              <div>
+                            <div className="list-row elevated-row availability-empty-row">
+                              <div className="availability-empty-copy">
                                 <strong>{isAvailabilityLoading ? 'Cargando horarios...' : happyHourOnly ? 'Sin horarios disponibles para Happy Hour' : 'Sin horarios disponibles'}</strong>
                                 <small>{availabilityError || noAvailabilityMessage}</small>
                               </div>
-                              <StatusPill tone="neutral">No disponible</StatusPill>
                             </div>
                           )}
                         </div>
@@ -2941,12 +2950,11 @@ function ClientDashboard({ view = 'inicio' }) {
                                 </div>
                               ))
                             ) : (
-                              <div className="list-row elevated-row">
-                                <div>
+                              <div className="list-row elevated-row availability-empty-row">
+                                <div className="availability-empty-copy">
                                   <strong>{isAvailabilityLoading ? 'Cargando horarios...' : happyHourOnly ? 'Sin horarios disponibles para Happy Hour' : 'Sin horarios disponibles'}</strong>
                                   <small>{availabilityError || noAvailabilityMessage}</small>
                                 </div>
-                                <StatusPill tone="neutral">No disponible</StatusPill>
                               </div>
                             )}
                           </div>
