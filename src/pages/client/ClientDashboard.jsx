@@ -2150,7 +2150,7 @@ function ClientDashboard({ view = 'inicio' }) {
 
         {view === 'explorar' && (
           <Card className="mobile-screen primary-panel">
-            <PanelHeader title="Busqueda de artistas" eyebrow="Explorar" />
+            <PanelHeader title="Busqueda de artistas" />
             <section className="client-recommendation-panel" aria-label="Recomendaciones de busqueda">
               <div className="client-recommendation-heading">
                 <span className="eyebrow">Busqueda inteligente</span>

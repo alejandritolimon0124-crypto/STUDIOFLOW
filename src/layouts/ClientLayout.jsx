@@ -5,7 +5,7 @@ import { paths } from '../routes/paths'
 const copyByPath = {
   [paths.client]: ['', ''],
   [paths.clientAppointments]: ['Mis citas', 'Tus proximas reservas y servicios confirmados.'],
-  [paths.clientSearch]: ['Explorar', 'Encuentra artistas, servicios y horarios cerca de ti.'],
+  [paths.clientSearch]: ['Reserva tu cita', 'Encuentra artistas, servicios y horarios cerca de ti. Actualiza tu ubicacion para encontrar recomendaciones automaticamente.'],
   [paths.clientFavorites]: ['Favoritos', 'Tus estudios y artistas guardadas.'],
 }
 
