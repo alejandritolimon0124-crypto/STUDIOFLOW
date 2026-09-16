@@ -30,6 +30,8 @@ import {
 
 
 
+const LOW_OCCUPANCY_VISIBLE = false
+
 function ArtistMarketing() {
   const { adminState, artistState, session } = useApp()
   const [happyHour, setHappyHour] = useState(false)
@@ -81,7 +83,7 @@ function ArtistMarketing() {
     marketingSettings.flowPointsEnabled,
     marketingSettings.doublePoints?.status === 'active',
     marketingSettings.happyHour?.status === 'active',
-    lowOccupancyDraft.active,
+    LOW_OCCUPANCY_VISIBLE && lowOccupancyDraft.active,
   ].filter(Boolean).length
 
   const { weeklyOccupancy } = calculateWeeklyOccupancy(loadedAppointments)
@@ -514,7 +516,7 @@ function ArtistMarketing() {
         </div>
       </Card>
 
-      <Card className="wide-card mobile-screen primary-panel">
+      {LOW_OCCUPANCY_VISIBLE && <Card className="wide-card mobile-screen primary-panel">
         <PanelHeader title="Baja ocupacion" eyebrow="Automatizacion" />
         <div className="location-form-grid">
           <label className="input-field">
@@ -547,7 +549,7 @@ function ArtistMarketing() {
             {lowOccupancyDraft.active ? 'Desactivar' : 'Activar'}
           </Button>
         </div>
-      </Card>
+      </Card>}
 
       <MarketingReminderSettings key={marketingArtistId} artistId={marketingArtistId} />
 
