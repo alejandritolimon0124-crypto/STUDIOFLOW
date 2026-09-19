@@ -35,7 +35,6 @@ import {
   saveStudioFlowPointReward,
   saveStudioHappyHourPromotion,
   setStudioDoublePointsPromotion,
-  setStudioFlowPointRedemptionScope,
   setStudioFlowPointsEnabled,
 } from '../../services/artistMarketingService'
 
@@ -1311,7 +1310,6 @@ function AdminStudioProfile() {
   const studioFlowPointsEnabled = Boolean(studioMarketingSettings.flowPointsEnabled)
   const studioDoublePointsActive = studioMarketingSettings.doublePoints?.status === 'active'
   const studioHappyHourActive = studioMarketingSettings.happyHour?.status === 'active'
-  const studioFlowPointRedemptionScope = studioMarketingSettings.flowPointRedemptionScope || 'exclusive'
   const displayedTeamMemberships = useMemo(() => {
     if (!searchedArtist?.alreadyMember) return operationalMemberships
 
@@ -1882,22 +1880,6 @@ function AdminStudioProfile() {
     } catch (error) {
       setStudioMarketingSettings(previousSettings)
       setStudioMarketingFeedback({ tone: 'warm', message: error.message || 'No se pudo actualizar Flow Points.' })
-    } finally {
-      setIsStudioMarketingSaving(false)
-    }
-  }
-
-  const changeStudioFlowPointScope = async (scope) => {
-    const previousSettings = studioMarketingSettings
-    setIsStudioMarketingSaving(true)
-    setStudioMarketingSettings((current) => ({ ...current, flowPointRedemptionScope: scope }))
-
-    try {
-      const settings = await setStudioFlowPointRedemptionScope({ scope, studioId: currentStudio.id })
-      updateStudioMarketingSettings(settings, scope === 'open' ? 'El estudio acepta puntos libres.' : 'El estudio acepta solo puntos exclusivos.')
-    } catch (error) {
-      setStudioMarketingSettings(previousSettings)
-      setStudioMarketingFeedback({ tone: 'warm', message: error.message || 'No se pudo guardar el tipo de puntos.' })
     } finally {
       setIsStudioMarketingSaving(false)
     }
@@ -2955,26 +2937,6 @@ function AdminStudioProfile() {
                   <Button disabled={isStudioMarketingSaving || isStudioMarketingLoading} size="sm" variant={studioFlowPointsEnabled ? 'danger' : 'success'} onClick={toggleStudioFlowPointsEnabled}>
                     {studioFlowPointsEnabled ? 'Desactivar Flow Points' : 'Activar Flow Points'}
                   </Button>
-                </div>
-                <div className="flow-points-scope-options">
-                  <button
-                    className={studioFlowPointRedemptionScope === 'exclusive' ? 'is-active exclusive' : 'exclusive'}
-                    disabled={isStudioMarketingSaving}
-                    onClick={() => changeStudioFlowPointScope('exclusive')}
-                    type="button"
-                  >
-                    <strong>★ Puntos exclusivos</strong>
-                    <small>Solo acepta puntos generados en este estudio.</small>
-                  </button>
-                  <button
-                    className={studioFlowPointRedemptionScope === 'open' ? 'is-active open' : 'open'}
-                    disabled={isStudioMarketingSaving}
-                    onClick={() => changeStudioFlowPointScope('open')}
-                    type="button"
-                  >
-                    <strong>★ Puntos libres</strong>
-                    <small>Acepta puntos de otros perfiles.</small>
-                  </button>
                 </div>
                 <div className="location-form-grid">
                   <label className="input-field">
