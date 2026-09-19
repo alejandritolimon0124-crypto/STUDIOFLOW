@@ -142,7 +142,6 @@ function ArtistDashboard({ view = 'agenda' }) {
     manualArtistAppointmentStatus,
     isManualArtistAppointmentSaving,
     requestArtistAppointmentConfirmations,
-    awardAppointmentFlowPoints,
     selectedDate,
     setSelectedDate,
     artistWorkContext,
@@ -425,11 +424,6 @@ function ArtistDashboard({ view = 'agenda' }) {
     setSelectedDate(nextDate)
     setShowDatePicker(false)
   }
-  const canAwardFlowPoints = (appointment) => (
-    String(appointment.appointmentStatus || appointment.appointment_status || '').toLowerCase() === 'completed'
-    && appointment.flowPointsAwarded > 0
-    && appointment.pointsGranted <= 0
-  )
 
   const filteredClients = [
     ...remoteClientResults,
@@ -911,17 +905,7 @@ function ArtistDashboard({ view = 'agenda' }) {
                         type={item.type}
                         showEconomy={canUseEconomy}
                         economyData={economyData}
-                        action={(
-                          <Button
-                            className="flow-points-award-button"
-                            disabled={!canAwardFlowPoints(item)}
-                            size="sm"
-                            variant="success"
-                            onClick={() => awardAppointmentFlowPoints({ appointmentId: item.id })}
-                          >
-                            {item.pointsGranted > 0 ? `+${item.pointsGranted} otorgados` : `Otorgar ${item.flowPointsAwarded || 0} pts`}
-                          </Button>
-                        )}
+                        action={item.pointsGranted > 0 ? <StatusPill tone="success">+{item.pointsGranted} FP automaticos</StatusPill> : null}
                       />
                     )
                   })}

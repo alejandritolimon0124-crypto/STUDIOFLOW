@@ -28,6 +28,7 @@ function normalizeMarketingPayload(data = {}) {
   return {
     rewards: asArray(data.rewards).map(normalizeReward),
     flowPointsEnabled: Boolean(data.flowPointsEnabled ?? data.flow_points_enabled),
+    flowPointsRewardPercentage: Number(data.flowPointsRewardPercentage ?? data.flow_points_reward_percentage ?? 5),
     flowPointRedemptionScope: data.flowPointRedemptionScope || data.flow_point_redemption_scope || 'exclusive',
     lowOccupancy: {
       active: Boolean(data.lowOccupancy?.active ?? data.low_occupancy?.active),
@@ -50,13 +51,24 @@ function studioParams(studioId) {
 
 export async function setArtistFlowPointsEnabled({ active, artistId } = {}) {
   const client = requireSupabase()
-  const { data, error } = await client.rpc('studio_flow_artist_set_flow_points_enabled', {
+  const { error } = await client.rpc('studio_flow_artist_set_flow_points_enabled', {
     p_active: Boolean(active),
     ...artistParams(artistId),
   })
 
   if (error) throw error
 
+  return fetchArtistMarketingSettings({ artistId })
+}
+
+export async function setArtistFlowPointsRewardPercentage({ percentage, artistId } = {}) {
+  const client = requireSupabase()
+  const { data, error } = await client.rpc('studio_flow_artist_set_flow_points_reward_percentage', {
+    p_percentage: Number(percentage),
+    ...artistParams(artistId),
+  })
+
+  if (error) throw error
   return normalizeMarketingPayload(data)
 }
 
@@ -74,13 +86,14 @@ export async function setArtistFlowPointRedemptionScope({ scope, artistId } = {}
 
 export async function fetchArtistMarketingSettings({ artistId } = {}) {
   const client = requireSupabase()
-  const { data, error } = await client.rpc('studio_flow_artist_get_marketing_settings', {
-    ...artistParams(artistId),
-  })
+  const [{ data, error }, { data: rewardPercentage, error: rewardError }] = await Promise.all([
+    client.rpc('studio_flow_artist_get_marketing_settings', { ...artistParams(artistId) }),
+    client.rpc('studio_flow_artist_get_flow_points_reward_percentage', { ...artistParams(artistId) }),
+  ])
 
-  if (error) throw error
+  if (error || rewardError) throw error || rewardError
 
-  return normalizeMarketingPayload(data)
+  return normalizeMarketingPayload({ ...data, flowPointsRewardPercentage: rewardPercentage })
 }
 
 export async function saveArtistFlowPointReward({ discountPercent, pointsCost, artistId } = {}) {
@@ -98,14 +111,14 @@ export async function saveArtistFlowPointReward({ discountPercent, pointsCost, a
 
 export async function deleteArtistFlowPointReward({ rewardId, artistId } = {}) {
   const client = requireSupabase()
-  const { data, error } = await client.rpc('studio_flow_artist_delete_flow_point_reward', {
+  const { error } = await client.rpc('studio_flow_artist_delete_flow_point_reward', {
     p_reward_id: rewardId,
     ...artistParams(artistId),
   })
 
   if (error) throw error
 
-  return normalizeMarketingPayload(data)
+  return fetchArtistMarketingSettings({ artistId })
 }
 
 export async function setArtistDoublePointsPromotion({ active, artistId } = {}) {
@@ -167,24 +180,36 @@ export async function sendArtistMarketingNotification({ type, maintenanceDays, a
 
 export async function fetchStudioMarketingSettings({ studioId } = {}) {
   const client = requireSupabase()
-  const { data, error } = await client.rpc('studio_flow_studio_get_marketing_settings', {
-    ...studioParams(studioId),
-  })
+  const [{ data, error }, { data: rewardPercentage, error: rewardError }] = await Promise.all([
+    client.rpc('studio_flow_studio_get_marketing_settings', { ...studioParams(studioId) }),
+    client.rpc('studio_flow_studio_get_flow_points_reward_percentage', { ...studioParams(studioId) }),
+  ])
 
-  if (error) throw error
+  if (error || rewardError) throw error || rewardError
 
-  return normalizeMarketingPayload(data)
+  return normalizeMarketingPayload({ ...data, flowPointsRewardPercentage: rewardPercentage })
 }
 
 export async function setStudioFlowPointsEnabled({ active, studioId } = {}) {
   const client = requireSupabase()
-  const { data, error } = await client.rpc('studio_flow_studio_set_flow_points_enabled', {
+  const { error } = await client.rpc('studio_flow_studio_set_flow_points_enabled', {
     p_active: Boolean(active),
     ...studioParams(studioId),
   })
 
   if (error) throw error
 
+  return fetchStudioMarketingSettings({ studioId })
+}
+
+export async function setStudioFlowPointsRewardPercentage({ percentage, studioId } = {}) {
+  const client = requireSupabase()
+  const { data, error } = await client.rpc('studio_flow_studio_set_flow_points_reward_percentage', {
+    p_percentage: Number(percentage),
+    ...studioParams(studioId),
+  })
+
+  if (error) throw error
   return normalizeMarketingPayload(data)
 }
 
@@ -215,26 +240,26 @@ export async function saveStudioFlowPointReward({ discountPercent, pointsCost, s
 
 export async function deleteStudioFlowPointReward({ rewardId, studioId } = {}) {
   const client = requireSupabase()
-  const { data, error } = await client.rpc('studio_flow_studio_delete_flow_point_reward', {
+  const { error } = await client.rpc('studio_flow_studio_delete_flow_point_reward', {
     p_reward_id: rewardId,
     ...studioParams(studioId),
   })
 
   if (error) throw error
 
-  return normalizeMarketingPayload(data)
+  return fetchStudioMarketingSettings({ studioId })
 }
 
 export async function setStudioDoublePointsPromotion({ active, studioId } = {}) {
   const client = requireSupabase()
-  const { data, error } = await client.rpc('studio_flow_studio_set_double_points_promotion', {
+  const { error } = await client.rpc('studio_flow_studio_set_double_points_promotion', {
     p_active: Boolean(active),
     ...studioParams(studioId),
   })
 
   if (error) throw error
 
-  return normalizeMarketingPayload(data)
+  return fetchStudioMarketingSettings({ studioId })
 }
 
 export async function saveStudioHappyHourPromotion({ active, discountPercent, weekdays, startTime, endTime, studioId } = {}) {

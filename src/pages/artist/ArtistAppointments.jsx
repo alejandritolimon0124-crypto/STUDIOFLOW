@@ -66,7 +66,6 @@ function ArtistAppointments() {
     isManualArtistAppointmentSaving,
     manualArtistAppointmentError,
     manualArtistAppointmentStatus,
-    awardAppointmentFlowPoints,
     createManualArtistAppointment,
     loadArtistAppointments,
     requestArtistAppointmentConfirmations,
@@ -225,11 +224,6 @@ function ArtistAppointments() {
   const isHistoryAppointment = (appointment) => (
     ['Completada', 'Cancelada', 'No show'].includes(appointment.status)
     || ['completed', 'cancelled', 'no_show'].includes(appointment.appointmentStatus)
-  )
-  const canAwardFlowPoints = (appointment) => (
-    String(appointment.appointmentStatus || appointment.appointment_status || '').toLowerCase() === 'completed'
-    && appointment.flowPointsAwarded > 0
-    && appointment.pointsGranted <= 0
   )
   const sortAppointmentsByTimeAscending = (appointments = []) => [...appointments].sort((firstAppointment, secondAppointment) => (
     String(firstAppointment.time || '').localeCompare(String(secondAppointment.time || ''))
@@ -654,15 +648,7 @@ function ArtistAppointments() {
                     {cancellingAppointmentId === appointment.id ? 'Cancelando...' : 'Cancelar cita'}
                   </Button>
                 )}
-                <Button
-                  className="flow-points-award-button"
-                  disabled={!canAwardFlowPoints(appointment)}
-                  size="sm"
-                  variant="success"
-                  onClick={() => awardAppointmentFlowPoints({ appointmentId: appointment.id })}
-                >
-                  {appointment.pointsGranted > 0 ? `+${appointment.pointsGranted} otorgados` : `Otorgar ${appointment.flowPointsAwarded || 0} pts`}
-                </Button>
+                {appointment.pointsGranted > 0 && <StatusPill tone="success">+{appointment.pointsGranted} FP automaticos</StatusPill>}
               </div>
             </div>
           )) : (
@@ -692,15 +678,7 @@ function ArtistAppointments() {
               <div className="row-actions appointment-result-actions" style={{ justifyContent: 'flex-end', gap: 6 }}>
                 <StatusPill tone="neutral">{getAppointmentContextLabel(appointment)}</StatusPill>
                 <StatusPill tone={getAppointmentStatusTone(appointment)}>{appointment.status}</StatusPill>
-                <Button
-                  className="flow-points-award-button"
-                  disabled={!canAwardFlowPoints(appointment)}
-                  size="sm"
-                  variant="success"
-                  onClick={() => awardAppointmentFlowPoints({ appointmentId: appointment.id })}
-                >
-                  {appointment.pointsGranted > 0 ? `+${appointment.pointsGranted} otorgados` : `Otorgar ${appointment.flowPointsAwarded || 0} pts`}
-                </Button>
+                {appointment.pointsGranted > 0 && <StatusPill tone="success">+{appointment.pointsGranted} FP automaticos</StatusPill>}
               </div>
             </div>
           )) : (

@@ -21,6 +21,7 @@ import {
   saveArtistFlowPointReward,
   saveArtistHappyHourPromotion,
   setArtistFlowPointsEnabled,
+  setArtistFlowPointsRewardPercentage,
   setArtistDoublePointsPromotion,
   setArtistLowOccupancyAutomation,
 } from '../../services/artistMarketingService'
@@ -157,6 +158,22 @@ function ArtistMarketing() {
     } catch (error) {
       setMarketingSettings(previousSettings)
       triggerToast(error.message || 'No se pudo actualizar Flow Points')
+    } finally {
+      setIsMarketingSaving(false)
+    }
+  }
+
+  const selectFlowPointsRewardPercentage = async (percentage) => {
+    const previousSettings = marketingSettings
+    setIsMarketingSaving(true)
+    setMarketingSettings((current) => ({ ...current, flowPointsRewardPercentage: percentage }))
+    try {
+      const settings = await setArtistFlowPointsRewardPercentage({ percentage, artistId: marketingArtistId })
+      setMarketingSettings(settings)
+      triggerToast(`Recompensa automatica configurada en ${percentage}%`)
+    } catch (error) {
+      setMarketingSettings(previousSettings)
+      triggerToast(error.message || 'No se pudo actualizar la recompensa')
     } finally {
       setIsMarketingSaving(false)
     }
@@ -342,6 +359,25 @@ function ArtistMarketing() {
           <Button disabled={isMarketingSaving} size="sm" variant={flowPointsEnabled ? 'danger' : 'success'} onClick={toggleFlowPointsEnabled}>
             {flowPointsEnabled ? 'Desactivar Flow Points' : 'Activar Flow Points'}
           </Button>
+        </div>
+        <div className="flow-points-reward-setting">
+          <div>
+            <strong>Recompensa automatica por cita completada</strong>
+            <small>Se calcula sobre el total final pagado. Las citas con puntos aplicados no generan nuevos puntos.</small>
+          </div>
+          <div className="flow-points-reward-options" role="group" aria-label="Porcentaje de recompensa Flow Points">
+            {[5, 10].map((percentage) => (
+              <Button
+                disabled={isMarketingSaving}
+                key={percentage}
+                size="sm"
+                variant={marketingSettings.flowPointsRewardPercentage === percentage ? 'primary' : 'secondary'}
+                onClick={() => selectFlowPointsRewardPercentage(percentage)}
+              >
+                {percentage}%{percentage === 5 ? ' recomendado' : ''}
+              </Button>
+            ))}
+          </div>
         </div>
         <div className="location-form-grid">
           <label className="input-field">

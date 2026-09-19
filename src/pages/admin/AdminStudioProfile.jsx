@@ -21,7 +21,7 @@ import {
   requestStudioOwnerAppointmentConfirmations,
   searchStudioOwnerClients,
 } from '../../services/studioOwnerAppointmentService'
-import { awardAppointmentFlowPoints, cancelArtistAppointment } from '../../services/appointmentService'
+import { cancelArtistAppointment } from '../../services/appointmentService'
 import {
   cancelStudioArtistInvitation,
   fetchStudioMembershipOperations,
@@ -36,6 +36,7 @@ import {
   saveStudioHappyHourPromotion,
   setStudioDoublePointsPromotion,
   setStudioFlowPointsEnabled,
+  setStudioFlowPointsRewardPercentage,
 } from '../../services/artistMarketingService'
 
 const galleryLimit = 5
@@ -55,6 +56,7 @@ const emptyOwnerAppointmentDraft = {
 const emptyStudioMarketingSettings = {
   rewards: [],
   flowPointsEnabled: false,
+  flowPointsRewardPercentage: 5,
   flowPointRedemptionScope: 'exclusive',
   doublePoints: { status: 'paused', rules: {} },
   happyHour: { status: 'paused', rules: {} },
@@ -171,13 +173,6 @@ function isConfirmedAppointment(appointment = {}) {
   return !blockedStatuses.some((blockedStatus) => status.includes(blockedStatus))
 }
 
-function canAwardFlowPoints(appointment = {}) {
-  const status = String(appointment.appointmentStatus || appointment.appointment_status || appointment.status || '').toLowerCase()
-  return appointment.flowPointsAwarded > 0
-    && appointment.pointsGranted <= 0
-    && status === 'completed'
-}
-
 function countAppointmentsBetween(appointments, startDate, endDate) {
   const start = parseDateValue(startDate)
   const end = parseDateValue(endDate)
@@ -240,7 +235,6 @@ function StudioSummarySection({
   currentStudio,
   membershipOperationsById,
   navigate,
-  onAwardFlowPoints,
   onCancelAppointment,
   onRequestConfirmations,
   ownerAppointments,
@@ -399,15 +393,7 @@ function StudioSummarySection({
                     {cancellingAppointmentId === appointment.id ? 'Cancelando...' : 'Cancelar cita'}
                   </Button>
                 )}
-                <Button
-                  className="flow-points-award-button"
-                  disabled={!canAwardFlowPoints(appointment)}
-                  size="sm"
-                  variant="success"
-                  onClick={() => onAwardFlowPoints(appointment)}
-                >
-                  {appointment.pointsGranted > 0 ? `+${appointment.pointsGranted} otorgados` : `Otorgar ${appointment.flowPointsAwarded || 0} pts`}
-                </Button>
+                {appointment.pointsGranted > 0 && <StatusPill tone="success">+{appointment.pointsGranted} FP automaticos</StatusPill>}
               </div>
             </div>
           ))}
@@ -632,7 +618,6 @@ function StudioScheduleSection({
   membershipOperationsById,
   membershipOperationsLoadingId,
   onOpenAppointmentModal,
-  onAwardFlowPoints,
   onCancelAppointment,
   onRequestConfirmations,
   ownerAppointments,
@@ -724,15 +709,7 @@ function StudioScheduleSection({
                     {cancellingAppointmentId === appointment.id ? 'Cancelando...' : 'Cancelar cita'}
                   </Button>
                 )}
-                <Button
-                  className="flow-points-award-button"
-                  disabled={!canAwardFlowPoints(appointment)}
-                  size="sm"
-                  variant="success"
-                  onClick={() => onAwardFlowPoints(appointment)}
-                >
-                  {appointment.pointsGranted > 0 ? `+${appointment.pointsGranted} otorgados` : `Otorgar ${appointment.flowPointsAwarded || 0} pts`}
-                </Button>
+                {appointment.pointsGranted > 0 && <StatusPill tone="success">+{appointment.pointsGranted} FP automaticos</StatusPill>}
               </div>
             </div>
           ))}
@@ -1405,23 +1382,6 @@ function AdminStudioProfile() {
     }
   }, [currentStudioId, loadStudioOwnerAppointments])
 
-  const awardStudioAppointmentPoints = useCallback(async (appointment = {}) => {
-    if (!appointment.id) return
-
-    setConfirmationFeedback({ tone: 'neutral', message: '' })
-
-    try {
-      const payload = await awardAppointmentFlowPoints({ appointmentId: appointment.id })
-      setConfirmationFeedback({
-        tone: 'success',
-        message: `Flow Points otorgados: ${payload?.pointsAwarded || payload?.points_awarded || 0}.`,
-      })
-      await loadStudioOwnerAppointments()
-    } catch (error) {
-      setConfirmationFeedback({ tone: 'warm', message: error.message || 'No se pudieron otorgar Flow Points.' })
-    }
-  }, [loadStudioOwnerAppointments])
-
   const cancelStudioAppointment = useCallback(async (appointment = {}) => {
     if (!appointment.id) return
     const sourceLabel = appointment.bookingSource === 'google' ? ' reserva de Google' : ' cita'
@@ -1885,6 +1845,21 @@ function AdminStudioProfile() {
     }
   }
 
+  const selectStudioFlowPointsRewardPercentage = async (percentage) => {
+    const previousSettings = studioMarketingSettings
+    setIsStudioMarketingSaving(true)
+    setStudioMarketingSettings((current) => ({ ...current, flowPointsRewardPercentage: percentage }))
+    try {
+      const settings = await setStudioFlowPointsRewardPercentage({ percentage, studioId: currentStudio.id })
+      updateStudioMarketingSettings(settings, `Recompensa automatica configurada en ${percentage}%.`)
+    } catch (error) {
+      setStudioMarketingSettings(previousSettings)
+      setStudioMarketingFeedback({ tone: 'warm', message: error.message || 'No se pudo actualizar la recompensa.' })
+    } finally {
+      setIsStudioMarketingSaving(false)
+    }
+  }
+
   const addStudioFlowPointReward = async () => {
     if (!studioRewardDraft.pointsCost) return
 
@@ -2339,7 +2314,6 @@ function AdminStudioProfile() {
               currentStudio={currentStudio}
               membershipOperationsById={membershipOperationsById}
               navigate={navigate}
-              onAwardFlowPoints={awardStudioAppointmentPoints}
               onCancelAppointment={cancelStudioAppointment}
               onRequestConfirmations={sendStudioConfirmationRequests}
               ownerAppointments={ownerAppointments}
@@ -2862,7 +2836,6 @@ function AdminStudioProfile() {
               membershipOperationsById={membershipOperationsById}
               membershipOperationsLoadingId={membershipOperationsLoadingId}
               onOpenAppointmentModal={openOwnerAppointmentModal}
-              onAwardFlowPoints={awardStudioAppointmentPoints}
               onCancelAppointment={cancelStudioAppointment}
               onRequestConfirmations={sendStudioConfirmationRequests}
               ownerAppointments={ownerAppointments}
@@ -2937,6 +2910,25 @@ function AdminStudioProfile() {
                   <Button disabled={isStudioMarketingSaving || isStudioMarketingLoading} size="sm" variant={studioFlowPointsEnabled ? 'danger' : 'success'} onClick={toggleStudioFlowPointsEnabled}>
                     {studioFlowPointsEnabled ? 'Desactivar Flow Points' : 'Activar Flow Points'}
                   </Button>
+                </div>
+                <div className="flow-points-reward-setting">
+                  <div>
+                    <strong>Recompensa automatica por cita completada</strong>
+                    <small>Se calcula sobre el total final pagado. Las citas con puntos aplicados no generan nuevos puntos.</small>
+                  </div>
+                  <div className="flow-points-reward-options" role="group" aria-label="Porcentaje de recompensa Flow Points">
+                    {[5, 10].map((percentage) => (
+                      <Button
+                        disabled={isStudioMarketingSaving || isStudioMarketingLoading}
+                        key={percentage}
+                        size="sm"
+                        variant={studioMarketingSettings.flowPointsRewardPercentage === percentage ? 'primary' : 'secondary'}
+                        onClick={() => selectStudioFlowPointsRewardPercentage(percentage)}
+                      >
+                        {percentage}%{percentage === 5 ? ' recomendado' : ''}
+                      </Button>
+                    ))}
+                  </div>
                 </div>
                 <div className="location-form-grid">
                   <label className="input-field">
