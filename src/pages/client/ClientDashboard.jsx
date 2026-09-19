@@ -27,6 +27,11 @@ import { fetchClientFlowPointsBalance } from '../../services/appointmentService'
 import { normalizeServiceName, serviceCatalog } from '../../services/staticCatalogs'
 
 const clientConfirmationNoticeKey = 'studio-flow-client-confirmation-notices'
+const FLOW_POINTS_MINIMUM_REDEMPTION = 1000
+const FLOW_POINTS_PER_MXN = 10
+const FLOW_POINTS_VALIDITY_DAYS = 180
+const flowPointsNumber = new Intl.NumberFormat('es-MX')
+const flowPointsMoney = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' })
 
 function canUseBrowserNotifications() {
   return typeof window !== 'undefined' && 'Notification' in window
@@ -765,9 +770,14 @@ function ClientDashboard({ view = 'inicio' }) {
   const [visibleHistoryCount, setVisibleHistoryCount] = useState(5)
   const [respondingAppointmentId, setRespondingAppointmentId] = useState('')
   const [appointmentResponseNotice, setAppointmentResponseNotice] = useState(null)
-  const [clientFlowPoints, setClientFlowPoints] = useState({ monthlyBalance: 0, monthlyEarned: 0, monthlySpent: 0, activeBalance: 0, expiringSoonPoints: 0, nextExpirationAt: null, validityDays: 90 })
+  const [clientFlowPoints, setClientFlowPoints] = useState({ monthlyBalance: 0, monthlyEarned: 0, monthlySpent: 0, activeBalance: 0, expiringSoonPoints: 0, nextExpirationAt: null, validityDays: FLOW_POINTS_VALIDITY_DAYS })
   const [redeemDraft, setRedeemDraft] = useState({ points: '', targetId: '', targetQuery: '' })
   const [redeemStatus, setRedeemStatus] = useState('')
+  const flowPointsBalance = Number(clientFlowPoints.activeBalance ?? clientFlowPoints.monthlyBalance) || 0
+  const flowPointsMxnValue = flowPointsBalance / FLOW_POINTS_PER_MXN
+  const flowPointsMissing = Math.max(FLOW_POINTS_MINIMUM_REDEMPTION - flowPointsBalance, 0)
+  const flowPointsProgress = Math.min((flowPointsBalance / FLOW_POINTS_MINIMUM_REDEMPTION) * 100, 100)
+  const canStartFlowPointsRedemption = flowPointsBalance >= FLOW_POINTS_MINIMUM_REDEMPTION
   const [locationDetection, setLocationDetection] = useState({ status: 'idle', message: '' })
   const [notificationPermission, setNotificationPermission] = useState(() => (
     canUseBrowserNotifications() ? Notification.permission : 'unsupported'
@@ -1333,7 +1343,7 @@ function ClientDashboard({ view = 'inicio' }) {
         if (isActive) setClientFlowPoints(balance)
       })
       .catch(() => {
-        if (isActive) setClientFlowPoints({ monthlyBalance: 0, monthlyEarned: 0, monthlySpent: 0, activeBalance: 0, expiringSoonPoints: 0, nextExpirationAt: null, validityDays: 90 })
+        if (isActive) setClientFlowPoints({ monthlyBalance: 0, monthlyEarned: 0, monthlySpent: 0, activeBalance: 0, expiringSoonPoints: 0, nextExpirationAt: null, validityDays: FLOW_POINTS_VALIDITY_DAYS })
       })
 
     return () => {
@@ -1387,7 +1397,12 @@ function ClientDashboard({ view = 'inicio' }) {
     const target = redeemTargets.find((item) => `${item.type}:${item.id}` === redeemDraft.targetId)
     const points = Number(redeemDraft.points)
 
-    if (!target || !Number.isFinite(points) || points <= 0) {
+    if (!target || !Number.isFinite(points) || points < FLOW_POINTS_MINIMUM_REDEMPTION) {
+      setRedeemStatus('Los beneficios comienzan a partir de 1,000 Flow Points.')
+      return
+    }
+
+    if (points > flowPointsBalance) {
       setRedeemStatus('Elige cuantos puntos y donde canjearlos.')
       return
     }
@@ -1399,12 +1414,14 @@ function ClientDashboard({ view = 'inicio' }) {
     })
 
     if (payload) {
+      const nextBalance = Number(payload.activeBalance || payload.active_balance || payload.monthlyBalance || payload.monthly_balance || 0)
       setClientFlowPoints((current) => ({
         ...current,
-        monthlyBalance: Number(payload.monthlyBalance || payload.monthly_balance || 0),
+        monthlyBalance: nextBalance,
+        activeBalance: nextBalance,
       }))
       setRedeemDraft({ points: '', targetId: '', targetQuery: '' })
-      setRedeemStatus('Flow Points canjeados.')
+      setRedeemStatus(`Canje realizado: ${flowPointsNumber.format(points)} FP equivalen a ${flowPointsMoney.format(points / FLOW_POINTS_PER_MXN)}.`)
     }
   }
   const enableAppointmentNotifications = async () => {
@@ -1748,10 +1765,26 @@ function ClientDashboard({ view = 'inicio' }) {
             </section>
 
             <Card className="mobile-screen flow-points-client-card">
-              <PanelHeader title="Flow Points" eyebrow={`Vigencia ${clientFlowPoints.validityDays || 90} dias`} />
+              <PanelHeader title="Flow Points" eyebrow={`Vigencia ${clientFlowPoints.validityDays || FLOW_POINTS_VALIDITY_DAYS} dias`} />
               <div className="flow-points-client-balance">
-                <span>Puntos disponibles</span>
-                <strong>{clientFlowPoints.activeBalance ?? clientFlowPoints.monthlyBalance}</strong>
+                <div>
+                  <span>Puntos disponibles</span>
+                  <small>10 FP = $1 MXN</small>
+                </div>
+                <div className="flow-points-balance-value">
+                  <strong>{flowPointsNumber.format(flowPointsBalance)} FP</strong>
+                  <small>Equivalen a {flowPointsMoney.format(flowPointsMxnValue)}</small>
+                </div>
+              </div>
+              <div className={`flow-points-threshold ${canStartFlowPointsRedemption ? 'is-ready' : ''}`}>
+                <div>
+                  <strong>{canStartFlowPointsRedemption ? 'Ya puedes usar tus beneficios' : `Te faltan ${flowPointsNumber.format(flowPointsMissing)} FP`}</strong>
+                  <small>{canStartFlowPointsRedemption ? 'Elige un artista o estudio donde hayas acumulado estos puntos.' : 'Sigue acumulando puntos para desbloquear tu primer beneficio.'}</small>
+                </div>
+                <div className="flow-points-progress" aria-label={`${Math.round(flowPointsProgress)}% del minimo para canjear`}>
+                  <span style={{ width: `${flowPointsProgress}%` }} />
+                </div>
+                <small>Los beneficios comienzan a partir de 1,000 FP.</small>
               </div>
               {clientFlowPoints.expiringSoonPoints > 0 && (
                 <div className="points-expiring-warning">
@@ -1762,8 +1795,10 @@ function ClientDashboard({ view = 'inicio' }) {
               <div className="location-form-grid">
                 <Input
                   label="Puntos a usar"
-                  min="1"
-                  max={(clientFlowPoints.activeBalance ?? clientFlowPoints.monthlyBalance) || 1}
+                  disabled={!canStartFlowPointsRedemption}
+                  min={FLOW_POINTS_MINIMUM_REDEMPTION}
+                  max={flowPointsBalance || FLOW_POINTS_MINIMUM_REDEMPTION}
+                  step="10"
                   type="number"
                   value={redeemDraft.points}
                   onChange={(event) => setRedeemDraft((draft) => ({ ...draft, points: event.target.value }))}
@@ -1810,7 +1845,7 @@ function ClientDashboard({ view = 'inicio' }) {
               )}
               <Button
                 className="full-width"
-                disabled={!(clientFlowPoints.activeBalance ?? clientFlowPoints.monthlyBalance) || !redeemDraft.targetId}
+                  disabled={!canStartFlowPointsRedemption || Number(redeemDraft.points) < FLOW_POINTS_MINIMUM_REDEMPTION || !redeemDraft.targetId}
                 onClick={redeemFlowPoints}
               >
                 Canjear puntos

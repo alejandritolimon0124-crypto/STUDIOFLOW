@@ -357,12 +357,14 @@ function ArtistMarketing() {
           </label>
           <Input
             label="Puntos necesarios"
-            min="1"
+            min="1000"
+            step="10"
             type="number"
             value={rewardDraft.pointsCost}
             onChange={(event) => setRewardDraft((draft) => ({ ...draft, pointsCost: event.target.value }))}
           />
         </div>
+        <small className="flow-points-minimum-note">Los beneficios comienzan a partir de 1,000 FP. Cada 10 FP equivalen a $1 MXN.</small>
         <div className="compact-list">
           {marketingSettings.rewards.length > 0 ? marketingSettings.rewards.map((reward) => (
             <div className="list-row elevated-row" key={reward.id}>

@@ -5152,10 +5152,89 @@ select:focus,
   text-transform: uppercase;
 }
 
+.flow-points-client-balance > div {
+  display: grid;
+  gap: 5px;
+}
+
+.flow-points-client-balance small {
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.flow-points-balance-value {
+  justify-items: end;
+  text-align: right;
+}
+
 .flow-points-client-balance strong {
   color: #8a6f36;
   font-size: 34px;
   line-height: 1;
+}
+
+.flow-points-threshold {
+  background: rgba(255, 255, 255, 0.82);
+  border: 1px solid rgba(189, 151, 52, 0.3);
+  border-radius: 8px;
+  display: grid;
+  gap: 9px;
+  margin-bottom: 14px;
+  padding: 12px 14px;
+}
+
+.flow-points-threshold > div:first-child {
+  display: grid;
+  gap: 3px;
+}
+
+.flow-points-threshold strong {
+  color: #765c1f;
+}
+
+.flow-points-threshold small,
+.flow-points-minimum-note {
+  color: var(--muted);
+  font-weight: 750;
+}
+
+.flow-points-threshold.is-ready {
+  background: rgba(219, 241, 226, 0.72);
+  border-color: rgba(60, 139, 87, 0.32);
+}
+
+.flow-points-threshold.is-ready strong {
+  color: #2f7648;
+}
+
+.flow-points-progress {
+  background: rgba(138, 111, 54, 0.14);
+  border-radius: 999px;
+  height: 9px;
+  overflow: hidden;
+}
+
+.flow-points-progress span {
+  background: linear-gradient(90deg, #b4934d, #8a6f36);
+  border-radius: inherit;
+  display: block;
+  height: 100%;
+  transition: width 260ms ease;
+}
+
+.flow-points-minimum-note {
+  display: block;
+  margin: 8px 0 14px;
+}
+
+@media (max-width: 520px) {
+  .flow-points-client-balance {
+    align-items: flex-start;
+  }
+
+  .flow-points-client-balance strong {
+    font-size: 28px;
+  }
 }
 
 .flow-points-target-results {

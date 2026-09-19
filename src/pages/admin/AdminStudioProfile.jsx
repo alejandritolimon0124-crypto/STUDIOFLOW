@@ -2952,12 +2952,14 @@ function AdminStudioProfile() {
                   </label>
                   <Input
                     label="Puntos necesarios"
-                    min="1"
+                    min="1000"
+                    step="10"
                     type="number"
                     value={studioRewardDraft.pointsCost}
                     onChange={(event) => setStudioRewardDraft((draft) => ({ ...draft, pointsCost: event.target.value }))}
                   />
                 </div>
+                <small className="flow-points-minimum-note">Los beneficios comienzan a partir de 1,000 FP. Cada 10 FP equivalen a $1 MXN.</small>
                 <Button disabled={isStudioMarketingSaving || !studioRewardDraft.pointsCost} onClick={addStudioFlowPointReward}>
                   Agregar beneficio Flow Points
                 </Button>
