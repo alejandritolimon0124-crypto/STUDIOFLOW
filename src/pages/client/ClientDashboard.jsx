@@ -1469,7 +1469,7 @@ function ClientDashboard({ view = 'inicio' }) {
         const booking = await bookMarketplaceAppointment({
           availabilitySlotIds,
           serviceOfferingId,
-          rewardId: selectedMarketplaceRewardId || null,
+          flowPointsToUse: Number(selectedMarketplaceRewardId) || 0,
         })
 
 
@@ -1545,6 +1545,39 @@ function ClientDashboard({ view = 'inicio' }) {
     (promotion.type || promotion.promotion_type) === 'private_promo'
     && (promotion.name || '').toLowerCase().includes('flow points')
   )) || selectedArtistProfile?.rewards?.some((reward) => reward.status === 'active')
+  )
+
+  const selectedServicePrice = Number(selectedMarketplaceService?.priceAmount || effectiveMarketplaceService?.priceAmount || 0)
+  const maxFlowPointsDiscountPercentage = Number(
+    selectedArtistProfile?.flowPointsMaxDiscountPercentage
+      || selectedArtistProfile?.rewards?.[0]?.discountPercent
+      || 5,
+  )
+  const maxFlowPointsForAppointment = Math.max(0, Math.floor(
+    Math.min(flowPointsBalance, selectedServicePrice * maxFlowPointsDiscountPercentage / 100 * FLOW_POINTS_PER_MXN) / 10,
+  ) * 10)
+  const flowPointsUseOptions = maxFlowPointsForAppointment >= FLOW_POINTS_MINIMUM_REDEMPTION
+    ? Array.from(
+        { length: Math.floor((maxFlowPointsForAppointment - FLOW_POINTS_MINIMUM_REDEMPTION) / 100) + 1 },
+        (_, index) => FLOW_POINTS_MINIMUM_REDEMPTION + index * 100,
+      ).concat(maxFlowPointsForAppointment % 100 === 0 ? [] : [maxFlowPointsForAppointment])
+    : []
+
+  const renderFlowPointsSelector = () => selectedArtistFlowPointsActive && (
+    <label className="input-field">
+      <span>FlowPoints que deseas usar</span>
+      <select value={selectedMarketplaceRewardId} onChange={(event) => setSelectedMarketplaceRewardId(event.target.value)}>
+        <option value="">No usar puntos en esta cita</option>
+        {flowPointsUseOptions.map((points) => (
+          <option value={points} key={points}>{flowPointsNumber.format(points)} FP = ${flowPointsNumber.format(points / FLOW_POINTS_PER_MXN)} MXN</option>
+        ))}
+      </select>
+      <small>
+        {flowPointsUseOptions.length > 0
+          ? `Puedes usar hasta ${flowPointsNumber.format(maxFlowPointsForAppointment)} FP en este servicio. Solo se permite un canje por dia.`
+          : `Necesitas al menos ${flowPointsNumber.format(FLOW_POINTS_MINIMUM_REDEMPTION)} FP y saldo suficiente para este servicio.`}
+      </small>
+    </label>
   )
 
   const openArtistProfile = (artist, { mode = 'profile' } = {}) => {
@@ -1657,19 +1690,7 @@ function ClientDashboard({ view = 'inicio' }) {
           <span>Fecha</span>
           <input type="date" min={getTodayDateValue()} value={bookingDate} onChange={(event) => setBookingDate(event.target.value)} />
         </label>
-        {selectedArtistFlowPointsActive && artist.rewards?.length > 0 && (
-          <label className="input-field">
-            <span>Usar Flow Points</span>
-            <select value={selectedMarketplaceRewardId} onChange={(event) => setSelectedMarketplaceRewardId(event.target.value)}>
-              <option value="">No usar puntos en esta cita</option>
-              {artist.rewards.map((reward) => (
-                <option value={reward.id} key={reward.id}>
-                  {reward.discountPercent}% descuento / {reward.pointsCost} puntos
-                </option>
-              ))}
-            </select>
-          </label>
-        )}
+        {renderFlowPointsSelector()}
       </div>
 
       <div className="public-slot-list public-slot-grid" id={`marketplace-slots-${artist.id}`}>
@@ -2558,19 +2579,7 @@ function ClientDashboard({ view = 'inicio' }) {
                             <span>Fecha</span>
                             <input type="date" min={getTodayDateValue()} value={bookingDate} onChange={(event) => setBookingDate(event.target.value)} />
                           </label>
-                          {selectedArtistFlowPointsActive && artist.rewards?.length > 0 && (
-                            <label className="input-field">
-                              <span>Usar Flow Points</span>
-                              <select value={selectedMarketplaceRewardId} onChange={(event) => setSelectedMarketplaceRewardId(event.target.value)}>
-                                <option value="">No usar puntos en esta cita</option>
-                                {artist.rewards.map((reward) => (
-                                  <option value={reward.id} key={reward.id}>
-                                    {reward.discountPercent}% descuento / {reward.pointsCost} puntos
-                                  </option>
-                                ))}
-                              </select>
-                            </label>
-                          )}
+                          {renderFlowPointsSelector()}
                         </div>
 
                         <div className="compact-list public-slot-list" id={`marketplace-slots-${artist.id}`}>
@@ -2948,19 +2957,7 @@ function ClientDashboard({ view = 'inicio' }) {
                               <span>Fecha</span>
                               <input type="date" min={getTodayDateValue()} value={bookingDate} onChange={(event) => setBookingDate(event.target.value)} />
                             </label>
-                            {selectedArtistFlowPointsActive && artist.rewards?.length > 0 && (
-                              <label className="input-field">
-                                <span>Usar Flow Points</span>
-                                <select value={selectedMarketplaceRewardId} onChange={(event) => setSelectedMarketplaceRewardId(event.target.value)}>
-                                  <option value="">No usar puntos en esta cita</option>
-                                  {artist.rewards.map((reward) => (
-                                    <option value={reward.id} key={reward.id}>
-                                      {reward.discountPercent}% descuento / {reward.pointsCost} puntos
-                                    </option>
-                                  ))}
-                                </select>
-                              </label>
-                            )}
+                            {renderFlowPointsSelector()}
                           </div>
 
                           <div className="compact-list public-slot-list" id={`marketplace-slots-${artist.id}`}>

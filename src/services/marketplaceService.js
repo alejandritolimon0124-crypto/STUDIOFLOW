@@ -159,6 +159,11 @@ function normalizeListing(listing = {}) {
     marketplaceServiceOptions: services,
     activePromotions: asArray(listing.activePromotions || listing.active_promotions),
     flowPointRedemptionScope: listing.flowPointRedemptionScope || listing.flow_point_redemption_scope || 'exclusive',
+    flowPointsMaxDiscountPercentage: normalizeNumber(
+      listing.flowPointsMaxDiscountPercentage || listing.flow_points_max_discount_percentage
+        || listing.rewards?.[0]?.discountPercent || listing.rewards?.[0]?.discount_percent,
+      5,
+    ),
     rewards: asArray(listing.rewards).map((reward) => ({
       id: reward.id,
       name: reward.name || 'Beneficio Flow Points',

@@ -17,11 +17,10 @@ import {
 } from '../../modules/entities/entitySelectors'
 import {
   fetchArtistMarketingSettings,
-  deleteArtistFlowPointReward,
-  saveArtistFlowPointReward,
   saveArtistHappyHourPromotion,
   setArtistFlowPointsEnabled,
   setArtistFlowPointsRewardPercentage,
+  setArtistFlowPointsMaxDiscountPercentage,
   setArtistDoublePointsPromotion,
   setArtistLowOccupancyAutomation,
 } from '../../services/artistMarketingService'
@@ -34,7 +33,6 @@ function ArtistMarketing() {
   const { adminState, artistState, session } = useApp()
   const [toasts, setToasts] = useState([])
   const [marketingSettings, setMarketingSettings] = useState({ rewards: [], doublePoints: { status: 'paused', rules: {} }, happyHour: { status: 'paused', rules: {} } })
-  const [rewardDraft, setRewardDraft] = useState({ discountPercent: 10, pointsCost: '' })
   const [happyHourDraft, setHappyHourDraft] = useState({ discountPercent: 10, weekdays: [1, 2, 3, 4, 5], startTime: '14:00', endTime: '17:00' })
   const [lowOccupancyDraft, setLowOccupancyDraft] = useState({ active: false, period: 'week', threshold: 40 })
   const [isMarketingSaving, setIsMarketingSaving] = useState(false)
@@ -132,20 +130,6 @@ function ArtistMarketing() {
     return () => { marketingSettingsRequestRef.current += 1 }
   }, [marketingArtistId, triggerToast])
 
-  const addFlowPointReward = async () => {
-    setIsMarketingSaving(true)
-    try {
-      const reward = await saveArtistFlowPointReward({ ...rewardDraft, artistId: marketingArtistId })
-      setMarketingSettings((current) => ({ ...current, rewards: [...current.rewards, reward].sort((a, b) => a.pointsCost - b.pointsCost) }))
-      setRewardDraft({ discountPercent: 10, pointsCost: '' })
-      triggerToast('Beneficio Flow Points agregado')
-    } catch (error) {
-      triggerToast(error.message || 'No se pudo agregar el beneficio')
-    } finally {
-      setIsMarketingSaving(false)
-    }
-  }
-
   const toggleFlowPointsEnabled = async () => {
     const nextActive = !flowPointsEnabled
     const previousSettings = marketingSettings
@@ -179,6 +163,20 @@ function ArtistMarketing() {
     }
   }
 
+  const selectFlowPointsMaxDiscountPercentage = async (percentage) => {
+    const previousSettings = marketingSettings
+    setIsMarketingSaving(true)
+    setMarketingSettings((current) => ({ ...current, flowPointsMaxDiscountPercentage: percentage }))
+    try {
+      const settings = await setArtistFlowPointsMaxDiscountPercentage({ percentage, artistId: marketingArtistId })
+      setMarketingSettings(settings)
+      triggerToast(`Descuento maximo configurado en ${percentage}%`)
+    } catch (error) {
+      setMarketingSettings(previousSettings)
+      triggerToast(error.message || 'No se pudo actualizar el descuento maximo')
+    } finally { setIsMarketingSaving(false) }
+  }
+
   const toggleDoublePoints = async () => {
     const nextActive = !doublePointsActive
     const previousSettings = marketingSettings
@@ -204,28 +202,6 @@ function ArtistMarketing() {
     } catch (error) {
       setMarketingSettings(previousSettings)
       triggerToast(error.message || 'No se pudo actualizar puntos dobles')
-    } finally {
-      setIsMarketingSaving(false)
-    }
-  }
-
-  const deleteFlowPointReward = async (rewardId) => {
-    if (!window.confirm('Eliminar este beneficio Flow Points?')) return
-
-    const previousSettings = marketingSettings
-    setIsMarketingSaving(true)
-    setMarketingSettings((current) => ({
-      ...current,
-      rewards: current.rewards.filter((reward) => reward.id !== rewardId),
-    }))
-
-    try {
-      const settings = await deleteArtistFlowPointReward({ rewardId, artistId: marketingArtistId })
-      setMarketingSettings(settings)
-      triggerToast('Beneficio eliminado')
-    } catch (error) {
-      setMarketingSettings(previousSettings)
-      triggerToast(error.message || 'No se pudo eliminar el beneficio')
     } finally {
       setIsMarketingSaving(false)
     }
@@ -347,7 +323,6 @@ function ArtistMarketing() {
         <PanelHeader
           title="Beneficios Flow Points"
           eyebrow="Canje de puntos"
-          action={<Button disabled={isMarketingSaving || !rewardDraft.pointsCost} size="sm" onClick={addFlowPointReward}>Agregar beneficio Flow Points</Button>}
         />
         <div className={`marketplace-switch-card ${flowPointsEnabled ? 'active' : ''}`}>
           <div className="toggle-row marketplace-main-toggle">
@@ -379,49 +354,16 @@ function ArtistMarketing() {
             ))}
           </div>
         </div>
-        <div className="location-form-grid">
+        <div className="flow-points-reward-setting">
+          <div><strong>Maximo descuento que deseas otorgar usando FlowPoints</strong><small>La clienta elegira una cantidad de puntos sin superar este limite.</small></div>
           <label className="input-field">
-            <span>Descuento</span>
-            <select
-              value={rewardDraft.discountPercent}
-              onChange={(event) => setRewardDraft((draft) => ({ ...draft, discountPercent: Number(event.target.value) }))}
-            >
-              {[5, 10, 15, 20, 25, 30].map((percent) => (
-                <option value={percent} key={percent}>{percent}%</option>
-              ))}
+            <span>Maximo beneficio</span>
+            <select value={marketingSettings.flowPointsMaxDiscountPercentage || 5} onChange={(event) => selectFlowPointsMaxDiscountPercentage(Number(event.target.value))}>
+              {[5, 10, 20, 30, 50].map((percent) => <option value={percent} key={percent}>{percent}%</option>)}
             </select>
           </label>
-          <Input
-            label="Puntos necesarios"
-            min="1000"
-            step="10"
-            type="number"
-            value={rewardDraft.pointsCost}
-            onChange={(event) => setRewardDraft((draft) => ({ ...draft, pointsCost: event.target.value }))}
-          />
         </div>
-        <small className="flow-points-minimum-note">Los beneficios comienzan a partir de 1,000 FP. Cada 10 FP equivalen a $1 MXN.</small>
-        <div className="compact-list">
-          {marketingSettings.rewards.length > 0 ? marketingSettings.rewards.map((reward) => (
-            <div className="list-row elevated-row" key={reward.id}>
-              <div>
-                <strong>{reward.discountPercent}% de descuento</strong>
-                <small>Disponible con {reward.pointsCost} Flow Points</small>
-              </div>
-              <Button disabled={isMarketingSaving} size="sm" variant="danger" onClick={() => deleteFlowPointReward(reward.id)}>
-                Eliminar
-              </Button>
-            </div>
-          )) : (
-            <div className="list-row elevated-row">
-              <div>
-                <strong>Sin beneficios activos.</strong>
-                <small>Agrega el primer beneficio para que tus clientas puedan canjear puntos.</small>
-              </div>
-              <StatusPill tone="neutral">Vacio</StatusPill>
-            </div>
-          )}
-        </div>
+        <small className="flow-points-minimum-note">El canje comienza en 1,000 FP. Happy Hour no admite descuentos adicionales con FlowPoints.</small>
       </Card>
 
       <Card className="mobile-screen primary-panel double-points-panel">
@@ -429,7 +371,7 @@ function ArtistMarketing() {
         <div className="list-row elevated-row">
           <div>
             <strong>{doublePointsActive ? 'Puntos dobles activos' : 'Puntos dobles pausados'}</strong>
-            <small>Cuando se activa, las citas acreditan el doble al presionar Otorgar puntos.</small>
+            <small>Cuando se activa, las citas completadas acreditan automaticamente el doble de puntos.</small>
           </div>
           <Button disabled={isMarketingSaving} size="sm" variant={doublePointsActive ? 'danger' : 'success'} onClick={toggleDoublePoints}>
             {doublePointsActive ? 'Desactivar' : 'Activar'}

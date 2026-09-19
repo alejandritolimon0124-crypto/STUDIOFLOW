@@ -43,7 +43,7 @@ function normalizeBookingPayload(data = {}) {
 export async function bookMarketplaceAppointment({
   availabilitySlotIds,
   serviceOfferingId,
-  rewardId = null,
+  flowPointsToUse = 0,
   notes = null,
 } = {}) {
 
@@ -62,7 +62,7 @@ export async function bookMarketplaceAppointment({
   const { data, error } = await client.rpc('studio_flow_marketplace_book_with_reward', {
     p_availability_slot_ids: slotIds,
     p_service_offering_id: serviceOfferingId,
-    p_reward_id: rewardId || null,
+    p_points_to_use: Number(flowPointsToUse) || 0,
     p_notes: notes || null,
   })
 

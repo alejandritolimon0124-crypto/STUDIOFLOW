@@ -30,13 +30,12 @@ import {
   inviteStudioArtist,
 } from '../../services/studioMembershipService'
 import {
-  deleteStudioFlowPointReward,
   fetchStudioMarketingSettings,
-  saveStudioFlowPointReward,
   saveStudioHappyHourPromotion,
   setStudioDoublePointsPromotion,
   setStudioFlowPointsEnabled,
   setStudioFlowPointsRewardPercentage,
+  setStudioFlowPointsMaxDiscountPercentage,
 } from '../../services/artistMarketingService'
 
 const galleryLimit = 5
@@ -57,6 +56,7 @@ const emptyStudioMarketingSettings = {
   rewards: [],
   flowPointsEnabled: false,
   flowPointsRewardPercentage: 5,
+  flowPointsMaxDiscountPercentage: 5,
   flowPointRedemptionScope: 'exclusive',
   doublePoints: { status: 'paused', rules: {} },
   happyHour: { status: 'paused', rules: {} },
@@ -1202,7 +1202,6 @@ function AdminStudioProfile() {
   const [studioOwnerAppointments, setStudioOwnerAppointments] = useState([])
   const [cancellingAppointmentId, setCancellingAppointmentId] = useState('')
   const [studioMarketingSettings, setStudioMarketingSettings] = useState(emptyStudioMarketingSettings)
-  const [studioRewardDraft, setStudioRewardDraft] = useState({ discountPercent: 10, pointsCost: '' })
   const [studioHappyHourDraft, setStudioHappyHourDraft] = useState({ discountPercent: 10, weekdays: [1, 2, 3, 4, 5], startTime: '14:00', endTime: '17:00' })
   const [isStudioMarketingLoading, setIsStudioMarketingLoading] = useState(false)
   const [isStudioMarketingSaving, setIsStudioMarketingSaving] = useState(false)
@@ -1860,44 +1859,17 @@ function AdminStudioProfile() {
     }
   }
 
-  const addStudioFlowPointReward = async () => {
-    if (!studioRewardDraft.pointsCost) return
-
-    setIsStudioMarketingSaving(true)
-    try {
-      const reward = await saveStudioFlowPointReward({ ...studioRewardDraft, studioId: currentStudio.id })
-      setStudioMarketingSettings((current) => ({
-        ...current,
-        rewards: [...current.rewards, reward].sort((first, second) => first.pointsCost - second.pointsCost),
-      }))
-      setStudioRewardDraft({ discountPercent: 10, pointsCost: '' })
-      setStudioMarketingFeedback({ tone: 'success', message: 'Beneficio Flow Points agregado.' })
-    } catch (error) {
-      setStudioMarketingFeedback({ tone: 'warm', message: error.message || 'No se pudo agregar el beneficio.' })
-    } finally {
-      setIsStudioMarketingSaving(false)
-    }
-  }
-
-  const deleteStudioReward = async (rewardId) => {
-    if (!window.confirm('Eliminar este beneficio Flow Points?')) return
-
+  const selectStudioFlowPointsMaxDiscountPercentage = async (percentage) => {
     const previousSettings = studioMarketingSettings
     setIsStudioMarketingSaving(true)
-    setStudioMarketingSettings((current) => ({
-      ...current,
-      rewards: current.rewards.filter((reward) => reward.id !== rewardId),
-    }))
-
+    setStudioMarketingSettings((current) => ({ ...current, flowPointsMaxDiscountPercentage: percentage }))
     try {
-      const settings = await deleteStudioFlowPointReward({ rewardId, studioId: currentStudio.id })
-      updateStudioMarketingSettings(settings, 'Beneficio eliminado.')
+      const settings = await setStudioFlowPointsMaxDiscountPercentage({ percentage, studioId: currentStudio.id })
+      updateStudioMarketingSettings(settings, `Descuento maximo configurado en ${percentage}%.`)
     } catch (error) {
       setStudioMarketingSettings(previousSettings)
-      setStudioMarketingFeedback({ tone: 'warm', message: error.message || 'No se pudo eliminar el beneficio.' })
-    } finally {
-      setIsStudioMarketingSaving(false)
-    }
+      setStudioMarketingFeedback({ tone: 'warm', message: error.message || 'No se pudo actualizar el descuento maximo.' })
+    } finally { setIsStudioMarketingSaving(false) }
   }
 
   const toggleStudioDoublePoints = async () => {
@@ -2930,52 +2902,16 @@ function AdminStudioProfile() {
                     ))}
                   </div>
                 </div>
-                <div className="location-form-grid">
+                <div className="flow-points-reward-setting">
+                  <div><strong>Maximo descuento que deseas otorgar usando FlowPoints</strong><small>La clienta elegira una cantidad de puntos sin superar este limite.</small></div>
                   <label className="input-field">
-                    <span>Descuento</span>
-                    <select
-                      value={studioRewardDraft.discountPercent}
-                      onChange={(event) => setStudioRewardDraft((draft) => ({ ...draft, discountPercent: Number(event.target.value) }))}
-                    >
-                      {[5, 10, 15, 20, 25, 30].map((percent) => (
-                        <option value={percent} key={percent}>{percent}%</option>
-                      ))}
+                    <span>Maximo beneficio</span>
+                    <select value={studioMarketingSettings.flowPointsMaxDiscountPercentage || 5} onChange={(event) => selectStudioFlowPointsMaxDiscountPercentage(Number(event.target.value))}>
+                      {[5, 10, 20, 30, 50].map((percent) => <option value={percent} key={percent}>{percent}%</option>)}
                     </select>
                   </label>
-                  <Input
-                    label="Puntos necesarios"
-                    min="1000"
-                    step="10"
-                    type="number"
-                    value={studioRewardDraft.pointsCost}
-                    onChange={(event) => setStudioRewardDraft((draft) => ({ ...draft, pointsCost: event.target.value }))}
-                  />
                 </div>
-                <small className="flow-points-minimum-note">Los beneficios comienzan a partir de 1,000 FP. Cada 10 FP equivalen a $1 MXN.</small>
-                <Button disabled={isStudioMarketingSaving || !studioRewardDraft.pointsCost} onClick={addStudioFlowPointReward}>
-                  Agregar beneficio Flow Points
-                </Button>
-                <div className="compact-list">
-                  {studioMarketingSettings.rewards.length > 0 ? studioMarketingSettings.rewards.map((reward) => (
-                    <div className="list-row elevated-row" key={reward.id}>
-                      <div>
-                        <strong>{reward.discountPercent}% de descuento</strong>
-                        <small>Disponible con {reward.pointsCost} Flow Points</small>
-                      </div>
-                      <Button disabled={isStudioMarketingSaving} size="sm" variant="danger" onClick={() => deleteStudioReward(reward.id)}>
-                        Eliminar
-                      </Button>
-                    </div>
-                  )) : (
-                    <div className="list-row elevated-row">
-                      <div>
-                        <strong>Sin beneficios agregados.</strong>
-                        <small>Agrega descuentos para que las clientas puedan canjear puntos.</small>
-                      </div>
-                      <StatusPill tone="neutral">Vacio</StatusPill>
-                    </div>
-                  )}
-                </div>
+                <small className="flow-points-minimum-note">El canje comienza en 1,000 FP. Happy Hour no admite descuentos adicionales con FlowPoints.</small>
               </section>
 
               <section className="profile-foundation-card double-points-panel">
