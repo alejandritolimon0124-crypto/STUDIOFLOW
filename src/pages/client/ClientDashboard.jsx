@@ -1530,16 +1530,6 @@ function ClientDashboard({ view = 'inicio' }) {
     return service?.name || selectedMarketplaceServiceName || effectiveMarketplaceService.name
   }
 
-  const getSlotFlowPoints = (slot) => {
-    const services = selectedArtistProfile?.marketplaceServiceOptions || []
-    const service = services.find((item) => item.id === (slot.serviceOfferingId || slot.service_offering_id))
-      || selectedMarketplaceService
-      || effectiveMarketplaceService
-    const multiplier = getActiveDoublePointsMultiplier(selectedArtistProfile)
-
-    return Number(service?.flowPointsAwarded || service?.flow_points_awarded || 0) * multiplier
-  }
-
   const selectedArtistFlowPointsActive = Boolean(selectedArtistProfile) && (
     selectedArtistProfile?.activePromotions?.some((promotion) => (
     (promotion.type || promotion.promotion_type) === 'private_promo'
@@ -1706,7 +1696,7 @@ function ClientDashboard({ view = 'inicio' }) {
               <strong>{slot.time}</strong>
               <span>{slot.end}</span>
               {slot.isHappyHour && <small>{slot.happyHourDiscountPercent}% off</small>}
-              <small>{getSlotFlowPoints(slot)} pts</small>
+              <small>FP automaticos al completar</small>
             </button>
           ))
         ) : (
@@ -1941,7 +1931,7 @@ function ClientDashboard({ view = 'inicio' }) {
                     <small className="flow-points-slot-note client-flow-points-highlight">
                       {nextAppointment.pointsGranted > 0
                         ? `${nextAppointment.pointsGranted} Flow Points otorgados`
-                        : `Otorga ${nextAppointment.flowPointsAwarded || 0} Flow Points al finalizar`}
+                        : 'Los FlowPoints se calculan automaticamente al completar'}
                     </small>
                   </div>
                   <div className="client-next-payment">
@@ -2078,7 +2068,7 @@ function ClientDashboard({ view = 'inicio' }) {
                       <small className="flow-points-slot-note">
                         {appointment.pointsGranted > 0
                           ? `${appointment.pointsGranted} Flow Points otorgados`
-                          : `Otorga ${appointment.flowPointsAwarded || 0} Flow Points al finalizar`}
+                          : 'Los FlowPoints se calculan automaticamente al completar'}
                       </small>
                     </div>
                     <div className="row-actions appointment-result-actions" style={{ justifyContent: 'flex-end', gap: 6 }}>
@@ -2589,7 +2579,7 @@ function ClientDashboard({ view = 'inicio' }) {
                                 <div>
                                   <strong>{slot.time} - {slot.end}</strong>
                                   <small>{getSlotServiceName(slot)}</small>
-                                  <small className="flow-points-slot-note">Otorga {getSlotFlowPoints(slot)} Flow Points</small>
+                                  <small className="flow-points-slot-note">FlowPoints automaticos al completar</small>
                                 </div>
                                 <Button
                                   size="sm"
@@ -2967,7 +2957,7 @@ function ClientDashboard({ view = 'inicio' }) {
                                   <div>
                                     <strong>{slot.time} - {slot.end}</strong>
                                     <small>{getSlotServiceName(slot)}</small>
-                                    <small className="flow-points-slot-note">Otorga {getSlotFlowPoints(slot)} Flow Points</small>
+                                    <small className="flow-points-slot-note">FlowPoints automaticos al completar</small>
                                   </div>
                                   <Button
                                     size="sm"

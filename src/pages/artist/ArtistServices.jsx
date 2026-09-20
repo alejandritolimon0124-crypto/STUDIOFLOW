@@ -29,7 +29,6 @@ function ArtistServices() {
   const [secondary, setSecondary] = useState(serviceCatalog[primaryServices[0]][0])
   const [duration, setDuration] = useState('60 min')
   const [price, setPrice] = useState('')
-  const [flowPointsAwarded, setFlowPointsAwarded] = useState('')
   const [editingId, setEditingId] = useState(null)
   const [editingDraft, setEditingDraft] = useState(null)
   const [feedback, setFeedback] = useState('')
@@ -46,7 +45,6 @@ function ArtistServices() {
     setSecondary(serviceCatalog[primaryServices[0]][0])
     setDuration('60 min')
     setPrice('')
-    setFlowPointsAwarded('')
     setEditingId(null)
     setEditingDraft(null)
   }
@@ -67,7 +65,6 @@ function ArtistServices() {
       secondary: service.name,
       duration: service.duration,
       price: String(service.price),
-      flowPointsAwarded: String(service.flowPointsAwarded || 0),
       bookings: service.bookings || 0,
       demand: service.demand || 'Nueva',
       status: service.status || 'Activo',
@@ -90,7 +87,6 @@ function ArtistServices() {
       category: primary,
       price: Number(price),
       duration,
-      flowPointsAwarded: Math.max(0, Number.parseInt(String(flowPointsAwarded || 0), 10) || 0),
       bookings: 0,
       demand: 'Nueva',
       status: 'Activo',
@@ -136,7 +132,6 @@ function ArtistServices() {
         category: editingDraft.primary,
         price: Number(editingDraft.price),
         duration: editingDraft.duration,
-        flowPointsAwarded: Math.max(0, Number.parseInt(String(editingDraft.flowPointsAwarded || 0), 10) || 0),
         bookings: editingDraft.bookings,
         demand: editingDraft.demand,
         status: editingDraft.status,
@@ -222,14 +217,6 @@ function ArtistServices() {
 
             <Input label="Precio en pesos" type="number" placeholder="850" value={price} onChange={(event) => setPrice(event.target.value)} />
 
-            <Input
-              label="Flow Points por visita"
-              type="number"
-              placeholder="20"
-              value={flowPointsAwarded}
-              onChange={(event) => setFlowPointsAwarded(event.target.value)}
-            />
-
             {artistServicesError && <StatusPill tone="warm">{artistServicesError}</StatusPill>}
             {feedback && <StatusPill tone={feedback.includes('No se pudo') || feedback.includes('Completa') ? 'warm' : 'success'}>{feedback}</StatusPill>}
             {isArtistServicesLoading && <StatusPill tone="neutral">Cargando servicios</StatusPill>}
@@ -247,7 +234,7 @@ function ArtistServices() {
                 <div className={`service-row management-row${editingId === service.id ? ' is-editing' : ''}`}>
                   <div>
                     <strong>{service.name}</strong>
-                    <small>{service.category} / {service.duration} / {service.bookings} reservas / {service.flowPointsAwarded || 0} Flow Points</small>
+                    <small>{service.category} / {service.duration} / {service.bookings} reservas</small>
                   </div>
                   <div className="row-actions">
                     <span>{formatCurrency(service.price)}</span>
@@ -285,7 +272,6 @@ function ArtistServices() {
                         </select>
                       </label>
                       <Input label="Precio en pesos" type="number" value={editingDraft?.price || ''} onChange={(event) => updateEditingDraft('price', event.target.value)} />
-                      <Input label="Flow Points por visita" type="number" value={editingDraft?.flowPointsAwarded || ''} onChange={(event) => updateEditingDraft('flowPointsAwarded', event.target.value)} />
                       <div className="row-actions">
                         <Button size="sm" type="submit" disabled={isSaving || isArtistServicesLoading}>
                           {isSaving ? 'Actualizando...' : 'Actualizar servicio'}
@@ -308,7 +294,7 @@ function ArtistServices() {
                 <div className={`service-row management-row${editingId === service.id ? ' is-editing' : ''}`}>
                   <div>
                     <strong>{service.name}</strong>
-                    <small>{service.category} / {service.duration} / {service.flowPointsAwarded || 0} Flow Points</small>
+                    <small>{service.category} / {service.duration}</small>
                   </div>
                   <div className="row-actions">
                     <StatusPill tone="warm">Suspendido</StatusPill>
@@ -346,7 +332,6 @@ function ArtistServices() {
                         </select>
                       </label>
                       <Input label="Precio en pesos" type="number" value={editingDraft?.price || ''} onChange={(event) => updateEditingDraft('price', event.target.value)} />
-                      <Input label="Flow Points por visita" type="number" value={editingDraft?.flowPointsAwarded || ''} onChange={(event) => updateEditingDraft('flowPointsAwarded', event.target.value)} />
                       <div className="row-actions">
                         <Button size="sm" type="submit" disabled={isSaving || isArtistServicesLoading}>
                           {isSaving ? 'Actualizando...' : 'Actualizar servicio'}

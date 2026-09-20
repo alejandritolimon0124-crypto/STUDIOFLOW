@@ -111,7 +111,7 @@ export async function saveArtistServiceOffering({ artistId, service, workContext
     name: normalizeServiceName(service.name),
     price_amount: Number(service.price) || 0,
     duration_minutes: parseDurationMinutes(service.duration),
-    flow_points_awarded: Math.max(0, Number.parseInt(String(service.flowPointsAwarded || 0), 10) || 0),
+    flow_points_awarded: 0,
     status: STATUS_TO_DB[service.status] || 'active',
   }
 
