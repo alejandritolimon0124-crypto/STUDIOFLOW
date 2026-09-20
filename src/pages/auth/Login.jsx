@@ -19,7 +19,7 @@ const routeByRole = {
 
 function Login() {
   const navigate = useNavigate()
-  const { authError, isAuthLoading, isAuthenticated, loginWithGoogle, loginWithPassword, session } = useApp()
+  const { authError, isAuthLoading, isAuthenticated, loginWithPassword, session } = useApp()
   const [form, setForm] = useState({ email: '', password: '' })
   const [localError, setLocalError] = useState('')
 
@@ -42,16 +42,6 @@ function Login() {
       navigate(routeByRole[nextSession.role] || paths.onboarding)
     } catch {
       setLocalError('Revisa tu email y contrasena.')
-    }
-  }
-
-  const handleGoogleLogin = async () => {
-    setLocalError('')
-
-    try {
-      await loginWithGoogle()
-    } catch {
-      setLocalError('No se pudo iniciar sesion con Google.')
     }
   }
 
@@ -96,9 +86,6 @@ function Login() {
         </form>
 
         <div className="login-actions">
-          <Button className="full-width" variant="ghost" disabled={isAuthLoading} onClick={handleGoogleLogin}>
-            Continuar con Google
-          </Button>
           <button className="text-link center-link" type="button" onClick={() => navigate(paths.register)}>
             Crear cuenta
           </button>
