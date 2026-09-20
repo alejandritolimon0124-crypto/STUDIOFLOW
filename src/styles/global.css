@@ -2859,6 +2859,34 @@ select:focus,
   gap: 8px;
 }
 
+.flow-points-profile-distinction {
+  align-items: center;
+  align-self: start;
+  background: linear-gradient(135deg, #fff2f7, #ffe1ec);
+  border: 2px solid #d5aa45;
+  border-radius: 7px;
+  box-shadow: 0 8px 18px rgba(190, 92, 129, 0.14);
+  color: #8f3158;
+  display: inline-flex;
+  gap: 8px;
+  justify-self: start;
+  padding: 7px 11px;
+}
+
+.flow-points-profile-distinction span {
+  color: #e4558d;
+  font-size: 20px;
+  line-height: 1;
+  text-shadow: 0 1px 0 #fff, 0 0 0 #d5aa45;
+}
+
+.flow-points-profile-distinction strong {
+  color: #8f3158;
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: 0;
+}
+
 .public-booking-page { min-height: 100vh; padding: 24px 16px 48px; background: var(--surface); }
 .public-booking-shell { width: min(720px, 100%); margin: 0 auto; display: grid; gap: 16px; }
 .public-booking-logo { display: block; width: min(560px, 100%); height: 190px; margin: -22px auto -34px; object-fit: contain; object-position: center; transform: scale(1.08); }

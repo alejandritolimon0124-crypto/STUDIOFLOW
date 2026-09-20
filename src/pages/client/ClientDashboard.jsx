@@ -1537,6 +1537,8 @@ function ClientDashboard({ view = 'inicio' }) {
   )) || selectedArtistProfile?.rewards?.some((reward) => reward.status === 'active')
   )
 
+  const profileOffersFlowPoints = (profile) => profile?.rewards?.some((reward) => reward.status === 'active')
+
   const selectedServicePrice = Number(selectedMarketplaceService?.priceAmount || effectiveMarketplaceService?.priceAmount || 0)
   const maxFlowPointsDiscountPercentage = Number(
     selectedArtistProfile?.flowPointsMaxDiscountPercentage
@@ -2366,6 +2368,12 @@ function ClientDashboard({ view = 'inicio' }) {
 
                 return (
                   <article className={`artist-result marketplace-result-card${isSelectedArtist ? ' is-expanded' : ''}`} key={artist.name}>
+                    {profileOffersFlowPoints(artist) && (
+                      <div className="flow-points-profile-distinction">
+                        <span aria-hidden="true">★</span>
+                        <strong>Otorga FlowPoints</strong>
+                      </div>
+                    )}
                     <div className="marketplace-result-summary">
                       <div className="marketplace-artist-avatar avatar">
                         {profilePhotoUrl ? (
@@ -2387,11 +2395,6 @@ function ClientDashboard({ view = 'inicio' }) {
                         )}
                         {getActiveDoublePointsMultiplier(artist) > 1 && (
                           <span className="double-points-badge">Puntos dobles</span>
-                        )}
-                        {artist.rewards?.length > 0 && (
-                          <span className={`flow-points-scope-badge ${artist.flowPointRedemptionScope === 'open' ? 'open' : 'exclusive'}`}>
-                            ★ {artist.flowPointRedemptionScope === 'open' ? 'Puntos libres' : 'Puntos exclusivos'}
-                          </span>
                         )}
                       </div>
                       <div className="marketplace-result-actions">
@@ -2728,6 +2731,12 @@ function ClientDashboard({ view = 'inicio' }) {
 
                   return (
                     <article className={`favorite-card marketplace-result-card${isSelectedArtist ? ' is-expanded' : ''}`} key={artist.name}>
+                      {profileOffersFlowPoints(artist) && (
+                        <div className="flow-points-profile-distinction">
+                          <span aria-hidden="true">★</span>
+                          <strong>Otorga FlowPoints</strong>
+                        </div>
+                      )}
                       <div className="marketplace-result-summary">
                         <div className="marketplace-artist-avatar avatar">
                           {profilePhotoUrl ? (
@@ -2744,11 +2753,6 @@ function ClientDashboard({ view = 'inicio' }) {
                           <span className={`marketplace-availability availability-${artist.badge.level}`}>
                             {artist.badge.label}
                           </span>
-                          {artist.rewards?.length > 0 && (
-                            <span className={`flow-points-scope-badge ${artist.flowPointRedemptionScope === 'open' ? 'open' : 'exclusive'}`}>
-                              ★ {artist.flowPointRedemptionScope === 'open' ? 'Puntos libres' : 'Puntos exclusivos'}
-                            </span>
-                          )}
                           {getActiveDoublePointsMultiplier(artist) > 1 && (
                             <span className="double-points-badge">Puntos dobles</span>
                           )}
