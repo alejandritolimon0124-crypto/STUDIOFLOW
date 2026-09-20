@@ -25,6 +25,7 @@ import { getCurrentBrowserCoordinates } from '../../utils/browserGeolocation'
 import { getMaxBirthDateForAdult, validateBirthDate } from '../../utils/birthdayValidation'
 import { fetchClientFlowPointsBalance } from '../../services/appointmentService'
 import { normalizeServiceName, serviceCatalog } from '../../services/staticCatalogs'
+import { optimizeImageFile } from '../../utils/imageOptimization'
 
 const clientConfirmationNoticeKey = 'studio-flow-client-confirmation-notices'
 const FLOW_POINTS_MINIMUM_REDEMPTION = 1000
@@ -1121,16 +1122,16 @@ function ClientDashboard({ view = 'inicio' }) {
       photoUrl: currentClient.photoUrl || '',
     }))
   }
-  const handleClientPhotoChange = (event) => {
+  const handleClientPhotoChange = async (event) => {
     const file = event.target.files?.[0]
     if (!file) return
-
-    const reader = new FileReader()
-    reader.onload = () => {
-      const photoUrl = String(reader.result || '')
+    try {
+      const photoUrl = await optimizeImageFile(file, { maxWidth: 720, maxHeight: 720, quality: 0.8 })
       setProfileDraft((currentDraft) => ({ ...currentDraft, photoUrl }))
+      setProfileError('Fotografia optimizada. Guarda el perfil para aplicar el cambio.')
+    } catch (error) {
+      setProfileError(error.message || 'No se pudo optimizar la fotografia.')
     }
-    reader.readAsDataURL(file)
     event.target.value = ''
   }
 

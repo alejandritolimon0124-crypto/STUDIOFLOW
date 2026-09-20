@@ -13,6 +13,7 @@ import { getCurrentBrowserCoordinates } from '../../utils/browserGeolocation'
 import { buildGoogleMapsUrl, createArtistLocationSettings, hasCoordinates, validateProfessionalLocation } from '../../utils/locationHelpers'
 import { mapAuthContextToArtistProfile } from '../../utils/artistProfileMapper'
 import { getMaxBirthDateForAdult, validateBirthDate } from '../../utils/birthdayValidation'
+import { optimizeImageFile } from '../../utils/imageOptimization'
 
 const portfolioLimit = 12
 
@@ -225,69 +226,37 @@ function ArtistProfileSettings() {
     }
   }
 
-  const handlePhotoChange = (event) => {
+  const handlePhotoChange = async (event) => {
     const file = event.target.files?.[0]
     if (!file) return
-
-    const reader = new FileReader()
-    reader.onload = () => {
-      setProfileDraft((currentDraft) => ({ ...currentDraft, photoUrl: String(reader.result || '') }))
+    try {
+      const photoUrl = await optimizeImageFile(file, { maxWidth: 720, maxHeight: 720, quality: 0.8 })
+      setProfileDraft((currentDraft) => ({ ...currentDraft, photoUrl }))
+      setSaveFeedback('Fotografia optimizada. Guarda el perfil para aplicar el cambio.')
+    } catch (error) {
+      setSaveFeedback(error.message || 'No se pudo optimizar la fotografia.')
     }
-    reader.readAsDataURL(file)
     event.target.value = ''
   }
 
-  const readPortfolioImageFile = (file, onLoad) => {
-    if (!file) return
-
-    const reader = new FileReader()
-    reader.onload = () => {
-      const source = String(reader.result || '')
-      const image = new Image()
-
-      image.onload = () => {
-        const maxSize = 1200
-        const scale = Math.min(1, maxSize / Math.max(image.width, image.height))
-        const width = Math.max(1, Math.round(image.width * scale))
-        const height = Math.max(1, Math.round(image.height * scale))
-        const canvas = document.createElement('canvas')
-        const context = canvas.getContext('2d')
-
-        if (!context) {
-          onLoad(source)
-          return
-        }
-
-        canvas.width = width
-        canvas.height = height
-        context.drawImage(image, 0, 0, width, height)
-        onLoad(canvas.toDataURL('image/jpeg', 0.78))
-      }
-
-      image.onerror = () => onLoad(source)
-      image.src = source
-    }
-    reader.readAsDataURL(file)
-  }
-
-  const handlePortfolioChange = (event) => {
+  const handlePortfolioChange = async (event) => {
     const files = Array.from(event.target.files || []).slice(0, portfolioLimit - (profileDraft.portfolio || []).length)
-
-    files.forEach((file) => {
-      readPortfolioImageFile(file, (url) => {
+    try {
+      const images = await Promise.all(files.map(async (file) => ({
+        id: `artist-portfolio-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+        label: file.name,
+        url: await optimizeImageFile(file),
+      })))
+      if (images.length) {
         setProfileDraft((currentDraft) => ({
           ...currentDraft,
-          portfolio: [
-            ...(currentDraft.portfolio || []),
-            {
-              id: `artist-portfolio-${Date.now()}-${Math.random().toString(16).slice(2)}`,
-              label: file.name,
-              url,
-            },
-          ].slice(0, portfolioLimit),
+          portfolio: [...(currentDraft.portfolio || []), ...images].slice(0, portfolioLimit),
         }))
-      })
-    })
+        setSaveFeedback('Fotografias optimizadas. Guarda el perfil para aplicar los cambios.')
+      }
+    } catch (error) {
+      setSaveFeedback(error.message || 'No se pudieron optimizar las fotografias.')
+    }
     event.target.value = ''
   }
 
@@ -344,21 +313,22 @@ function ArtistProfileSettings() {
     }
   }
 
-  const handleStudioPhotoChange = (studioId) => (event) => {
+  const handleStudioPhotoChange = (studioId) => async (event) => {
     const file = event.target.files?.[0]
     if (!file || !studioId) return
-
-    const reader = new FileReader()
-    reader.onload = () => {
+    try {
+      const photoUrl = await optimizeImageFile(file, { maxWidth: 720, maxHeight: 720, quality: 0.8 })
       setProfileDraft((currentDraft) => ({
         ...currentDraft,
         studioPhotoUrls: {
           ...(currentDraft.studioPhotoUrls || {}),
-          [studioId]: String(reader.result || ''),
+          [studioId]: photoUrl,
         },
       }))
+      setSaveFeedback('Fotografia optimizada. Guarda el perfil para aplicar el cambio.')
+    } catch (error) {
+      setSaveFeedback(error.message || 'No se pudo optimizar la fotografia.')
     }
-    reader.readAsDataURL(file)
     event.target.value = ''
   }
 

@@ -11,6 +11,7 @@ import { getCurrentBrowserCoordinates } from '../../utils/browserGeolocation'
 import { buildGoogleMapsUrl, createProfessionalLocation, hasCoordinates, validateProfessionalLocation } from '../../utils/locationHelpers'
 import { getAppointmentStatusTone } from '../../utils/appointmentStatus'
 import { serviceSlotCoverage } from '../../utils/serviceSlotCoverage'
+import { optimizeImageFile } from '../../utils/imageOptimization'
 import { getCurrentProfile, getCurrentStudio } from '../../modules/entities/entitySelectors'
 import { paths } from '../../routes/paths'
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
@@ -1188,6 +1189,7 @@ function AdminStudioProfile() {
   const [marketplaceVisibilityOverride, setMarketplaceVisibilityOverride] = useState('')
   const [ownStudioMarketplaceState, setOwnStudioMarketplaceState] = useState(null)
   const [marketplaceFeedback, setMarketplaceFeedback] = useState({ tone: 'neutral', message: '' })
+  const [mediaFeedback, setMediaFeedback] = useState({ tone: 'neutral', message: '' })
   const [membershipState, setMembershipState] = useState({
     memberships: [],
     invitations: [],
@@ -1639,57 +1641,37 @@ function AdminStudioProfile() {
     }
   }
 
-  const readImageFile = (file, onLoad) => {
-    if (!file) return
-
-    const reader = new FileReader()
-    reader.onload = () => {
-      const source = String(reader.result || '')
-      const image = new Image()
-
-      image.onload = () => {
-        const maxSize = 1200
-        const scale = Math.min(1, maxSize / Math.max(image.width, image.height))
-        const canvas = document.createElement('canvas')
-        canvas.width = Math.max(1, Math.round(image.width * scale))
-        canvas.height = Math.max(1, Math.round(image.height * scale))
-
-        const context = canvas.getContext('2d')
-        context.drawImage(image, 0, 0, canvas.width, canvas.height)
-        onLoad(canvas.toDataURL('image/jpeg', 0.78))
-      }
-
-      image.onerror = () => onLoad(source)
-      image.src = source
-    }
-    reader.readAsDataURL(file)
-  }
-
-  const handleLogoChange = (event) => {
-    readImageFile(event.target.files?.[0], (logoUrl) => {
+  const handleLogoChange = async (event) => {
+    const file = event.target.files?.[0]
+    try {
+      if (!file) return
+      const logoUrl = await optimizeImageFile(file, { maxWidth: 720, maxHeight: 720, quality: 0.82 })
       setProfileDraft((currentDraft) => ({ ...currentDraft, logoUrl }))
-    })
+      setMediaFeedback({ tone: 'success', message: 'Logotipo optimizado. Guarda el perfil para aplicar el cambio.' })
+    } catch (error) {
+      setMediaFeedback({ tone: 'warm', message: error.message || 'No se pudo optimizar el logotipo.' })
+    }
     event.target.value = ''
   }
 
-  const handleGalleryChange = (event) => {
+  const handleGalleryChange = async (event) => {
     const files = Array.from(event.target.files || []).slice(0, galleryLimit - (profileDraft.gallery || []).length)
-
-    files.forEach((file) => {
-      readImageFile(file, (url) => {
+    try {
+      const images = await Promise.all(files.map(async (file) => ({
+        id: `studio-gallery-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+        label: file.name,
+        url: await optimizeImageFile(file),
+      })))
+      if (images.length) {
         setProfileDraft((currentDraft) => ({
           ...currentDraft,
-          gallery: [
-            ...(currentDraft.gallery || []),
-            {
-              id: `studio-gallery-${Date.now()}-${Math.random().toString(16).slice(2)}`,
-              label: file.name,
-              url,
-            },
-          ].slice(0, galleryLimit),
+          gallery: [...(currentDraft.gallery || []), ...images].slice(0, galleryLimit),
         }))
-      })
-    })
+        setMediaFeedback({ tone: 'success', message: 'Fotografias optimizadas. Guarda el perfil para aplicar los cambios.' })
+      }
+    } catch (error) {
+      setMediaFeedback({ tone: 'warm', message: error.message || 'No se pudieron optimizar las fotografias.' })
+    }
     event.target.value = ''
   }
 
@@ -2425,6 +2407,7 @@ function AdminStudioProfile() {
                 onChange={(event) => updateLocationField('latitude', event.target.value)}
               />
             </div>
+            {mediaFeedback.message && <StatusPill tone={mediaFeedback.tone}>{mediaFeedback.message}</StatusPill>}
             <Input
               helper="Puedes ajustar manualmente las coordenadas si el punto no es exacto."
               label="Longitud"
@@ -2514,6 +2497,7 @@ function AdminStudioProfile() {
               type="file"
               onChange={handleGalleryChange}
             />
+            {mediaFeedback.message && <StatusPill tone={mediaFeedback.tone}>{mediaFeedback.message}</StatusPill>}
           </section>
 
           <section className="profile-foundation-card">
