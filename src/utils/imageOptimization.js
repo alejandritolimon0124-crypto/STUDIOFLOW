@@ -1,4 +1,4 @@
-const DEFAULT_MAX_BYTES = 20 * 1024 * 1024
+const DEFAULT_MAX_BYTES = 10 * 1024 * 1024
 
 function readAsDataUrl(file) {
   return new Promise((resolve, reject) => {
@@ -26,7 +26,7 @@ export async function optimizeImageFile(file, {
 } = {}) {
   if (!file) throw new Error('Selecciona una fotografia.')
   if (!String(file.type || '').startsWith('image/')) throw new Error('El archivo seleccionado no es una imagen.')
-  if (file.size > maxBytes) throw new Error('La fotografia supera 20 MB. Elige una imagen mas pequena.')
+  if (file.size > maxBytes) throw new Error('La imagen es demasiado pesada. El tamaño maximo permitido es de 10 MB. Selecciona otra imagen.')
 
   const source = await readAsDataUrl(file)
   const image = await loadImage(source)
@@ -51,4 +51,3 @@ export async function optimizeImageFile(file, {
 
   return optimized
 }
-
