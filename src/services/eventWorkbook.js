@@ -22,6 +22,9 @@ export async function buildEventWorkbook(payload, year, month) {
       p?.points ?? null, p?.discountPercent ?? null, p?.original != null && p?.total != null ? Math.round((p.original-p.total)*100)/100 : null, p?.total ?? null])
   }
   const end = sheet.rowCount
+  const totalPoints = payload.events.reduce((sum, event) => sum + Number(event.awarded || 0), 0)
+  const happyHourCount = payload.events.filter((event) => event.happy_hour).length
+  const doublePointsCount = payload.events.filter((event) => Number(event.multiplier) > 1).length
   const completed = payload.events.filter((event) => event.status === 'completed')
   const commissionable = payload.events.filter((event) => event.status === 'completed' || (event.status === 'cancelled' && event.provider_cancelled))
   const missing = commissionable.some((event) => payload.payments[event.id]?.total == null)
@@ -31,13 +34,17 @@ export async function buildEventWorkbook(payload, year, month) {
   const fee = sheet.addRow(['Comision Studio Flow 10%'])
   const commission = commissionable.reduce((sum, event) => sum + Math.round(Number(payload.payments[event.id]?.total || 0) * 10) / 100, 0)
   fee.getCell(13).value = missing ? 'INCOMPLETO' : end > 6 ? { formula: `SUMPRODUCT(((E7:E${end}="Completada")+(E7:E${end}="Cancelada por artista/estudio"))*ROUND(M7:M${end}*10%,2))`, result: Math.round(commission*100)/100 } : 0
-  for (const range of ['B1:M1', 'B2:M2', 'D3:M3', 'B4:M4', 'A5:M5', `A${income.number}:L${income.number}`, `A${fee.number}:L${fee.number}`]) sheet.mergeCells(range)
+  const pointsSummary = sheet.addRow(['FlowPoints otorgados en el periodo'])
+  pointsSummary.getCell(13).value = totalPoints
+  const promoSummary = sheet.addRow(['Citas con promociones'])
+  promoSummary.getCell(13).value = `Happy Hour: ${happyHourCount} / Puntos dobles: ${doublePointsCount}`
+  for (const range of ['B1:M1', 'B2:M2', 'D3:M3', 'B4:M4', 'A5:M5', `A${income.number}:L${income.number}`, `A${fee.number}:L${fee.number}`, `A${pointsSummary.number}:L${pointsSummary.number}`, `A${promoSummary.number}:L${promoSummary.number}`]) sheet.mergeCells(range)
   sheet.columns.forEach((column, i) => { column.width = [23,30,30,25,18,18,16,19,18,19,18,18,18][i] || 20 })
   for (const n of [6,12,13]) sheet.getColumn(n).numFmt = '"$"#,##0.00'
   sheet.getRow(6).height = 32
   sheet.getRow(6).alignment = { vertical: 'middle', wrapText: true }
   sheet.eachRow((row) => { if (row.number > 6 && row.number <= end) row.alignment = { vertical: 'top', wrapText: true } })
-  for (const n of [1,6,income.number,fee.number]) {
+  for (const n of [1,6,income.number,fee.number,pointsSummary.number,promoSummary.number]) {
     sheet.getRow(n).font = { bold: true, color: { argb: 'FFFFFFFF' } }
     sheet.getRow(n).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF684653' } }
   }

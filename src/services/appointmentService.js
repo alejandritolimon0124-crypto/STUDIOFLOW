@@ -1,5 +1,5 @@
 import { requireSupabase } from '../lib/supabaseClient'
-import { withAppointmentPayments } from './appointmentPaymentService'
+import { withAppointmentReporting } from './appointmentPaymentService'
 import { hasCurrentAttendanceConfirmation } from '../utils/appointmentConfirmation'
 import { getContextRpcParams } from './artistWorkContextService'
 
@@ -67,6 +67,8 @@ function normalizeAppointment(appointment = {}) {
     artistRevenue: normalizeNumber(appointment.artistRevenue || appointment.artist_revenue),
     pointsGranted: normalizeNumber(appointment.pointsGranted || appointment.points_granted),
     flowPointsAwarded: normalizeNumber(appointment.flowPointsAwarded || appointment.flow_points_awarded),
+    rewardMultiplier: normalizeNumber(appointment.rewardMultiplier || appointment.reward_multiplier || appointment.reward_multiplier_snapshot || 1),
+    happyHourApplied: Boolean(appointment.happyHourApplied ?? appointment.happy_hour_applied),
     riskScore: appointment.riskScore || appointment.risk_score || 'low',
   }
 }
@@ -119,7 +121,7 @@ export async function fetchClientAppointments() {
 
   if (error) throw error
 
-  return withAppointmentPayments(mapAppointmentsPayload(data))
+  return withAppointmentReporting(mapAppointmentsPayload(data))
 }
 
 export async function fetchArtistAppointments({ artistId } = {}) {
@@ -130,7 +132,7 @@ export async function fetchArtistAppointments({ artistId } = {}) {
 
   if (error) throw error
 
-  return withAppointmentPayments(mapAppointmentsPayload(data))
+  return withAppointmentReporting(mapAppointmentsPayload(data))
 }
 
 export async function updateClientAppointmentResponse({ appointmentId, action } = {}) {

@@ -648,7 +648,9 @@ function ArtistAppointments() {
                     {cancellingAppointmentId === appointment.id ? 'Cancelando...' : 'Cancelar cita'}
                   </Button>
                 )}
-                {appointment.pointsGranted > 0 && <StatusPill tone="success">+{appointment.pointsGranted} FP automaticos</StatusPill>}
+                {appointment.pointsGranted > 0 && <StatusPill tone="success">+{appointment.pointsGranted} FP otorgados</StatusPill>}
+                {appointment.happyHourApplied && <StatusPill tone="success">Happy Hour</StatusPill>}
+                {appointment.rewardMultiplier > 1 && <StatusPill tone="warm">Puntos dobles</StatusPill>}
               </div>
             </div>
           )) : (
@@ -678,7 +680,9 @@ function ArtistAppointments() {
               <div className="row-actions appointment-result-actions" style={{ justifyContent: 'flex-end', gap: 6 }}>
                 <StatusPill tone="neutral">{getAppointmentContextLabel(appointment)}</StatusPill>
                 <StatusPill tone={getAppointmentStatusTone(appointment)}>{appointment.status}</StatusPill>
-                {appointment.pointsGranted > 0 && <StatusPill tone="success">+{appointment.pointsGranted} FP automaticos</StatusPill>}
+                {appointment.pointsGranted > 0 && <StatusPill tone="success">+{appointment.pointsGranted} FP otorgados</StatusPill>}
+                {appointment.happyHourApplied && <StatusPill tone="success">Happy Hour</StatusPill>}
+                {appointment.rewardMultiplier > 1 && <StatusPill tone="warm">Puntos dobles</StatusPill>}
               </div>
             </div>
           )) : (

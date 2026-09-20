@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
 import { CalendarDays, Filter } from 'lucide-react'
 import { requireSupabase } from '../lib/supabaseClient'
-import { withAppointmentPayments } from '../services/appointmentPaymentService'
+import { withAppointmentReporting } from '../services/appointmentPaymentService'
 import OwnerAppointmentCard from './OwnerAppointmentCard'
 import Button from './Button'
 import OwnerEventExport from './OwnerEventExport'
@@ -26,7 +26,7 @@ export default function OwnerAgenda({ entityType, entityId }) {
     try {
       const { data, error: failure } = await requireSupabase().rpc('studio_flow_owner_get_agenda', { p_entity_type: entityType, p_entity_id: entityId, p_offset: nextOffset, p_date: day || null })
       if (failure) throw failure
-      const appointments = await withAppointmentPayments(data || [])
+      const appointments = await withAppointmentReporting(data || [])
       if (request !== requestId.current) return
       setRows(appointments)
       setOffset(nextOffset)
@@ -52,6 +52,11 @@ export default function OwnerAgenda({ entityType, entityId }) {
       {error && <p role="alert">{error} <button onClick={() => load(offset)} type="button">Reintentar</button></p>}
       {!loading && !error && rows.length === 0 && <p>Sin eventos en esta pagina.</p>}
       {!loading && !error && rows.map((item) => <OwnerAppointmentCard key={item.id} appointment={item} />)}
+      {!loading && !error && rows.length > 0 && (
+        <p className="owner-agenda-points-summary">
+          FlowPoints otorgados en esta pagina: <strong>{rows.reduce((total, item) => total + Number(item.pointsGranted || 0), 0)} FP</strong>
+        </p>
+      )}
       <div className="row-actions">
         <Button size="sm" disabled={loading || offset === 0} onClick={() => load(Math.max(0, offset - 10))}>Anterior</Button>
         <Button size="sm" disabled={loading || !more} onClick={() => load(offset + 10)}>Siguiente</Button>

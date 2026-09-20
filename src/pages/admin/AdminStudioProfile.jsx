@@ -37,6 +37,7 @@ import {
   setStudioFlowPointsRewardPercentage,
   setStudioFlowPointsMaxDiscountPercentage,
 } from '../../services/artistMarketingService'
+import { calculateServiceFlowPoints } from '../../utils/flowPoints'
 
 const galleryLimit = 5
 const studioSections = ['summary', 'team', 'services', 'schedule', 'marketplace', 'metrics', 'settings']
@@ -60,6 +61,13 @@ const emptyStudioMarketingSettings = {
   flowPointRedemptionScope: 'exclusive',
   doublePoints: { status: 'paused', rules: {} },
   happyHour: { status: 'paused', rules: {} },
+}
+
+function StudioServicePoints({ service, settings }) {
+  if (!settings.flowPointsEnabled) return null
+  const multiplier = settings.doublePoints?.status === 'active' ? 2 : 1
+  const points = calculateServiceFlowPoints(service.price, settings.flowPointsRewardPercentage, multiplier)
+  return <small className="flow-points-slot-note">Otorga {points} FP al completar{multiplier === 2 ? ' / puntos dobles activos' : ''}</small>
 }
 
 const weekdayOptions = [
@@ -393,7 +401,9 @@ function StudioSummarySection({
                     {cancellingAppointmentId === appointment.id ? 'Cancelando...' : 'Cancelar cita'}
                   </Button>
                 )}
-                {appointment.pointsGranted > 0 && <StatusPill tone="success">+{appointment.pointsGranted} FP automaticos</StatusPill>}
+                {appointment.pointsGranted > 0 && <StatusPill tone="success">+{appointment.pointsGranted} FP otorgados</StatusPill>}
+                {appointment.happyHourApplied && <StatusPill tone="success">Happy Hour</StatusPill>}
+                {appointment.rewardMultiplier > 1 && <StatusPill tone="warm">Puntos dobles</StatusPill>}
               </div>
             </div>
           ))}
@@ -709,7 +719,9 @@ function StudioScheduleSection({
                     {cancellingAppointmentId === appointment.id ? 'Cancelando...' : 'Cancelar cita'}
                   </Button>
                 )}
-                {appointment.pointsGranted > 0 && <StatusPill tone="success">+{appointment.pointsGranted} FP automaticos</StatusPill>}
+                {appointment.pointsGranted > 0 && <StatusPill tone="success">+{appointment.pointsGranted} FP otorgados</StatusPill>}
+                {appointment.happyHourApplied && <StatusPill tone="success">Happy Hour</StatusPill>}
+                {appointment.rewardMultiplier > 1 && <StatusPill tone="warm">Puntos dobles</StatusPill>}
               </div>
             </div>
           ))}
@@ -2559,6 +2571,7 @@ function AdminStudioProfile() {
                       <div>
                         <strong>{service.name}</strong>
                         <small>{membership.name} / {service.category} / {service.duration || `${service.durationMinutes} min`}</small>
+                        <StudioServicePoints service={service} settings={studioMarketingSettings} />
                       </div>
                       <StatusPill tone="success">${service.price}</StatusPill>
                     </div>
@@ -2719,6 +2732,7 @@ function AdminStudioProfile() {
                                   <div>
                                     <strong>{service.name}</strong>
                                     <small>{service.category} / {service.duration || `${service.durationMinutes} min`}</small>
+                                    <StudioServicePoints service={service} settings={studioMarketingSettings} />
                                   </div>
                                   <StatusPill tone="success">${service.price}</StatusPill>
                                 </div>

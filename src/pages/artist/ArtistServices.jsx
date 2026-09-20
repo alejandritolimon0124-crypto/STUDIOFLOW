@@ -1,4 +1,4 @@
-import { Fragment, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import Button from '../../components/Button'
 import Card from '../../components/Card'
 import Input from '../../components/Input'
@@ -7,7 +7,9 @@ import StatusPill from '../../components/StatusPill'
 import WorkspaceCardSelector from '../../components/WorkspaceCardSelector'
 import { useApp } from '../../contexts/appContextCore'
 import { filterServicesForWorkContext } from '../../services/artistServiceService'
+import { fetchArtistMarketingSettings, fetchStudioMarketingSettings } from '../../services/artistMarketingService'
 import { normalizeServiceCategory, serviceCatalog } from '../../services/staticCatalogs'
+import { calculateServiceFlowPoints } from '../../utils/flowPoints'
 import { formatCurrency } from '../../utils/formatters'
 
 const durations = ['30 min', '45 min', '60 min', '75 min', '90 min', '120 min']
@@ -21,6 +23,7 @@ function ArtistServices() {
     artistWorkContexts,
     isArtistServicesLoading,
     saveArtistService,
+    session,
     selectArtistWorkContext,
     updateArtistServiceStatus,
   } = useApp()
@@ -33,7 +36,36 @@ function ArtistServices() {
   const [editingDraft, setEditingDraft] = useState(null)
   const [feedback, setFeedback] = useState('')
   const [isSaving, setIsSaving] = useState(false)
+  const [flowPointsSettings, setFlowPointsSettings] = useState({ enabled: false, percentage: 5, multiplier: 1 })
   const visibleArtistServices = filterServicesForWorkContext(artistServices, artistWorkContext)
+
+  useEffect(() => {
+    let active = true
+    const artistId = artistWorkContext?.artistId || session.artist?.id || session.user?.artistId
+    const studioId = artistWorkContext?.studioId
+    const request = artistWorkContext?.contextType === 'membership' && studioId
+      ? fetchStudioMarketingSettings({ studioId })
+      : fetchArtistMarketingSettings({ artistId })
+
+    request.then((settings) => {
+      if (!active) return
+      setFlowPointsSettings({
+        enabled: Boolean(settings.flowPointsEnabled),
+        percentage: Number(settings.flowPointsRewardPercentage) || 5,
+        multiplier: settings.doublePoints?.status === 'active' ? 2 : 1,
+      })
+    }).catch(() => {
+      if (active) setFlowPointsSettings({ enabled: false, percentage: 5, multiplier: 1 })
+    })
+
+    return () => { active = false }
+  }, [artistWorkContext, session.artist?.id, session.user?.artistId])
+
+  const servicePoints = (service) => calculateServiceFlowPoints(
+    service.price,
+    flowPointsSettings.percentage,
+    flowPointsSettings.multiplier,
+  )
 
   const handlePrimary = (service) => {
     setPrimary(service)
@@ -235,6 +267,11 @@ function ArtistServices() {
                   <div>
                     <strong>{service.name}</strong>
                     <small>{service.category} / {service.duration} / {service.bookings} reservas</small>
+                    {flowPointsSettings.enabled && (
+                      <small className="flow-points-slot-note">
+                        Otorga {servicePoints(service)} FP al completar{flowPointsSettings.multiplier === 2 ? ' / puntos dobles activos' : ''}
+                      </small>
+                    )}
                   </div>
                   <div className="row-actions">
                     <span>{formatCurrency(service.price)}</span>
@@ -295,6 +332,7 @@ function ArtistServices() {
                   <div>
                     <strong>{service.name}</strong>
                     <small>{service.category} / {service.duration}</small>
+                    {flowPointsSettings.enabled && <small className="flow-points-slot-note">Otorgaria {servicePoints(service)} FP al completar</small>}
                   </div>
                   <div className="row-actions">
                     <StatusPill tone="warm">Suspendido</StatusPill>

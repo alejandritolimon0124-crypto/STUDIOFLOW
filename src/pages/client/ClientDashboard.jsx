@@ -2164,6 +2164,9 @@ function ClientDashboard({ view = 'inicio' }) {
                           <small>{item.artist}</small>
                           <time className="client-history-time" dateTime={item.startsAt || item.starts_at || undefined}>{historyDateTime(item)}</time>
                           <AppointmentPayment appointment={item} compact />
+                          {item.pointsGranted > 0 && <small className="flow-points-slot-note">+{item.pointsGranted} FlowPoints otorgados</small>}
+                          {item.happyHourApplied && <small className="flow-points-slot-note">Descuento Happy Hour aplicado</small>}
+                          {Number(item.rewardMultiplier) > 1 && <small className="flow-points-slot-note">Puntos dobles aplicados</small>}
                         </div>
                         <StatusPill tone={getAppointmentStatusTone(item)}>{item.appointmentStatus === 'completed' ? 'Completada' : item.appointmentStatus === 'cancelled' ? 'Cancelada' : item.status || 'Finalizada'}</StatusPill>
                       </div>

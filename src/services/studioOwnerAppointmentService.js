@@ -1,5 +1,5 @@
 import { requireSupabase } from '../lib/supabaseClient'
-import { withAppointmentPayments } from './appointmentPaymentService'
+import { withAppointmentReporting } from './appointmentPaymentService'
 import { fetchAdminClients } from './adminClientService'
 
 const studioOwnerTimeZone = 'America/Mexico_City'
@@ -80,6 +80,8 @@ function normalizeAppointment(appointment = {}) {
     bookingSource: appointment.bookingSource || appointment.booking_source || null,
     pointsGranted: normalizeNumber(appointment.pointsGranted || appointment.points_granted),
     flowPointsAwarded: normalizeNumber(appointment.flowPointsAwarded || appointment.flow_points_awarded),
+    rewardMultiplier: normalizeNumber(appointment.rewardMultiplier || appointment.reward_multiplier || appointment.reward_multiplier_snapshot || 1),
+    happyHourApplied: Boolean(appointment.happyHourApplied ?? appointment.happy_hour_applied),
   }
 }
 
@@ -252,7 +254,7 @@ export async function fetchStudioOwnerAppointments({ studioId, membershipIds = [
     ;(artists || []).forEach((artist) => artistsById.set(artist.id, artist))
   }
 
-  return withAppointmentPayments(appointments.map((appointment) => {
+  return withAppointmentReporting(appointments.map((appointment) => {
     const appointmentClient = clientsById.get(appointment.client_id)
     const service = servicesById.get(appointment.service_offering_id)
     const artist = artistsById.get(appointment.artist_id)
@@ -329,7 +331,7 @@ export async function fetchStudioOwnerClientAppointments({
     ;(artists || []).forEach((artist) => artistsById.set(artist.id, artist))
   }
 
-  return withAppointmentPayments(appointments.map((appointment) => {
+  return withAppointmentReporting(appointments.map((appointment) => {
     const service = servicesById.get(appointment.service_offering_id)
     const artist = artistsById.get(appointment.artist_id)
     const startsAt = appointment.starts_at || ''
