@@ -14,6 +14,12 @@ import { formatCurrency } from '../../utils/formatters'
 
 const durations = ['30 min', '45 min', '60 min', '75 min', '90 min', '120 min']
 
+const normalizeComparableName = (value = '') => String(value)
+  .normalize('NFD')
+  .replace(/[\u0300-\u036f]/g, '')
+  .trim()
+  .toLowerCase()
+
 function ArtistServices() {
   const {
     archiveArtistService,
@@ -83,7 +89,23 @@ function ArtistServices() {
 
   const showFeedback = (message) => {
     setFeedback(message)
-    window.setTimeout(() => setFeedback(''), 1800)
+    window.setTimeout(() => setFeedback(''), 4500)
+  }
+
+  const hasActiveDuplicate = (serviceName, ignoredId = null) => {
+    const comparableName = normalizeComparableName(serviceName)
+    return visibleArtistServices.some((service) => (
+      service.id !== ignoredId
+      && service.status === 'Activo'
+      && normalizeComparableName(service.name) === comparableName
+    ))
+  }
+
+  const secondaryOptions = (category, currentValue = '') => {
+    const catalogOptions = serviceCatalog[category] || []
+    return currentValue && !catalogOptions.includes(currentValue)
+      ? [currentValue, ...catalogOptions]
+      : catalogOptions
   }
 
   const editService = (service) => {
@@ -110,6 +132,16 @@ function ArtistServices() {
 
     if (!primary || !secondary || !duration || !price) {
       showFeedback('Completa todos los campos')
+      return
+    }
+
+    if (Number(price) <= 0) {
+      showFeedback('El precio debe ser mayor a cero')
+      return
+    }
+
+    if (hasActiveDuplicate(secondary)) {
+      showFeedback('Ya existe un servicio activo con ese nombre')
       return
     }
 
@@ -152,6 +184,16 @@ function ArtistServices() {
     event.preventDefault()
     if (!editingDraft?.primary || !editingDraft?.secondary || !editingDraft?.duration || !editingDraft?.price) {
       showFeedback('Completa todos los campos')
+      return
+    }
+
+    if (Number(editingDraft.price) <= 0) {
+      showFeedback('El precio debe ser mayor a cero')
+      return
+    }
+
+    if (editingDraft.status === 'Activo' && hasActiveDuplicate(editingDraft.secondary, editingDraft.id)) {
+      showFeedback('Ya existe otro servicio activo con ese nombre')
       return
     }
 
@@ -295,7 +337,7 @@ function ArtistServices() {
                       <label className="input-field">
                         <span>Servicio secundario</span>
                         <select value={editingDraft?.secondary || ''} onChange={(event) => updateEditingDraft('secondary', event.target.value)}>
-                          {(serviceCatalog[editingDraft?.primary] || []).map((serviceName) => (
+                          {secondaryOptions(editingDraft?.primary, editingDraft?.secondary).map((serviceName) => (
                             <option key={serviceName} value={serviceName}>{serviceName}</option>
                           ))}
                         </select>
@@ -356,7 +398,7 @@ function ArtistServices() {
                       <label className="input-field">
                         <span>Servicio secundario</span>
                         <select value={editingDraft?.secondary || ''} onChange={(event) => updateEditingDraft('secondary', event.target.value)}>
-                          {(serviceCatalog[editingDraft?.primary] || []).map((serviceName) => (
+                          {secondaryOptions(editingDraft?.primary, editingDraft?.secondary).map((serviceName) => (
                             <option key={serviceName} value={serviceName}>{serviceName}</option>
                           ))}
                         </select>

@@ -72,6 +72,8 @@ export const serviceCatalog = {
   ],
   Uñas: [
     'Manicure',
+    'Manicura rusa con rubber',
+    'Manicura rusa con gelish y diseño',
     'Pedicure',
     'Gel semipermanente',
     'Acrílico',

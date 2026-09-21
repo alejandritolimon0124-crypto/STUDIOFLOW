@@ -127,6 +127,9 @@ export async function saveArtistServiceOffering({ artistId, service, workContext
         p_service: payload,
         ...getContextRpcParams(workContext),
       })
+  if (error?.code === '23505') {
+    throw new Error('Ya existe un servicio activo con ese nombre.')
+  }
   if (error) throw error
 
   return mapServiceOffering(data?.service)
