@@ -83,6 +83,7 @@ export const serviceCatalog = {
     'Retiro de producto',
   ],
   'Diseño de uñas': [
+    'Esculturales',
     'Nail art sencillo',
     'Nail art avanzado',
     'Francesa',
