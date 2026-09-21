@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { hasCurrentAttendanceConfirmation } from '../../utils/appointmentConfirmation'
 import { historyDateTime, newestAppointmentFirst } from '../../utils/appointmentHistory'
@@ -309,13 +309,33 @@ function buildServiceGroupsForArtist(artist = {}) {
 }
 
 function PremiumDropdown({ label, value, options, open, onToggle, onChange, compact = false }) {
+  const dropdownRef = useRef(null)
   const safeOptions = options.length > 0
     ? options
     : [{ value: '', label: 'Sin opciones', meta: 'No disponible', disabled: true }]
   const selectedOption = safeOptions.find((option) => option.value === value) || safeOptions[0]
 
+  useEffect(() => {
+    if (!open) return undefined
+
+    const closeOnOutsideInteraction = (event) => {
+      if (!dropdownRef.current?.contains(event.target)) onToggle()
+    }
+    const closeOnEscape = (event) => {
+      if (event.key === 'Escape') onToggle()
+    }
+
+    document.addEventListener('pointerdown', closeOnOutsideInteraction)
+    document.addEventListener('keydown', closeOnEscape)
+
+    return () => {
+      document.removeEventListener('pointerdown', closeOnOutsideInteraction)
+      document.removeEventListener('keydown', closeOnEscape)
+    }
+  }, [open, onToggle])
+
   return (
-    <div className="input-field premium-dropdown-field" style={{ position: 'relative' }}>
+    <div ref={dropdownRef} className="input-field premium-dropdown-field" style={{ position: 'relative' }}>
       <span>{label}</span>
       <button
         className="premium-dropdown-trigger"
@@ -357,7 +377,6 @@ function PremiumDropdown({ label, value, options, open, onToggle, onChange, comp
             minWidth: 0,
             width: '100%',
           }}
-          onClick={onToggle}
         >
           <div
             style={{
@@ -375,8 +394,10 @@ function PremiumDropdown({ label, value, options, open, onToggle, onChange, comp
               maxHeight: '55dvh',
               maxWidth: '100%',
               overflowY: 'auto',
-              overscrollBehavior: 'contain',
+              overscrollBehaviorY: 'auto',
               padding: compact ? '16px' : '18px 16px',
+              touchAction: 'pan-y',
+              WebkitOverflowScrolling: 'touch',
               width: '100%',
             }}
             onClick={(event) => event.stopPropagation()}
