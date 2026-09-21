@@ -18,6 +18,15 @@ function loadImage(source) {
   })
 }
 
+function encodeCanvas(canvas, type, quality) {
+  try {
+    const encoded = canvas.toDataURL(type, quality)
+    return encoded.startsWith(`data:${type}`) ? encoded : null
+  } catch {
+    return null
+  }
+}
+
 export async function optimizeImageFile(file, {
   maxWidth = 1200,
   maxHeight = 1200,
@@ -46,8 +55,12 @@ export async function optimizeImageFile(file, {
   context.imageSmoothingQuality = 'high'
   context.drawImage(image, 0, 0, width, height)
 
-  const optimized = canvas.toDataURL('image/webp', quality)
-  if (!optimized.startsWith('data:image/webp')) throw new Error('Este navegador no permite convertir fotografias a WebP.')
+  const optimized = encodeCanvas(canvas, 'image/webp', quality)
+    || encodeCanvas(canvas, 'image/jpeg', Math.min(quality, 0.8))
+
+  if (!optimized) {
+    throw new Error('Este dispositivo no pudo optimizar la fotografia. Selecciona una imagen JPG o PNG.')
+  }
 
   return optimized
 }
