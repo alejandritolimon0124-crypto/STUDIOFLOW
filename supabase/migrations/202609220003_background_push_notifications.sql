@@ -215,7 +215,10 @@ begin
   join public.service_offerings so on so.id = new.service_offering_id
   where c.id = new.client_id;
 
-  if tg_op = 'INSERT' and new.status = 'scheduled' then
+  if tg_op = 'INSERT'
+    and new.status = 'scheduled'
+    and new.booking_source in ('client_portal', 'marketplace', 'google')
+  then
     select a.profile_id into v_profile_id
     from public.artists a
     where a.id = new.artist_id and a.status = 'active' and a.archived_at is null;
