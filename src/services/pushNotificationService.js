@@ -48,6 +48,7 @@ export async function registerCurrentDeviceForPush() {
 
   if (error) throw error
   localStorage.setItem(pushRegistrationStorageKey, 'true')
+  window.dispatchEvent(new Event('studioflow:notification-permission'))
   return subscription
 }
 

@@ -1597,6 +1597,13 @@ function ClientDashboard({ view = 'inicio' }) {
   }
 
   useEffect(() => {
+    if (!canUseBrowserNotifications()) return undefined
+    const syncNotificationPermission = () => setNotificationPermission(Notification.permission)
+    window.addEventListener('studioflow:notification-permission', syncNotificationPermission)
+    return () => window.removeEventListener('studioflow:notification-permission', syncNotificationPermission)
+  }, [])
+
+  useEffect(() => {
     if (!canUseBrowserNotifications() || Notification.permission !== 'granted') return
 
     const seenKeys = new Set(getStoredConfirmationNoticeKeys())
