@@ -22,6 +22,7 @@ function normalizeReview(review = null) {
 function normalizeStudio(studio = {}) {
   const profile = studio.profile || {}
   const owner = studio.owner || {}
+  const contactLinks = profile.contactLinks || profile.contact_links || {}
 
   return {
     id: studio.id || studio.studioId || studio.studio_id,
@@ -37,6 +38,12 @@ function normalizeStudio(studio = {}) {
     phone: profile.phone || '',
     addressLine: profile.addressLine || profile.address_line || '',
     description: profile.description || '',
+    contactLinks: {
+      whatsapp: profile.whatsapp || contactLinks.whatsapp || '',
+      instagram: profile.instagram || contactLinks.instagram || '',
+      facebook: profile.facebook || contactLinks.facebook || '',
+      tiktok: profile.tiktok || contactLinks.tiktok || '',
+    },
     ownerName: owner.displayName || owner.display_name || 'Owner',
     ownerEmail: owner.email || '',
     ownerPhone: owner.phone || '',
@@ -54,12 +61,35 @@ export async function fetchOwnerStudios() {
   const { data, error } = await client.rpc('studio_flow_owner_get_studios')
 
   if (error) throw error
+  const studios = normalizePayload(data)
+  const studioIds = studios.map((studio) => studio.id).filter(Boolean)
+  if (studioIds.length === 0) return studios
 
-  return normalizePayload(data)
+  const { data: contactRows, error: contactError } = await client
+    .from('studio_profiles')
+    .select('studio_id, whatsapp, instagram, facebook, tiktok')
+    .in('studio_id', studioIds)
+
+  if (contactError) throw contactError
+  const contactsByStudioId = Object.fromEntries((contactRows || []).map((row) => [row.studio_id, row]))
+
+  return studios.map((studio) => {
+    const contactRow = contactsByStudioId[studio.id] || {}
+    return {
+      ...studio,
+      contactLinks: {
+        whatsapp: contactRow.whatsapp || '',
+        instagram: contactRow.instagram || '',
+        facebook: contactRow.facebook || '',
+        tiktok: contactRow.tiktok || '',
+      },
+    }
+  })
 }
 
 export async function saveOwnerStudioProfile(studio) {
   const name = studio.commercialName.trim()
+  const contactLinks = studio.contactLinks || {}
   if (!name) throw new Error('Escribe el nombre del estudio.')
   const { error } = await requireSupabase().from('studio_profiles').upsert({
     studio_id: studio.id,
@@ -69,6 +99,10 @@ export async function saveOwnerStudioProfile(studio) {
     city: studio.city.trim() || null,
     address_line: studio.addressLine.trim() || null,
     description: studio.description.trim() || null,
+    whatsapp: String(contactLinks.whatsapp || '').trim() || null,
+    instagram: String(contactLinks.instagram || '').trim() || null,
+    facebook: String(contactLinks.facebook || '').trim() || null,
+    tiktok: String(contactLinks.tiktok || '').trim() || null,
     updated_at: new Date().toISOString(),
   }, { onConflict: 'studio_id' }).select('studio_id').single()
   if (error) throw error

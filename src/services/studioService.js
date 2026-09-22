@@ -2,6 +2,7 @@ import { requireSupabase } from '../lib/supabaseClient'
 
 function normalizeStudio(row = {}) {
   const logoUrl = row.logoUrl || row.logo_url || row.logoPath || row.logo_path || row.profile?.logoUrl || row.profile?.logo_path || ''
+  const contactLinks = row.profile?.contactLinks || row.profile?.contact_links || {}
 
   return {
     id: row.studioId || row.studio_id || null,
@@ -23,6 +24,12 @@ function normalizeStudio(row = {}) {
       commercialName: row.profile?.commercialName || row.profile?.commercial_name || row.commercialName || row.commercial_name || '',
       logoUrl,
       logoPath: logoUrl,
+      contactLinks: {
+        whatsapp: row.profile?.whatsapp || contactLinks.whatsapp || '',
+        instagram: row.profile?.instagram || contactLinks.instagram || '',
+        facebook: row.profile?.facebook || contactLinks.facebook || '',
+        tiktok: row.profile?.tiktok || contactLinks.tiktok || '',
+      },
     },
   }
 }
@@ -34,7 +41,33 @@ export async function fetchOwnStudios() {
   if (error) throw error
 
   const studios = Array.isArray(data?.studios) ? data.studios : []
-  return studios.map(normalizeStudio)
+  const normalizedStudios = studios.map(normalizeStudio)
+  const studioIds = normalizedStudios.map((studio) => studio.id).filter(Boolean)
+  if (studioIds.length === 0) return normalizedStudios
+
+  const { data: contactRows, error: contactError } = await client
+    .from('studio_profiles')
+    .select('studio_id, whatsapp, instagram, facebook, tiktok')
+    .in('studio_id', studioIds)
+
+  if (contactError) throw contactError
+  const contactsByStudioId = Object.fromEntries((contactRows || []).map((row) => [row.studio_id, row]))
+
+  return normalizedStudios.map((studio) => {
+    const contactRow = contactsByStudioId[studio.id] || {}
+    return {
+      ...studio,
+      profile: {
+        ...studio.profile,
+        contactLinks: {
+          whatsapp: contactRow.whatsapp || '',
+          instagram: contactRow.instagram || '',
+          facebook: contactRow.facebook || '',
+          tiktok: contactRow.tiktok || '',
+        },
+      },
+    }
+  })
 }
 
 export async function bootstrapStudio({

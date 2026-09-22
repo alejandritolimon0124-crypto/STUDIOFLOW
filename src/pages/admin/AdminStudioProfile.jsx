@@ -1190,6 +1190,8 @@ function AdminStudioProfile() {
   const [ownStudioMarketplaceState, setOwnStudioMarketplaceState] = useState(null)
   const [marketplaceFeedback, setMarketplaceFeedback] = useState({ tone: 'neutral', message: '' })
   const [mediaFeedback, setMediaFeedback] = useState({ tone: 'neutral', message: '' })
+  const [isProfileSaving, setIsProfileSaving] = useState(false)
+  const [profileSaveFeedback, setProfileSaveFeedback] = useState({ tone: 'neutral', message: '' })
   const [membershipState, setMembershipState] = useState({
     memberships: [],
     invitations: [],
@@ -1612,6 +1614,16 @@ function AdminStudioProfile() {
     setLocationErrors((currentErrors) => ({ ...currentErrors, [field]: '' }))
   }
 
+  const updateProfileContactLink = (field, value) => {
+    setProfileDraft((currentDraft) => ({
+      ...currentDraft,
+      contactLinks: {
+        ...(currentDraft.contactLinks || {}),
+        [field]: value,
+      },
+    }))
+  }
+
   const useCurrentLocation = async () => {
     setLocationDetection({ status: 'loading', message: 'Detectando ubicacion actual...' })
 
@@ -1682,7 +1694,8 @@ function AdminStudioProfile() {
     }))
   }
 
-  const saveStudioProfile = () => {
+  const saveStudioProfile = async () => {
+    if (!currentStudio?.id || isProfileSaving) return
     const nextErrors = validateProfessionalLocation(locationDraft)
     const hasLocationErrors = Object.keys(nextErrors).length > 0
 
@@ -1709,7 +1722,17 @@ function AdminStudioProfile() {
       }
     }
 
-    updateManagedStudioProfile(currentStudio.id, nextStudioProfile)
+    setIsProfileSaving(true)
+    setProfileSaveFeedback({ tone: 'neutral', message: '' })
+    const savedStudio = await updateManagedStudioProfile(currentStudio.id, nextStudioProfile)
+    setIsProfileSaving(false)
+
+    if (!savedStudio) {
+      setProfileSaveFeedback({ tone: 'warm', message: 'No se pudo guardar el perfil del estudio. Revisa el aviso del sistema.' })
+      return
+    }
+
+    setProfileSaveFeedback({ tone: 'success', message: 'Perfil, ubicación y redes sociales del estudio actualizados.' })
   }
 
   const hasMarketplaceMinimumData = Boolean(
@@ -2330,6 +2353,25 @@ function AdminStudioProfile() {
                 rows="3"
               />
             </label>
+            <div className="owner-studio-social-editor">
+              <strong>Redes sociales publicas</strong>
+              <small>Se mostraran mediante iconos en las cards visibles para clientas.</small>
+              <div className="location-form-grid">
+                {[
+                  ['whatsapp', 'WhatsApp'],
+                  ['instagram', 'Instagram'],
+                  ['facebook', 'Facebook'],
+                  ['tiktok', 'TikTok'],
+                ].map(([field, label]) => (
+                  <Input
+                    key={field}
+                    label={label}
+                    value={profileDraft.contactLinks?.[field] || ''}
+                    onChange={(event) => updateProfileContactLink(field, event.target.value)}
+                  />
+                ))}
+              </div>
+            </div>
           </section>
 
           <section className="profile-foundation-card">
@@ -2975,7 +3017,14 @@ function AdminStudioProfile() {
           )}
 
           {selectedSection === 'settings' && (
-            <Button className="full-width" onClick={saveStudioProfile}>Guardar estudio</Button>
+            <>
+              {profileSaveFeedback.message && (
+                <StatusPill tone={profileSaveFeedback.tone}>{profileSaveFeedback.message}</StatusPill>
+              )}
+              <Button className="full-width" disabled={isProfileSaving} onClick={saveStudioProfile}>
+                {isProfileSaving ? 'Guardando...' : 'Guardar estudio'}
+              </Button>
+            </>
           )}
         </div>
       </Card>

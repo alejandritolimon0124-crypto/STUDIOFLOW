@@ -33,6 +33,16 @@ function AdminStudios() {
   const [editingStudio, setEditingStudio] = useState(null)
   const [saving, setSaving] = useState(false)
 
+  const updateStudioContactLink = (field, value) => {
+    setEditingStudio((currentStudio) => ({
+      ...currentStudio,
+      contactLinks: {
+        ...(currentStudio.contactLinks || {}),
+        [field]: value,
+      },
+    }))
+  }
+
   const saveProfile = async (event) => {
     event.preventDefault()
     setSaving(true)
@@ -180,6 +190,26 @@ function AdminStudios() {
                     ['description', 'Descripcion', 'text'],
                   ].map(([field, label, type]) => <Input key={field} label={label} type={type} required={field === 'commercialName'} disabled={saving}
                     value={editingStudio[field]} onChange={(event) => setEditingStudio({ ...editingStudio, [field]: event.target.value })} />)}
+                </div>
+                <div className="owner-studio-social-editor">
+                  <strong>Redes sociales publicas</strong>
+                  <small>Estos enlaces se muestran mediante iconos en las cards para clientas.</small>
+                  <div className="location-form-grid">
+                    {[
+                      ['whatsapp', 'WhatsApp'],
+                      ['instagram', 'Instagram'],
+                      ['facebook', 'Facebook'],
+                      ['tiktok', 'TikTok'],
+                    ].map(([field, label]) => (
+                      <Input
+                        disabled={saving}
+                        key={field}
+                        label={label}
+                        value={editingStudio.contactLinks?.[field] || ''}
+                        onChange={(event) => updateStudioContactLink(field, event.target.value)}
+                      />
+                    ))}
+                  </div>
                 </div>
                 <div className="row-actions">
                   <Button type="submit" disabled={saving}>{saving ? 'Guardando...' : 'Guardar cambios'}</Button>

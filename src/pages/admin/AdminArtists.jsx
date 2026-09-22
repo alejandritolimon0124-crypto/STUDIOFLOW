@@ -24,6 +24,7 @@ const parseMoneyValue = (value) => Number(String(value || '').replace(/[^\d.-]/g
 function AdminArtists() {
   const {
     adminState,
+    adminArtistsError,
     loadAdminArtists,
     session,
     reviewManagedArtist,
@@ -41,6 +42,9 @@ function AdminArtists() {
   const [artistLocationErrors, setArtistLocationErrors] = useState({})
   const [artistLocationDetection, setArtistLocationDetection] = useState({ status: 'idle', message: '' })
   const [isArtistLocationConfirmed, setIsArtistLocationConfirmed] = useState(false)
+  const [isSavingArtist, setIsSavingArtist] = useState(false)
+  const [isSavingLinkedStudio, setIsSavingLinkedStudio] = useState(false)
+  const [profileSaveFeedback, setProfileSaveFeedback] = useState({ tone: 'neutral', message: '' })
   const normalizedRole = session.user?.role === 'admin' ? ROLES.PLATFORM_OWNER : session.user?.role
   const isPlatformOwner = normalizedRole === ROLES.PLATFORM_OWNER
   const artistStudioMemberships = useMemo(
@@ -125,22 +129,11 @@ function AdminArtists() {
     setArtistLocationDetection({ status: 'idle', message: '' })
     setIsStudioLocationConfirmed(false)
     setIsArtistLocationConfirmed(false)
+    setProfileSaveFeedback({ tone: 'neutral', message: '' })
   }
 
-  const saveArtistProfile = () => {
+  const saveArtistProfile = async () => {
     if (!editingArtist) return
-
-    const nextStudioLocationErrors = validateProfessionalLocation(studioLocationDraft)
-
-    if (Object.keys(nextStudioLocationErrors).length > 0) {
-      setStudioLocationErrors(nextStudioLocationErrors)
-      return
-    }
-
-    if (studioLocationHasCoordinates && !isStudioLocationConfirmed) {
-      setStudioLocationErrors({ latitude: 'Confirma que esta ubicacion corresponde a tu estudio.' })
-      return
-    }
 
     if (!artistLocationDraft.useStudioLocation) {
       const nextArtistLocationErrors = validateProfessionalLocation(artistLocationDraft.customLocation)
@@ -156,19 +149,54 @@ function AdminArtists() {
       }
     }
 
-    updateManagedArtistProfile(editingArtist.id, {
-      ...editingArtist,
+    setIsSavingArtist(true)
+    setProfileSaveFeedback({ tone: 'neutral', message: '' })
+    const savedArtist = await updateManagedArtistProfile(editingArtist.id, {
+      name: editingArtist.name,
+      city: editingArtist.city,
+      services: editingArtist.services,
+      description: editingArtist.description,
+      contactLinks: editingArtist.contactLinks || {},
       professionalLocation: artistLocationDraft,
     })
-    if (editingStudio) {
-      updateManagedStudioProfile(editingStudio.id, {
-        professionalLocation: {
-          ...studioLocationDraft,
-          businessName: editingStudio.profile?.commercialName || '',
-        },
-      })
+    setIsSavingArtist(false)
+
+    if (!savedArtist) {
+      setProfileSaveFeedback({ tone: 'warm', message: 'No se pudo guardar el perfil de la artista. Revisa el aviso mostrado arriba.' })
+      return
     }
-    setEditingArtist(null)
+
+    setEditingArtist((currentArtist) => ({ ...currentArtist, ...savedArtist }))
+    setProfileSaveFeedback({ tone: 'success', message: 'Perfil y ubicación profesional de la artista actualizados.' })
+  }
+
+  const saveLinkedStudioLocation = async () => {
+    if (!editingStudio) return
+    const nextStudioLocationErrors = validateProfessionalLocation(studioLocationDraft)
+
+    if (Object.keys(nextStudioLocationErrors).length > 0) {
+      setStudioLocationErrors(nextStudioLocationErrors)
+      return
+    }
+
+    if (studioLocationHasCoordinates && !isStudioLocationConfirmed) {
+      setStudioLocationErrors({ latitude: 'Confirma que esta ubicación corresponde al estudio vinculado.' })
+      return
+    }
+
+    setIsSavingLinkedStudio(true)
+    setProfileSaveFeedback({ tone: 'neutral', message: '' })
+    const savedStudio = await updateManagedStudioProfile(editingStudio.id, {
+      professionalLocation: {
+        ...studioLocationDraft,
+        businessName: editingStudio.profile?.commercialName || '',
+      },
+    })
+    setIsSavingLinkedStudio(false)
+
+    setProfileSaveFeedback(savedStudio
+      ? { tone: 'success', message: 'Ubicación del estudio vinculado actualizada sin modificar la ubicación personal de la artista.' }
+      : { tone: 'warm', message: 'No se pudo guardar la ubicación del estudio vinculado.' })
   }
 
   const updateStudioLocationDraft = (field, value) => {
@@ -208,6 +236,16 @@ function AdminArtists() {
     if (['address', 'city', 'state', 'postalCode', 'latitude', 'longitude'].includes(field)) {
       setIsArtistLocationConfirmed(false)
     }
+  }
+
+  const updateArtistContactLink = (field, value) => {
+    setEditingArtist((currentArtist) => ({
+      ...currentArtist,
+      contactLinks: {
+        ...(currentArtist.contactLinks || {}),
+        [field]: value,
+      },
+    }))
   }
 
   const approveArtist = async (artistId) => {
@@ -311,6 +349,7 @@ function AdminArtists() {
         </Card>
         <Card className="wide-card mobile-screen primary-panel">
           <PanelHeader title="Gestion de artistas" eyebrow="Admin" action={<Button size="sm">Nueva artista</Button>} />
+          {adminArtistsError && <small className="form-error">{adminArtistsError}</small>}
           <div className="admin-search">
             <Input
               label="Buscar artista"
@@ -324,8 +363,8 @@ function AdminArtists() {
             {filteredArtists.length === 0 ? (
               <article className="master-row">
                 <div>
-                  <strong>No hay artistas en este scope.</strong>
-                  <small>Cuando Supabase devuelva artistas reales, apareceran aqui.</small>
+                  <strong>No se encontraron artistas.</strong>
+                  <small>Prueba con otro nombre, correo o celular.</small>
                 </div>
               </article>
             ) : filteredArtists.map((artist) => {
@@ -372,11 +411,6 @@ function AdminArtists() {
                 onChange={(event) => setEditingArtist({ ...editingArtist, city: event.target.value })}
               />
               <Input
-                label="Plan"
-                value={editingArtist.plan}
-                onChange={(event) => setEditingArtist({ ...editingArtist, plan: event.target.value })}
-              />
-              <Input
                 label="Servicios"
                 value={editingArtist.services}
                 onChange={(event) => setEditingArtist({ ...editingArtist, services: event.target.value })}
@@ -389,11 +423,11 @@ function AdminArtists() {
                   rows="3"
                 />
               </label>
-              <div className="location-foundation-card">
+              {editingStudio && <div className="location-foundation-card linked-studio-location-card">
                 <div>
-                  <span className="eyebrow">Foundation</span>
-                  <h3>Ubicacion del Estudio</h3>
-                  <small>Esta direccion queda lista para perfil publico, confirmaciones y mapas futuros.</small>
+                  <span className="eyebrow">Vinculacion a estudio</span>
+                  <h3>Datos del estudio vinculado</h3>
+                  <small>Estos datos pertenecen al estudio owner y se guardan por separado del perfil de la artista.</small>
                 </div>
                 <Input
                   label="Nombre comercial"
@@ -469,7 +503,7 @@ function AdminArtists() {
                         type="checkbox"
                         onChange={(event) => setIsStudioLocationConfirmed(event.target.checked)}
                       />
-                      <span>Confirmo que esta ubicacion corresponde a mi estudio.</span>
+                      <span>Confirmo que esta ubicacion corresponde al estudio vinculado.</span>
                     </label>
                   </div>
                 )}
@@ -484,12 +518,15 @@ function AdminArtists() {
                 <small className="location-helper-text">
                   Google Maps: {studioMapsUrl || 'Completa direccion, ciudad y estado para generar la URL base.'}
                 </small>
-              </div>
-              <div className="location-foundation-card">
+                <Button disabled={isSavingLinkedStudio} onClick={saveLinkedStudioLocation}>
+                  {isSavingLinkedStudio ? 'Guardando...' : 'Guardar ubicacion del estudio vinculado'}
+                </Button>
+              </div>}
+              <div className="location-foundation-card artist-personal-location-card">
                 <div>
-                  <span className="eyebrow">Foundation</span>
-                  <h3>Ubicacion Profesional</h3>
-                  <small>Define si esta artista usa la direccion del estudio o una ubicacion propia.</small>
+                  <span className="eyebrow">Ubicacion profesional</span>
+                  <h3>Ubicacion de la artista</h3>
+                  <small>Define si trabaja en el estudio vinculado o en una ubicacion independiente. Sus coordenadas se guardan unicamente en su perfil.</small>
                 </div>
                 <div className="location-option-stack">
                   <label className="location-toggle-row">
@@ -611,9 +648,63 @@ function AdminArtists() {
                   Google Maps: {artistMapsUrl || 'Completa una ubicacion profesional para generar la URL base.'}
                 </small>
               </div>
-              <div className="row-actions">
-                <button type="button" onClick={saveArtistProfile}>Guardar cambios</button>
-                <button type="button" onClick={() => setEditingArtist(null)}>Cancelar</button>
+              <section className="location-foundation-card artist-social-editor-card">
+                <div>
+                  <span className="eyebrow">Redes sociales</span>
+                  <h3>Enlaces publicos de la artista</h3>
+                  <small>Estos son los enlaces que aparecen como iconos en las cards visibles para clientas.</small>
+                </div>
+                <div className="location-form-grid">
+                  <Input
+                    label="WhatsApp"
+                    value={editingArtist.contactLinks?.whatsapp || ''}
+                    onChange={(event) => updateArtistContactLink('whatsapp', event.target.value)}
+                  />
+                  <Input
+                    label="Instagram"
+                    value={editingArtist.contactLinks?.instagram || ''}
+                    onChange={(event) => updateArtistContactLink('instagram', event.target.value)}
+                  />
+                  <Input
+                    label="Facebook"
+                    value={editingArtist.contactLinks?.facebook || ''}
+                    onChange={(event) => updateArtistContactLink('facebook', event.target.value)}
+                  />
+                  <Input
+                    label="TikTok"
+                    value={editingArtist.contactLinks?.tiktok || ''}
+                    onChange={(event) => updateArtistContactLink('tiktok', event.target.value)}
+                  />
+                </div>
+              </section>
+              <section className="location-foundation-card artist-gallery-review-card">
+                <div>
+                  <span className="eyebrow">Galeria de la artista</span>
+                  <h3>Fotografias publicadas</h3>
+                  <small>Vista de las fotografias que la artista agrego a su perfil.</small>
+                </div>
+                {editingArtist.portfolio?.length > 0 ? (
+                  <div className="studio-gallery-grid owner-artist-gallery-grid">
+                    {editingArtist.portfolio.map((image) => (
+                      <article className="studio-gallery-item" key={image.id || image.url}>
+                        <img src={image.url} alt={image.label || 'Foto de la artista'} />
+                      </article>
+                    ))}
+                  </div>
+                ) : (
+                  <small className="location-helper-text">La artista aun no ha agregado fotografias a su galeria.</small>
+                )}
+              </section>
+              {profileSaveFeedback.message && (
+                <div className="artist-profile-save-feedback">
+                  <StatusPill tone={profileSaveFeedback.tone}>{profileSaveFeedback.message}</StatusPill>
+                </div>
+              )}
+              <div className="row-actions artist-profile-save-actions">
+                <button disabled={isSavingArtist} type="button" onClick={saveArtistProfile}>
+                  {isSavingArtist ? 'Guardando...' : 'Guardar perfil de artista'}
+                </button>
+                <button disabled={isSavingArtist || isSavingLinkedStudio} type="button" onClick={() => setEditingArtist(null)}>Cerrar</button>
               </div>
             </div>
           </Card>

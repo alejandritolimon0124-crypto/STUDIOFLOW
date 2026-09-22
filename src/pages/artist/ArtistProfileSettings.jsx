@@ -824,15 +824,20 @@ function ArtistProfileSettings() {
 
           <section className="profile-foundation-card">
             <div>
-              <span className="eyebrow">Contacto futuro</span>
+              <span className="eyebrow">Contacto publico</span>
               <h3>Contacto y redes</h3>
             </div>
-            <Input
-              label="WhatsApp"
-              value={profileDraft.contactLinks.whatsapp}
-              onChange={(event) => updateDraftSection('contactLinks', 'whatsapp', event.target.value)}
-            />
             <div className="location-form-grid">
+              <Input
+                label="WhatsApp"
+                value={profileDraft.contactLinks.whatsapp}
+                onChange={(event) => updateDraftSection('contactLinks', 'whatsapp', event.target.value)}
+              />
+              <Input
+                label="TikTok"
+                value={profileDraft.contactLinks.tiktok || ''}
+                onChange={(event) => updateDraftSection('contactLinks', 'tiktok', event.target.value)}
+              />
               <Input
                 label="Instagram"
                 value={profileDraft.contactLinks.instagram}

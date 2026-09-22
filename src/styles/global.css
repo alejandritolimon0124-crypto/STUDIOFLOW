@@ -604,6 +604,50 @@ select:focus,
   line-height: 1.45;
 }
 
+.artist-personal-location-card {
+  border-color: rgba(201, 135, 145, 0.52);
+  order: 1;
+}
+
+.artist-social-editor-card {
+  order: 2;
+}
+
+.artist-gallery-review-card {
+  order: 3;
+}
+
+.linked-studio-location-card {
+  background: rgba(247, 238, 235, 0.58);
+  border-color: rgba(161, 137, 128, 0.42);
+  order: 4;
+}
+
+.artist-profile-save-feedback {
+  order: 5;
+}
+
+.artist-profile-save-actions {
+  order: 6;
+}
+
+.owner-artist-gallery-grid .studio-gallery-item {
+  aspect-ratio: 1 / 0.82;
+}
+
+.owner-studio-social-editor {
+  display: grid;
+  gap: 10px;
+  grid-column: 1 / -1;
+}
+
+.owner-studio-social-editor > small {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 750;
+  line-height: 1.4;
+}
+
 .location-detection-row {
   align-items: center;
   display: flex;

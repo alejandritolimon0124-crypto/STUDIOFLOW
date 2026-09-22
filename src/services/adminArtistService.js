@@ -42,6 +42,7 @@ function profileLocationFromArtistProfile(artistProfile = {}) {
 
 function mapStudio(row = {}) {
   const profile = row.profile || {}
+  const contactLinks = profile.contact_links || profile.contactLinks || {}
 
   return {
     id: row.id,
@@ -58,6 +59,12 @@ function mapStudio(row = {}) {
       hours: '',
       logoUrl: profile.logo_path || '',
       gallery: Array.isArray(profile.gallery_paths) ? profile.gallery_paths : [],
+      contactLinks: {
+        whatsapp: profile.whatsapp || contactLinks.whatsapp || '',
+        instagram: profile.instagram || contactLinks.instagram || '',
+        facebook: profile.facebook || contactLinks.facebook || '',
+        tiktok: profile.tiktok || contactLinks.tiktok || '',
+      },
     },
     professionalLocation: {
       businessName: profile.commercial_name || row.name || '',
@@ -100,6 +107,12 @@ function mapSavedStudioProfile(row = {}) {
       hours: '',
       logoUrl: row.logo_path || '',
       gallery: Array.isArray(row.gallery_paths) ? row.gallery_paths : [],
+      contactLinks: {
+        whatsapp: row.whatsapp || '',
+        instagram: row.instagram || '',
+        facebook: row.facebook || '',
+        tiktok: row.tiktok || '',
+      },
     },
     professionalLocation: {
       businessName: row.commercial_name || '',
@@ -118,6 +131,7 @@ function mapArtist({ artist, artistProfilesByArtistId, profilesById, memberships
   const studio = membership ? studiosById[membership.studio_id || membership.studioId] : null
   const specialties = Array.isArray(artistProfile.specialties) ? artistProfile.specialties.filter(Boolean) : []
   const name = artistProfile.artistic_name || artist.display_name || profile?.display_name || 'Artista Studio Flow'
+  const portfolioPaths = Array.isArray(artistProfile.portfolio_paths) ? artistProfile.portfolio_paths : []
 
   return {
     id: artist.id,
@@ -133,12 +147,25 @@ function mapArtist({ artist, artistProfilesByArtistId, profilesById, memberships
     specialties,
     revenue: '$0',
     owner: profile?.display_name || name,
-    services: specialties.length > 0 ? specialties.join(', ') : artistProfile.primary_specialty || 'Servicios beauty',
-    description: artistProfile.bio || 'Perfil profesional beauty listo para recibir reservas.',
+    services: specialties.length > 0 ? specialties.join(', ') : artistProfile.primary_specialty || '',
+    description: artistProfile.bio || '',
     email: profile?.email || '',
     phone: profile?.phone || '',
     profile,
     artistProfile,
+    contactLinks: {
+      whatsapp: artistProfile.whatsapp || '',
+      instagram: artistProfile.instagram || '',
+      facebook: artistProfile.facebook || '',
+      tiktok: artistProfile.tiktok || '',
+      website: artistProfile.website || '',
+    },
+    photoUrl: artistProfile.photo_path || '',
+    portfolio: portfolioPaths.map((path, index) => ({
+      id: `admin-artist-portfolio-${index + 1}`,
+      label: `Foto ${index + 1}`,
+      url: typeof path === 'string' ? path : path?.url || path?.path || '',
+    })).filter((image) => image.url),
     memberships: memberships.filter((item) => item.artist_id === artist.id || item.artistId === artist.id),
     professionalLocation: profileLocationFromArtistProfile(artistProfile),
   }
@@ -177,8 +204,38 @@ export async function fetchAdminArtists() {
   const { data, error } = await client.rpc('studio_flow_admin_get_artists')
 
   if (error) throw error
+  const mappedPayload = mapAdminArtistsPayload(data)
+  const studioIds = mappedPayload.studios.map((studio) => studio.id).filter(Boolean)
 
-  return mapAdminArtistsPayload(data)
+  if (studioIds.length === 0) return mappedPayload
+
+  const { data: studioContactRows, error: studioContactError } = await client
+    .from('studio_profiles')
+    .select('studio_id, whatsapp, instagram, facebook, tiktok')
+    .in('studio_id', studioIds)
+
+  if (studioContactError) throw studioContactError
+
+  const contactsByStudioId = Object.fromEntries((studioContactRows || []).map((row) => [row.studio_id, row]))
+
+  return {
+    ...mappedPayload,
+    studios: mappedPayload.studios.map((studio) => {
+      const contactRow = contactsByStudioId[studio.id] || {}
+      return {
+        ...studio,
+        profile: {
+          ...studio.profile,
+          contactLinks: {
+            whatsapp: contactRow.whatsapp || '',
+            instagram: contactRow.instagram || '',
+            facebook: contactRow.facebook || '',
+            tiktok: contactRow.tiktok || '',
+          },
+        },
+      }
+    }),
+  }
 }
 
 function firstMappedArtistFromPayload(data) {
@@ -239,6 +296,16 @@ export async function updateAdminArtistProfile(artistId, patch) {
 
   if (error) throw error
 
+  if (patch.contactLinks) {
+    const { data: contactData, error: contactError } = await client.rpc('studio_flow_admin_update_artist_contact_links', {
+      p_artist_id: artistId,
+      p_contact_links: patch.contactLinks,
+    })
+
+    if (contactError) throw contactError
+    return firstMappedArtistFromPayload(contactData)
+  }
+
   return firstMappedArtistFromPayload(data)
 }
 
@@ -248,6 +315,7 @@ export async function updateAdminStudioProfile(studioId, patch = {}) {
   const client = requireSupabase()
   const profile = patch.profile || {}
   const location = patch.professionalLocation || {}
+  const contactLinks = profile.contactLinks || profile.contact_links || {}
   const commercialName = nullableText(profile.commercialName || location.businessName || patch.name) || 'Studio Flow'
 
   const payload = {
@@ -262,6 +330,10 @@ export async function updateAdminStudioProfile(studioId, patch = {}) {
     geo_lng: nullableNumber(location.longitude),
     logo_path: nullableText(profile.logoUrl || profile.logoPath),
     gallery_paths: normalizeGalleryPaths(profile.gallery),
+    whatsapp: nullableText(contactLinks.whatsapp),
+    instagram: nullableText(contactLinks.instagram),
+    facebook: nullableText(contactLinks.facebook),
+    tiktok: nullableText(contactLinks.tiktok),
     updated_at: new Date().toISOString(),
   }
 
