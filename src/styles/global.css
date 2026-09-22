@@ -2607,6 +2607,92 @@ select:focus,
   margin: 0;
 }
 
+.marketplace-contact-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  max-width: 100%;
+}
+
+.marketplace-call-button {
+  align-items: center;
+  background: #278a52;
+  border: 1px solid #207545;
+  border-radius: 999px;
+  box-shadow: 0 9px 18px rgba(30, 111, 64, 0.2);
+  color: #fff;
+  display: inline-flex;
+  font-size: 14px;
+  font-weight: 900;
+  gap: 7px;
+  line-height: 1.1;
+  max-width: 100%;
+  min-height: 40px;
+  padding: 0 13px;
+  text-decoration: none;
+}
+
+.marketplace-call-button:hover,
+.marketplace-call-button:focus-visible {
+  background: #207545;
+  box-shadow: 0 0 0 4px rgba(39, 138, 82, 0.18), 0 10px 20px rgba(30, 111, 64, 0.24);
+  color: #fff;
+}
+
+.marketplace-call-button span,
+.favorite-card .marketplace-call-button span {
+  color: inherit;
+  overflow-wrap: anywhere;
+}
+
+.marketplace-social-icons {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.marketplace-social-link {
+  align-items: center;
+  background: #fff;
+  border: 1px solid rgba(214, 186, 177, 0.75);
+  border-radius: 50%;
+  box-shadow: 0 7px 15px rgba(83, 60, 63, 0.12);
+  display: inline-flex;
+  height: 40px;
+  justify-content: center;
+  overflow: hidden;
+  padding: 2px;
+  text-decoration: none;
+  transition: transform 160ms ease, box-shadow 160ms ease;
+  width: 40px;
+}
+
+.marketplace-social-link:hover,
+.marketplace-social-link:focus-visible {
+  box-shadow: 0 0 0 4px rgba(201, 135, 145, 0.2), 0 9px 18px rgba(83, 60, 63, 0.16);
+  transform: translateY(-2px);
+}
+
+.marketplace-social-link img {
+  display: block;
+  height: 100%;
+  object-fit: contain;
+  width: 100%;
+}
+
+.marketplace-contact-actions.is-hero .marketplace-call-button {
+  font-size: 17px;
+  min-height: 46px;
+  padding: 0 16px;
+}
+
+.marketplace-contact-actions.is-hero .marketplace-social-link {
+  height: 44px;
+  width: 44px;
+}
+
 .marketplace-availability {
   align-items: center;
   background: rgba(255, 255, 255, 0.76);
@@ -3075,22 +3161,6 @@ select:focus,
 .favorite-card .public-profile-photo span,
 .favorite-card .marketplace-artist-avatar span {
   color: inherit;
-}
-
-.marketplace-phone-number,
-.favorite-card .marketplace-phone-number {
-  color: #4f7f45;
-  display: block;
-  font-size: 19px;
-  font-weight: 950;
-  line-height: 1.12;
-  margin-top: 3px;
-}
-
-.marketplace-phone-number.hero-phone,
-.favorite-card .marketplace-phone-number.hero-phone {
-  font-size: 22px;
-  margin: 4px 0 2px;
 }
 
 .marketplace-show-more-button {

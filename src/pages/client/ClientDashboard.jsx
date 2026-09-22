@@ -1,5 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { Phone } from 'lucide-react'
+import facebookIcon from '../../assets/social/facebook.png'
+import instagramIcon from '../../assets/social/instagram.png'
+import tiktokIcon from '../../assets/social/tiktok.png'
+import whatsappIcon from '../../assets/social/whatsapp.png'
 import { hasCurrentAttendanceConfirmation } from '../../utils/appointmentConfirmation'
 import { historyDateTime, newestAppointmentFirst } from '../../utils/appointmentHistory'
 import Button from '../../components/Button'
@@ -566,6 +571,23 @@ function getMarketplaceContactPhone({ artist = {}, publicArtistProfile = {}, stu
   return isStudioListing ? studioPhone || artistPhone : artistPhone || studioPhone
 }
 
+function getMarketplaceContactLinks({ artist = {}, publicArtistProfile = {}, studioProfile = {}, isStudioListing = false } = {}) {
+  const artistLinks = publicArtistProfile?.contactLinks || artist?.contactLinks || {}
+  const studioLinks = studioProfile?.profile?.contactLinks
+    || studioProfile?.profile?.contact_links
+    || studioProfile?.contactLinks
+    || studioProfile?.contact_links
+    || {}
+  const sources = isStudioListing ? [studioLinks, artistLinks] : [artistLinks, studioLinks]
+
+  return Object.fromEntries(
+    ['whatsapp', 'instagram', 'facebook', 'tiktok', 'website'].map((key) => [
+      key,
+      sources.find((source) => String(source?.[key] || '').trim())?.[key] || '',
+    ]),
+  )
+}
+
 function hasUsableProfessionalLocation(location = {}) {
   return Boolean(
     String(location.latitude || '').trim() && String(location.longitude || '').trim()
@@ -705,11 +727,8 @@ Gracias.`
 }
 
 function openWhatsAppContact(whatsapp, serviceName = '') {
-  const cleanNumber = String(whatsapp || '').replace(/\D/g, '')
-  if (!cleanNumber) return
-
-  const message = encodeURIComponent(buildWhatsAppMessage(serviceName))
-  const whatsappUrl = `https://wa.me/${cleanNumber}?text=${message}`
+  const whatsappUrl = getWhatsAppContactUrl(whatsapp, serviceName)
+  if (!whatsappUrl) return
   const isStandaloneIos = /iphone|ipad|ipod/i.test(window.navigator.userAgent)
     && (window.navigator.standalone || window.matchMedia?.('(display-mode: standalone)').matches)
 
@@ -731,8 +750,90 @@ function openDirections(location) {
 
 function getSocialUrl(value, baseUrl) {
   if (!value) return ''
-  if (String(value).startsWith('http')) return value
-  return `${baseUrl}${String(value).replace('@', '')}`
+  const normalizedValue = String(value).trim()
+  if (/^https?:\/\//i.test(normalizedValue)) return normalizedValue
+  if (/^www\./i.test(normalizedValue)) return `https://${normalizedValue}`
+  return `${baseUrl}${normalizedValue.replace(/^@/, '')}`
+}
+
+function getWhatsAppContactUrl(whatsapp, serviceName = '') {
+  const cleanNumber = String(whatsapp || '').replace(/\D/g, '')
+  if (!cleanNumber) return ''
+
+  const message = encodeURIComponent(buildWhatsAppMessage(serviceName))
+  return `https://wa.me/${cleanNumber}?text=${message}`
+}
+
+function getPhoneHref(phone) {
+  const cleanPhone = String(phone || '').trim().replace(/[^\d+]/g, '')
+  return cleanPhone ? `tel:${cleanPhone}` : ''
+}
+
+function MarketplaceContactActions({ contactLinks = {}, phone = '', serviceName = '', hero = false }) {
+  const phoneHref = getPhoneHref(phone)
+  const socialLinks = [
+    {
+      key: 'whatsapp',
+      label: 'WhatsApp',
+      href: getWhatsAppContactUrl(contactLinks.whatsapp, serviceName),
+      icon: whatsappIcon,
+    },
+    {
+      key: 'instagram',
+      label: 'Instagram',
+      href: getSocialUrl(contactLinks.instagram, 'https://instagram.com/'),
+      icon: instagramIcon,
+    },
+    {
+      key: 'facebook',
+      label: 'Facebook',
+      href: getSocialUrl(contactLinks.facebook, 'https://facebook.com/'),
+      icon: facebookIcon,
+    },
+    {
+      key: 'tiktok',
+      label: 'TikTok',
+      href: getSocialUrl(contactLinks.tiktok, 'https://www.tiktok.com/@'),
+      icon: tiktokIcon,
+    },
+  ].filter((socialLink) => socialLink.href)
+
+  if (!phoneHref && socialLinks.length === 0) return null
+
+  return (
+    <div className={`marketplace-contact-actions${hero ? ' is-hero' : ''}`}>
+      {phoneHref && (
+        <a
+          className="marketplace-call-button"
+          href={phoneHref}
+          aria-label={`Llamar al ${phone}`}
+          title={`Llamar al ${phone}`}
+          onClick={(event) => event.stopPropagation()}
+        >
+          <Phone aria-hidden="true" size={18} strokeWidth={2.6} />
+          <span>{phone}</span>
+        </a>
+      )}
+      {socialLinks.length > 0 && (
+        <div className="marketplace-social-icons" aria-label="Redes sociales">
+          {socialLinks.map((socialLink) => (
+            <a
+              className={`marketplace-social-link social-${socialLink.key}`}
+              href={socialLink.href}
+              target="_blank"
+              rel="noreferrer"
+              aria-label={`Abrir ${socialLink.label}`}
+              title={socialLink.label}
+              key={socialLink.key}
+              onClick={(event) => event.stopPropagation()}
+            >
+              <img src={socialLink.icon} alt="" aria-hidden="true" />
+            </a>
+          ))}
+        </div>
+      )}
+    </div>
+  )
 }
 
 function ClientDashboard({ view = 'inicio' }) {
@@ -2369,11 +2470,16 @@ function ClientDashboard({ view = 'inicio' }) {
                 const studioGallery = (studioProfile.profile?.gallery || []).slice(0, 5)
                 const studioContactItems = getStudioContactItems(studioProfile)
                 const artistPortfolio = publicArtistProfile.portfolio.slice(0, 12)
-                const contactLinks = publicArtistProfile.contactLinks || {}
                 const isSelectedArtist = selectedArtistProfile?.id === artist.id
                 const isProfileOpen = isSelectedArtist && selectedArtistPanelMode === 'profile'
                 const isBookingOpen = isSelectedArtist && selectedArtistPanelMode === 'booking'
                 const isStudioListing = artist.profileType === 'studio'
+                const contactLinks = getMarketplaceContactLinks({
+                  artist,
+                  publicArtistProfile,
+                  studioProfile,
+                  isStudioListing,
+                })
                 const profilePhotoUrl = isStudioListing
                   ? studioProfile.profile?.logoUrl || publicArtistProfile.photoUrl
                   : publicArtistProfile.photoUrl
@@ -2389,7 +2495,7 @@ function ClientDashboard({ view = 'inicio' }) {
                 })
                 const profileInitials = getArtistInitials(profileDisplayName)
                 const artistBiography = publicArtistProfile.biography?.trim()
-                const hasSocialLinks = contactLinks.whatsapp || contactLinks.instagram || contactLinks.facebook
+                const hasSocialLinks = contactLinks.whatsapp || contactLinks.instagram || contactLinks.facebook || contactLinks.tiktok
 
                 return (
                   <article className={`artist-result marketplace-result-card${isSelectedArtist ? ' is-expanded' : ''}`} key={artist.name}>
@@ -2409,7 +2515,11 @@ function ClientDashboard({ view = 'inicio' }) {
                       </div>
                       <div className="marketplace-result-copy">
                         <strong>{profileDisplayName}</strong>
-                        {profilePhone && <span className="marketplace-phone-number">{profilePhone}</span>}
+                        <MarketplaceContactActions
+                          contactLinks={contactLinks}
+                          phone={profilePhone}
+                          serviceName={selectedMarketplaceServiceName}
+                        />
                         <small>{profileTypeLabel}</small>
                         <small>{artist.marketplaceServices.slice(0, 3).join(' • ')}</small>
                         <span className={`marketplace-availability availability-${artist.badge.level}`}>
@@ -2471,7 +2581,12 @@ function ClientDashboard({ view = 'inicio' }) {
                           <div className="public-profile-hero-copy">
                             <span className="eyebrow">{publicArtistProfile.primarySpecialty || profileTypeLabel}</span>
                             <h3>{profileDisplayName}</h3>
-                            {profilePhone && <span className="marketplace-phone-number hero-phone">{profilePhone}</span>}
+                            <MarketplaceContactActions
+                              contactLinks={contactLinks}
+                              phone={profilePhone}
+                              serviceName={selectedMarketplaceServiceName}
+                              hero
+                            />
                             <span className={`marketplace-availability availability-${artist.badge.level}`}>
                               {artist.badge.label}
                             </span>
@@ -2550,21 +2665,10 @@ function ClientDashboard({ view = 'inicio' }) {
                         {hasSocialLinks && (
                           <section className="public-profile-section">
                             <h4>Redes y contacto</h4>
-                            <div className="public-contact-actions">
-                              {contactLinks.whatsapp && (
-                                <button type="button" onClick={() => openWhatsAppContact(contactLinks.whatsapp, selectedMarketplaceServiceName)}>WhatsApp</button>
-                              )}
-                              {contactLinks.instagram && (
-                                <a href={getSocialUrl(contactLinks.instagram, 'https://instagram.com/')} target="_blank" rel="noreferrer">
-                                  Instagram
-                                </a>
-                              )}
-                              {contactLinks.facebook && (
-                                <a href={getSocialUrl(contactLinks.facebook, 'https://facebook.com/')} target="_blank" rel="noreferrer">
-                                  Facebook
-                                </a>
-                              )}
-                            </div>
+                            <MarketplaceContactActions
+                              contactLinks={contactLinks}
+                              serviceName={selectedMarketplaceServiceName}
+                            />
                           </section>
                         )}
 
@@ -2731,12 +2835,17 @@ function ClientDashboard({ view = 'inicio' }) {
                   const studioGallery = (studioProfile.profile?.gallery || []).slice(0, 5)
                   const studioContactItems = getStudioContactItems(studioProfile)
                   const artistPortfolio = publicArtistProfile.portfolio.slice(0, 12)
-                  const contactLinks = publicArtistProfile.contactLinks || {}
                   const isSelectedArtist = selectedArtistProfile?.id === artist.id
                   const isProfileOpen = isSelectedArtist && selectedArtistPanelMode === 'profile'
                   const isBookingOpen = isSelectedArtist && selectedArtistPanelMode === 'booking'
                   const isDirectionsOpen = isSelectedArtist && selectedArtistPanelMode === 'directions'
                   const isStudioListing = artist.profileType === 'studio'
+                  const contactLinks = getMarketplaceContactLinks({
+                    artist,
+                    publicArtistProfile,
+                    studioProfile,
+                    isStudioListing,
+                  })
                   const profilePhotoUrl = isStudioListing
                     ? studioProfile.profile?.logoUrl || publicArtistProfile.photoUrl
                     : publicArtistProfile.photoUrl
@@ -2752,7 +2861,7 @@ function ClientDashboard({ view = 'inicio' }) {
                   })
                   const profileInitials = getArtistInitials(profileDisplayName)
                   const artistBiography = publicArtistProfile.biography?.trim()
-                  const hasSocialLinks = contactLinks.whatsapp || contactLinks.instagram || contactLinks.facebook
+                  const hasSocialLinks = contactLinks.whatsapp || contactLinks.instagram || contactLinks.facebook || contactLinks.tiktok
 
                   return (
                     <article className={`favorite-card marketplace-result-card${isSelectedArtist ? ' is-expanded' : ''}`} key={artist.name}>
@@ -2772,7 +2881,11 @@ function ClientDashboard({ view = 'inicio' }) {
                         </div>
                         <div className="marketplace-result-copy">
                           <strong>{profileDisplayName}</strong>
-                          {profilePhone && <span className="marketplace-phone-number">{profilePhone}</span>}
+                          <MarketplaceContactActions
+                            contactLinks={contactLinks}
+                            phone={profilePhone}
+                            serviceName={selectedMarketplaceServiceName}
+                          />
                           <small>{profileTypeLabel}</small>
                           <small>{artist.marketplaceServices.slice(0, 3).join(' • ')}</small>
                           <span className={`marketplace-availability availability-${artist.badge.level}`}>
@@ -2850,7 +2963,12 @@ function ClientDashboard({ view = 'inicio' }) {
                             <div className="public-profile-hero-copy">
                               <span className="eyebrow">{publicArtistProfile.primarySpecialty || profileTypeLabel}</span>
                               <h3>{profileDisplayName}</h3>
-                              {profilePhone && <span className="marketplace-phone-number hero-phone">{profilePhone}</span>}
+                              <MarketplaceContactActions
+                                contactLinks={contactLinks}
+                                phone={profilePhone}
+                                serviceName={selectedMarketplaceServiceName}
+                                hero
+                              />
                               <span className={`marketplace-availability availability-${artist.badge.level}`}>
                                 {artist.badge.label}
                               </span>
@@ -2929,21 +3047,10 @@ function ClientDashboard({ view = 'inicio' }) {
                           {hasSocialLinks && (
                             <section className="public-profile-section">
                               <h4>Redes y contacto</h4>
-                              <div className="public-contact-actions">
-                                {contactLinks.whatsapp && (
-                                  <button type="button" onClick={() => openWhatsAppContact(contactLinks.whatsapp, selectedMarketplaceServiceName)}>WhatsApp</button>
-                                )}
-                                {contactLinks.instagram && (
-                                  <a href={getSocialUrl(contactLinks.instagram, 'https://instagram.com/')} target="_blank" rel="noreferrer">
-                                    Instagram
-                                  </a>
-                                )}
-                                {contactLinks.facebook && (
-                                  <a href={getSocialUrl(contactLinks.facebook, 'https://facebook.com/')} target="_blank" rel="noreferrer">
-                                    Facebook
-                                  </a>
-                                )}
-                              </div>
+                              <MarketplaceContactActions
+                                contactLinks={contactLinks}
+                                serviceName={selectedMarketplaceServiceName}
+                              />
                             </section>
                           )}
 
