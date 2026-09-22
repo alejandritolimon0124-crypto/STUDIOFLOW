@@ -5105,6 +5105,79 @@ select:focus,
   gap: 12px;
 }
 
+.push-permission-prompt {
+  align-items: center;
+  background: rgba(255, 253, 251, 0.98);
+  border: 1px solid rgba(133, 75, 86, 0.24);
+  border-radius: 8px;
+  bottom: 82px;
+  box-shadow: 0 18px 48px rgba(56, 38, 41, 0.2);
+  display: grid;
+  gap: 12px;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  left: 50%;
+  max-width: min(620px, calc(100vw - 28px));
+  padding: 14px 42px 14px 14px;
+  position: fixed;
+  transform: translateX(-50%);
+  width: max-content;
+  z-index: 120;
+}
+
+.push-permission-prompt p,
+.push-permission-prompt small {
+  display: block;
+  margin: 3px 0 0;
+}
+
+.push-permission-prompt p {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.35;
+  max-width: 390px;
+}
+
+.push-permission-prompt small { color: #8a3d4c; }
+
+.push-permission-icon {
+  align-items: center;
+  background: #f5e6e0;
+  border-radius: 50%;
+  color: #7f4350;
+  display: inline-flex;
+  height: 44px;
+  justify-content: center;
+  width: 44px;
+}
+
+.push-permission-close {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  color: var(--muted);
+  cursor: pointer;
+  display: inline-flex;
+  justify-content: center;
+  padding: 6px;
+  position: absolute;
+  right: 5px;
+  top: 5px;
+}
+
+@media (max-width: 620px) {
+  .push-permission-prompt {
+    align-items: start;
+    bottom: 76px;
+    grid-template-columns: auto minmax(0, 1fr);
+    width: calc(100vw - 24px);
+  }
+
+  .push-permission-prompt > .button {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+}
+
 .client-hero-identity {
   min-width: 0;
 }

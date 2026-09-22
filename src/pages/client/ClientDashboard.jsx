@@ -31,6 +31,7 @@ import { getMaxBirthDateForAdult, validateBirthDate } from '../../utils/birthday
 import { fetchClientFlowPointsBalance } from '../../services/appointmentService'
 import { normalizeServiceName, serviceCatalog } from '../../services/staticCatalogs'
 import { optimizeImageFile } from '../../utils/imageOptimization'
+import { pushRegistrationStorageKey } from '../../services/pushNotificationService'
 
 const clientConfirmationNoticeKey = 'studio-flow-client-confirmation-notices'
 const FLOW_POINTS_MINIMUM_REDEMPTION = 1000
@@ -67,6 +68,7 @@ function getConfirmationNoticeKey(appointment = {}) {
 
 function showAppointmentBrowserNotification(appointment = {}) {
   if (!canUseBrowserNotifications() || Notification.permission !== 'granted') return
+  if (localStorage.getItem(pushRegistrationStorageKey) === 'true') return
 
   try {
     new Notification('Confirma tu cita en Studio Flow', {
@@ -1584,6 +1586,7 @@ function ClientDashboard({ view = 'inicio' }) {
 
     const permission = await Notification.requestPermission()
     setNotificationPermission(permission)
+    window.dispatchEvent(new Event('studioflow:notification-permission'))
 
     if (permission === 'granted') {
       pendingConfirmationAppointments.forEach((appointment) => {

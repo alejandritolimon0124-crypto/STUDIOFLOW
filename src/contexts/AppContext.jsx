@@ -11,6 +11,7 @@ import {
 import { createArtistLocationSettings, createProfessionalLocation } from '../utils/locationHelpers'
 import { mapAuthContextToArtistProfile } from '../utils/artistProfileMapper'
 import { mapAuthContextToClientProfile } from '../utils/clientProfileMapper'
+import { detachCurrentDevicePushSubscription } from '../services/pushNotificationService'
 import {
   getCurrentAuthSession,
   hasSupabaseAuth,
@@ -1164,6 +1165,7 @@ export function AppProvider({ children }) {
 
   const logout = useCallback(async () => {
     if (!session.isMockSession) {
+      await detachCurrentDevicePushSubscription()
       await signOut()
     }
 

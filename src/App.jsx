@@ -27,12 +27,14 @@ import PublicBooking from './pages/public/PublicBooking'
 import Onboarding from './pages/auth/Onboarding'
 import ClientDashboard from './pages/client/ClientDashboard'
 import ProtectedRoute from './routes/ProtectedRoute'
+import PushNotificationManager from './components/PushNotificationManager'
 import './styles/global.css'
 
 function App() {
   return (
     <AppProvider>
       <BrowserRouter>
+        <PushNotificationManager />
         <Routes>
           <Route path="/" element={<Navigate to="/login" replace />} />
           <Route path="/login" element={<Login />} />
