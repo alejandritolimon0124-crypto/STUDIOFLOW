@@ -568,7 +568,7 @@ function getMarketplaceContactPhone({ artist = {}, publicArtistProfile = {}, stu
     || publicArtistProfile?.contactLinks?.whatsapp
     || ''
 
-  return isStudioListing ? studioPhone || artistPhone : artistPhone || studioPhone
+  return isStudioListing ? studioPhone : artistPhone
 }
 
 function getMarketplaceContactLinks({ artist = {}, publicArtistProfile = {}, studioProfile = {}, isStudioListing = false } = {}) {
@@ -578,7 +578,7 @@ function getMarketplaceContactLinks({ artist = {}, publicArtistProfile = {}, stu
     || studioProfile?.contactLinks
     || studioProfile?.contact_links
     || {}
-  const sources = isStudioListing ? [studioLinks, artistLinks] : [artistLinks, studioLinks]
+  const sources = isStudioListing ? [artistLinks, studioLinks] : [artistLinks]
 
   return Object.fromEntries(
     ['whatsapp', 'instagram', 'facebook', 'tiktok', 'website'].map((key) => [
@@ -589,13 +589,27 @@ function getMarketplaceContactLinks({ artist = {}, publicArtistProfile = {}, stu
 }
 
 function hasUsableProfessionalLocation(location = {}) {
+  const normalizedLocation = {
+    ...location,
+    address: location.address || location.addressLine || location.address_line || '',
+    postalCode: location.postalCode || location.postal_code || '',
+  }
+
   return Boolean(
-    String(location.latitude || '').trim() && String(location.longitude || '').trim()
-    || buildGoogleMapsQuery(location),
+    String(normalizedLocation.latitude || '').trim() && String(normalizedLocation.longitude || '').trim()
+    || buildGoogleMapsQuery(normalizedLocation),
   )
 }
 
-function getEffectiveProfessionalLocation(artistProfile, studio, artist = {}) {
+function normalizeProfessionalLocation(location = {}) {
+  return {
+    ...location,
+    address: location.address || location.addressLine || location.address_line || '',
+    postalCode: location.postalCode || location.postal_code || '',
+  }
+}
+
+function getEffectiveProfessionalLocation(artistProfile, studio, artist = {}, isStudioListing = false) {
   const artistLocationCandidates = [
     {
       settings: artistProfile.professionalLocation,
@@ -606,7 +620,19 @@ function getEffectiveProfessionalLocation(artistProfile, studio, artist = {}) {
       sourcePrefix: 'artist.professionalLocation',
     },
   ].filter((candidate) => candidate.settings)
-  const studioLocation = studio?.professionalLocation || {}
+
+  if (isStudioListing) {
+    const studioLocationCandidates = [
+      artistProfile.professionalLocation,
+      artist.professionalLocation,
+      studio?.professionalLocation,
+    ].filter(Boolean)
+    const studioLocation = studioLocationCandidates.find(hasUsableProfessionalLocation)
+
+    return studioLocation
+      ? { location: normalizeProfessionalLocation(studioLocation), source: 'studio.profile' }
+      : { location: {}, source: 'empty' }
+  }
 
   const configuredArtistLocation = artistLocationCandidates.find(({ settings }) => (
     settings.useStudioLocation === false && hasUsableProfessionalLocation(settings.customLocation || {})
@@ -614,34 +640,30 @@ function getEffectiveProfessionalLocation(artistProfile, studio, artist = {}) {
 
   if (configuredArtistLocation) {
     return {
-      location: configuredArtistLocation.settings.customLocation,
+      location: normalizeProfessionalLocation(configuredArtistLocation.settings.customLocation),
       source: `${configuredArtistLocation.sourcePrefix}.customLocation`,
     }
   }
 
-  if (hasUsableProfessionalLocation(studioLocation)) {
-    return {
-      location: studioLocation,
-      source: 'studio.professionalLocation',
-    }
-  }
-
   const fallbackArtistLocation = artistLocationCandidates.find(({ settings }) => (
-    hasUsableProfessionalLocation(settings.customLocation || {})
+    settings.useStudioLocation !== true
+    && hasUsableProfessionalLocation(settings.customLocation || {})
   ))
 
   if (fallbackArtistLocation) {
     return {
-      location: fallbackArtistLocation.settings.customLocation,
+      location: normalizeProfessionalLocation(fallbackArtistLocation.settings.customLocation),
       source: `${fallbackArtistLocation.sourcePrefix}.customLocation.fallback`,
     }
   }
 
-  const flatArtistLocation = artistLocationCandidates.find(({ settings }) => hasUsableProfessionalLocation(settings))
+  const flatArtistLocation = artistLocationCandidates.find(({ settings }) => (
+    settings.useStudioLocation !== true && hasUsableProfessionalLocation(settings)
+  ))
 
   if (flatArtistLocation) {
     return {
-      location: flatArtistLocation.settings,
+      location: normalizeProfessionalLocation(flatArtistLocation.settings),
       source: flatArtistLocation.sourcePrefix,
     }
   }
@@ -1353,8 +1375,18 @@ function ClientDashboard({ view = 'inicio' }) {
               studios: adminState.studios,
               artistStudioMemberships,
             })
-            const firstLocation = getEffectiveProfessionalLocation(firstProfile, firstStudio, firstArtist).location
-            const secondLocation = getEffectiveProfessionalLocation(secondProfile, secondStudio, secondArtist).location
+            const firstLocation = getEffectiveProfessionalLocation(
+              firstProfile,
+              firstStudio,
+              firstArtist,
+              firstArtist.profileType === 'studio',
+            ).location
+            const secondLocation = getEffectiveProfessionalLocation(
+              secondProfile,
+              secondStudio,
+              secondArtist,
+              secondArtist.profileType === 'studio',
+            ).location
             const firstDistance = calculateDistanceKm(clientLocation, firstLocation)
             const secondDistance = calculateDistanceKm(clientLocation, secondLocation)
 
@@ -2463,26 +2495,23 @@ function ClientDashboard({ view = 'inicio' }) {
                   artistStudioMemberships,
                 })
                 const studioDisplayName = getStudioDisplayName(studioProfile)
-                const effectiveLocationResult = getEffectiveProfessionalLocation(publicArtistProfile, studioProfile, artist)
+                const isStudioListing = artist.profileType === 'studio'
+                const effectiveLocationResult = getEffectiveProfessionalLocation(publicArtistProfile, studioProfile, artist, isStudioListing)
                 const effectiveLocation = effectiveLocationResult.location
                 const directionsUrl = buildGoogleMapsUrl(effectiveLocation)
-                const professionalAddress = formatProfessionalAddress(effectiveLocation, artist.city)
-                const studioGallery = (studioProfile.profile?.gallery || []).slice(0, 5)
-                const studioContactItems = getStudioContactItems(studioProfile)
-                const artistPortfolio = publicArtistProfile.portfolio.slice(0, 12)
+                const professionalAddress = formatProfessionalAddress(effectiveLocation, isStudioListing ? artist.city : '')
+                const profileContactItems = isStudioListing ? getStudioContactItems(studioProfile) : []
+                const profileGallery = publicArtistProfile.portfolio.slice(0, 12)
                 const isSelectedArtist = selectedArtistProfile?.id === artist.id
                 const isProfileOpen = isSelectedArtist && selectedArtistPanelMode === 'profile'
                 const isBookingOpen = isSelectedArtist && selectedArtistPanelMode === 'booking'
-                const isStudioListing = artist.profileType === 'studio'
                 const contactLinks = getMarketplaceContactLinks({
                   artist,
                   publicArtistProfile,
                   studioProfile,
                   isStudioListing,
                 })
-                const profilePhotoUrl = isStudioListing
-                  ? studioProfile.profile?.logoUrl || publicArtistProfile.photoUrl
-                  : publicArtistProfile.photoUrl
+                const profilePhotoUrl = publicArtistProfile.photoUrl
                 const profileDisplayName = isStudioListing
                   ? studioDisplayName || artist.title || artist.owner || 'Estudio beauty'
                   : publicArtistProfile.fullName || artist.owner || 'Artista beauty'
@@ -2494,7 +2523,7 @@ function ClientDashboard({ view = 'inicio' }) {
                   isStudioListing,
                 })
                 const profileInitials = getArtistInitials(profileDisplayName)
-                const artistBiography = publicArtistProfile.biography?.trim()
+                const profileBiography = publicArtistProfile.biography?.trim()
                 const hasSocialLinks = contactLinks.whatsapp || contactLinks.instagram || contactLinks.facebook || contactLinks.tiktok
 
                 return (
@@ -2590,21 +2619,21 @@ function ClientDashboard({ view = 'inicio' }) {
                             <span className={`marketplace-availability availability-${artist.badge.level}`}>
                               {artist.badge.label}
                             </span>
-                            <small>{professionalAddress || artist.city || 'Ubicacion profesional por confirmar'}</small>
+                            <small>{professionalAddress || (isStudioListing ? artist.city : '') || 'Ubicacion profesional por confirmar'}</small>
                           </div>
                         </section>
 
                         <section className="public-profile-section">
-                          <h4>Sobre mi</h4>
-                          <p>{artistBiography || `${isStudioListing ? 'Este estudio' : 'Esta artista'} aun esta completando su perfil profesional.`}</p>
+                          <h4>{isStudioListing ? 'Sobre el estudio' : 'Sobre mi'}</h4>
+                          <p>{profileBiography || `${isStudioListing ? 'Este estudio' : 'Esta artista'} aun esta completando su perfil profesional.`}</p>
                         </section>
 
-                        {artistPortfolio.length > 0 && (
+                        {profileGallery.length > 0 && (
                           <section className="public-profile-section">
-                            <h4>✨ Conoce mi estudio y mis trabajos</h4>
+                            <h4>{isStudioListing ? 'Galeria del estudio' : 'Trabajos de la artista'}</h4>
                             <div className="public-portfolio-strip">
-                              {artistPortfolio.map((image) => (
-                                <img src={image.url} alt={image.label || 'Trabajo realizado por la artista'} key={image.id || image.url} />
+                              {profileGallery.map((image) => (
+                                <img src={image.url} alt={image.label || (isStudioListing ? 'Foto del estudio' : 'Trabajo realizado por la artista')} key={image.id || image.url} />
                               ))}
                             </div>
                           </section>
@@ -2619,37 +2648,12 @@ function ClientDashboard({ view = 'inicio' }) {
                           </div>
                         </section>
 
-                        <section className="public-studio-card">
-                          <div className="public-studio-logo">
-                            {studioProfile.profile?.logoUrl ? (
-                              <img src={studioProfile.profile.logoUrl} alt={`Logo de ${studioDisplayName}`} />
-                            ) : (
-                              <span>{getArtistInitials(studioDisplayName || 'Studio')}</span>
-                            )}
-                          </div>
-                          <div>
-                            <h4>{studioDisplayName || 'Estudio profesional'}</h4>
-                            {studioProfile.profile?.description && <p>{studioProfile.profile.description}</p>}
-                          </div>
-                        </section>
-
-                        {studioContactItems.length > 0 && (
+                        {profileContactItems.length > 0 && (
                           <section className="public-profile-section">
                             <h4>Datos del estudio</h4>
                             <div className="public-service-badges">
-                              {studioContactItems.map((item) => (
+                              {profileContactItems.map((item) => (
                                 <span key={item.label}>{item.label}: {item.value}</span>
-                              ))}
-                            </div>
-                          </section>
-                        )}
-
-                        {studioGallery.length > 0 && (
-                          <section className="public-profile-section">
-                            <h4>Galeria del estudio</h4>
-                            <div className="public-gallery-strip">
-                              {studioGallery.map((image) => (
-                                <img src={image.url} alt={image.label || 'Foto del estudio'} key={image.id || image.url} />
                               ))}
                             </div>
                           </section>
@@ -2828,27 +2832,24 @@ function ClientDashboard({ view = 'inicio' }) {
                     artistStudioMemberships,
                   })
                   const studioDisplayName = getStudioDisplayName(studioProfile)
-                  const effectiveLocationResult = getEffectiveProfessionalLocation(publicArtistProfile, studioProfile, artist)
+                  const isStudioListing = artist.profileType === 'studio'
+                  const effectiveLocationResult = getEffectiveProfessionalLocation(publicArtistProfile, studioProfile, artist, isStudioListing)
                   const effectiveLocation = effectiveLocationResult.location
                   const directionsUrl = buildGoogleMapsUrl(effectiveLocation)
-                  const professionalAddress = formatProfessionalAddress(effectiveLocation, artist.city)
-                  const studioGallery = (studioProfile.profile?.gallery || []).slice(0, 5)
-                  const studioContactItems = getStudioContactItems(studioProfile)
-                  const artistPortfolio = publicArtistProfile.portfolio.slice(0, 12)
+                  const professionalAddress = formatProfessionalAddress(effectiveLocation, isStudioListing ? artist.city : '')
+                  const profileContactItems = isStudioListing ? getStudioContactItems(studioProfile) : []
+                  const profileGallery = publicArtistProfile.portfolio.slice(0, 12)
                   const isSelectedArtist = selectedArtistProfile?.id === artist.id
                   const isProfileOpen = isSelectedArtist && selectedArtistPanelMode === 'profile'
                   const isBookingOpen = isSelectedArtist && selectedArtistPanelMode === 'booking'
                   const isDirectionsOpen = isSelectedArtist && selectedArtistPanelMode === 'directions'
-                  const isStudioListing = artist.profileType === 'studio'
                   const contactLinks = getMarketplaceContactLinks({
                     artist,
                     publicArtistProfile,
                     studioProfile,
                     isStudioListing,
                   })
-                  const profilePhotoUrl = isStudioListing
-                    ? studioProfile.profile?.logoUrl || publicArtistProfile.photoUrl
-                    : publicArtistProfile.photoUrl
+                  const profilePhotoUrl = publicArtistProfile.photoUrl
                   const profileDisplayName = isStudioListing
                     ? studioDisplayName || artist.title || artist.owner || 'Estudio beauty'
                     : publicArtistProfile.fullName || artist.owner || 'Artista beauty'
@@ -2860,7 +2861,7 @@ function ClientDashboard({ view = 'inicio' }) {
                     isStudioListing,
                   })
                   const profileInitials = getArtistInitials(profileDisplayName)
-                  const artistBiography = publicArtistProfile.biography?.trim()
+                  const profileBiography = publicArtistProfile.biography?.trim()
                   const hasSocialLinks = contactLinks.whatsapp || contactLinks.instagram || contactLinks.facebook || contactLinks.tiktok
 
                   return (
@@ -2972,21 +2973,21 @@ function ClientDashboard({ view = 'inicio' }) {
                               <span className={`marketplace-availability availability-${artist.badge.level}`}>
                                 {artist.badge.label}
                               </span>
-                              <small>{professionalAddress || artist.city || 'Ubicacion profesional por confirmar'}</small>
+                              <small>{professionalAddress || (isStudioListing ? artist.city : '') || 'Ubicacion profesional por confirmar'}</small>
                             </div>
                           </section>
 
                           <section className="public-profile-section">
-                            <h4>Sobre mi</h4>
-                            <p>{artistBiography || `${isStudioListing ? 'Este estudio' : 'Esta artista'} aun esta completando su perfil profesional.`}</p>
+                            <h4>{isStudioListing ? 'Sobre el estudio' : 'Sobre mi'}</h4>
+                            <p>{profileBiography || `${isStudioListing ? 'Este estudio' : 'Esta artista'} aun esta completando su perfil profesional.`}</p>
                           </section>
 
-                          {artistPortfolio.length > 0 && (
+                          {profileGallery.length > 0 && (
                             <section className="public-profile-section">
-                              <h4>✨ Conoce mi estudio y mis trabajos</h4>
+                              <h4>{isStudioListing ? 'Galeria del estudio' : 'Trabajos de la artista'}</h4>
                               <div className="public-portfolio-strip">
-                                {artistPortfolio.map((image) => (
-                                  <img src={image.url} alt={image.label || 'Trabajo realizado por la artista'} key={image.id || image.url} />
+                                {profileGallery.map((image) => (
+                                  <img src={image.url} alt={image.label || (isStudioListing ? 'Foto del estudio' : 'Trabajo realizado por la artista')} key={image.id || image.url} />
                                 ))}
                               </div>
                             </section>
@@ -3001,37 +3002,12 @@ function ClientDashboard({ view = 'inicio' }) {
                             </div>
                           </section>
 
-                          <section className="public-studio-card">
-                            <div className="public-studio-logo">
-                              {studioProfile.profile?.logoUrl ? (
-                                <img src={studioProfile.profile.logoUrl} alt={`Logo de ${studioDisplayName}`} />
-                              ) : (
-                                <span>{getArtistInitials(studioDisplayName || 'Studio')}</span>
-                              )}
-                            </div>
-                            <div>
-                              <h4>{studioDisplayName || 'Estudio profesional'}</h4>
-                              {studioProfile.profile?.description && <p>{studioProfile.profile.description}</p>}
-                            </div>
-                          </section>
-
-                          {studioContactItems.length > 0 && (
+                          {profileContactItems.length > 0 && (
                             <section className="public-profile-section">
                               <h4>Datos del estudio</h4>
                               <div className="public-service-badges">
-                                {studioContactItems.map((item) => (
+                                {profileContactItems.map((item) => (
                                   <span key={item.label}>{item.label}: {item.value}</span>
-                                ))}
-                              </div>
-                            </section>
-                          )}
-
-                          {studioGallery.length > 0 && (
-                            <section className="public-profile-section">
-                              <h4>Galeria del estudio</h4>
-                              <div className="public-gallery-strip">
-                                {studioGallery.map((image) => (
-                                  <img src={image.url} alt={image.label || 'Foto del estudio'} key={image.id || image.url} />
                                 ))}
                               </div>
                             </section>
