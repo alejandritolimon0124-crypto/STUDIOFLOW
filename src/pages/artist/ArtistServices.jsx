@@ -13,6 +13,7 @@ import { calculateServiceFlowPoints } from '../../utils/flowPoints'
 import { formatCurrency } from '../../utils/formatters'
 
 const durations = ['30 min', '45 min', '60 min', '75 min', '90 min', '120 min']
+const customServiceOption = 'Personalizado'
 
 const normalizeComparableName = (value = '') => String(value)
   .normalize('NFD')
@@ -36,6 +37,7 @@ function ArtistServices() {
   const primaryServices = Object.keys(serviceCatalog)
   const [primary, setPrimary] = useState(primaryServices[0])
   const [secondary, setSecondary] = useState(serviceCatalog[primaryServices[0]][0])
+  const [customServiceName, setCustomServiceName] = useState('')
   const [duration, setDuration] = useState('60 min')
   const [price, setPrice] = useState('')
   const [editingId, setEditingId] = useState(null)
@@ -76,11 +78,13 @@ function ArtistServices() {
   const handlePrimary = (service) => {
     setPrimary(service)
     setSecondary(serviceCatalog[service][0])
+    setCustomServiceName('')
   }
 
   const resetForm = () => {
     setPrimary(primaryServices[0])
     setSecondary(serviceCatalog[primaryServices[0]][0])
+    setCustomServiceName('')
     setDuration('60 min')
     setPrice('')
     setEditingId(null)
@@ -103,20 +107,23 @@ function ArtistServices() {
 
   const secondaryOptions = (category, currentValue = '') => {
     const catalogOptions = serviceCatalog[category] || []
-    return currentValue && !catalogOptions.includes(currentValue)
-      ? [currentValue, ...catalogOptions]
-      : catalogOptions
+    const options = [...catalogOptions, customServiceOption]
+    return currentValue && !options.includes(currentValue)
+      ? [currentValue, ...options]
+      : options
   }
 
   const editService = (service) => {
     const nextCategory = normalizeServiceCategory(service.category)
     const nextPrimary = serviceCatalog[nextCategory] ? nextCategory : primaryServices[0]
+    const isCatalogService = (serviceCatalog[nextPrimary] || []).includes(service.name)
 
     setEditingId(service.id)
     setEditingDraft({
       id: service.id,
       primary: nextPrimary,
-      secondary: service.name,
+      secondary: isCatalogService ? service.name : customServiceOption,
+      customName: isCatalogService ? '' : service.name,
       duration: service.duration,
       price: String(service.price),
       bookings: service.bookings || 0,
@@ -129,8 +136,9 @@ function ArtistServices() {
 
   const saveService = async (event) => {
     event.preventDefault()
+    const serviceName = secondary === customServiceOption ? customServiceName.trim() : secondary
 
-    if (!primary || !secondary || !duration || !price) {
+    if (!primary || !serviceName || !duration || !price) {
       showFeedback('Completa todos los campos')
       return
     }
@@ -140,14 +148,14 @@ function ArtistServices() {
       return
     }
 
-    if (hasActiveDuplicate(secondary)) {
+    if (hasActiveDuplicate(serviceName)) {
       showFeedback('Ya existe un servicio activo con ese nombre')
       return
     }
 
     const nextService = {
       id: null,
-      name: secondary,
+      name: serviceName,
       category: primary,
       price: Number(price),
       duration,
@@ -173,7 +181,7 @@ function ArtistServices() {
   const updateEditingDraft = (field, value) => {
     setEditingDraft((draft) => {
       if (field === 'primary') {
-        return { ...draft, primary: value, secondary: serviceCatalog[value]?.[0] || '' }
+        return { ...draft, primary: value, secondary: serviceCatalog[value]?.[0] || '', customName: '' }
       }
 
       return { ...draft, [field]: value }
@@ -182,7 +190,11 @@ function ArtistServices() {
 
   const saveEditedService = async (event) => {
     event.preventDefault()
-    if (!editingDraft?.primary || !editingDraft?.secondary || !editingDraft?.duration || !editingDraft?.price) {
+    const serviceName = editingDraft?.secondary === customServiceOption
+      ? editingDraft?.customName?.trim()
+      : editingDraft?.secondary
+
+    if (!editingDraft?.primary || !serviceName || !editingDraft?.duration || !editingDraft?.price) {
       showFeedback('Completa todos los campos')
       return
     }
@@ -192,7 +204,7 @@ function ArtistServices() {
       return
     }
 
-    if (editingDraft.status === 'Activo' && hasActiveDuplicate(editingDraft.secondary, editingDraft.id)) {
+    if (editingDraft.status === 'Activo' && hasActiveDuplicate(serviceName, editingDraft.id)) {
       showFeedback('Ya existe otro servicio activo con ese nombre')
       return
     }
@@ -202,7 +214,7 @@ function ArtistServices() {
     try {
       await saveArtistService({
         id: editingDraft.id,
-        name: editingDraft.secondary,
+        name: serviceName,
         category: editingDraft.primary,
         price: Number(editingDraft.price),
         duration: editingDraft.duration,
@@ -274,11 +286,20 @@ function ArtistServices() {
             <label className="input-field">
               <span>Servicio secundario</span>
               <select value={secondary} onChange={(event) => setSecondary(event.target.value)}>
-                {serviceCatalog[primary].map((service) => (
+                {[...serviceCatalog[primary], customServiceOption].map((service) => (
                   <option key={service} value={service}>{service}</option>
                 ))}
               </select>
             </label>
+
+            {secondary === customServiceOption && (
+              <Input
+                label="Nombre de tu servicio personalizado"
+                placeholder="Ej. Paquete novia diamante"
+                value={customServiceName}
+                onChange={(event) => setCustomServiceName(event.target.value)}
+              />
+            )}
 
             <label className="input-field">
               <span>Duracion</span>
@@ -342,6 +363,14 @@ function ArtistServices() {
                           ))}
                         </select>
                       </label>
+                      {editingDraft?.secondary === customServiceOption && (
+                        <Input
+                          label="Nombre de tu servicio personalizado"
+                          placeholder="Ej. Paquete novia diamante"
+                          value={editingDraft?.customName || ''}
+                          onChange={(event) => updateEditingDraft('customName', event.target.value)}
+                        />
+                      )}
                       <label className="input-field">
                         <span>Duracion</span>
                         <select value={editingDraft?.duration || '60 min'} onChange={(event) => updateEditingDraft('duration', event.target.value)}>
@@ -403,6 +432,14 @@ function ArtistServices() {
                           ))}
                         </select>
                       </label>
+                      {editingDraft?.secondary === customServiceOption && (
+                        <Input
+                          label="Nombre de tu servicio personalizado"
+                          placeholder="Ej. Paquete novia diamante"
+                          value={editingDraft?.customName || ''}
+                          onChange={(event) => updateEditingDraft('customName', event.target.value)}
+                        />
+                      )}
                       <label className="input-field">
                         <span>Duracion</span>
                         <select value={editingDraft?.duration || '60 min'} onChange={(event) => updateEditingDraft('duration', event.target.value)}>
