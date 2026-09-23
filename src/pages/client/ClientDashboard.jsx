@@ -1963,8 +1963,19 @@ function ClientDashboard({ view = 'inicio' }) {
                   <Button variant="ghost" onClick={() => navigate(paths.clientAppointments)}>Ver mis citas</Button>
                 </div>
               </div>
-              <div className="hero-summary client-hero-summary">
-                <strong>{upcomingAppointments.length} citas próximas</strong>
+              <div className="client-hero-summary-stack">
+                <div className="hero-summary client-hero-summary">
+                  <strong>{upcomingAppointments.length} citas próximas</strong>
+                </div>
+                <Button className="full-width client-share-application" onClick={shareApplication}>
+                  <Share2 size={19} aria-hidden="true" />
+                  Compartir aplicación
+                </Button>
+                {shareApplicationNotice && (
+                  <small className="client-share-application-notice" role="status" aria-live="polite">
+                    {shareApplicationNotice}
+                  </small>
+                )}
               </div>
             </section>
 
@@ -2172,16 +2183,6 @@ function ClientDashboard({ view = 'inicio' }) {
                 </article>
               )}
             </Card>
-
-            <div className="mobile-screen client-share-application">
-              <Button className="full-width" variant="ghost" onClick={shareApplication}>
-                <Share2 size={19} aria-hidden="true" />
-                Compartir aplicación
-              </Button>
-              {shareApplicationNotice && (
-                <small role="status" aria-live="polite">{shareApplicationNotice}</small>
-              )}
-            </div>
 
             {clientAutomations.length > 0 && (
               <section className="automations-grid mobile-screen">
