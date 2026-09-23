@@ -4018,8 +4018,25 @@ select:focus,
   box-shadow: 0 12px 26px rgba(93, 48, 59, 0.22);
 }
 
-.owner-team-member-header {
-  grid-template-columns: auto minmax(0, 1fr) auto;
+.owner-team-agenda-card > .owner-team-member-header {
+  display: grid;
+  grid-template-areas:
+    "avatar unlink"
+    "details details"
+    "actions actions";
+  grid-template-columns: auto minmax(0, 1fr);
+  width: 100%;
+}
+
+.owner-team-member-header > .client-photo-preview {
+  grid-area: avatar;
+  justify-self: start;
+}
+
+.owner-team-member-header > .client-photo-preview + div {
+  grid-area: details;
+  min-width: 0;
+  width: 100%;
 }
 
 .owner-team-member-header .owner-unlink-button {
@@ -4028,11 +4045,12 @@ select:focus,
   border: 1px solid #dda7ae;
   box-shadow: none;
   color: #8d3f49;
+  grid-area: unlink;
   justify-self: end;
 }
 
 .owner-team-resource-actions {
-  grid-column: 1 / -1;
+  grid-area: actions;
   justify-content: center;
   width: 100%;
 }
