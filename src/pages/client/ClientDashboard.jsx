@@ -14,6 +14,7 @@ import Input from '../../components/Input'
 import PanelHeader from '../../components/PanelHeader'
 import { ClientMarketingNotices } from '../../components/MarketingReminders'
 import StatusPill from '../../components/StatusPill'
+import RescheduleAppointmentButton from '../../components/RescheduleAppointmentButton'
 import { useApp } from '../../contexts/appContextCore'
 import { paths } from '../../routes/paths'
 import { getClientById } from '../../utils/clientHelpers'
@@ -2167,6 +2168,9 @@ function ClientDashboard({ view = 'inicio' }) {
                         </Button>
                       </>
                     )}
+                    {nextAppointment.appointmentStatus === 'scheduled' && (
+                      <RescheduleAppointmentButton appointment={nextAppointment} onRescheduled={loadClientAppointments} />
+                    )}
                   </div>
                 </article>
               ) : (
@@ -2300,6 +2304,9 @@ function ClientDashboard({ view = 'inicio' }) {
                             Cancelar
                           </Button>
                         </>
+                      )}
+                      {appointment.appointmentStatus === 'scheduled' && (
+                        <RescheduleAppointmentButton appointment={appointment} onRescheduled={loadClientAppointments} />
                       )}
                     </div>
                   </article>

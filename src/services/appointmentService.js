@@ -60,6 +60,7 @@ function normalizeAppointment(appointment = {}) {
     appointmentStatus,
     clientConfirmedAt,
     confirmationRequestedAt,
+    rescheduleCount: normalizeNumber(appointment.rescheduleCount ?? appointment.reschedule_count),
     contextName,
     bookingSource: appointment.bookingSource || appointment.booking_source || null,
     grossAmount: normalizeNumber(appointment.grossAmount || appointment.gross_amount),
@@ -154,6 +155,40 @@ export async function cancelArtistAppointment({ appointmentId } = {}) {
   if (!appointmentId) throw new Error('Cita requerida.')
   const client = requireSupabase()
   const { data, error } = await client.rpc('studio_flow_artist_cancel_appointment', { p_appointment_id: appointmentId })
+  if (error) throw error
+  return data
+}
+
+export async function fetchAppointmentRescheduleAvailability({ appointmentId, date } = {}) {
+  if (!appointmentId) throw new Error('Cita requerida.')
+  if (!date) throw new Error('Selecciona una fecha.')
+
+  const client = requireSupabase()
+  const { data, error } = await client.rpc('studio_flow_get_appointment_reschedule_availability', {
+    p_appointment_id: appointmentId,
+    p_date: date,
+  })
+
+  if (error) throw error
+
+  return {
+    rescheduleCount: normalizeNumber(data?.rescheduleCount ?? data?.reschedule_count),
+    slots: asArray(data?.slots).map(normalizeAvailabilitySlot),
+  }
+}
+
+export async function rescheduleAppointment({ appointmentId, availabilitySlotIds } = {}) {
+  if (!appointmentId) throw new Error('Cita requerida.')
+  if (!Array.isArray(availabilitySlotIds) || availabilitySlotIds.length === 0) {
+    throw new Error('Selecciona un horario disponible.')
+  }
+
+  const client = requireSupabase()
+  const { data, error } = await client.rpc('studio_flow_reschedule_appointment', {
+    p_appointment_id: appointmentId,
+    p_availability_slot_ids: availabilitySlotIds,
+  })
+
   if (error) throw error
   return data
 }

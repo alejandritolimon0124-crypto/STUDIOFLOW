@@ -9,6 +9,7 @@ import MetricCard from '../../components/MetricCard'
 import { summarizeDay } from '../../utils/daySummary'
 import PanelHeader from '../../components/PanelHeader'
 import StatusPill from '../../components/StatusPill'
+import RescheduleAppointmentButton from '../../components/RescheduleAppointmentButton'
 import { useApp } from '../../contexts/appContextCore'
 import { paths } from '../../routes/paths'
 import { fetchManualArtistAvailability } from '../../services/appointmentService'
@@ -878,13 +879,13 @@ function ArtistDashboard({ view = 'agenda' }) {
               </div>
               {hasAppointments && (
                 <div className="row-actions" style={{ justifyContent: 'flex-start', marginBottom: 14 }}>
-                  <Button
-                    size="sm"
-                    variant="success"
-                    onClick={() => requestArtistAppointmentConfirmations({ date: safeSelectedDate })}
-                  >
-                    Enviar confirmacion
-                  </Button>
+                  {appointmentsForSelectedDate.some((appointment) => !appointment.confirmationRequestedAt) ? (
+                    <Button size="sm" variant="success" onClick={() => requestArtistAppointmentConfirmations({ date: safeSelectedDate })}>
+                      Enviar confirmacion
+                    </Button>
+                  ) : (
+                    <StatusPill tone="success">Confirmacion enviada</StatusPill>
+                  )}
                 </div>
               )}
               {hasAppointments ? (
@@ -905,7 +906,14 @@ function ArtistDashboard({ view = 'agenda' }) {
                         type={item.type}
                         showEconomy={canUseEconomy}
                         economyData={economyData}
-                        action={item.pointsGranted > 0 ? <StatusPill tone="success">+{item.pointsGranted} FP automaticos</StatusPill> : null}
+                        action={(
+                          <>
+                            {item.pointsGranted > 0 && <StatusPill tone="success">+{item.pointsGranted} FP automaticos</StatusPill>}
+                            {item.appointmentStatus === 'scheduled' && (
+                              <RescheduleAppointmentButton appointment={item} onRescheduled={loadArtistAppointments} />
+                            )}
+                          </>
+                        )}
                       />
                     )
                   })}

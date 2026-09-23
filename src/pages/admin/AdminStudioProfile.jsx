@@ -5,6 +5,7 @@ import CompleteAppointmentButton from '../../components/CompleteAppointmentButto
 import Card from '../../components/Card'
 import Input from '../../components/Input'
 import StatusPill from '../../components/StatusPill'
+import RescheduleAppointmentButton from '../../components/RescheduleAppointmentButton'
 import { supabase } from '../../lib/supabaseClient'
 import { useApp } from '../../contexts/appContextCore'
 import { getCurrentBrowserCoordinates } from '../../utils/browserGeolocation'
@@ -393,14 +394,17 @@ function StudioSummarySection({
                 <StatusPill tone={getAppointmentStatusTone(appointment)}>{appointment.status || 'Confirmada'}</StatusPill>
                 {appointment.bookingSource === 'google' && <StatusPill tone="warm">Reserva Google</StatusPill>}
                 {appointment.appointmentStatus === 'scheduled' && (
-                  <Button
-                    disabled={cancellingAppointmentId === appointment.id}
-                    size="sm"
-                    variant="danger"
-                    onClick={() => onCancelAppointment(appointment)}
-                  >
-                    {cancellingAppointmentId === appointment.id ? 'Cancelando...' : 'Cancelar cita'}
-                  </Button>
+                  <>
+                    <Button
+                      disabled={cancellingAppointmentId === appointment.id}
+                      size="sm"
+                      variant="danger"
+                      onClick={() => onCancelAppointment(appointment)}
+                    >
+                      {cancellingAppointmentId === appointment.id ? 'Cancelando...' : 'Cancelar cita'}
+                    </Button>
+                    <RescheduleAppointmentButton appointment={appointment} />
+                  </>
                 )}
                 {appointment.pointsGranted > 0 && <StatusPill tone="success">+{appointment.pointsGranted} FP otorgados</StatusPill>}
                 {appointment.happyHourApplied && <StatusPill tone="success">Happy Hour</StatusPill>}
@@ -428,9 +432,13 @@ function StudioSummarySection({
         </div>
         {selectedDateAppointments.length > 0 && (
           <div className="studio-review-actions">
-            <Button size="sm" variant="success" onClick={() => onRequestConfirmations(selectedAgendaDate)}>
-              Enviar confirmacion
-            </Button>
+            {selectedDateAppointments.some((appointment) => !appointment.confirmationRequestedAt) ? (
+              <Button size="sm" variant="success" onClick={() => onRequestConfirmations(selectedAgendaDate)}>
+                Enviar confirmacion
+              </Button>
+            ) : (
+              <StatusPill tone="success">Confirmacion enviada</StatusPill>
+            )}
           </div>
         )}
         <div className="compact-list">
@@ -693,9 +701,13 @@ function StudioScheduleSection({
         />
         {selectedDateAppointments.length > 0 && (
           <div className="studio-review-actions">
-            <Button size="sm" variant="success" onClick={() => onRequestConfirmations(selectedAgendaDate)}>
-              Enviar confirmacion
-            </Button>
+            {selectedDateAppointments.some((appointment) => !appointment.confirmationRequestedAt) ? (
+              <Button size="sm" variant="success" onClick={() => onRequestConfirmations(selectedAgendaDate)}>
+                Enviar confirmacion
+              </Button>
+            ) : (
+              <StatusPill tone="success">Confirmacion enviada</StatusPill>
+            )}
           </div>
         )}
         <div className="compact-list">
@@ -711,14 +723,17 @@ function StudioScheduleSection({
                 <StatusPill tone={getAppointmentStatusTone(appointment)}>{appointment.status || 'Confirmada'}</StatusPill>
                 {appointment.bookingSource === 'google' && <StatusPill tone="warm">Reserva Google</StatusPill>}
                 {appointment.appointmentStatus === 'scheduled' && (
-                  <Button
-                    disabled={cancellingAppointmentId === appointment.id}
-                    size="sm"
-                    variant="danger"
-                    onClick={() => onCancelAppointment(appointment)}
-                  >
-                    {cancellingAppointmentId === appointment.id ? 'Cancelando...' : 'Cancelar cita'}
-                  </Button>
+                  <>
+                    <Button
+                      disabled={cancellingAppointmentId === appointment.id}
+                      size="sm"
+                      variant="danger"
+                      onClick={() => onCancelAppointment(appointment)}
+                    >
+                      {cancellingAppointmentId === appointment.id ? 'Cancelando...' : 'Cancelar cita'}
+                    </Button>
+                    <RescheduleAppointmentButton appointment={appointment} />
+                  </>
                 )}
                 {appointment.pointsGranted > 0 && <StatusPill tone="success">+{appointment.pointsGranted} FP otorgados</StatusPill>}
                 {appointment.happyHourApplied && <StatusPill tone="success">Happy Hour</StatusPill>}

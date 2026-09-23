@@ -7,6 +7,7 @@ import Card from '../../components/Card'
 import Input from '../../components/Input'
 import PanelHeader from '../../components/PanelHeader'
 import StatusPill from '../../components/StatusPill'
+import RescheduleAppointmentButton from '../../components/RescheduleAppointmentButton'
 import { useApp } from '../../contexts/appContextCore'
 import { fetchArtistClients } from '../../services/artistClientService'
 import { cancelArtistAppointment, fetchManualArtistAvailability } from '../../services/appointmentService'
@@ -619,15 +620,15 @@ function ArtistAppointments() {
             <div className="list-row elevated-row">
               <div>
                 <strong>Confirmacion de asistencia</strong>
-                <small>Enviar aviso a las clientas de este dia.</small>
+                <small>El aviso se envia una sola vez por cita.</small>
               </div>
-              <Button
-                size="sm"
-                variant="success"
-                onClick={() => requestArtistAppointmentConfirmations({ date: selectedDate })}
-              >
-                Enviar
-              </Button>
+              {upcomingAppointments.some((appointment) => !appointment.confirmationRequestedAt) ? (
+                <Button size="sm" variant="success" onClick={() => requestArtistAppointmentConfirmations({ date: selectedDate })}>
+                  Enviar
+                </Button>
+              ) : (
+                <StatusPill tone="success">Aviso enviado</StatusPill>
+              )}
             </div>
           )}
 
@@ -644,9 +645,12 @@ function ArtistAppointments() {
                 {appointment.bookingSource === 'google' && <StatusPill tone="warm">Reserva Google</StatusPill>}
                 <StatusPill tone={getAppointmentStatusTone(appointment)}>{appointment.status}</StatusPill>
                 {appointment.appointmentStatus === 'scheduled' && (
-                  <Button size="sm" variant="danger" disabled={cancellingAppointmentId === appointment.id} onClick={() => cancelAppointment(appointment)}>
-                    {cancellingAppointmentId === appointment.id ? 'Cancelando...' : 'Cancelar cita'}
-                  </Button>
+                  <>
+                    <Button size="sm" variant="danger" disabled={cancellingAppointmentId === appointment.id} onClick={() => cancelAppointment(appointment)}>
+                      {cancellingAppointmentId === appointment.id ? 'Cancelando...' : 'Cancelar cita'}
+                    </Button>
+                    <RescheduleAppointmentButton appointment={appointment} onRescheduled={loadArtistAppointments} />
+                  </>
                 )}
                 {appointment.pointsGranted > 0 && <StatusPill tone="success">+{appointment.pointsGranted} FP otorgados</StatusPill>}
                 {appointment.happyHourApplied && <StatusPill tone="success">Happy Hour</StatusPill>}
