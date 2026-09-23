@@ -174,6 +174,7 @@ function ArtistDashboard({ view = 'agenda' }) {
   const [isCreatingNewClient, setIsCreatingNewClient] = useState(false)
   const [newClient, setNewClient] = useState({ name: '', phone: '', notes: '' })
   const [hideMetrics, setHideMetrics] = useState(getStoredMetricsPrivacy)
+  const [shareFeedback, setShareFeedback] = useState('')
   const safeSelectedDate = getSafeDateValue(selectedDate)
   const [previousSelectedDate, setPreviousSelectedDate] = useState(safeSelectedDate)
 
@@ -524,6 +525,24 @@ function ArtistDashboard({ view = 'agenda' }) {
     })
   }
 
+  const shareApplication = async () => {
+    const shareData = {
+      title: 'Studio Flow',
+      text: 'Agenda tus servicios de belleza con Studio Flow.',
+      url: 'https://studioflow.vip',
+    }
+
+    try {
+      if (navigator.share) await navigator.share(shareData)
+      else {
+        await navigator.clipboard.writeText(shareData.url)
+        setShareFeedback('Enlace copiado.')
+      }
+    } catch (error) {
+      if (error?.name !== 'AbortError') setShareFeedback('No se pudo compartir el enlace.')
+    }
+  }
+
   return (
     <main className={`dashboard-grid artist-grid view-${view}`}>
         {view === 'agenda' && (
@@ -551,11 +570,13 @@ function ArtistDashboard({ view = 'agenda' }) {
                 >
                   Agregar cita
                 </Button>
-                <Button variant="ghost" onClick={() => navigate(paths.artistSchedule)}>Editar horario</Button>
-                <Button variant="ghost" onClick={toggleMetricsPrivacy}>
+                <Button onClick={shareApplication}>Compartir aplicacion</Button>
+                <Button className="full-width" variant="ghost" onClick={toggleMetricsPrivacy}>
                   {hideMetrics ? 'Mostrar métricas' : 'Ocultar métricas'}
                 </Button>
+                <Button className="full-width" variant="ghost" onClick={() => navigate(paths.artistSchedule)}>Editar horario</Button>
               </div>
+              {shareFeedback && <small className="studio-owner-share-feedback">{shareFeedback}</small>}
               {!hideMetrics && (
                 <div className="hero-summary">
                   <span>{primaryArtist?.plan || 'Perfil profesional'}</span>
