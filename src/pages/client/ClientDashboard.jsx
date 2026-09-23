@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Phone } from 'lucide-react'
+import { Phone, Share2 } from 'lucide-react'
 import facebookIcon from '../../assets/social/facebook.png'
 import instagramIcon from '../../assets/social/instagram.png'
 import tiktokIcon from '../../assets/social/tiktok.png'
@@ -917,6 +917,7 @@ function ClientDashboard({ view = 'inicio' }) {
   const [visibleHistoryCount, setVisibleHistoryCount] = useState(5)
   const [respondingAppointmentId, setRespondingAppointmentId] = useState('')
   const [appointmentResponseNotice, setAppointmentResponseNotice] = useState(null)
+  const [shareApplicationNotice, setShareApplicationNotice] = useState('')
   const [clientFlowPoints, setClientFlowPoints] = useState({ monthlyBalance: 0, monthlyEarned: 0, monthlySpent: 0, activeBalance: 0, expiringSoonPoints: 0, nextExpirationAt: null, validityDays: FLOW_POINTS_VALIDITY_DAYS })
   const [redeemDraft, setRedeemDraft] = useState({ points: '', targetId: '', targetQuery: '' })
   const [redeemStatus, setRedeemStatus] = useState('')
@@ -929,6 +930,31 @@ function ClientDashboard({ view = 'inicio' }) {
   const [notificationPermission, setNotificationPermission] = useState(() => (
     canUseBrowserNotifications() ? Notification.permission : 'unsupported'
   ))
+
+  const shareApplication = async () => {
+    const shareData = {
+      title: 'Studio Flow',
+      text: 'Reserva servicios de belleza, encuentra promociones y acumula FlowPoints en Studio Flow.',
+      url: 'https://studioflow.vip',
+    }
+
+    setShareApplicationNotice('')
+
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData)
+        setShareApplicationNotice('Studio Flow se compartio correctamente.')
+        return
+      }
+
+      await navigator.clipboard.writeText(shareData.url)
+      setShareApplicationNotice('Enlace copiado. Ya puedes compartirlo.')
+    } catch (error) {
+      if (error?.name !== 'AbortError') {
+        setShareApplicationNotice('No se pudo compartir. Intenta nuevamente.')
+      }
+    }
+  }
   const isRealMarketplace = !session.isMockSession
   const artistStudioMemberships = useMemo(
     () => deriveMembershipsFromLegacyData({ artists: adminState.artists }),
@@ -2146,6 +2172,16 @@ function ClientDashboard({ view = 'inicio' }) {
                 </article>
               )}
             </Card>
+
+            <div className="mobile-screen client-share-application">
+              <Button className="full-width" variant="ghost" onClick={shareApplication}>
+                <Share2 size={19} aria-hidden="true" />
+                Compartir aplicación
+              </Button>
+              {shareApplicationNotice && (
+                <small role="status" aria-live="polite">{shareApplicationNotice}</small>
+              )}
+            </div>
 
             {clientAutomations.length > 0 && (
               <section className="automations-grid mobile-screen">

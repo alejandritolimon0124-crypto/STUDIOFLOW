@@ -2233,6 +2233,25 @@ select:focus,
   box-shadow: 0 22px 46px rgba(105, 74, 72, 0.1);
 }
 
+.client-share-application {
+  margin-top: -4px;
+  text-align: center;
+}
+
+.client-share-application .button {
+  align-items: center;
+  display: inline-flex;
+  gap: 9px;
+  justify-content: center;
+}
+
+.client-share-application small {
+  color: var(--muted);
+  display: block;
+  font-weight: 700;
+  margin-top: 8px;
+}
+
 .client-history-entry { align-items: start; gap: 12px; }
 .client-history-details { flex: 1; min-width: 0; }
 .client-history-time { display: block; font-size: 15px; font-weight: 700; margin: 6px 0 10px; }
