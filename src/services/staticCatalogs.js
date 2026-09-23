@@ -160,13 +160,19 @@ export const serviceCatalog = {
     'Corte/adaptación',
     'Peinado de extensiones',
   ],
-  'Novias y eventos': [
+  Novias: [
     'Peinado novia',
     'Maquillaje novia',
     'Prueba de maquillaje',
     'Prueba de peinado',
     'Paquete novia',
-    'XV años',
+    'Evento especial',
+  ],
+  'Paquete XV años': [
+    'Peinado XV años',
+    'Maquillaje XV años',
+    'Prueba de maquillaje',
+    'Prueba de peinado',
     'Evento especial',
   ],
 }
@@ -197,6 +203,8 @@ const serviceCategoryAliases = {
   Skincare: 'Faciales',
   Spa: 'Tratamientos corporales',
   Laminado: 'Cejas',
+  'Novias y eventos': 'Novias',
+  'Paquete XV anos': 'Paquete XV años',
 }
 
 const serviceNameAliases = {
