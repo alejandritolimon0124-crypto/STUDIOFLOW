@@ -4000,7 +4000,15 @@ select:focus,
 }
 
 .owner-team-agenda-card .studio-review-actions .button {
-  min-width: 112px;
+  min-width: 0;
+  width: 100%;
+}
+
+.owner-team-agenda-card > .list-row > .studio-review-actions {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(140px, 1fr));
+  width: 310px;
 }
 
 .owner-team-agenda-card .studio-review-actions .button:not(:disabled) {
@@ -4121,6 +4129,20 @@ select:focus,
   .studio-owner-metric { min-height: 104px; padding: 13px; }
   .studio-owner-metric strong { font-size: 32px; }
   .owner-available-slot { padding: 12px; }
+}
+
+@media (max-width: 720px) {
+  .owner-team-agenda-card > .list-row > .studio-review-actions {
+    grid-column: 1 / -1;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    justify-self: center;
+    width: 100%;
+  }
+
+  .owner-team-agenda-card > .list-row > .studio-review-actions .button {
+    font-size: 11px;
+    padding-inline: 8px;
+  }
 }
 
 .modal-card {

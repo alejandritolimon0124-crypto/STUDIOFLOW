@@ -758,8 +758,8 @@ function StudioScheduleSection({
                             <small>Descanso: {String(rule.breakStartTime).slice(0, 5)} a {String(rule.breakEndTime).slice(0, 5)}</small>
                           )}
                         </div>
-                        <StatusPill tone={rule.active ? 'success' : 'neutral'}>
-                          {rule.active ? 'Activo' : 'Libre'}
+                        <StatusPill tone={rule.active ? 'success' : 'danger'}>
+                          {rule.active ? 'Activo' : 'No disponible'}
                         </StatusPill>
                       </div>
                     ))}
