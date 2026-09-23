@@ -4018,6 +4018,58 @@ select:focus,
   box-shadow: 0 12px 26px rgba(93, 48, 59, 0.22);
 }
 
+.owner-team-member-header {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+}
+
+.owner-team-member-header .owner-unlink-button {
+  align-self: start;
+  background: #f8dadd;
+  border: 1px solid #dda7ae;
+  box-shadow: none;
+  color: #8d3f49;
+  justify-self: end;
+}
+
+.owner-team-resource-actions {
+  grid-column: 1 / -1;
+  justify-content: center;
+  width: 100%;
+}
+
+.owner-membership-service-row {
+  align-items: center;
+}
+
+.owner-membership-service-price {
+  color: var(--rose-dark);
+  font-size: 24px;
+  line-height: 1;
+}
+
+.owner-membership-service-editor {
+  display: grid;
+  gap: 10px;
+  grid-column: 1 / -1;
+  grid-template-columns: minmax(0, 2fr) minmax(110px, 1fr) minmax(110px, 1fr) auto;
+  width: 100%;
+}
+
+.owner-membership-service-editor .input-field {
+  margin: 0;
+}
+
+.studio-confirmation-modal .modal-card {
+  margin: auto;
+  max-width: 480px;
+  width: min(100%, 480px);
+}
+
+.studio-confirmation-modal .modal-body p {
+  color: var(--muted);
+  line-height: 1.55;
+}
+
 .studio-owner-share-feedback {
   color: var(--muted);
   font-weight: 800;
@@ -4142,6 +4194,10 @@ select:focus,
   .owner-team-agenda-card > .list-row > .studio-review-actions .button {
     font-size: 11px;
     padding-inline: 8px;
+  }
+
+  .owner-membership-service-editor {
+    grid-template-columns: 1fr;
   }
 }
 

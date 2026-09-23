@@ -31,6 +31,7 @@ import {
   findStudioArtistByEmail,
   inviteStudioArtist,
   unlinkStudioArtist,
+  updateStudioMembershipService,
 } from '../../services/studioMembershipService'
 import {
   fetchStudioMarketingSettings,
@@ -1170,6 +1171,10 @@ function AdminStudioProfile() {
   const [membershipOperationsLoadingId, setMembershipOperationsLoadingId] = useState('')
   const [unlinkingMembershipId, setUnlinkingMembershipId] = useState('')
   const [unlinkedMembershipIds, setUnlinkedMembershipIds] = useState([])
+  const [pendingUnlinkMembership, setPendingUnlinkMembership] = useState(null)
+  const [editingMembershipId, setEditingMembershipId] = useState('')
+  const [membershipServiceDrafts, setMembershipServiceDrafts] = useState({})
+  const [savingMembershipServiceId, setSavingMembershipServiceId] = useState('')
   const [inviteEmail, setInviteEmail] = useState('')
   const [searchedArtist, setSearchedArtist] = useState(null)
   const [artistSearchStatus, setArtistSearchStatus] = useState({ tone: 'neutral', message: '' })
@@ -2039,7 +2044,6 @@ function AdminStudioProfile() {
   const unlinkArtist = async (membership) => {
     const membershipId = getMembershipRecordId(membership)
     if (!membershipId || !currentStudioId || unlinkingMembershipId) return
-    if (!window.confirm(`Desvincular a ${membership.realName || membership.name} de este estudio? Sus servicios y horarios del estudio dejaran de estar disponibles.`)) return
 
     setUnlinkingMembershipId(membershipId)
     setMembershipFeedback({ tone: 'neutral', message: '' })
@@ -2053,12 +2057,63 @@ function AdminStudioProfile() {
         return nextValue
       })
       setExpandedMembershipId('')
+      setPendingUnlinkMembership(null)
       await loadAdminArtists?.().catch(() => null)
       setMembershipFeedback({ tone: 'success', message: 'Artista desvinculada del estudio.' })
     } catch (error) {
       setMembershipFeedback({ tone: 'warm', message: error.message || 'No se pudo desvincular a la artista.' })
     } finally {
       setUnlinkingMembershipId('')
+    }
+  }
+
+  const openMembershipServiceEditor = async (membership) => {
+    const membershipId = getMembershipRecordId(membership)
+    if (!membershipId) return
+
+    const operations = membershipOperationsById[membershipId] || await loadMembershipOperations(membershipId)
+    if (!operations) return
+
+    setExpandedMembershipId(membershipId)
+    setEditingMembershipId(membershipId)
+    setMembershipServiceDrafts(Object.fromEntries((operations.services || []).map((service) => [
+      service.id,
+      {
+        name: service.name,
+        durationMinutes: service.durationMinutes,
+        price: service.price,
+      },
+    ])))
+  }
+
+  const updateMembershipServiceDraft = (serviceId, field, value) => {
+    setMembershipServiceDrafts((currentValue) => ({
+      ...currentValue,
+      [serviceId]: { ...currentValue[serviceId], [field]: value },
+    }))
+  }
+
+  const saveMembershipService = async (membershipId, serviceId) => {
+    const draft = membershipServiceDrafts[serviceId]
+    if (!draft || savingMembershipServiceId) return
+
+    setSavingMembershipServiceId(serviceId)
+    setMembershipFeedback({ tone: 'neutral', message: '' })
+    try {
+      await updateStudioMembershipService({
+        studioId: currentStudioId,
+        membershipId,
+        serviceId,
+        name: draft.name,
+        durationMinutes: Number(draft.durationMinutes),
+        price: Number(draft.price),
+      })
+      await loadMembershipOperations(membershipId)
+      setMembershipFeedback({ tone: 'success', message: 'Servicio actualizado para el estudio.' })
+    } catch (error) {
+      setMembershipFeedback({ tone: 'warm', message: error.message || 'No se pudo actualizar el servicio.' })
+    } finally {
+      setSavingMembershipServiceId('')
     }
   }
 
@@ -2711,7 +2766,7 @@ function AdminStudioProfile() {
 
                     return (
                       <div className="elevated-row owner-team-agenda-card" key={membershipRecordId || membership.id}>
-                        <div className="list-row" style={{ padding: 0 }}>
+                        <div className="list-row owner-team-member-header" style={{ padding: 0 }}>
                           <div className="client-photo-preview" style={{ height: 44, width: 44 }}>
                             {membership.studioPhotoUrl ? (
                               <img src={membership.studioPhotoUrl} alt={`Foto de ${membership.name}`} />
@@ -2724,47 +2779,71 @@ function AdminStudioProfile() {
                             <small>{membership.email || 'Correo no disponible'}</small>
                             <small>Incorporacion: {membership.startedAt || membership.createdAt || 'Pendiente'}</small>
                           </div>
-                          <div className="studio-review-actions">
-                            <StatusPill tone="success">Membership activa</StatusPill>
+                          <Button
+                            className="owner-unlink-button"
+                            disabled={unlinkingMembershipId === membershipRecordId}
+                            size="sm"
+                            variant="danger"
+                            onClick={() => setPendingUnlinkMembership(membership)}
+                          >
+                            Desvincular
+                          </Button>
+                          <div className="studio-review-actions owner-team-resource-actions">
                             <Button
                               disabled={isLoadingOperations}
                               size="sm"
                               variant="ghost"
-                              onClick={() => toggleMembershipOperations(membershipRecordId)}
+                              onClick={() => {
+                                setEditingMembershipId('')
+                                toggleMembershipOperations(membershipRecordId)
+                              }}
                             >
                               {isLoadingOperations ? 'Cargando...' : isExpanded ? 'Ocultar' : 'Ver recursos'}
                             </Button>
                             <Button
-                              disabled={unlinkingMembershipId === membershipRecordId}
+                              disabled={isLoadingOperations}
                               size="sm"
-                              variant="danger"
-                              onClick={() => unlinkArtist(membership)}
+                              variant="ghost"
+                              onClick={() => openMembershipServiceEditor(membership)}
                             >
-                              {unlinkingMembershipId === membershipRecordId ? 'Desvinculando...' : 'Desvincular'}
+                              Editar servicios
                             </Button>
                           </div>
                         </div>
                         {isExpanded && (
                           <div className="compact-list" style={{ marginTop: 14 }}>
-                            <div className="list-row elevated-row">
-                              <div>
-                                <strong>Estado membership</strong>
-                                <small>Vinculo activo con este estudio.</small>
-                              </div>
-                              <StatusPill tone="success">{membership.status || 'active'}</StatusPill>
-                            </div>
                             {(operations?.services || [])
                               .filter((service) => ['active', 'activo'].includes(String(service.status || '').toLowerCase()))
-                              .map((service) => (
-                                <div className="list-row elevated-row" key={service.id}>
-                                  <div>
-                                    <strong>{service.name}</strong>
-                                    <small>{service.category} / {service.duration || `${service.durationMinutes} min`}</small>
-                                    <StudioServicePoints service={service} settings={studioMarketingSettings} />
+                              .map((service) => {
+                                const serviceDraft = membershipServiceDrafts[service.id] || {
+                                  name: service.name,
+                                  durationMinutes: service.durationMinutes,
+                                  price: service.price,
+                                }
+                                const isEditingService = editingMembershipId === membershipRecordId
+
+                                return (
+                                  <div className="list-row elevated-row owner-membership-service-row" key={service.id}>
+                                    {isEditingService ? (
+                                      <div className="owner-membership-service-editor">
+                                        <Input label="Servicio" value={serviceDraft.name} onChange={(event) => updateMembershipServiceDraft(service.id, 'name', event.target.value)} />
+                                        <Input label="Duracion en minutos" min="1" type="number" value={serviceDraft.durationMinutes} onChange={(event) => updateMembershipServiceDraft(service.id, 'durationMinutes', event.target.value)} />
+                                        <Input label="Costo" min="0" step="0.01" type="number" value={serviceDraft.price} onChange={(event) => updateMembershipServiceDraft(service.id, 'price', event.target.value)} />
+                                        <Button disabled={savingMembershipServiceId === service.id} size="sm" onClick={() => saveMembershipService(membershipRecordId, service.id)}>
+                                          {savingMembershipServiceId === service.id ? 'Guardando...' : 'Guardar cambios'}
+                                        </Button>
+                                      </div>
+                                    ) : (
+                                      <div>
+                                        <strong>{service.name}</strong>
+                                        <small>{service.category} / {service.duration || `${service.durationMinutes} min`}</small>
+                                        <StudioServicePoints service={service} settings={studioMarketingSettings} />
+                                      </div>
+                                    )}
+                                    {!isEditingService && <strong className="owner-membership-service-price">${service.price}</strong>}
                                   </div>
-                                  <StatusPill tone="success">${service.price}</StatusPill>
-                                </div>
-                              ))}
+                                )
+                              })}
                             {operations && operations.services.filter((service) => ['active', 'activo'].includes(String(service.status || '').toLowerCase())).length === 0 && (
                               <div className="list-row elevated-row">
                                 <div>
@@ -3031,6 +3110,31 @@ function AdminStudioProfile() {
         </div>
       </Card>
       {isOwnerAppointmentOpen && selectedSection !== 'schedule' && renderOwnerAppointmentForm(false)}
+      {pendingUnlinkMembership && (
+        <div className="modal-shell studio-confirmation-modal" role="dialog" aria-modal="true" aria-labelledby="unlink-artist-title">
+          <div className="modal-card">
+            <div className="modal-header">
+              <div>
+                <span className="eyebrow">Confirmar desvinculacion</span>
+                <h3 id="unlink-artist-title">Desvincular artista</h3>
+              </div>
+              <button className="modal-close" type="button" aria-label="Cerrar" onClick={() => setPendingUnlinkMembership(null)}>x</button>
+            </div>
+            <div className="modal-body">
+              <p>
+                ¿Deseas desvincular a <strong>{pendingUnlinkMembership.realName || pendingUnlinkMembership.name}</strong> de este estudio?
+                Sus servicios y horarios asociados al estudio dejaran de estar disponibles.
+              </p>
+            </div>
+            <div className="modal-actions">
+              <Button disabled={Boolean(unlinkingMembershipId)} size="sm" variant="ghost" onClick={() => setPendingUnlinkMembership(null)}>Conservar vinculacion</Button>
+              <Button disabled={Boolean(unlinkingMembershipId)} size="sm" variant="danger" onClick={() => unlinkArtist(pendingUnlinkMembership)}>
+                {unlinkingMembershipId ? 'Desvinculando...' : 'Desvincular'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   )
 }

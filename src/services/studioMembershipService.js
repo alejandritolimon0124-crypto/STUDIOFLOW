@@ -210,3 +210,26 @@ export async function unlinkStudioArtist({ studioId = null, membershipId = null 
 
   return normalizePayload(data)
 }
+
+export async function updateStudioMembershipService({
+  studioId = null,
+  membershipId = null,
+  serviceId = null,
+  name = '',
+  durationMinutes = 0,
+  price = 0,
+} = {}) {
+  const client = requireSupabase()
+  const { data, error } = await client.rpc('studio_flow_owner_update_membership_service', {
+    p_studio_id: studioId,
+    p_membership_id: membershipId,
+    p_service_id: serviceId,
+    p_name: name,
+    p_duration_minutes: durationMinutes,
+    p_price_amount: price,
+  })
+
+  if (error) throw error
+
+  return normalizeStudioService(data?.service || data)
+}
