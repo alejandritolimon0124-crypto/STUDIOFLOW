@@ -4010,6 +4010,119 @@ select:focus,
   box-shadow: 0 12px 26px rgba(93, 48, 59, 0.22);
 }
 
+.studio-owner-share-feedback {
+  color: var(--muted);
+  font-weight: 800;
+  grid-column: 1 / -1;
+}
+
+.studio-owner-metrics-panel {
+  animation: studio-owner-metrics-in 180ms ease-out;
+}
+
+.studio-owner-metric-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 16px 0;
+}
+
+.studio-owner-metric {
+  align-content: center;
+  background: rgba(255, 251, 250, 0.92);
+  border: 1px solid rgba(153, 91, 106, 0.2);
+  border-radius: 8px;
+  display: grid;
+  min-height: 112px;
+  padding: 16px;
+}
+
+.studio-owner-metric strong {
+  color: var(--text);
+  font-size: clamp(30px, 6vw, 44px);
+  line-height: 1;
+}
+
+.studio-owner-metric span {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 850;
+  line-height: 1.3;
+  margin-top: 9px;
+}
+
+.studio-owner-ranking-table {
+  display: grid;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.studio-owner-ranking-row {
+  align-items: center;
+  background: rgba(255, 251, 250, 0.92);
+  border: 1px solid rgba(153, 91, 106, 0.18);
+  border-radius: 8px;
+  display: flex;
+  justify-content: space-between;
+  min-height: 54px;
+  padding: 12px 15px;
+}
+
+.studio-owner-ranking-row span {
+  font-weight: 850;
+}
+
+.studio-owner-ranking-row span b {
+  color: #b48928;
+  font-size: 20px;
+  margin-right: 8px;
+}
+
+.studio-owner-ranking-row.leader {
+  background: #fff7d8;
+  border-color: #c9a23a;
+  box-shadow: 0 8px 20px rgba(154, 116, 25, 0.14);
+}
+
+.studio-owner-ranking-row > strong {
+  font-size: 24px;
+}
+
+.owner-available-slots-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 14px;
+}
+
+.owner-available-slot {
+  align-content: space-between;
+  background: rgba(255, 251, 250, 0.95);
+  border: 1px solid rgba(153, 91, 106, 0.2);
+  border-radius: 8px;
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  padding: 14px;
+}
+
+.owner-available-slot small {
+  color: var(--muted);
+  display: block;
+  margin-top: 4px;
+}
+
+@keyframes studio-owner-metrics-in {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 420px) {
+  .studio-owner-metric { min-height: 104px; padding: 13px; }
+  .studio-owner-metric strong { font-size: 32px; }
+  .owner-available-slot { padding: 12px; }
+}
+
 .modal-card {
   background: rgba(255, 255, 255, 0.9);
   border: 1px solid rgba(255, 255, 255, 0.9);

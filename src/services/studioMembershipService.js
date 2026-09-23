@@ -15,6 +15,7 @@ function normalizeMembership(membership = {}) {
     artistId: membership.artistId || membership.artist_id || null,
     profileId: membership.profileId || membership.profile_id || null,
     name: membership.name || 'Artista',
+    realName: membership.realName || membership.real_name || membership.name || 'Artista',
     email: membership.email || '',
     photoUrl: membership.photoUrl || membership.photo_url || '',
     studioPhotoUrl: membership.studioPhotoUrl || membership.studio_photo_url || '',
@@ -191,6 +192,18 @@ export async function cancelStudioArtistInvitation(invitationId) {
   const client = requireSupabase()
   const { data, error } = await client.rpc('studio_flow_owner_cancel_artist_invitation', {
     p_invitation_id: invitationId,
+  })
+
+  if (error) throw error
+
+  return normalizePayload(data)
+}
+
+export async function unlinkStudioArtist({ studioId = null, membershipId = null } = {}) {
+  const client = requireSupabase()
+  const { data, error } = await client.rpc('studio_flow_owner_unlink_artist', {
+    p_studio_id: studioId,
+    p_membership_id: membershipId,
   })
 
   if (error) throw error

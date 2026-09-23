@@ -30,6 +30,7 @@ import {
   fetchStudioMemberships,
   findStudioArtistByEmail,
   inviteStudioArtist,
+  unlinkStudioArtist,
 } from '../../services/studioMembershipService'
 import {
   fetchStudioMarketingSettings,
@@ -150,31 +151,10 @@ function appointmentMatchesClientQuery(appointment = {}, query = '') {
   return searchableText.includes(normalizedQuery)
 }
 
-function getAttendedClientIds(appointments = []) {
-  return new Set(appointments
-    .filter((appointment) => (
-      appointment.clientId
-      && !['Cancelada', 'No show'].includes(appointment.status)
-      && !['cancelled', 'no_show'].includes(String(appointment.appointmentStatus || '').toLowerCase())
-      && (
-        appointment.status === 'Completada'
-        || String(appointment.appointmentStatus || '').toLowerCase() === 'completed'
-        || getAppointmentTimestamp(appointment) < Date.now()
-      )
-    ))
-    .map((appointment) => appointment.clientId))
-}
-
 function filterAppointmentsByAttendedClientQuery(appointments = [], query = '') {
   const normalizedQuery = String(query || '').trim()
   if (!normalizedQuery) return appointments
-
-  const attendedClientIds = getAttendedClientIds(appointments)
-
-  return appointments.filter((appointment) => (
-    (!appointment.clientId || attendedClientIds.has(appointment.clientId))
-    && appointmentMatchesClientQuery(appointment, normalizedQuery)
-  ))
+  return appointments.filter((appointment) => appointmentMatchesClientQuery(appointment, normalizedQuery))
 }
 
 function isConfirmedAppointment(appointment = {}) {
@@ -203,6 +183,15 @@ function getWeekEndDate(startDateValue) {
 function getMonthEndDate(startDateValue) {
   const startDate = parseDateValue(startDateValue)
   return formatDateValue(new Date(startDate.getFullYear(), startDate.getMonth() + 1, 0))
+}
+
+function getMonthStartDate(startDateValue) {
+  const startDate = parseDateValue(startDateValue)
+  return formatDateValue(new Date(startDate.getFullYear(), startDate.getMonth(), 1))
+}
+
+function isCompletedAppointment(appointment = {}) {
+  return String(appointment.appointmentStatus || appointment.status || '').toLowerCase().includes('complet')
 }
 
 function OwnerDayStrip({ selectedDate, setSelectedDate, visibleDays }) {
@@ -256,9 +245,7 @@ function StudioSummarySection({
   const [showCalendarFilter, setShowCalendarFilter] = useState(false)
   const [selectedAgendaDate, setSelectedAgendaDate] = useState(getTodayDateValue)
   const [appointmentClientQuery, setAppointmentClientQuery] = useState('')
-  const [pendingMetricsScroll, setPendingMetricsScroll] = useState('')
-  const dashboardHeaderRef = useRef(null)
-  const metricsRef = useRef(null)
+  const [shareFeedback, setShareFeedback] = useState('')
   const [nowTimestamp] = useState(() => Date.now())
   const studioName = profileDraft.commercialName || currentStudio?.profile?.commercialName || currentStudio?.name || 'Estudio'
   const studioLogoUrl = profileDraft.logoUrl
@@ -275,6 +262,7 @@ function StudioSummarySection({
   const visibleDays = useMemo(() => buildVisibleDays(selectedAgendaDate), [selectedAgendaDate])
   const today = getTodayDateValue()
   const weekEndDate = getWeekEndDate(today)
+  const monthStartDate = getMonthStartDate(today)
   const monthEndDate = getMonthEndDate(today)
   const operations = Object.values(membershipOperationsById)
   const activeServices = operations
@@ -292,28 +280,40 @@ function StudioSummarySection({
   const todayAvailableSlots = upcomingSlots.filter((slot) => getAppointmentDate(slot) === today && slot.status === 'available')
   const occupationBase = todayAppointments.length + todayAvailableSlots.length
   const occupancy = occupationBase > 0 ? Math.round((todayAppointments.length / occupationBase) * 100) : 0
-  const completedServices = countAppointmentsBetween(ownerAppointments, today, monthEndDate)
-  const appointmentsByArtist = ownerAppointments.reduce((accumulator, appointment) => {
-    const artistName = appointment.artist || appointment.artistName || 'Artista'
-    accumulator[artistName] = (accumulator[artistName] || 0) + 1
+  const completedMonthAppointments = ownerAppointments.filter((appointment) => (
+    isCompletedAppointment(appointment)
+    && getAppointmentDate(appointment) >= monthStartDate
+    && getAppointmentDate(appointment) <= monthEndDate
+  ))
+  const completedServices = completedMonthAppointments.length
+  const membershipsByArtistId = new Map(activeMemberships.map((membership) => [membership.artistId, membership]))
+  const membershipsById = new Map(activeMemberships.map((membership) => [getMembershipRecordId(membership), membership]))
+  const appointmentsByArtist = activeMemberships.reduce((accumulator, membership) => {
+    accumulator[membership.realName || membership.name || 'Artista'] = 0
     return accumulator
   }, {})
-  const mostActiveArtist = Object.entries(appointmentsByArtist).sort((first, second) => second[1] - first[1])[0]
-  const toggleMetrics = () => {
-    const nextShowMetrics = !showMetrics
-    setShowMetrics(nextShowMetrics)
-    setPendingMetricsScroll(nextShowMetrics ? 'metrics' : 'header')
+  completedMonthAppointments.forEach((appointment) => {
+    const membership = membershipsById.get(appointment.membershipId) || membershipsByArtistId.get(appointment.artistId)
+    const artistName = membership?.realName || membership?.name || appointment.artist || appointment.artistName || 'Artista'
+    appointmentsByArtist[artistName] = (appointmentsByArtist[artistName] || 0) + 1
+  })
+  const artistRanking = Object.entries(appointmentsByArtist).sort((first, second) => second[1] - first[1])
+  const shareApplication = async () => {
+    const shareData = {
+      title: 'Studio Flow',
+      text: 'Agenda tus servicios de belleza con Studio Flow.',
+      url: 'https://studioflow.vip',
+    }
+    try {
+      if (navigator.share) await navigator.share(shareData)
+      else {
+        await navigator.clipboard.writeText(shareData.url)
+        setShareFeedback('Enlace copiado.')
+      }
+    } catch (error) {
+      if (error?.name !== 'AbortError') setShareFeedback('No se pudo compartir el enlace.')
+    }
   }
-
-  useEffect(() => {
-    if (!pendingMetricsScroll) return
-
-    const target = pendingMetricsScroll === 'metrics' ? metricsRef.current : dashboardHeaderRef.current
-    window.requestAnimationFrame(() => {
-      target?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-      setPendingMetricsScroll('')
-    })
-  }, [pendingMetricsScroll, showMetrics])
 
   return (
     <>
@@ -334,16 +334,36 @@ function StudioSummarySection({
         </div>
         <div className="hero-actions artist-hero-actions studio-owner-hero-actions">
           <Button onClick={() => navigate(`${paths.adminStudio}?section=schedule`)}>Agregar cita</Button>
-          <Button variant="ghost" onClick={() => navigate(`${paths.adminStudio}?section=schedule`)}>
-            Editar horario
-          </Button>
-          <Button className="full-width" variant="ghost" onClick={toggleMetrics}>
+          <Button onClick={shareApplication}>Compartir aplicacion</Button>
+          <Button className="full-width" variant="ghost" onClick={() => setShowMetrics((currentValue) => !currentValue)}>
             {showMetrics ? 'Ocultar metricas' : 'Mostrar metricas'}
           </Button>
+          <Button className="full-width" variant="ghost" onClick={() => navigate(`${paths.adminStudio}?section=schedule`)}>
+            Editar horario
+          </Button>
         </div>
+        {shareFeedback && <small className="studio-owner-share-feedback">{shareFeedback}</small>}
       </section>
 
-      <section className="profile-foundation-card" ref={dashboardHeaderRef}>
+      {showMetrics && (
+        <section className="profile-foundation-card studio-owner-metrics-panel">
+          <div>
+            <span className="eyebrow">Metricas operativas</span>
+            <h3>Rendimiento del estudio</h3>
+          </div>
+          <div className="studio-owner-metric-grid">
+            <div className="studio-owner-metric"><strong>{todayAppointments.length}</strong><span>Citas hoy</span></div>
+            <div className="studio-owner-metric"><strong>{countAppointmentsBetween(ownerAppointments, today, weekEndDate)}</strong><span>Citas semana</span></div>
+            <div className="studio-owner-metric"><strong>{countAppointmentsBetween(ownerAppointments, monthStartDate, monthEndDate)}</strong><span>Citas del mes</span></div>
+            <div className="studio-owner-metric"><strong>{occupancy}%</strong><span>Ocupacion hoy</span></div>
+            <div className="studio-owner-metric"><strong>{completedServices}</strong><span>Servicios realizados este mes</span></div>
+            <div className="studio-owner-metric"><strong>{activeMemberships.length}</strong><span>Artistas activas</span></div>
+          </div>
+          <Button variant="ghost" onClick={() => setShowMetrics(false)}>Ocultar metricas</Button>
+        </section>
+      )}
+
+      <section className="profile-foundation-card">
         <div>
           <span className="eyebrow">Agenda visual</span>
           <h3>{selectedAgendaDate === today ? 'Hoy' : selectedAgendaDate}</h3>
@@ -369,11 +389,6 @@ function StudioSummarySection({
               value={appointmentClientQuery}
               onChange={(event) => setAppointmentClientQuery(event.target.value)}
             />
-            {appointmentClientQuery.trim() && (
-              <small style={{ color: 'var(--muted)', fontWeight: 800 }}>
-                Solo se muestran clientas que ya acudieron al menos una vez con este estudio.
-              </small>
-            )}
           </div>
         )}
         <OwnerDayStrip
@@ -441,101 +456,33 @@ function StudioSummarySection({
             )}
           </div>
         )}
-        <div className="compact-list">
-          <div className="list-row elevated-row">
-            <div>
-              <strong>Artistas activas</strong>
-              <small>Memberships listas para operar.</small>
-            </div>
-            <StatusPill tone="neutral">{activeMemberships.length}</StatusPill>
-          </div>
-          <div className="list-row elevated-row">
-            <div>
-              <strong>Servicios activos</strong>
-              <small>Servicios cargados en recursos del equipo.</small>
-            </div>
-            <StatusPill tone="neutral">{activeServices.length}</StatusPill>
-          </div>
-          <div className="list-row elevated-row">
-            <div>
-              <strong>Citas hoy</strong>
-              <small>Solo citas confirmadas o programadas.</small>
-            </div>
-            <StatusPill tone="success">{todayAppointments.length}</StatusPill>
-          </div>
-          <div className="list-row elevated-row">
-            <div>
-              <strong>Proximas citas</strong>
-              <small>Agenda confirmada por venir.</small>
-            </div>
-            <StatusPill tone="neutral">{upcomingAppointments.length}</StatusPill>
-          </div>
+        <div className="studio-owner-metric-grid studio-owner-summary-grid">
+          <div className="studio-owner-metric"><strong>{activeMemberships.length}</strong><span>Artistas activas</span></div>
+          <div className="studio-owner-metric"><strong>{activeServices.length}</strong><span>Servicios activos</span></div>
+          <div className="studio-owner-metric"><strong>{todayAppointments.length}</strong><span>Citas hoy</span></div>
+          <div className="studio-owner-metric"><strong>{upcomingAppointments.length}</strong><span>Proximas citas</span></div>
         </div>
       </section>
 
-      {showMetrics && (
-        <section className="profile-foundation-card" ref={metricsRef}>
-          <div>
-            <span className="eyebrow">Metricas operativas</span>
-            <h3>Rendimiento del estudio</h3>
-          </div>
-          <div className="compact-list">
-            <div className="list-row elevated-row">
-              <strong>Citas hoy</strong>
-              <StatusPill tone="neutral">{todayAppointments.length}</StatusPill>
-            </div>
-            <div className="list-row elevated-row">
-              <strong>Citas semana</strong>
-              <StatusPill tone="neutral">{countAppointmentsBetween(ownerAppointments, today, weekEndDate)}</StatusPill>
-            </div>
-            <div className="list-row elevated-row">
-              <strong>Citas mes</strong>
-              <StatusPill tone="neutral">{countAppointmentsBetween(ownerAppointments, today, monthEndDate)}</StatusPill>
-            </div>
-            <div className="list-row elevated-row">
-              <strong>Ocupacion agenda</strong>
-              <StatusPill tone={occupancy > 70 ? 'success' : 'neutral'}>{occupancy}%</StatusPill>
-            </div>
-            <div className="list-row elevated-row">
-              <strong>Servicios realizados</strong>
-              <StatusPill tone="neutral">{completedServices}</StatusPill>
-            </div>
-            <div className="list-row elevated-row">
-              <strong>Artista mas activa</strong>
-              <StatusPill tone="neutral">{mostActiveArtist ? `${mostActiveArtist[0]} (${mostActiveArtist[1]})` : 'Sin citas'}</StatusPill>
-            </div>
-          </div>
-          <Button variant="ghost" onClick={toggleMetrics}>Ocultar metricas</Button>
-        </section>
-      )}
-
-      <section className="profile-foundation-card">
+      <section className="profile-foundation-card studio-owner-team-ranking">
         <div>
           <span className="eyebrow">Resumen equipo</span>
-          <h3>Artistas activas: {activeMemberships.length}</h3>
+          <h3>Servicios completados este mes</h3>
+          <small>El conteo inicia nuevamente el dia 1 de cada mes.</small>
         </div>
-        <div className="compact-list">
-          {activeMemberships.map((membership) => {
-            const memberServices = (membershipOperationsById[getMembershipRecordId(membership)]?.services || [])
-              .filter((service) => ['active', 'activo'].includes(String(service.status || '').toLowerCase()))
-
-            return (
-              <div className="list-row elevated-row" key={membership.id}>
-                <div>
-                  <strong>{membership.name}</strong>
-                  <small>Servicios activos: {memberServices.length}</small>
-                </div>
-                <StatusPill tone="success">Activa</StatusPill>
-              </div>
-            )
-          })}
-          {activeMemberships.length === 0 && (
+        <div className="studio-owner-ranking-table">
+          {artistRanking.map(([artistName, appointmentCount], index) => (
+            <div className={index === 0 ? 'studio-owner-ranking-row leader' : 'studio-owner-ranking-row'} key={artistName}>
+              <span>{index === 0 && <b aria-label="Artista mas activa">★</b>}{artistName}</span>
+              <strong>{appointmentCount}</strong>
+            </div>
+          ))}
+          {artistRanking.length === 0 && (
             <div className="list-row elevated-row">
               <div>
-                <strong>Sin artistas activas</strong>
-                <small>Las artistas apareceran aqui cuando acepten su token.</small>
+                <strong>Sin servicios completados este mes</strong>
+                <small>El ranking se actualizara con cada cita completada.</small>
               </div>
-              <StatusPill tone="neutral">Vacio</StatusPill>
             </div>
           )}
         </div>
@@ -648,12 +595,23 @@ function StudioScheduleSection({
   const [showCalendarFilter, setShowCalendarFilter] = useState(false)
   const [selectedAgendaDate, setSelectedAgendaDate] = useState(getTodayDateValue)
   const [appointmentClientQuery, setAppointmentClientQuery] = useState('')
+  const [membershipViewById, setMembershipViewById] = useState({})
   const visibleDays = useMemo(() => buildVisibleDays(selectedAgendaDate), [selectedAgendaDate])
   const studioName = profileDraft?.commercialName || currentStudio?.profile?.commercialName || currentStudio?.name || 'Estudio'
   const filteredOwnerAppointments = filterAppointmentsByAttendedClientQuery(ownerAppointments, appointmentClientQuery)
   const selectedDateAppointments = filteredOwnerAppointments
     .filter((appointment) => getAppointmentDate(appointment) === selectedAgendaDate)
     .sort((firstAppointment, secondAppointment) => getAppointmentTimestamp(firstAppointment) - getAppointmentTimestamp(secondAppointment))
+
+  const toggleMembershipView = async (membershipId, view) => {
+    const currentView = membershipViewById[membershipId]
+    if (expandedMembershipId === membershipId && currentView === view) {
+      await toggleMembershipOperations(membershipId)
+      return
+    }
+    setMembershipViewById((currentValue) => ({ ...currentValue, [membershipId]: view }))
+    if (expandedMembershipId !== membershipId) await toggleMembershipOperations(membershipId)
+  }
 
   return (
     <>
@@ -686,11 +644,6 @@ function StudioScheduleSection({
               value={appointmentClientQuery}
               onChange={(event) => setAppointmentClientQuery(event.target.value)}
             />
-            {appointmentClientQuery.trim() && (
-              <small style={{ color: 'var(--muted)', fontWeight: 800 }}>
-                Solo se muestran clientas que ya acudieron al menos una vez con este estudio.
-              </small>
-            )}
           </div>
         )}
         {renderOwnerAppointmentForm?.()}
@@ -765,6 +718,8 @@ function StudioScheduleSection({
             const operations = membershipOperationsById[membershipRecordId]
             const isExpanded = expandedMembershipId === membershipRecordId
             const isLoadingOperations = membershipOperationsLoadingId === membershipRecordId
+            const selectedView = membershipViewById[membershipRecordId] || 'schedule'
+            const availableSlots = (operations?.upcomingSlots || []).filter((slot) => slot.status === 'available')
 
             return (
               <div className="elevated-row owner-team-agenda-card" key={membershipRecordId || membership.id}>
@@ -774,18 +729,25 @@ function StudioScheduleSection({
                     <small>{operations?.schedule ? `${operations.schedule.timezone} / cada ${operations.schedule.intervalMinutes} min` : 'Sin agenda membership cargada.'}</small>
                   </div>
                   <div className="studio-review-actions">
-                    <StatusPill tone="neutral">{operations?.upcomingSlots?.length || 0} slots</StatusPill>
                     <Button
                       disabled={isLoadingOperations}
                       size="sm"
                       variant="ghost"
-                      onClick={() => toggleMembershipOperations(membershipRecordId)}
+                      onClick={() => toggleMembershipView(membershipRecordId, 'schedule')}
                     >
-                      {isLoadingOperations ? 'Cargando...' : isExpanded ? 'Ocultar' : 'Ver agenda'}
+                      {isLoadingOperations ? 'Cargando...' : isExpanded && selectedView === 'schedule' ? 'Ocultar' : 'Mis horarios'}
+                    </Button>
+                    <Button
+                      disabled={isLoadingOperations}
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => toggleMembershipView(membershipRecordId, 'available')}
+                    >
+                      {isExpanded && selectedView === 'available' ? 'Ocultar' : 'Horarios disponibles'}
                     </Button>
                   </div>
                 </div>
-                {isExpanded && (
+                {isExpanded && selectedView === 'schedule' && (
                   <div className="compact-list" style={{ marginTop: 14 }}>
                     {operations?.schedule?.rules?.map((rule) => (
                       <div className="list-row elevated-row" key={rule.id || rule.weekday}>
@@ -801,42 +763,29 @@ function StudioScheduleSection({
                         </StatusPill>
                       </div>
                     ))}
-                    <div className="list-row elevated-row">
-                      <div>
-                        <strong>Proximos espacios disponibles</strong>
-                        <small>Disponibilidad real con membership_id de este estudio.</small>
+                    {operations && !operations.schedule && (
+                      <div className="list-row elevated-row">
+                        <div>
+                          <strong>Sin horarios configurados</strong>
+                          <small>La artista debe configurar sus reglas de disponibilidad para este estudio.</small>
+                        </div>
+                        <StatusPill tone="neutral">Pendiente</StatusPill>
                       </div>
-                      <StatusPill tone="neutral">{operations?.upcomingSlots?.length || 0} slots</StatusPill>
-                    </div>
-                    {operations?.upcomingSlots?.map((slot) => (
-                      <div className="list-row elevated-row" key={slot.id}>
+                    )}
+                  </div>
+                )}
+                {isExpanded && selectedView === 'available' && (
+                  <div className="owner-available-slots-grid">
+                    {availableSlots.map((slot) => (
+                      <div className="owner-available-slot" key={slot.id}>
                         <div>
                           <strong>{slot.date || String(slot.startsAt || '').slice(0, 10)}</strong>
                           <small>{slot.time || String(slot.startsAt || '').slice(11, 16)} a {slot.end || String(slot.endsAt || '').slice(11, 16)}</small>
                         </div>
-                        <div className="studio-review-actions">
-                          <StatusPill tone="success">{slot.status}</StatusPill>
-                          <Button
-                            size="sm"
-                            onClick={() => onOpenAppointmentModal({
-                              membership,
-                              slot,
-                            })}
-                          >
-                            Agendar
-                          </Button>
-                        </div>
+                        <Button size="sm" onClick={() => onOpenAppointmentModal({ membership, slot })}>Agendar</Button>
                       </div>
                     ))}
-                    {operations && !operations.schedule && operations.upcomingSlots.length === 0 && (
-                      <div className="list-row elevated-row">
-                        <div>
-                          <strong>Sin disponibilidad configurada</strong>
-                          <small>No hay agenda ni slots disponibles para esta membership.</small>
-                        </div>
-                        <StatusPill tone="neutral">Lectura</StatusPill>
-                      </div>
-                    )}
+                    {availableSlots.length === 0 && <small>No hay horarios disponibles proximos para esta artista.</small>}
                   </div>
                 )}
               </div>
@@ -1219,6 +1168,8 @@ function AdminStudioProfile() {
   const [expandedMembershipId, setExpandedMembershipId] = useState('')
   const [membershipOperationsById, setMembershipOperationsById] = useState({})
   const [membershipOperationsLoadingId, setMembershipOperationsLoadingId] = useState('')
+  const [unlinkingMembershipId, setUnlinkingMembershipId] = useState('')
+  const [unlinkedMembershipIds, setUnlinkedMembershipIds] = useState([])
   const [inviteEmail, setInviteEmail] = useState('')
   const [searchedArtist, setSearchedArtist] = useState(null)
   const [artistSearchStatus, setArtistSearchStatus] = useState({ tone: 'neutral', message: '' })
@@ -1300,9 +1251,10 @@ function AdminStudioProfile() {
     [adminState.artists, currentStudio?.id],
   )
   const operationalMemberships = useMemo(() => {
-    const merged = [...activeMemberships]
+    const merged = activeMemberships.filter((membership) => !unlinkedMembershipIds.includes(getMembershipRecordId(membership)))
 
     fallbackMemberships.forEach((fallbackMembership) => {
+      if (unlinkedMembershipIds.includes(getMembershipRecordId(fallbackMembership))) return
       const exists = merged.some((membership) => (
         membership.id === fallbackMembership.id
         || (getMembershipRecordId(membership) && getMembershipRecordId(membership) === getMembershipRecordId(fallbackMembership))
@@ -1313,7 +1265,7 @@ function AdminStudioProfile() {
     })
 
     return merged
-  }, [activeMemberships, fallbackMemberships])
+  }, [activeMemberships, fallbackMemberships, unlinkedMembershipIds])
   const studioFlowPointsEnabled = Boolean(studioMarketingSettings.flowPointsEnabled)
   const studioDoublePointsActive = studioMarketingSettings.doublePoints?.status === 'active'
   const studioHappyHourActive = studioMarketingSettings.happyHour?.status === 'active'
@@ -1492,6 +1444,7 @@ function AdminStudioProfile() {
     setPreviousMembershipStudioId(currentStudioId)
     setMembershipState({ memberships: [], invitations: [], artistCandidates: [], lastInvitation: null })
     setMembershipOperationsById({})
+    setUnlinkedMembershipIds([])
     setExpandedMembershipId('')
     setStudioOwnerAppointments([])
     setOwnerAppointmentDraft(emptyOwnerAppointmentDraft)
@@ -2080,6 +2033,32 @@ function AdminStudioProfile() {
       setMembershipFeedback({ tone: 'warm', message: error.message || 'No se pudo cancelar la invitacion.' })
     } finally {
       setIsMembershipsLoading(false)
+    }
+  }
+
+  const unlinkArtist = async (membership) => {
+    const membershipId = getMembershipRecordId(membership)
+    if (!membershipId || !currentStudioId || unlinkingMembershipId) return
+    if (!window.confirm(`Desvincular a ${membership.realName || membership.name} de este estudio? Sus servicios y horarios del estudio dejaran de estar disponibles.`)) return
+
+    setUnlinkingMembershipId(membershipId)
+    setMembershipFeedback({ tone: 'neutral', message: '' })
+    try {
+      const payload = await unlinkStudioArtist({ studioId: currentStudioId, membershipId })
+      setMembershipState(payload)
+      setUnlinkedMembershipIds((currentValue) => [...new Set([...currentValue, membershipId])])
+      setMembershipOperationsById((currentValue) => {
+        const nextValue = { ...currentValue }
+        delete nextValue[membershipId]
+        return nextValue
+      })
+      setExpandedMembershipId('')
+      await loadAdminArtists?.().catch(() => null)
+      setMembershipFeedback({ tone: 'success', message: 'Artista desvinculada del estudio.' })
+    } catch (error) {
+      setMembershipFeedback({ tone: 'warm', message: error.message || 'No se pudo desvincular a la artista.' })
+    } finally {
+      setUnlinkingMembershipId('')
     }
   }
 
@@ -2754,6 +2733,14 @@ function AdminStudioProfile() {
                               onClick={() => toggleMembershipOperations(membershipRecordId)}
                             >
                               {isLoadingOperations ? 'Cargando...' : isExpanded ? 'Ocultar' : 'Ver recursos'}
+                            </Button>
+                            <Button
+                              disabled={unlinkingMembershipId === membershipRecordId}
+                              size="sm"
+                              variant="danger"
+                              onClick={() => unlinkArtist(membership)}
+                            >
+                              {unlinkingMembershipId === membershipRecordId ? 'Desvinculando...' : 'Desvincular'}
                             </Button>
                           </div>
                         </div>

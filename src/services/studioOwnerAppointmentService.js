@@ -181,7 +181,7 @@ export async function fetchStudioOwnerAppointmentClients({ studioId, query = '',
     .slice(0, limit)
 }
 
-export async function fetchStudioOwnerAppointments({ studioId, membershipIds = [], limit = 100 } = {}) {
+export async function fetchStudioOwnerAppointments({ studioId, membershipIds = [], limit = 1000 } = {}) {
   const normalizedMembershipIds = [...new Set((membershipIds || []).filter(Boolean))]
   if (!studioId && normalizedMembershipIds.length === 0) return []
 
