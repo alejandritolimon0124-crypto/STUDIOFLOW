@@ -56,6 +56,7 @@ import {
 import { fetchMarketplaceAvailability } from '../services/availabilityService'
 import { bookMarketplaceAppointment as bookMarketplaceAppointmentRecord } from '../services/bookingService'
 import { fetchMarketplaceListings } from '../services/marketplaceService'
+import { saveOwnArtistBeautySpace } from '../services/beautySpaceService'
 import {
   fetchArtistProfile,
   saveArtistProfile as saveArtistProfileRecord,
@@ -281,7 +282,7 @@ async function repairIncompleteAuthContext(authSession, authContext = {}) {
       return authContext
     }
 
-    return bootstrapArtistProfile({
+    const repairedContext = await bootstrapArtistProfile({
       displayName,
       phone,
       artisticName: metadata.artistic_name || displayName,
@@ -289,6 +290,8 @@ async function repairIncompleteAuthContext(authSession, authContext = {}) {
       birthday,
       claimToken: metadata.claim_token || null,
     })
+    if (metadata.beauty_space) await saveOwnArtistBeautySpace(metadata.beauty_space)
+    return repairedContext
   }
 
   return authContext
@@ -1095,7 +1098,7 @@ export function AppProvider({ children }) {
     }
   }, [])
 
-  const registerArtist = useCallback(async ({ displayName, email, phone, birthday, password, artisticName, city, claimToken }) => {
+  const registerArtist = useCallback(async ({ displayName, email, phone, birthday, password, artisticName, city, claimToken, beautySpace }) => {
     setAuthError('')
     setIsAuthLoading(true)
 
@@ -1111,6 +1114,7 @@ export function AppProvider({ children }) {
           city,
           birthday,
           claim_token: claimToken || null,
+          beauty_space: beautySpace,
         },
       })
 
@@ -1120,6 +1124,7 @@ export function AppProvider({ children }) {
       }
 
       const authContext = await bootstrapArtistProfile({ displayName, phone, artisticName, city, birthday, claimToken })
+      await saveOwnArtistBeautySpace(beautySpace)
       const nextSession = createSessionFromAuthContext(data.session, authContext)
       const artistProfile = await fetchArtistProfile({ artistId: authContext.artist?.id })
       setArtistState((currentState) => ({

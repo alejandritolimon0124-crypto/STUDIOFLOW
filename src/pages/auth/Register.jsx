@@ -8,6 +8,7 @@ import { useApp } from '../../contexts/appContextCore'
 import { paths } from '../../routes/paths'
 import { getDefaultStudioStatus, getStudioStatusLabel } from '../../modules/governance/studioGovernance'
 import { getMaxBirthDateForAdult, validateBirthDate } from '../../utils/birthdayValidation'
+import { BEAUTY_SPACES } from '../../services/beautySpaceService'
 
 const initialClientForm = {
   displayName: '',
@@ -29,6 +30,7 @@ const initialArtistForm = {
   address: '',
   city: '',
   claimToken: '',
+  beautySpace: '',
 }
 
 function Register() {
@@ -95,6 +97,10 @@ function Register() {
     setConfirmationMessage('')
 
     if (!validatePasswords(artistForm) || !validateBirthday(artistForm.birthday)) return
+    if (!artistForm.beautySpace) {
+      setLocalError('Selecciona el beauty space en el que ofrecerás tus servicios.')
+      return
+    }
 
     try {
       const result = await registerArtist({
@@ -240,6 +246,26 @@ function Register() {
               <strong>{getStudioStatusLabel(defaultStudioStatus)}</strong>
               <p>Tu estudio entrara a validacion para mantener la calidad premium de Studio Flow.</p>
               <input type="hidden" name="studioStatus" value={defaultStudioStatus} />
+            </div>
+            <div className="beauty-space-registration">
+              <span className="eyebrow">Beauty space</span>
+              <strong>¿En qué espacio ofrecerás tus servicios?</strong>
+              <div className="beauty-space-options">
+                <button
+                  className={`beauty-space-choice${artistForm.beautySpace === BEAUTY_SPACES.BEAUTY_AND_PERSONAL_CARE ? ' is-active' : ''}`}
+                  type="button"
+                  onClick={() => updateArtistForm('beautySpace', BEAUTY_SPACES.BEAUTY_AND_PERSONAL_CARE)}
+                >
+                  Salones de belleza y cuidado personal
+                </button>
+                <button
+                  className={`beauty-space-choice${artistForm.beautySpace === BEAUTY_SPACES.SPA_AND_ADVANCED_AESTHETICS ? ' is-active' : ''}`}
+                  type="button"
+                  onClick={() => updateArtistForm('beautySpace', BEAUTY_SPACES.SPA_AND_ADVANCED_AESTHETICS)}
+                >
+                  Spa y estética avanzada
+                </button>
+              </div>
             </div>
             <Input
               label="Nombre artistico o estudio"

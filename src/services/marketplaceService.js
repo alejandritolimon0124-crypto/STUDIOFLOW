@@ -1,5 +1,6 @@
 import { requireSupabase } from '../lib/supabaseClient'
 import { normalizeServiceCategory, normalizeServiceName } from './staticCatalogs'
+import { BEAUTY_SPACES, fetchMarketplaceBeautySpaces } from './beautySpaceService'
 
 function asArray(value) {
   return Array.isArray(value) ? value : []
@@ -146,6 +147,7 @@ function normalizeListing(listing = {}) {
     listingId,
     profileId: listing.profileId || listing.profile_id || null,
     profileType,
+    beautySpace: listing.beautySpace || listing.beauty_space || BEAUTY_SPACES.BEAUTY_AND_PERSONAL_CARE,
     artistId,
     studioId,
     membershipId,
@@ -215,9 +217,21 @@ function mapMarketplacePayload(data) {
 
 export async function fetchMarketplaceListings() {
   const client = requireSupabase()
-  const { data, error } = await client.rpc('studio_flow_marketplace_get_listings')
+  const [{ data, error }, beautySpaces] = await Promise.all([
+    client.rpc('studio_flow_marketplace_get_listings'),
+    fetchMarketplaceBeautySpaces().catch(() => []),
+  ])
 
   if (error) throw error
 
-  return mapMarketplacePayload(data)
+  const spacesByEntity = new Map(beautySpaces.map((item) => [
+    `${item.entity_type}:${item.entity_id}`,
+    item.beauty_space,
+  ]))
+
+  return mapMarketplacePayload(data).map((listing) => ({
+    ...listing,
+    beautySpace: spacesByEntity.get(`${listing.profileType}:${listing.profileType === 'studio' ? listing.studioId : listing.artistId}`)
+      || BEAUTY_SPACES.BEAUTY_AND_PERSONAL_CARE,
+  }))
 }

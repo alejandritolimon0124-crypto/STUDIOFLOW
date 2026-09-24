@@ -33,6 +33,7 @@ import { fetchClientFlowPointsBalance } from '../../services/appointmentService'
 import { normalizeServiceName, serviceCatalog } from '../../services/staticCatalogs'
 import { optimizeImageFile } from '../../utils/imageOptimization'
 import { pushRegistrationStorageKey } from '../../services/pushNotificationService'
+import { BEAUTY_SPACES } from '../../services/beautySpaceService'
 
 const clientConfirmationNoticeKey = 'studio-flow-client-confirmation-notices'
 const FLOW_POINTS_MINIMUM_REDEMPTION = 1000
@@ -932,6 +933,7 @@ function ClientDashboard({ view = 'inicio' }) {
   const [profileError, setProfileError] = useState('')
   const [isProfileSaving, setIsProfileSaving] = useState(false)
   const [searchMode, setSearchMode] = useState('Servicio')
+  const [beautySpace, setBeautySpace] = useState(BEAUTY_SPACES.BEAUTY_AND_PERSONAL_CARE)
   const [primaryService, setPrimaryService] = useState('Pestañas')
   const [secondaryService, setSecondaryService] = useState(searchServices.Pestañas[0].name)
   const [studioQuery, setStudioQuery] = useState('')
@@ -1010,8 +1012,11 @@ function ClientDashboard({ view = 'inicio' }) {
       const artistStudio = getArtistStudio(artist)
       return artist.status === 'Activo' && canUseOperationalFeature(artistStudio || artist, 'publicAgenda')
     })
+  const beautySpaceArtists = activeArtists.filter((artist) => (
+    (artist.beautySpace || BEAUTY_SPACES.BEAUTY_AND_PERSONAL_CARE) === beautySpace
+  ))
   const marketplaceSearchServices = useMemo(() => {
-    const groupsFromArtists = buildServiceGroupsFromListings(activeArtists)
+    const groupsFromArtists = buildServiceGroupsFromListings(beautySpaceArtists)
     const mergedGroups = { ...searchServices }
 
     Object.entries(groupsFromArtists).forEach(([category, services]) => {
@@ -1029,7 +1034,7 @@ function ClientDashboard({ view = 'inicio' }) {
     })
 
     return mergedGroups
-  }, [activeArtists])
+  }, [beautySpaceArtists])
   const primaryServiceOptions = Object.keys(marketplaceSearchServices)
   const currentServiceGroup = marketplaceSearchServices[primaryService]
     || marketplaceSearchServices[primaryServiceOptions[0]]
@@ -1398,7 +1403,7 @@ function ClientDashboard({ view = 'inicio' }) {
       const directSearchQuery = studioQuery.trim().toLowerCase()
       const hasActiveRecommendationFilters = nearbyOnly || todayOnly || happyHourOnly || doublePointsOnly
 
-      return activeArtists
+      return beautySpaceArtists
         .map((artist) => {
           if (isRealMarketplace) return artist
 
@@ -2445,6 +2450,27 @@ function ClientDashboard({ view = 'inicio' }) {
         {view === 'explorar' && (
           <Card className="mobile-screen primary-panel">
             <PanelHeader title="Busqueda de artistas" />
+            <section className="beauty-space-selector" aria-label="Selecciona tu beauty space">
+              <span className="eyebrow">Beauty spaces</span>
+              <div className="beauty-space-options">
+                <button
+                  className={`beauty-space-choice${beautySpace === BEAUTY_SPACES.BEAUTY_AND_PERSONAL_CARE ? ' is-active' : ''}`}
+                  type="button"
+                  aria-pressed={beautySpace === BEAUTY_SPACES.BEAUTY_AND_PERSONAL_CARE}
+                  onClick={() => { setBeautySpace(BEAUTY_SPACES.BEAUTY_AND_PERSONAL_CARE); resetMarketplaceList() }}
+                >
+                  Salones de belleza y cuidado personal
+                </button>
+                <button
+                  className={`beauty-space-choice${beautySpace === BEAUTY_SPACES.SPA_AND_ADVANCED_AESTHETICS ? ' is-active' : ''}`}
+                  type="button"
+                  aria-pressed={beautySpace === BEAUTY_SPACES.SPA_AND_ADVANCED_AESTHETICS}
+                  onClick={() => { setBeautySpace(BEAUTY_SPACES.SPA_AND_ADVANCED_AESTHETICS); resetMarketplaceList() }}
+                >
+                  Spa y estética avanzada
+                </button>
+              </div>
+            </section>
             <section className="client-recommendation-panel" aria-label="Recomendaciones de busqueda">
               <div className="client-recommendation-heading">
                 <span className="eyebrow">Busqueda inteligente</span>

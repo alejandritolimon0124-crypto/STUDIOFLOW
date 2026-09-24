@@ -1214,6 +1214,49 @@ select:focus,
   margin-top: 18px;
 }
 
+.beauty-space-selector,
+.beauty-space-registration {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.beauty-space-selector > .eyebrow {
+  font-size: 14px;
+}
+
+.beauty-space-options {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.beauty-space-choice {
+  background: #fff;
+  border: 2px solid var(--line);
+  border-radius: var(--radius);
+  color: var(--text);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 800;
+  min-height: 72px;
+  padding: 14px;
+  text-align: center;
+}
+
+.beauty-space-choice.is-active {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: #fff;
+  box-shadow: var(--shadow-soft);
+}
+
+@media (max-width: 560px) {
+  .beauty-space-options {
+    grid-template-columns: 1fr;
+  }
+}
+
 .center-link {
   justify-content: center;
   min-height: 36px;
