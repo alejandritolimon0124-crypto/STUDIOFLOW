@@ -1225,6 +1225,13 @@ select:focus,
   font-size: 14px;
 }
 
+.beauty-space-selector > p {
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
 .beauty-space-options {
   display: grid;
   gap: 10px;
@@ -1245,10 +1252,10 @@ select:focus,
 }
 
 .beauty-space-choice.is-active {
-  background: var(--ink);
-  border-color: var(--ink);
+  background: linear-gradient(135deg, #2d2527, #5e3d43);
+  border-color: #2d2527;
   color: #fff;
-  box-shadow: var(--shadow-soft);
+  box-shadow: 0 16px 28px rgba(45, 37, 39, 0.18);
 }
 
 @media (max-width: 560px) {
@@ -2739,16 +2746,13 @@ select:focus,
     justify-self: start;
   }
 
-  .client-recommendation-actions {
-    grid-template-columns: 1fr;
-  }
-
   .client-promo-filter-grid {
     grid-template-columns: 1fr;
   }
 
   .recommendation-choice {
-    min-height: 86px;
+    min-height: 72px;
+    padding: 10px 8px;
   }
 }
 

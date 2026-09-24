@@ -2449,9 +2449,10 @@ function ClientDashboard({ view = 'inicio' }) {
 
         {view === 'explorar' && (
           <Card className="mobile-screen primary-panel">
-            <PanelHeader title="Busqueda de artistas" />
+            <PanelHeader title="Búsqueda de artistas o estudios" />
             <section className="beauty-space-selector" aria-label="Selecciona tu beauty space">
               <span className="eyebrow">Beauty spaces</span>
+              <p>Selecciona el espacio de belleza para comenzar la búsqueda de artistas o estudios y ver únicamente los servicios correspondientes.</p>
               <div className="beauty-space-options">
                 <button
                   className={`beauty-space-choice${beautySpace === BEAUTY_SPACES.BEAUTY_AND_PERSONAL_CARE ? ' is-active' : ''}`}
