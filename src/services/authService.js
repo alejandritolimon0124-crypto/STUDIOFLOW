@@ -1,7 +1,10 @@
 import { requireSupabase, supabase } from '../lib/supabaseClient'
 
 function getAuthRedirectUrl(path = '/reset-password') {
-  return `${window.location.origin}${path}`
+  const isLocalDevelopment = ['localhost', '127.0.0.1'].includes(window.location.hostname)
+  const appOrigin = isLocalDevelopment ? window.location.origin : 'https://studioflow.vip'
+
+  return `${appOrigin}${path}`
 }
 
 export function hasSupabaseAuth() {
