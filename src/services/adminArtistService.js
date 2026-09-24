@@ -205,9 +205,27 @@ export async function fetchAdminArtists() {
 
   if (error) throw error
   const mappedPayload = mapAdminArtistsPayload(data)
-  const studioIds = mappedPayload.studios.map((studio) => studio.id).filter(Boolean)
+  const [{ data: complianceRows, error: complianceError }] = await Promise.all([
+    client.rpc('studio_flow_admin_get_health_compliance'),
+  ])
+  const visibleComplianceRows = complianceError ? [] : complianceRows
+  const complianceByArtistId = Object.fromEntries((visibleComplianceRows || []).map((row) => [row.artist_id, row]))
+  const payloadWithCompliance = {
+    ...mappedPayload,
+    artists: mappedPayload.artists.map((artist) => ({
+      ...artist,
+      beautySpaces: complianceByArtistId[artist.id]?.beauty_spaces || ['beauty_and_personal_care'],
+      healthCompliance: {
+        hasHealthOfficer: Boolean(complianceByArtistId[artist.id]?.has_health_officer),
+        healthOfficerName: complianceByArtistId[artist.id]?.health_officer_name || '',
+        healthOfficerTitle: complianceByArtistId[artist.id]?.health_officer_title || '',
+        healthOfficerLicense: complianceByArtistId[artist.id]?.health_officer_license || '',
+      },
+    })),
+  }
+  const studioIds = payloadWithCompliance.studios.map((studio) => studio.id).filter(Boolean)
 
-  if (studioIds.length === 0) return mappedPayload
+  if (studioIds.length === 0) return payloadWithCompliance
 
   const { data: studioContactRows, error: studioContactError } = await client
     .from('studio_profiles')
@@ -219,8 +237,8 @@ export async function fetchAdminArtists() {
   const contactsByStudioId = Object.fromEntries((studioContactRows || []).map((row) => [row.studio_id, row]))
 
   return {
-    ...mappedPayload,
-    studios: mappedPayload.studios.map((studio) => {
+    ...payloadWithCompliance,
+    studios: payloadWithCompliance.studios.map((studio) => {
       const contactRow = contactsByStudioId[studio.id] || {}
       return {
         ...studio,

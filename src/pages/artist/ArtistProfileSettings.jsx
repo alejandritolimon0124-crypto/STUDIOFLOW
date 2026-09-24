@@ -14,6 +14,7 @@ import { buildGoogleMapsUrl, createArtistLocationSettings, hasCoordinates, valid
 import { mapAuthContextToArtistProfile } from '../../utils/artistProfileMapper'
 import { getMaxBirthDateForAdult, validateBirthDate } from '../../utils/birthdayValidation'
 import { optimizeImageFile } from '../../utils/imageOptimization'
+import { BEAUTY_SPACES } from '../../services/beautySpaceService'
 
 const portfolioLimit = 12
 
@@ -162,6 +163,28 @@ function ArtistProfileSettings() {
     }))
   }
 
+  const toggleBeautySpace = (space) => {
+    setProfileDraft((currentDraft) => {
+      const currentSpaces = currentDraft.beautySpaces || []
+      return {
+        ...currentDraft,
+        beautySpaces: currentSpaces.includes(space)
+          ? currentSpaces.filter((item) => item !== space)
+          : [...currentSpaces, space],
+      }
+    })
+  }
+
+  const updateHealthCompliance = (field, value) => {
+    setProfileDraft((currentDraft) => ({
+      ...currentDraft,
+      healthCompliance: {
+        ...(currentDraft.healthCompliance || {}),
+        [field]: value,
+      },
+    }))
+  }
+
   const updateLocationMode = (useStudioLocation) => {
     setProfileDraft((currentDraft) => ({
       ...currentDraft,
@@ -269,6 +292,19 @@ function ArtistProfileSettings() {
 
   const saveProfile = async () => {
     const nextProfile = { ...profileDraft }
+    const usesAdvancedAesthetics = (profileDraft.beautySpaces || []).includes(BEAUTY_SPACES.SPA_AND_ADVANCED_AESTHETICS)
+
+    if ((profileDraft.beautySpaces || []).length === 0) {
+      setSaveFeedback('Selecciona por lo menos un Beauty Space.')
+      return
+    }
+    if (usesAdvancedAesthetics && (!profileDraft.healthCompliance?.hasHealthOfficer
+      || !profileDraft.healthCompliance?.healthOfficerName?.trim()
+      || !profileDraft.healthCompliance?.healthOfficerTitle?.trim()
+      || !profileDraft.healthCompliance?.healthOfficerLicense?.trim())) {
+      setSaveFeedback('Completa los datos obligatorios del responsable sanitario para estética avanzada.')
+      return
+    }
 
     if (isStudioArtistContext) {
       try {
@@ -506,6 +542,35 @@ function ArtistProfileSettings() {
                 onChange={(event) => updateDraftSection('personalInfo', 'email', event.target.value)}
               />
             </div>
+          </section>
+
+          <section className="profile-foundation-card">
+            <div>
+              <span className="eyebrow">Beauty spaces</span>
+              <h3>Espacios en los que trabajas</h3>
+              <small>Puedes seleccionar uno o ambos. Estética avanzada requiere responsable sanitario.</small>
+            </div>
+            <div className="beauty-space-options">
+              <label className={`beauty-space-choice${(profileDraft.beautySpaces || []).includes(BEAUTY_SPACES.BEAUTY_AND_PERSONAL_CARE) ? ' is-active' : ''}`}>
+                <input checked={(profileDraft.beautySpaces || []).includes(BEAUTY_SPACES.BEAUTY_AND_PERSONAL_CARE)} type="checkbox" onChange={() => toggleBeautySpace(BEAUTY_SPACES.BEAUTY_AND_PERSONAL_CARE)} />
+                <span>Salones de belleza y cuidado personal</span>
+              </label>
+              <label className={`beauty-space-choice${(profileDraft.beautySpaces || []).includes(BEAUTY_SPACES.SPA_AND_ADVANCED_AESTHETICS) ? ' is-active' : ''}`}>
+                <input checked={(profileDraft.beautySpaces || []).includes(BEAUTY_SPACES.SPA_AND_ADVANCED_AESTHETICS)} type="checkbox" onChange={() => toggleBeautySpace(BEAUTY_SPACES.SPA_AND_ADVANCED_AESTHETICS)} />
+                <span>Spa y estética avanzada</span>
+              </label>
+            </div>
+            {(profileDraft.beautySpaces || []).includes(BEAUTY_SPACES.SPA_AND_ADVANCED_AESTHETICS) && (
+              <div className="health-officer-fields">
+                <label className="location-toggle-row">
+                  <input checked={Boolean(profileDraft.healthCompliance?.hasHealthOfficer)} type="checkbox" onChange={(event) => updateHealthCompliance('hasHealthOfficer', event.target.checked)} />
+                  <span>Tengo responsable sanitario</span>
+                </label>
+                <Input label="Nombre completo del responsable sanitario" value={profileDraft.healthCompliance?.healthOfficerName || ''} onChange={(event) => updateHealthCompliance('healthOfficerName', event.target.value)} />
+                <Input label="Título profesional del responsable sanitario" value={profileDraft.healthCompliance?.healthOfficerTitle || ''} onChange={(event) => updateHealthCompliance('healthOfficerTitle', event.target.value)} />
+                <Input label="Cédula profesional del responsable sanitario" value={profileDraft.healthCompliance?.healthOfficerLicense || ''} onChange={(event) => updateHealthCompliance('healthOfficerLicense', event.target.value)} />
+              </div>
+            )}
           </section>
 
           <section className="profile-foundation-card">

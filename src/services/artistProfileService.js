@@ -73,6 +73,11 @@ function mapArtistProfileRow(row = {}) {
     longitude: row.longitude ?? '',
     address_references: row.address_references || '',
     google_maps_url: row.google_maps_url || '',
+    beauty_spaces: Array.isArray(row.beauty_spaces) ? row.beauty_spaces : [row.beauty_space || 'beauty_and_personal_care'],
+    has_health_officer: Boolean(row.has_health_officer),
+    health_officer_name: row.health_officer_name || '',
+    health_officer_title: row.health_officer_title || '',
+    health_officer_license: row.health_officer_license || '',
   }
 }
 

@@ -71,6 +71,15 @@ export function mapAuthContextToArtistProfile(authContext = {}, fallbackProfile 
     registration: {
       studioStatus: 'pending',
     },
+    beautySpaces: Array.isArray(artistProfile.beauty_spaces)
+      ? artistProfile.beauty_spaces
+      : [artistProfile.beauty_space || 'beauty_and_personal_care'],
+    healthCompliance: {
+      hasHealthOfficer: Boolean(artistProfile.has_health_officer),
+      healthOfficerName: firstText(artistProfile.health_officer_name),
+      healthOfficerTitle: firstText(artistProfile.health_officer_title),
+      healthOfficerLicense: firstText(artistProfile.health_officer_license),
+    },
     personalInfo: {
       artisticName,
       fullName,

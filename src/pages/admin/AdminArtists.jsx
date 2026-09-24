@@ -17,6 +17,7 @@ import {
 } from '../../modules/entities/entitySelectors'
 import { ROLES } from '../../modules/permissions/rolePermissions'
 import { buildGoogleMapsUrl, createArtistLocationSettings, createProfessionalLocation, hasCoordinates, validateProfessionalLocation } from '../../utils/locationHelpers'
+import { BEAUTY_SPACES } from '../../services/beautySpaceService'
 
 const uniqueById = (items = []) => Array.from(new Map(items.filter(Boolean).map((item) => [item.id, item])).values())
 const parseMoneyValue = (value) => Number(String(value || '').replace(/[^\d.-]/g, '')) || 0
@@ -249,6 +250,15 @@ function AdminArtists() {
   }
 
   const approveArtist = async (artistId) => {
+    const artist = accessibleArtists.find((item) => item.id === artistId)
+    const requiresHealthOfficer = artist?.beautySpaces?.includes(BEAUTY_SPACES.SPA_AND_ADVANCED_AESTHETICS)
+    const compliance = artist?.healthCompliance || {}
+    if (requiresHealthOfficer && (!compliance.hasHealthOfficer || !compliance.healthOfficerName
+      || !compliance.healthOfficerTitle || !compliance.healthOfficerLicense)) {
+      setProfileSaveFeedback({ tone: 'warm', message: 'No se puede aprobar: faltan datos obligatorios del responsable sanitario.' })
+      setEditingArtist(artist)
+      return
+    }
     const result = await reviewManagedArtist(artistId, 'approve')
     if (result) {
       loadAdminArtists?.().catch(() => null)
@@ -423,6 +433,28 @@ function AdminArtists() {
                   rows="3"
                 />
               </label>
+              <section className="location-foundation-card">
+                <div>
+                  <span className="eyebrow">Validación sanitaria</span>
+                  <h3>Beauty Spaces declarados</h3>
+                  <small>Revisa esta información antes de aprobar la cuenta.</small>
+                </div>
+                <div className="compact-list">
+                  {(editingArtist.beautySpaces || []).map((space) => (
+                    <div className="list-row elevated-row" key={space}>
+                      <strong>{space === BEAUTY_SPACES.SPA_AND_ADVANCED_AESTHETICS ? 'Spa y estética avanzada' : 'Salones de belleza y cuidado personal'}</strong>
+                      <StatusPill tone="neutral">Seleccionado</StatusPill>
+                    </div>
+                  ))}
+                </div>
+                {(editingArtist.beautySpaces || []).includes(BEAUTY_SPACES.SPA_AND_ADVANCED_AESTHETICS) && (
+                  <div className="compact-list">
+                    <div className="list-row elevated-row"><div><small>Responsable sanitario</small><strong>{editingArtist.healthCompliance?.healthOfficerName || 'Sin capturar'}</strong></div><StatusPill tone={editingArtist.healthCompliance?.hasHealthOfficer ? 'success' : 'warm'}>{editingArtist.healthCompliance?.hasHealthOfficer ? 'Declarado' : 'Pendiente'}</StatusPill></div>
+                    <div className="list-row elevated-row"><div><small>Título profesional</small><strong>{editingArtist.healthCompliance?.healthOfficerTitle || 'Sin capturar'}</strong></div></div>
+                    <div className="list-row elevated-row"><div><small>Cédula profesional</small><strong>{editingArtist.healthCompliance?.healthOfficerLicense || 'Sin capturar'}</strong></div></div>
+                  </div>
+                )}
+              </section>
               {editingStudio && <div className="location-foundation-card linked-studio-location-card">
                 <div>
                   <span className="eyebrow">Vinculacion a estudio</span>

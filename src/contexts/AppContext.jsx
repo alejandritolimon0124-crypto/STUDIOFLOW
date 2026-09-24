@@ -290,7 +290,13 @@ async function repairIncompleteAuthContext(authSession, authContext = {}) {
       birthday,
       claimToken: metadata.claim_token || null,
     })
-    if (metadata.beauty_space) await saveOwnArtistBeautySpace(metadata.beauty_space)
+    if (metadata.beauty_spaces) await saveOwnArtistBeautySpace({
+      beautySpaces: metadata.beauty_spaces,
+      hasHealthOfficer: metadata.has_health_officer,
+      healthOfficerName: metadata.health_officer_name,
+      healthOfficerTitle: metadata.health_officer_title,
+      healthOfficerLicense: metadata.health_officer_license,
+    })
     return repairedContext
   }
 
@@ -1098,7 +1104,7 @@ export function AppProvider({ children }) {
     }
   }, [])
 
-  const registerArtist = useCallback(async ({ displayName, email, phone, birthday, password, artisticName, city, claimToken, beautySpace }) => {
+  const registerArtist = useCallback(async ({ displayName, email, phone, birthday, password, artisticName, city, claimToken, beautySpaces, hasHealthOfficer, healthOfficerName, healthOfficerTitle, healthOfficerLicense }) => {
     setAuthError('')
     setIsAuthLoading(true)
 
@@ -1114,7 +1120,11 @@ export function AppProvider({ children }) {
           city,
           birthday,
           claim_token: claimToken || null,
-          beauty_space: beautySpace,
+          beauty_spaces: beautySpaces,
+          has_health_officer: hasHealthOfficer,
+          health_officer_name: healthOfficerName,
+          health_officer_title: healthOfficerTitle,
+          health_officer_license: healthOfficerLicense,
         },
       })
 
@@ -1124,7 +1134,7 @@ export function AppProvider({ children }) {
       }
 
       const authContext = await bootstrapArtistProfile({ displayName, phone, artisticName, city, birthday, claimToken })
-      await saveOwnArtistBeautySpace(beautySpace)
+      await saveOwnArtistBeautySpace({ beautySpaces, hasHealthOfficer, healthOfficerName, healthOfficerTitle, healthOfficerLicense })
       const nextSession = createSessionFromAuthContext(data.session, authContext)
       const artistProfile = await fetchArtistProfile({ artistId: authContext.artist?.id })
       setArtistState((currentState) => ({
@@ -2803,6 +2813,13 @@ export function AppProvider({ children }) {
         profileId,
         profile,
       })
+      await saveOwnArtistBeautySpace({
+        beautySpaces: profile.beautySpaces,
+        hasHealthOfficer: profile.healthCompliance?.hasHealthOfficer,
+        healthOfficerName: profile.healthCompliance?.healthOfficerName,
+        healthOfficerTitle: profile.healthCompliance?.healthOfficerTitle,
+        healthOfficerLicense: profile.healthCompliance?.healthOfficerLicense,
+      })
       const nextProfileContext = {
         ...session.profile,
         phone: profile.personalInfo?.phone || session.profile?.phone || '',
@@ -2816,6 +2833,8 @@ export function AppProvider({ children }) {
         artist: nextArtistContext,
         artistProfile: savedArtistProfile,
       }, profile)
+      mappedProfile.beautySpaces = profile.beautySpaces
+      mappedProfile.healthCompliance = profile.healthCompliance
 
       setArtistState((currentState) => ({
         ...currentState,

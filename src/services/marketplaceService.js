@@ -147,7 +147,9 @@ function normalizeListing(listing = {}) {
     listingId,
     profileId: listing.profileId || listing.profile_id || null,
     profileType,
-    beautySpace: listing.beautySpace || listing.beauty_space || BEAUTY_SPACES.BEAUTY_AND_PERSONAL_CARE,
+    beautySpaces: Array.isArray(listing.beautySpaces || listing.beauty_spaces)
+      ? listing.beautySpaces || listing.beauty_spaces
+      : [listing.beautySpace || listing.beauty_space || BEAUTY_SPACES.BEAUTY_AND_PERSONAL_CARE],
     artistId,
     studioId,
     membershipId,
@@ -226,12 +228,12 @@ export async function fetchMarketplaceListings() {
 
   const spacesByEntity = new Map(beautySpaces.map((item) => [
     `${item.entity_type}:${item.entity_id}`,
-    item.beauty_space,
+    item.beauty_spaces,
   ]))
 
   return mapMarketplacePayload(data).map((listing) => ({
     ...listing,
-    beautySpace: spacesByEntity.get(`${listing.profileType}:${listing.profileType === 'studio' ? listing.studioId : listing.artistId}`)
-      || BEAUTY_SPACES.BEAUTY_AND_PERSONAL_CARE,
+    beautySpaces: spacesByEntity.get(`${listing.profileType}:${listing.profileType === 'studio' ? listing.studioId : listing.artistId}`)
+      || [BEAUTY_SPACES.BEAUTY_AND_PERSONAL_CARE],
   }))
 }

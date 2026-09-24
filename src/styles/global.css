@@ -1251,6 +1251,26 @@ select:focus,
   text-align: center;
 }
 
+.beauty-space-choice input {
+  accent-color: var(--rose-dark);
+  height: 18px;
+  margin: 0;
+  width: 18px;
+}
+
+.beauty-space-choice span {
+  display: block;
+}
+
+.health-officer-fields {
+  background: var(--surface-soft);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+}
+
 .beauty-space-choice.is-active {
   background: linear-gradient(135deg, #2d2527, #5e3d43);
   border-color: #2d2527;

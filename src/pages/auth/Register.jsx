@@ -30,7 +30,11 @@ const initialArtistForm = {
   address: '',
   city: '',
   claimToken: '',
-  beautySpace: '',
+  beautySpaces: [],
+  hasHealthOfficer: false,
+  healthOfficerName: '',
+  healthOfficerTitle: '',
+  healthOfficerLicense: '',
 }
 
 function Register() {
@@ -49,6 +53,15 @@ function Register() {
 
   const updateArtistForm = (field, value) => {
     setArtistForm((currentForm) => ({ ...currentForm, [field]: value }))
+  }
+
+  const toggleBeautySpace = (space) => {
+    setArtistForm((currentForm) => ({
+      ...currentForm,
+      beautySpaces: currentForm.beautySpaces.includes(space)
+        ? currentForm.beautySpaces.filter((item) => item !== space)
+        : [...currentForm.beautySpaces, space],
+    }))
   }
 
   const validatePasswords = (form) => {
@@ -97,8 +110,14 @@ function Register() {
     setConfirmationMessage('')
 
     if (!validatePasswords(artistForm) || !validateBirthday(artistForm.birthday)) return
-    if (!artistForm.beautySpace) {
+    if (artistForm.beautySpaces.length === 0) {
       setLocalError('Selecciona el beauty space en el que ofrecerás tus servicios.')
+      return
+    }
+    if (artistForm.beautySpaces.includes(BEAUTY_SPACES.SPA_AND_ADVANCED_AESTHETICS)
+      && (!artistForm.hasHealthOfficer || !artistForm.healthOfficerName.trim()
+        || !artistForm.healthOfficerTitle.trim() || !artistForm.healthOfficerLicense.trim())) {
+      setLocalError('Para estética avanzada debes confirmar y completar los datos del responsable sanitario.')
       return
     }
 
@@ -251,21 +270,26 @@ function Register() {
               <span className="eyebrow">Beauty space</span>
               <strong>¿En qué espacio ofrecerás tus servicios?</strong>
               <div className="beauty-space-options">
-                <button
-                  className={`beauty-space-choice${artistForm.beautySpace === BEAUTY_SPACES.BEAUTY_AND_PERSONAL_CARE ? ' is-active' : ''}`}
-                  type="button"
-                  onClick={() => updateArtistForm('beautySpace', BEAUTY_SPACES.BEAUTY_AND_PERSONAL_CARE)}
-                >
-                  Salones de belleza y cuidado personal
-                </button>
-                <button
-                  className={`beauty-space-choice${artistForm.beautySpace === BEAUTY_SPACES.SPA_AND_ADVANCED_AESTHETICS ? ' is-active' : ''}`}
-                  type="button"
-                  onClick={() => updateArtistForm('beautySpace', BEAUTY_SPACES.SPA_AND_ADVANCED_AESTHETICS)}
-                >
-                  Spa y estética avanzada
-                </button>
+                <label className={`beauty-space-choice${artistForm.beautySpaces.includes(BEAUTY_SPACES.BEAUTY_AND_PERSONAL_CARE) ? ' is-active' : ''}`}>
+                  <input checked={artistForm.beautySpaces.includes(BEAUTY_SPACES.BEAUTY_AND_PERSONAL_CARE)} type="checkbox" onChange={() => toggleBeautySpace(BEAUTY_SPACES.BEAUTY_AND_PERSONAL_CARE)} />
+                  <span>Salones de belleza y cuidado personal</span>
+                </label>
+                <label className={`beauty-space-choice${artistForm.beautySpaces.includes(BEAUTY_SPACES.SPA_AND_ADVANCED_AESTHETICS) ? ' is-active' : ''}`}>
+                  <input checked={artistForm.beautySpaces.includes(BEAUTY_SPACES.SPA_AND_ADVANCED_AESTHETICS)} type="checkbox" onChange={() => toggleBeautySpace(BEAUTY_SPACES.SPA_AND_ADVANCED_AESTHETICS)} />
+                  <span>Spa y estética avanzada</span>
+                </label>
               </div>
+              {artistForm.beautySpaces.includes(BEAUTY_SPACES.SPA_AND_ADVANCED_AESTHETICS) && (
+                <div className="health-officer-fields">
+                  <label className="location-toggle-row">
+                    <input checked={artistForm.hasHealthOfficer} type="checkbox" onChange={(event) => updateArtistForm('hasHealthOfficer', event.target.checked)} />
+                    <span>Tengo responsable sanitario</span>
+                  </label>
+                  <Input label="Nombre completo del responsable sanitario" value={artistForm.healthOfficerName} onChange={(event) => updateArtistForm('healthOfficerName', event.target.value)} required />
+                  <Input label="Título profesional del responsable sanitario" value={artistForm.healthOfficerTitle} onChange={(event) => updateArtistForm('healthOfficerTitle', event.target.value)} required />
+                  <Input label="Cédula profesional del responsable sanitario" value={artistForm.healthOfficerLicense} onChange={(event) => updateArtistForm('healthOfficerLicense', event.target.value)} required />
+                </div>
+              )}
             </div>
             <Input
               label="Nombre artistico o estudio"

@@ -1013,7 +1013,7 @@ function ClientDashboard({ view = 'inicio' }) {
       return artist.status === 'Activo' && canUseOperationalFeature(artistStudio || artist, 'publicAgenda')
     })
   const beautySpaceArtists = activeArtists.filter((artist) => (
-    (artist.beautySpace || BEAUTY_SPACES.BEAUTY_AND_PERSONAL_CARE) === beautySpace
+    (artist.beautySpaces || [artist.beautySpace || BEAUTY_SPACES.BEAUTY_AND_PERSONAL_CARE]).includes(beautySpace)
   ))
   const marketplaceSearchServices = useMemo(() => {
     const groupsFromArtists = buildServiceGroupsFromListings(beautySpaceArtists)
