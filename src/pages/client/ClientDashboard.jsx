@@ -34,6 +34,7 @@ import { normalizeServiceName, serviceCatalog } from '../../services/staticCatal
 import { optimizeImageFile } from '../../utils/imageOptimization'
 import { pushRegistrationStorageKey } from '../../services/pushNotificationService'
 import { BEAUTY_SPACES } from '../../services/beautySpaceService'
+import { advancedAestheticsCatalog } from '../../services/advancedAestheticsCatalog'
 
 const clientConfirmationNoticeKey = 'studio-flow-client-confirmation-notices'
 const FLOW_POINTS_MINIMUM_REDEMPTION = 1000
@@ -110,6 +111,15 @@ const searchServices = Object.fromEntries(
   Object.entries(serviceCatalog).map(([category, services]) => [
     category,
     services.map((name) => ({ name, durationMinutes: 60 })),
+  ]),
+)
+
+const advancedSearchServices = Object.fromEntries(
+  Object.entries(advancedAestheticsCatalog).map(([category, secondaryGroups]) => [
+    category,
+    Object.entries(secondaryGroups).flatMap(([secondary, variants]) => (
+      variants.map((variant) => ({ name: `${secondary} · ${variant}`, durationMinutes: 60 }))
+    )),
   ]),
 )
 
@@ -1012,12 +1022,29 @@ function ClientDashboard({ view = 'inicio' }) {
       const artistStudio = getArtistStudio(artist)
       return artist.status === 'Activo' && canUseOperationalFeature(artistStudio || artist, 'publicAgenda')
     })
-  const beautySpaceArtists = activeArtists.filter((artist) => (
-    (artist.beautySpaces || [artist.beautySpace || BEAUTY_SPACES.BEAUTY_AND_PERSONAL_CARE]).includes(beautySpace)
+  const beautySpaceCategoryNames = new Set(Object.keys(
+    beautySpace === BEAUTY_SPACES.SPA_AND_ADVANCED_AESTHETICS ? advancedAestheticsCatalog : serviceCatalog,
   ))
+  const beautySpaceArtists = activeArtists
+    .filter((artist) => (
+      (artist.beautySpaces || [artist.beautySpace || BEAUTY_SPACES.BEAUTY_AND_PERSONAL_CARE]).includes(beautySpace)
+    ))
+    .map((artist) => {
+      const marketplaceServiceOptions = (artist.marketplaceServiceOptions || []).filter((service) => (
+        beautySpaceCategoryNames.has(service.category)
+      ))
+      return {
+        ...artist,
+        marketplaceServiceOptions,
+        marketplaceServices: marketplaceServiceOptions.map((service) => service.name),
+        services: marketplaceServiceOptions.map((service) => service.name).join(', '),
+      }
+    })
   const marketplaceSearchServices = useMemo(() => {
     const groupsFromArtists = buildServiceGroupsFromListings(beautySpaceArtists)
-    const mergedGroups = { ...searchServices }
+    const mergedGroups = beautySpace === BEAUTY_SPACES.SPA_AND_ADVANCED_AESTHETICS
+      ? { ...advancedSearchServices }
+      : { ...searchServices }
 
     Object.entries(groupsFromArtists).forEach(([category, services]) => {
       const existingServices = mergedGroups[category] || []
@@ -1034,7 +1061,7 @@ function ClientDashboard({ view = 'inicio' }) {
     })
 
     return mergedGroups
-  }, [beautySpaceArtists])
+  }, [beautySpace, beautySpaceArtists])
   const primaryServiceOptions = Object.keys(marketplaceSearchServices)
   const currentServiceGroup = marketplaceSearchServices[primaryService]
     || marketplaceSearchServices[primaryServiceOptions[0]]
