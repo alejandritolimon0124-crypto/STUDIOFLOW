@@ -1378,6 +1378,40 @@ select:focus,
   width: 7px;
 }
 
+.sidebar-nav button .sidebar-nav-label {
+  background: transparent;
+  border-radius: 0;
+  height: auto;
+  opacity: 1;
+  width: auto;
+}
+
+.sidebar-nav button.receipt-available {
+  align-items: flex-start;
+  background: #f9dfe2;
+  border: 1px solid #e7aeb5;
+  color: #7f2733;
+  display: grid;
+  grid-template-columns: 7px 1fr;
+  height: auto;
+  padding-bottom: 9px;
+  padding-top: 9px;
+}
+
+.sidebar-nav button.receipt-available > span:first-child {
+  grid-row: 1 / span 2;
+  margin-top: 6px;
+}
+
+.sidebar-nav button.receipt-available small {
+  color: #9b3441;
+  font-size: 10px;
+  font-weight: 900;
+  grid-column: 2;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
 .sidebar-nav button.active,
 .sidebar-nav button:hover,
 .sidebar-switcher button:hover {

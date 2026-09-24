@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
-import { RefreshCw } from 'lucide-react'
+import { Download, History, RefreshCw } from 'lucide-react'
 import { useApp } from '../contexts/appContextCore'
 import { requireSupabase } from '../lib/supabaseClient'
+import { buildEventWorkbook } from '../services/eventWorkbook'
 import './accounting.css'
 
 const money = (value) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(value)
@@ -20,6 +21,10 @@ function AccountingReport({ studio, studioId, onRefresh }) {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
   const [cancelledLimit, setCancelledLimit] = useState(10)
+  const [historyOpen, setHistoryOpen] = useState(false)
+  const [exporting, setExporting] = useState(false)
+  const [exportMonth, setExportMonth] = useState(() => new Date().getMonth() || 12)
+  const [exportYear, setExportYear] = useState(() => new Date().getMonth() ? new Date().getFullYear() : new Date().getFullYear() - 1)
   useEffect(() => {
     let active = true
     const load = async () => {
@@ -37,6 +42,33 @@ function AccountingReport({ studio, studioId, onRefresh }) {
     window.addEventListener('focus', tick)
     return () => { active = false; window.clearInterval(timer); window.removeEventListener('focus', tick) }
   }, [studio, studioId])
+
+  const downloadReceipt = async (year = exportYear, month = exportMonth) => {
+    setExporting(true)
+    setError('')
+    try {
+      const response = await requireSupabase().rpc('studio_flow_provider_export_events', {
+        p_studio_id: studioId || null,
+        p_year: Number(year),
+        p_month: Number(month),
+      })
+      if (response.error) throw response.error
+      const buffer = await buildEventWorkbook(response.data, Number(year), Number(month))
+      const url = URL.createObjectURL(new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }))
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `Recibo_Studio_Flow_${String(response.data.profile.name || 'cuenta').replace(/[<>:"/\\|?*]/g, '_')}_${year}-${String(month).padStart(2, '0')}.xlsx`
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.setTimeout(() => URL.revokeObjectURL(url), 60000)
+    } catch (failure) {
+      setError(`No se pudo descargar el recibo: ${failure.message || 'Intenta nuevamente.'}`)
+    } finally {
+      setExporting(false)
+    }
+  }
+
   return <main className="accounting-page">
     <header className="accounting-heading"><div><h1>Contabilidad</h1><p>{studio ? 'Ingresos del estudio' : 'Actividad independiente'}</p></div><button type="button" title="Actualizar contabilidad" aria-label="Actualizar contabilidad" disabled={loading} onClick={onRefresh}><RefreshCw size={20} /></button></header>
     {error && <p role="alert">{error}</p>}
@@ -64,11 +96,22 @@ function AccountingReport({ studio, studioId, onRefresh }) {
         </details>
       </section>
       <section className="accounting-receipt" aria-label="Recibo de comisión">
-        <h2>Recibo de pago Studio Flow</h2>
+        <div className="accounting-receipt-title"><div><span>Recibo mensual</span><h2>Recibo de pago de comisiones Studio Flow</h2></div><strong>{money(data.commission)}</strong></div>
         <p>Periodo: {new Intl.DateTimeFormat('es-MX', { month: 'long', year: 'numeric' }).format(new Date(`${data.receiptMonth}T12:00:00`))}</p>
         <dl><div><dt>Ingresos del periodo</dt><dd>{money(data.receiptIncome)}</dd></div><div><dt>Comisión Studio Flow · 10%</dt><dd>{money(data.commission)}</dd></div></dl>
-        <strong>Pagar dentro de los primeros 5 días del mes.</strong>
-        <p>Fecha límite: {dateLabel(data.dueDate)}</p>
+        <div className="accounting-deadline"><strong>Pagar dentro de los primeros 5 días del mes.</strong><span>Evita la suspensión de tu cuenta.</span><p>Fecha límite: <b>{dateLabel(data.dueDate)}</b></p></div>
+        <div className="accounting-receipt-actions">
+          <button type="button" className="button" disabled={exporting} onClick={() => {
+            const [year, month] = String(data.receiptMonth).split('-').map(Number)
+            downloadReceipt(year, month)
+          }}><Download size={17} />{exporting ? 'Preparando...' : 'Descargar recibo del mes'}</button>
+          <button type="button" className="button button-secondary" onClick={() => setHistoryOpen((value) => !value)}><History size={17} />Historial</button>
+        </div>
+        {historyOpen && <form className="accounting-history" onSubmit={(event) => { event.preventDefault(); downloadReceipt() }}>
+          <label>Mes<select value={exportMonth} onChange={(event) => setExportMonth(event.target.value)}>{Array.from({ length: 12 }, (_, index) => <option key={index + 1} value={index + 1}>{new Intl.DateTimeFormat('es-MX', { month: 'long' }).format(new Date(2000, index, 1))}</option>)}</select></label>
+          <label>Año<input type="number" min="2020" max="9998" value={exportYear} onChange={(event) => setExportYear(event.target.value)} /></label>
+          <button type="submit" className="button" disabled={exporting}><Download size={17} />Descargar XLS</button>
+        </form>}
       </section>
     </>}
   </main>

@@ -15,6 +15,7 @@ import {
   getCurrentStudio,
   getMembershipForArtist,
 } from '../modules/entities/entitySelectors'
+import useCommissionReceiptNotice from '../hooks/useCommissionReceiptNotice'
 
 function getInitials(value = '') {
   return String(value)
@@ -143,6 +144,13 @@ function DashboardLayout({ children, role, title, subtitle, showMobileAppbar = t
     setSession,
   } = useApp()
   const location = useLocation()
+  const independentArtistReceiptAvailable = useCommissionReceiptNotice({
+    enabled: role === 'artist'
+      && !session.isMockSession
+      && (session.activeSessionContext?.contextType || session.activeSessionContext?.type || 'artist') !== 'membership'
+      && !session.activeSessionContext?.membershipId
+      && !session.activeSessionContext?.membership_id,
+  })
   const currentPath = location.pathname
   const assignedRoles = Array.isArray(session.roles) ? session.roles : []
   const activeContextRole = session.activeSessionContext?.role || null
@@ -579,13 +587,14 @@ function DashboardLayout({ children, role, title, subtitle, showMobileAppbar = t
         <nav className="sidebar-nav" aria-label="Navegacion principal">
           {navigation.map((item, index) => (
             <button
-              className={isItemActive(item, index) ? 'active' : ''}
+              className={`${isItemActive(item, index) ? 'active' : ''} ${item.path === paths.artistAccounting && independentArtistReceiptAvailable ? 'receipt-available' : ''}`.trim()}
               key={`${item.path}-${item.label}`}
               type="button"
               onClick={() => handleNavigate(item.path)}
             >
               <span aria-hidden="true"></span>
-              {item.label}
+              <span className="sidebar-nav-label">{item.label}</span>
+              {item.path === paths.artistAccounting && independentArtistReceiptAvailable && <small>Recibo de pago disponible</small>}
             </button>
           ))}
           {(role === 'admin' || role === 'client') && (

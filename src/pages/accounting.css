@@ -8,13 +8,27 @@
 .accounting-page h2 { font-size: 18px; margin: 0; }
 .accounting-totals p { font-size: 13px; margin: 5px 0 0; color: var(--muted); }
 .accounting-totals strong { font-size: 24px; font-variant-numeric: tabular-nums; color: #34594c; }
-.accounting-receipt { padding: 22px 0; border-top: 2px solid #bb9a61; }
+.accounting-receipt { padding: 22px; border: 2px solid #bb9a61; border-radius: 8px; background: #fff; }
+.accounting-receipt-title { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.accounting-receipt-title span { color: #98434b; display: block; font-size: 12px; font-weight: 900; margin-bottom: 5px; text-transform: uppercase; }
+.accounting-receipt-title > strong { color: #684653; font-size: 28px; font-variant-numeric: tabular-nums; text-align: right; }
 .accounting-receipt dl { margin: 18px 0; }
 .accounting-receipt dl div { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin: 10px 0; }
 .accounting-receipt dd { margin: 0; font-weight: 800; font-variant-numeric: tabular-nums; }
 .accounting-receipt p { font-size: 14px; color: var(--muted); }
+.accounting-deadline { background: #f9dfe2; border: 1px solid #e7aeb5; border-radius: 8px; color: #7f2733; display: grid; gap: 5px; padding: 14px; }
+.accounting-deadline strong { font-size: 17px; }
+.accounting-deadline span { font-weight: 800; }
+.accounting-deadline p { color: #7f2733; margin: 2px 0 0; }
+.accounting-receipt-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+.accounting-receipt-actions .button,.accounting-history .button { align-items: center; display: inline-flex; gap: 7px; justify-content: center; }
+.accounting-history { background: #f8f3f2; border: 1px solid #ded8da; border-radius: 8px; display: grid; gap: 12px; grid-template-columns: repeat(2,minmax(0,1fr)); margin-top: 14px; padding: 14px; }
+.accounting-history label { display: grid; font-size: 13px; font-weight: 800; gap: 6px; }
+.accounting-history select,.accounting-history input { background: #fff; border: 2px solid #b9828c; border-radius: 8px; min-height: 46px; padding: 0 12px; }
+.accounting-history .button { grid-column: 1 / -1; }
 .accounting-cancellations { margin: 20px 0; border-top: 1px solid #ded8da; padding-top: 16px; }
 .accounting-cancellations summary { cursor: pointer; font-size: 18px; font-weight: 700; }
 .accounting-cancellations summary strong { margin-left: 12px; color: #98434b; font-variant-numeric: tabular-nums; }
 .accounting-cancellations p { color: var(--muted); font-size: 14px; }
 .accounting-cancellations article { display: grid; gap: 5px; padding: 12px 0; border-bottom: 1px solid #ded8da; font-size: 14px; overflow-wrap: anywhere; }
+@media (max-width: 560px) { .accounting-receipt-title { display: grid; } .accounting-receipt-title > strong { text-align: left; } }

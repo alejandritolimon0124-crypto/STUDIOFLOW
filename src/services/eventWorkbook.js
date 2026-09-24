@@ -5,12 +5,12 @@ export async function buildEventWorkbook(payload, year, month) {
   const book = new ExcelJS.Workbook()
   const sheet = book.addWorksheet('Eventos')
   const profile = payload.profile
-  sheet.addRow(['Studio Flow - Eventos', profile.name])
+  sheet.addRow(['Studio Flow - Recibo mensual de comisiones', profile.name])
   sheet.addRow(['Nombre completo / responsable', profile.fullName || ''])
-  sheet.addRow(['Celular', String(profile.phone || ''), 'Correo', profile.email || ''])
+  sheet.addRow(['Celular', String(profile.phone || ''), 'Direccion', profile.address || ''])
   sheet.addRow(['Periodo', `${year}-${String(month).padStart(2, '0')}`])
   sheet.addRow(['Importes en MXN. Generan comision las citas completadas y las canceladas por artista o estudio. No sumar reportes de artista y estudio: pueden incluir las mismas citas.'])
-  sheet.addRow(['Fecha', 'Clienta', 'Servicio', 'Estudio', 'Estado', 'Costo original', 'Happy Hour', 'Puntos otorgados', 'Multiplicador', 'Puntos aplicados', 'Descuento %', 'Descuento $', 'Total final'])
+  sheet.addRow(['Fecha', 'Clienta', 'Servicio', 'Estudio', 'Estado', 'Costo normal', 'Happy Hour', 'Puntos otorgados', 'Puntos dobles', 'FlowPoints usados', 'Descuento %', 'Descuento $', 'Monto final pagado'])
   const statuses = { completed: 'Completada', cancelled: 'Cancelada', scheduled: 'Agendada', no_show: 'No asistio', disputed: 'En revision' }
   for (const event of payload.events) {
     const p = payload.payments[event.id]
@@ -18,7 +18,7 @@ export async function buildEventWorkbook(payload, year, month) {
       ? 'Cancelada por artista/estudio'
       : statuses[event.status] || event.status
     sheet.addRow([event.date, event.client || '', event.service || '', event.studio || 'Independiente', statusLabel,
-      p?.original ?? null, event.happy_hour ? 'Si' : 'No', Number(event.awarded), event.multiplier ?? null,
+      p?.original ?? null, event.happy_hour ? 'Si' : 'No', Number(event.awarded), Number(event.multiplier) > 1 ? 'Si' : 'No',
       p?.points ?? null, p?.discountPercent ?? null, p?.original != null && p?.total != null ? Math.round((p.original-p.total)*100)/100 : null, p?.total ?? null])
   }
   const end = sheet.rowCount
@@ -32,7 +32,7 @@ export async function buildEventWorkbook(payload, year, month) {
   const income = sheet.addRow(['Ingresos de citas completadas'])
   income.getCell(13).value = missing ? 'INCOMPLETO: faltan importes' : end > 6 ? { formula: `SUMIF(E7:E${end},"Completada",M7:M${end})`, result: total } : 0
   const fee = sheet.addRow(['Comision Studio Flow 10%'])
-  const commission = commissionable.reduce((sum, event) => sum + Math.round(Number(payload.payments[event.id]?.total || 0) * 10) / 100, 0)
+  const commission = commissionable.reduce((sum, event) => sum + Number(event.commission_amount ?? Math.round(Number(payload.payments[event.id]?.total || 0) * 10) / 100), 0)
   fee.getCell(13).value = missing ? 'INCOMPLETO' : end > 6 ? { formula: `SUMPRODUCT(((E7:E${end}="Completada")+(E7:E${end}="Cancelada por artista/estudio"))*ROUND(M7:M${end}*10%,2))`, result: Math.round(commission*100)/100 } : 0
   const pointsSummary = sheet.addRow(['FlowPoints otorgados en el periodo'])
   pointsSummary.getCell(13).value = totalPoints

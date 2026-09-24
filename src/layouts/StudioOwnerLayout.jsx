@@ -4,6 +4,7 @@ import { useApp } from '../contexts/appContextCore'
 import { paths } from '../routes/paths'
 import { ROLES } from '../modules/permissions/rolePermissions'
 import drawerLogo from '../assets/studioflowlogo2.png'
+import useCommissionReceiptNotice from '../hooks/useCommissionReceiptNotice'
 
 const studioOwnerNavItems = [
   ['Inicio', `${paths.adminStudio}?section=summary`],
@@ -73,6 +74,10 @@ function StudioOwnerLayout() {
   const activeStudio = activeStudioId
     ? adminState.studios.find((studio) => studio.id === activeStudioId)
     : null
+  const commissionReceiptAvailable = useCommissionReceiptNotice({
+    enabled: Boolean(activeStudioId) && !session.isMockSession,
+    studioId: activeStudioId,
+  })
   const activeAssignment = studioAssignments.find((assignment) => (
     (assignment.studioId || assignment.studio_id) === activeStudioId
   )) || primaryStudioOwnerAssignment
@@ -222,13 +227,14 @@ function StudioOwnerLayout() {
         <nav className="sidebar-nav" aria-label="Navegacion del estudio">
           {studioOwnerNavItems.map(([label, path]) => (
             <button
-              className={isActiveItem(path) ? 'active' : ''}
+              className={`${isActiveItem(path) ? 'active' : ''} ${path === paths.studioAccounting && commissionReceiptAvailable ? 'receipt-available' : ''}`.trim()}
               key={path}
               type="button"
               onClick={() => goTo(path)}
             >
               <span aria-hidden="true"></span>
-              {label}
+              <span className="sidebar-nav-label">{label}</span>
+              {path === paths.studioAccounting && commissionReceiptAvailable && <small>Recibo de pago disponible</small>}
             </button>
           ))}
         </nav>
