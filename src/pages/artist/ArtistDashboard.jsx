@@ -716,7 +716,9 @@ function ArtistDashboard({ view = 'agenda' }) {
                     >
                       {artistServices.filter(s => s.status === 'Activo').length === 0 && <option value="">Sin servicios activos</option>}
                       {artistServices.filter(s => s.status === 'Activo').map((service) => (
-                        <option key={service.id} value={service.id}>{service.name} · {service.duration}</option>
+                        <option key={service.id} value={service.id}>
+                          {service.name} · {service.duration} · ${Number(service.priceAmount ?? service.price ?? 0).toLocaleString('es-MX')}
+                        </option>
                       ))}
                     </select>
                   </label>

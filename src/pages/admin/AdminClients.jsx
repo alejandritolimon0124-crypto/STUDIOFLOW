@@ -541,7 +541,9 @@ function AdminClients() {
                           >
                             <option value="">Selecciona servicio</option>
                             {selectedOwnerServices.map((service) => (
-                              <option key={service.id} value={service.id}>{service.name} / {service.duration || `${service.durationMinutes} min`}</option>
+                              <option key={service.id} value={service.id}>
+                                {service.name} / {service.duration || `${service.durationMinutes} min`} / ${Number(service.priceAmount ?? service.price ?? 0).toLocaleString('es-MX')}
+                              </option>
                             ))}
                           </select>
                         </label>

@@ -1015,7 +1015,7 @@ function OwnerAppointmentModal({
               <option value="">Selecciona servicio</option>
               {services.map((service) => (
                 <option key={service.id} value={service.id}>
-                  {service.name} / {service.duration || `${service.durationMinutes} min`}
+                  {service.name} / {service.duration || `${service.durationMinutes} min`} / ${Number(service.priceAmount ?? service.price ?? 0).toLocaleString('es-MX')}
                 </option>
               ))}
             </select>

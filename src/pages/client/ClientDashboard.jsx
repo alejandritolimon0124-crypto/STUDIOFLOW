@@ -41,6 +41,30 @@ const FLOW_POINTS_VALIDITY_DAYS = 180
 const flowPointsNumber = new Intl.NumberFormat('es-MX')
 const flowPointsMoney = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' })
 
+function getServicePriceAmount(service = {}) {
+  const rawPrice = service.priceAmount ?? service.price_amount ?? service.price
+  const normalizedPrice = typeof rawPrice === 'string'
+    ? rawPrice.replace(/[^0-9.-]/g, '')
+    : rawPrice
+  const price = Number(normalizedPrice)
+
+  return Number.isFinite(price) && price >= 0 ? price : null
+}
+
+function formatServiceOptionMeta(service = {}) {
+  const duration = Number(service.durationMinutes || service.duration_minutes) || 60
+  const minimumPrice = Number.isFinite(service.minimumPrice) ? service.minimumPrice : getServicePriceAmount(service)
+  const maximumPrice = Number.isFinite(service.maximumPrice) ? service.maximumPrice : minimumPrice
+
+  if (minimumPrice === null) return `${duration} min`
+
+  const priceLabel = maximumPrice !== null && maximumPrice !== minimumPrice
+    ? `${flowPointsMoney.format(minimumPrice)} - ${flowPointsMoney.format(maximumPrice)}`
+    : flowPointsMoney.format(minimumPrice)
+
+  return `${duration} min · ${priceLabel}`
+}
+
 function canUseBrowserNotifications() {
   return typeof window !== 'undefined' && 'Notification' in window
 }
@@ -291,16 +315,26 @@ function buildServiceGroupsFromListings(listings = []) {
     services.forEach((service) => {
       const category = service.category || 'Servicios'
       const currentGroup = groups[category] || []
-      const exists = currentGroup.some((item) => item.name === service.name)
+      const existingService = currentGroup.find((item) => item.name === service.name)
+      const price = getServicePriceAmount(service)
 
-      if (!exists) {
+      if (!existingService) {
         groups[category] = [
           ...currentGroup,
           {
             name: service.name,
             durationMinutes: service.durationMinutes || 60,
+            minimumPrice: price,
+            maximumPrice: price,
           },
         ]
+      } else if (price !== null) {
+        existingService.minimumPrice = existingService.minimumPrice === null
+          ? price
+          : Math.min(existingService.minimumPrice, price)
+        existingService.maximumPrice = existingService.maximumPrice === null
+          ? price
+          : Math.max(existingService.maximumPrice, price)
       }
     })
 
@@ -1867,7 +1901,7 @@ function ClientDashboard({ view = 'inicio' }) {
           options={selectedArtistSecondaryGroup.map((service) => ({
             value: service.name,
             label: service.name,
-            meta: `${service.durationMinutes || 60} min`,
+            meta: formatServiceOptionMeta(service),
           }))}
         />
         <label className="input-field">
@@ -2511,7 +2545,7 @@ function ClientDashboard({ view = 'inicio' }) {
                     options={currentServiceGroup.map((service) => ({
                       value: service.name,
                       label: service.name,
-                      meta: `${service.durationMinutes} min`,
+                      meta: formatServiceOptionMeta(service),
                     }))}
                   />
                 </>
@@ -2752,7 +2786,7 @@ function ClientDashboard({ view = 'inicio' }) {
                             options={selectedArtistSecondaryGroup.map((service) => ({
                               value: service.name,
                               label: service.name,
-                              meta: `${service.durationMinutes || 60} min`,
+                              meta: formatServiceOptionMeta(service),
                             }))}
                           />
                           <label className="input-field">
@@ -3106,7 +3140,7 @@ function ClientDashboard({ view = 'inicio' }) {
                               options={selectedArtistSecondaryGroup.map((service) => ({
                                 value: service.name,
                                 label: service.name,
-                                meta: `${service.durationMinutes || 60} min`,
+                                meta: formatServiceOptionMeta(service),
                               }))}
                             />
                             <label className="input-field">

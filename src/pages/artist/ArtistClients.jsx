@@ -309,7 +309,9 @@ function ArtistClients() {
                         >
                           {activeArtistServices.length === 0 && <option value="">Sin servicios activos</option>}
                           {activeArtistServices.map((service) => (
-                            <option key={service.id} value={service.id}>{service.name}</option>
+                            <option key={service.id} value={service.id}>
+                              {service.name} · ${Number(service.priceAmount ?? service.price ?? 0).toLocaleString('es-MX')}
+                            </option>
                           ))}
                         </select>
                       </label>
