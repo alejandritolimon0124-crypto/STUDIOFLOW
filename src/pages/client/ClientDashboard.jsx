@@ -371,6 +371,10 @@ function PremiumDropdown({ label, value, options, open, onToggle, onChange, comp
   useEffect(() => {
     if (!open) return undefined
 
+    const alignmentFrame = window.requestAnimationFrame(() => {
+      dropdownRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    })
+
     const closeOnOutsideInteraction = (event) => {
       if (!dropdownRef.current?.contains(event.target)) onToggle()
     }
@@ -382,6 +386,7 @@ function PremiumDropdown({ label, value, options, open, onToggle, onChange, comp
     document.addEventListener('keydown', closeOnEscape)
 
     return () => {
+      window.cancelAnimationFrame(alignmentFrame)
       document.removeEventListener('pointerdown', closeOnOutsideInteraction)
       document.removeEventListener('keydown', closeOnEscape)
     }

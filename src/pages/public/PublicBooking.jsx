@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import studioFlowLogo from '../../assets/studioflowlogo2.png'
 import { fetchPublicBookingAvailability, fetchPublicBookingListings, createPublicGoogleReservation } from '../../services/publicBookingService'
@@ -16,6 +16,7 @@ export default function PublicBooking() {
   const [selectedSlot, setSelectedSlot] = useState(null)
   const [form, setForm] = useState({ name: '', email: '', phone: '' })
   const [message, setMessage] = useState('')
+  const confirmationFormRef = useRef(null)
   const listing = listings.find((item) => (item.listingId || item.id) === listingId)
   const services = useMemo(() => listing?.services?.length ? listing.services : listing?.marketplaceServices || [], [listing])
   const serviceOptions = Array.isArray(services) ? services : listing?.marketplaceServiceOptions || []
@@ -34,7 +35,7 @@ export default function PublicBooking() {
         else if (!serviceSlug && options.length === 1) setServiceId(options[0].id)
       } else if (slug) setMessage('No encontramos un perfil publicado con este enlace.')
     }).catch((error) => setMessage(error.message))
-  }, [slug])
+  }, [slug, serviceSlug])
   useEffect(() => { if (!listingId || !serviceId || !date) return; fetchPublicBookingAvailability({ listingId, serviceOfferingId: serviceId, date }).then((data) => setSlots(data.slots || [])).catch((error) => setMessage(error.message)) }, [listingId, serviceId, date])
 
   const reserve = async (event) => {
@@ -51,10 +52,10 @@ export default function PublicBooking() {
   return <main className="public-booking-page"><section className="public-booking-shell"><img className="public-booking-logo" src={studioFlowLogo} alt="Studio Flow" /><h1>Reserva tu cita</h1>
     <aside className="public-registration-invite"><div><strong>Haz que cada cita te dé beneficios</strong><p>Regístrate en Studio Flow y comienza a acumular Flow Points desde tus próximas citas. Descubre promociones y descuentos exclusivos, guarda tus favoritos y administra fácilmente todas tus reservas.</p></div><Link className="button button-primary" to="/register">Regístrate aquí</Link><small>¿Solo quieres reservar? Continúa abajo sin crear una cuenta.</small></aside>
     {listing && <article className="public-business-card"><div className="public-business-identity">{profilePhoto ? <img src={profilePhoto} alt={`Foto de ${listing.name || listing.title}`} /> : <div className="public-business-placeholder">{businessInitials}</div>}<div><h2>{listing.title || listing.name}</h2><p>{listing.specialties?.join?.(' · ') || listing.profile?.primarySpecialty || 'Servicios profesionales'}</p></div></div><div className="public-business-details">{address && <span>{address}</span>}{phone && <a href={`tel:${phone}`}>{phone}</a>}{mapsUrl && <a href={mapsUrl} target="_blank" rel="noreferrer">Cómo llegar</a>}</div></article>}
-    {serviceOptions.length > 1 && <><p className="public-service-instruction">Elige el servicio que deseas reservar para consultar sus horarios disponibles.</p><label className="input-field"><span>Selecciona tu servicio de la lista</span><select value={serviceId} onChange={(e) => setServiceId(e.target.value)}><option value="">Selecciona un servicio</option>{serviceOptions.map((item) => <option key={item.id} value={item.id}>{item.name} {item.priceAmount ? `- $${item.priceAmount}` : ''}</option>)}</select></label></>}
-    <label className="input-field"><span>Fecha</span><input type="date" min={today} value={date} onChange={(e) => setDate(e.target.value)} /></label>
-    {serviceId && <div className="public-slot-list public-slot-grid">{slots.length ? slots.map((slot) => <button type="button" key={slot.id} className={`public-slot-button${selectedSlot?.id === slot.id ? ' selected' : ''}`} onClick={() => setSelectedSlot(slot)}><strong>{slot.time}</strong><span>{slot.end}</span><small>Reserva Google</small></button>) : <p>Sin horarios disponibles para esta fecha.</p>}</div>}
-    <form className="public-booking-form" onSubmit={reserve}><h2>Datos para confirmar</h2>{['name','email','phone'].map((field) => <label className="input-field" key={field}><span>{field === 'name' ? 'Nombre completo' : field === 'email' ? 'Correo electrónico' : 'Celular'}</span><input required type={field === 'email' ? 'email' : 'text'} value={form[field]} onChange={(e) => setForm({ ...form, [field]: e.target.value })} /></label>)}<button className="button button-primary" type="submit">Confirmar reserva</button></form>
+    {serviceOptions.length > 1 && <><p className="public-service-instruction">Selecciona un servicio de la lista para ver precios.</p><label className="input-field"><span>Selecciona un servicio de la lista para ver precios</span><select value={serviceId} onChange={(e) => { setServiceId(e.target.value); setSelectedSlot(null) }}><option value="">Selecciona un servicio</option>{serviceOptions.map((item) => <option key={item.id} value={item.id}>{item.name} {item.priceAmount ? `- $${item.priceAmount}` : ''}</option>)}</select></label></>}
+    <label className="input-field"><span>Fecha</span><input type="date" min={today} value={date} onChange={(e) => { setDate(e.target.value); setSelectedSlot(null) }} /></label>
+    {serviceId && <div className="public-slot-list public-slot-grid">{slots.length ? (selectedSlot ? [selectedSlot] : slots).map((slot) => <button type="button" key={slot.id} className={`public-slot-button${selectedSlot?.id === slot.id ? ' selected' : ''}`} onClick={() => { setSelectedSlot(slot); window.setTimeout(() => confirmationFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 120) }}><strong>{slot.time}</strong><span>{slot.end}</span><small>{selectedSlot?.id === slot.id ? 'Horario seleccionado' : 'Reserva Google'}</small></button>) : <p>Sin horarios disponibles para esta fecha.</p>}</div>}
+    <form ref={confirmationFormRef} className="public-booking-form" onSubmit={reserve}><h2>Datos para confirmar</h2>{['name','email','phone'].map((field) => <label className="input-field" key={field}><span>{field === 'name' ? 'Nombre completo' : field === 'email' ? 'Correo electrónico' : 'Celular'}</span><input required type={field === 'email' ? 'email' : 'text'} value={form[field]} onChange={(e) => setForm({ ...form, [field]: e.target.value })} /></label>)}<button className="button button-primary" type="submit">Confirmar reserva</button></form>
     {message && <div className="list-row elevated-row"><strong>{message}</strong></div>}
   </section></main>
 }
