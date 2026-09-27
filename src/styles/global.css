@@ -2007,10 +2007,7 @@ select:focus,
 .artist-day-calendar {
   display: grid;
   gap: 10px;
-  max-height: 720px;
-  overflow-y: auto;
   padding-right: 4px;
-  scrollbar-width: thin;
 }
 
 .artist-day-section {
@@ -2104,6 +2101,98 @@ select:focus,
 .artist-week-event.is-completed {
   background: #e7eee3;
   border-color: #758c68;
+}
+
+.artist-calendar-slot {
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 62px 1fr 38px;
+  min-height: 58px;
+  padding: 7px 9px;
+}
+
+.artist-calendar-slot time {
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.artist-calendar-slot.is-available {
+  background: #fff;
+}
+
+.artist-slot-create {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  color: #327865;
+  display: flex;
+  font-size: 14px;
+  font-weight: 900;
+  gap: 8px;
+  min-height: 40px;
+  text-align: left;
+}
+
+.artist-slot-create span {
+  font-size: 24px;
+  font-weight: 400;
+}
+
+.artist-slot-block,
+.artist-slot-restore {
+  align-items: center;
+  border: 0;
+  border-radius: 50%;
+  display: inline-flex;
+  font-weight: 900;
+  height: 34px;
+  justify-content: center;
+  width: 34px;
+}
+
+.artist-slot-block {
+  background: #657581;
+  color: #fff;
+  font-size: 24px;
+}
+
+.artist-calendar-slot.is-blocked,
+.artist-week-blocked {
+  background: #e1e3e6;
+  border-color: #cfd3d8;
+}
+
+.artist-calendar-slot.is-blocked > div {
+  display: grid;
+  gap: 3px;
+}
+
+.artist-calendar-slot.is-blocked small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.artist-slot-restore {
+  background: transparent;
+  color: #657581;
+  font-size: 28px;
+}
+
+.artist-calendar-slot.is-occupied {
+  background: var(--surface-rose);
+}
+
+.artist-calendar-error {
+  background: #fae5e8;
+  border: 1px solid #ecc3ca;
+  border-radius: 6px;
+  color: var(--rose-dark);
+  font-weight: 800;
+  padding: 10px 12px;
 }
 
 .artist-week-calendar-scroll {
@@ -2200,6 +2289,21 @@ select:focus,
   right: 3px;
   text-align: left;
   z-index: 2;
+}
+
+.artist-week-blocked {
+  border: 1px solid #c5c9cf;
+  border-left: 4px solid #7a858f;
+  border-radius: 5px;
+  color: #59636c;
+  font-size: 11px;
+  font-weight: 900;
+  left: 3px;
+  overflow: hidden;
+  padding: 5px;
+  position: absolute;
+  right: 3px;
+  z-index: 1;
 }
 
 .artist-week-event strong,

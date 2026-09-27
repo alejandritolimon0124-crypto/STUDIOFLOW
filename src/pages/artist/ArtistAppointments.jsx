@@ -613,6 +613,13 @@ function ArtistAppointments() {
           appointments={appointmentsMatchingClientQuery}
           selectedDate={selectedDate}
           onSelectDate={setSelectedDate}
+          workContext={artistWorkContext}
+          onCreateAppointment={(slot) => {
+            setSelectedDate(slot.date)
+            setDraft((currentDraft) => ({ ...currentDraft, date: slot.date, time: slot.time }))
+            setShowForm(true)
+            window.requestAnimationFrame(() => document.querySelector('.inline-appointment-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+          }}
         />
 
         <div className="compact-list">

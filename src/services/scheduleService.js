@@ -155,3 +155,38 @@ export async function unblockArtistScheduleDate(dateValue, workContext = null) {
 
   return normalizeSchedulePayload(data)
 }
+
+export async function fetchArtistWeekSlots(weekStart, workContext = null) {
+  const client = requireSupabase()
+  const { data, error } = await client.rpc('studio_flow_artist_get_context_week_slots', {
+    p_week_start: weekStart,
+    ...getContextRpcParams(workContext),
+  })
+
+  if (error) throw error
+
+  return {
+    intervalMinutes: Number(data?.intervalMinutes || data?.interval_minutes || 15),
+    slots: asArray(data?.slots).map((slot) => ({
+      ...slot,
+      id: slot.id,
+      date: slot.date || '',
+      time: timeValue(slot.time, ''),
+      end: timeValue(slot.end, ''),
+      status: slot.status || 'available',
+      blocked: Boolean(slot.blocked ?? slot.status === 'hidden'),
+    })),
+  }
+}
+
+export async function setArtistSlotBlocked(slotId, blocked, workContext = null) {
+  const client = requireSupabase()
+  const { data, error } = await client.rpc('studio_flow_artist_set_context_slot_block', {
+    p_slot_id: slotId,
+    p_blocked: Boolean(blocked),
+    ...getContextRpcParams(workContext),
+  })
+
+  if (error) throw error
+  return data?.slot || null
+}
