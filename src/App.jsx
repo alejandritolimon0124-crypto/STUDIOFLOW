@@ -17,6 +17,7 @@ import ArtistProfileSettings from './pages/artist/ArtistProfileSettings'
 import ArtistScheduleSettings from './pages/artist/ArtistScheduleSettings'
 import ArtistServices from './pages/artist/ArtistServices'
 import ArtistMarketing from './pages/artist/ArtistMarketing'
+import ArtistBranches from './pages/artist/ArtistBranches'
 import Accounting from './pages/Accounting'
 import ClientLayout from './layouts/ClientLayout'
 import Login from './pages/auth/Login'
@@ -61,6 +62,7 @@ function App() {
             <Route path="marketing" element={<ArtistMarketing />} />
             <Route path="accounting" element={<Accounting />} />
             <Route path="settings" element={<ArtistProfileSettings />} />
+            <Route path="branches" element={<ArtistBranches />} />
           </Route>
 
           <Route path="/admin" element={<ProtectedRoute allowedRole="admin"><AdminLayout /></ProtectedRoute>}>

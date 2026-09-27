@@ -20,6 +20,7 @@ const copyByPath = {
   [paths.artistClients]: ['Clientas', 'Seguimiento de clientas recurrentes y valor historico.'],
   [paths.artistMarketing]: ['Modulo Marketplace', 'Configura beneficios Flow Points, puntos dobles y Happy Hour.'],
   [paths.artistSettings]: ['MI PERFIL', 'Administra la fuente profesional que alimentara tu Perfil Publico.'],
+  [paths.artistBranches]: ['Sucursales', 'Administra ubicaciones, servicios y horarios independientes.'],
 }
 
 function ArtistLayout() {

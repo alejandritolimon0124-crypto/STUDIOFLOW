@@ -853,6 +853,9 @@ function ArtistProfileSettings() {
             <small className="location-helper-text">
               Google Maps: {mapsUrl || 'Completa una ubicacion profesional para generar la URL base.'}
             </small>
+            <Button className="full-width" variant="ghost" onClick={() => navigate(paths.artistBranches)}>
+              Agregar otra ubicación
+            </Button>
           </section>
 
           <section className="profile-foundation-card">

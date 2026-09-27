@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { summarizeDay } from '../utils/daySummary'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { paths } from '../routes/paths'
@@ -16,6 +16,7 @@ import {
   getMembershipForArtist,
 } from '../modules/entities/entitySelectors'
 import useCommissionReceiptNotice from '../hooks/useCommissionReceiptNotice'
+import { fetchArtistBranches } from '../services/artistBranchService'
 
 function getInitials(value = '') {
   return String(value)
@@ -126,6 +127,7 @@ const studioOwnerBottomNavigation = [
 function DashboardLayout({ children, role, title, subtitle, showMobileAppbar = true }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [pendingStudioWorkspace, setPendingStudioWorkspace] = useState(null)
+  const [hasArtistBranches, setHasArtistBranches] = useState(false)
   const navigate = useNavigate()
   const {
     adminState,
@@ -144,6 +146,19 @@ function DashboardLayout({ children, role, title, subtitle, showMobileAppbar = t
     setSession,
   } = useApp()
   const location = useLocation()
+  useEffect(() => {
+    if (role !== 'artist') return undefined
+    let active = true
+    const refresh = () => fetchArtistBranches()
+      .then((branches) => { if (active) setHasArtistBranches(branches.length > 0) })
+      .catch(() => { if (active) setHasArtistBranches(false) })
+    refresh()
+    window.addEventListener('studioflow:branches-changed', refresh)
+    return () => {
+      active = false
+      window.removeEventListener('studioflow:branches-changed', refresh)
+    }
+  }, [role])
   const independentArtistReceiptAvailable = useCommissionReceiptNotice({
     enabled: role === 'artist'
       && !session.isMockSession
@@ -254,9 +269,12 @@ function DashboardLayout({ children, role, title, subtitle, showMobileAppbar = t
       ? { ...item, path: artistSettingsPath }
       : item
   )
+  const artistNavigation = hasArtistBranches
+    ? [...roleNavigation.artist.slice(0, 4), { label: 'Sucursales', path: paths.artistBranches }, ...roleNavigation.artist.slice(4)]
+    : roleNavigation.artist
   const navigation = isStudioOwnerWorkspace
     ? studioOwnerNavigation
-    : roleNavigation[role].filter(canUseAdminItem).filter(canUseArtistItem).map(resolveArtistNavigationItem)
+    : (role === 'artist' ? artistNavigation : roleNavigation[role]).filter(canUseAdminItem).filter(canUseArtistItem).map(resolveArtistNavigationItem)
   const bottomNavigation = isStudioOwnerWorkspace
     ? studioOwnerBottomNavigation
     : bottomNavigationByRole[role].filter(canUseAdminItem).filter(canUseArtistItem).map(resolveArtistNavigationItem)

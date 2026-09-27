@@ -2319,6 +2319,105 @@ select:focus,
   font-size: 11px;
 }
 
+.branch-intro {
+  color: var(--muted);
+  margin: -4px 0 16px;
+}
+
+.artist-branch-list,
+.branch-services-list,
+.branch-schedule-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.artist-branch-card {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.84);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: flex;
+  gap: 18px;
+  justify-content: space-between;
+  padding: 16px;
+}
+
+.artist-branch-card h3,
+.artist-branch-card p {
+  margin: 4px 0;
+}
+
+.artist-branch-card p,
+.artist-branch-card small {
+  color: var(--muted);
+}
+
+.branch-editor-card {
+  display: grid;
+  gap: 16px;
+}
+
+.branch-editor-section {
+  border-top: 1px solid var(--line);
+  display: grid;
+  gap: 12px;
+  padding-top: 16px;
+}
+
+.branch-section-heading {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.branch-service-row {
+  align-items: end;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: minmax(180px, 2fr) minmax(100px, 1fr) minmax(120px, 1fr) 38px;
+}
+
+.branch-service-row > button {
+  background: #fae5e8;
+  border: 1px solid #ecc3ca;
+  border-radius: 50%;
+  color: var(--rose-dark);
+  font-size: 22px;
+  height: 36px;
+  margin-bottom: 5px;
+  width: 36px;
+}
+
+.branch-schedule-row {
+  align-items: center;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(150px, 1fr) 120px 120px;
+  padding: 11px 12px;
+}
+
+.branch-schedule-row label {
+  font-weight: 900;
+}
+
+.branch-schedule-row input[type='time'] {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  min-height: 42px;
+  padding: 8px;
+}
+
+.branch-schedule-row span {
+  color: var(--muted);
+  font-weight: 800;
+  grid-column: 2 / -1;
+}
+
 @media (min-width: 1100px) {
   .artist-week-calendar-scroll {
     max-height: 820px;
@@ -2344,6 +2443,20 @@ select:focus,
   .artist-calendar-navigation {
     justify-content: space-between;
     width: 100%;
+  }
+
+  .artist-branch-card {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .branch-service-row,
+  .branch-schedule-row {
+    grid-template-columns: 1fr;
+  }
+
+  .branch-schedule-row span {
+    grid-column: auto;
   }
 }
 
