@@ -1951,6 +1951,298 @@ select:focus,
   font-size: 20px;
 }
 
+.artist-calendar-overview {
+  display: grid;
+  gap: 14px;
+  margin: 18px 0;
+}
+
+.artist-calendar-toolbar,
+.artist-calendar-view-toggle,
+.artist-calendar-navigation {
+  align-items: center;
+  display: flex;
+}
+
+.artist-calendar-toolbar {
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.artist-calendar-view-toggle {
+  background: rgba(247, 238, 235, 0.78);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  gap: 4px;
+  padding: 4px;
+}
+
+.artist-calendar-view-toggle .button {
+  min-width: 112px;
+}
+
+.artist-calendar-navigation {
+  gap: 10px;
+}
+
+.artist-calendar-navigation button {
+  align-items: center;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  color: var(--ink);
+  display: inline-flex;
+  font-size: 24px;
+  height: 38px;
+  justify-content: center;
+  width: 38px;
+}
+
+.artist-calendar-navigation strong {
+  min-width: 130px;
+  text-align: center;
+}
+
+.artist-day-calendar {
+  display: grid;
+  gap: 10px;
+  max-height: 720px;
+  overflow-y: auto;
+  padding-right: 4px;
+  scrollbar-width: thin;
+}
+
+.artist-day-section {
+  background: rgba(255, 255, 255, 0.82);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.artist-day-section.is-selected {
+  border-color: #8c6069;
+  box-shadow: 0 0 0 2px rgba(140, 96, 105, 0.12);
+}
+
+.artist-day-heading {
+  align-items: center;
+  background: #fff;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  color: var(--ink);
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 42px 1fr auto;
+  padding: 11px 14px;
+  text-align: left;
+  width: 100%;
+}
+
+.artist-day-heading > span {
+  align-items: center;
+  background: var(--surface-rose);
+  border-radius: 50%;
+  display: inline-flex;
+  font-weight: 900;
+  height: 38px;
+  justify-content: center;
+  width: 38px;
+}
+
+.artist-day-heading small {
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.artist-day-events {
+  display: grid;
+  gap: 7px;
+  padding: 10px 12px;
+}
+
+.artist-day-events > p {
+  color: var(--muted);
+  margin: 4px;
+}
+
+.artist-calendar-event {
+  align-items: stretch;
+  background: #e7f2df;
+  border-left: 5px solid #7b9c6c;
+  border-radius: 6px;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: 76px 1fr;
+  padding: 10px 12px;
+}
+
+.artist-calendar-event time,
+.artist-calendar-event div {
+  display: grid;
+  gap: 2px;
+}
+
+.artist-calendar-event time {
+  font-weight: 900;
+}
+
+.artist-calendar-event time small,
+.artist-calendar-event span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.artist-calendar-event.is-cancelled,
+.artist-week-event.is-cancelled {
+  background: #fae5e8;
+  border-color: #bd6776;
+}
+
+.artist-calendar-event.is-completed,
+.artist-week-event.is-completed {
+  background: #e7eee3;
+  border-color: #758c68;
+}
+
+.artist-week-calendar-scroll {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  max-height: 760px;
+  overflow: auto;
+  scrollbar-width: thin;
+}
+
+.artist-week-calendar {
+  --calendar-slots: 52;
+  background: #fff;
+  display: grid;
+  grid-template-columns: 74px repeat(7, minmax(122px, 1fr));
+  grid-template-rows: 64px repeat(var(--calendar-slots), 24px);
+  min-width: 980px;
+  position: relative;
+}
+
+.artist-week-corner,
+.artist-week-day {
+  background: #fff;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  position: sticky;
+  top: 0;
+  z-index: 4;
+}
+
+.artist-week-corner {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.artist-week-day {
+  align-items: center;
+  color: var(--ink);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  justify-content: center;
+}
+
+.artist-week-day.is-selected {
+  background: #2d2527;
+  color: #fff;
+}
+
+.artist-week-day span {
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.artist-week-day strong {
+  font-size: 20px;
+}
+
+.artist-week-times {
+  border-right: 1px solid var(--line);
+  grid-column: 1;
+  position: relative;
+}
+
+.artist-week-times time {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  position: absolute;
+  right: 10px;
+  transform: translateY(-50%);
+}
+
+.artist-week-column {
+  background-image: repeating-linear-gradient(to bottom, transparent 0, transparent 23px, rgba(234, 223, 218, 0.72) 24px);
+  border-right: 1px solid var(--line);
+  min-height: calc(var(--calendar-slots) * 24px);
+  position: relative;
+}
+
+.artist-week-event {
+  background: #e7f2df;
+  border: 1px solid #9ab78c;
+  border-left: 4px solid #7b9c6c;
+  border-radius: 5px;
+  color: var(--ink);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  left: 3px;
+  overflow: hidden;
+  padding: 6px;
+  position: absolute;
+  right: 3px;
+  text-align: left;
+  z-index: 2;
+}
+
+.artist-week-event strong,
+.artist-week-event span,
+.artist-week-event small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.artist-week-event span,
+.artist-week-event small {
+  font-size: 11px;
+}
+
+@media (min-width: 1100px) {
+  .artist-week-calendar-scroll {
+    max-height: 820px;
+  }
+
+  .artist-week-calendar {
+    grid-template-columns: 78px repeat(7, minmax(138px, 1fr));
+    min-width: 100%;
+  }
+}
+
+@media (max-width: 640px) {
+  .artist-calendar-toolbar,
+  .artist-calendar-view-toggle {
+    width: 100%;
+  }
+
+  .artist-calendar-view-toggle .button {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .artist-calendar-navigation {
+    justify-content: space-between;
+    width: 100%;
+  }
+}
+
 .agenda-card {
   align-items: center;
   border: 1px solid rgba(234, 223, 218, 0.88);

@@ -8,6 +8,7 @@ import Input from '../../components/Input'
 import PanelHeader from '../../components/PanelHeader'
 import StatusPill from '../../components/StatusPill'
 import RescheduleAppointmentButton from '../../components/RescheduleAppointmentButton'
+import ArtistAppointmentCalendar from '../../components/ArtistAppointmentCalendar'
 import { useApp } from '../../contexts/appContextCore'
 import { fetchArtistClients } from '../../services/artistClientService'
 import { cancelArtistAppointment, fetchManualArtistAvailability } from '../../services/appointmentService'
@@ -607,6 +608,12 @@ function ArtistAppointments() {
         {manualArtistAppointmentError && (
           <small style={{ color: 'var(--rose-dark)', fontWeight: 800 }}>{manualArtistAppointmentError}</small>
         )}
+
+        <ArtistAppointmentCalendar
+          appointments={appointmentsMatchingClientQuery}
+          selectedDate={selectedDate}
+          onSelectDate={setSelectedDate}
+        />
 
         <div className="compact-list">
           <div className="list-row elevated-row">
