@@ -1,0 +1,13 @@
+.codex-build/
+.codex-finalizer/
+.codex-remote-attachments/
+GUARDADO DE NO SE QUE FUE/
+deliverables/
+dev-dist/
+dist/
+docs/
+node_modules/
+supabase/.temp/
+.env*
+*.log
+lint-results.json

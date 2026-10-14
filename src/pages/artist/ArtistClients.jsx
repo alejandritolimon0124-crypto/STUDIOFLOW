@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import Button from '../../components/Button'
 import Card from '../../components/Card'
 import Input from '../../components/Input'
@@ -6,6 +7,7 @@ import PanelHeader from '../../components/PanelHeader'
 import ArtistClientExport from '../../components/ArtistClientExport'
 import StatusPill from '../../components/StatusPill'
 import { useApp } from '../../contexts/appContextCore'
+import ProviderAttendanceConflicts from '../../components/ProviderAttendanceConflicts'
 import { fetchArtistClients } from '../../services/artistClientService'
 import { fetchManualArtistAvailability } from '../../services/appointmentService'
 
@@ -50,6 +52,7 @@ function getPastAppointments(client = {}) {
 }
 
 function ArtistClients() {
+  const navigate = useNavigate()
   const {
     artistServices,
     artistWorkContext,
@@ -237,6 +240,7 @@ function ArtistClients() {
 
   return (
     <main className="dashboard-grid artist-grid">
+      <ProviderAttendanceConflicts />
       <Card className="wide-card mobile-screen primary-panel">
         <PanelHeader title="Clientas" eyebrow="Citas reales" />
         {(artistWorkContext?.contextType || artistWorkContext?.type) === 'artist' && <ArtistClientExport />}
@@ -274,6 +278,7 @@ function ArtistClients() {
                   <button type="button" onClick={() => openPanel(client, 'upcoming')}>Proxima cita</button>
                   <button type="button" onClick={() => openPanel(client, 'history')}>Ver historial</button>
                   <button type="button" onClick={() => openPanel(client, 'profile')}>Ver perfil</button>
+                  {client.totalVisits > 0 && (artistWorkContext?.contextType || artistWorkContext?.type) === 'artist' && <button type="button" onClick={() => navigate(`/artist/accounting?tarjeta=1&clientId=${encodeURIComponent(client.id)}&clientName=${encodeURIComponent(client.name)}`)}>Crear tarjeta digital especial</button>}
                 </div>
               </div>
               {selectedPanel.client?.id === client.id && (

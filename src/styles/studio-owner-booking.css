@@ -1,0 +1,217 @@
+.studio-owner-screen-card,.studio-owner-screen-card .profile-foundation-stack { min-width:0; width:100%; }
+.studio-owner-screen-card .profile-foundation-stack > .studio-marketplace-stack { display:grid; grid-column:1 / -1; grid-template-columns:minmax(0,1fr); grid-auto-flow:row; gap:14px; min-width:0; max-width:100%; width:100%; }
+.studio-owner-screen-card .studio-marketplace-stack > * { grid-column:1 !important; min-width:0; max-width:100%; width:100%; }
+.studio-marketplace-stack .profile-foundation-card { grid-template-columns:minmax(0,1fr); align-content:start; overflow:hidden; }
+.studio-marketplace-stack .profile-foundation-card > * { min-width:0; max-width:100%; }
+.studio-marketplace-stack .profile-foundation-card .status-pill { justify-self:start; width:max-content; height:auto; min-height:0; padding:7px 13px; border-radius:20px; }
+.studio-marketplace-stack .row-actions { display:flex; flex-wrap:wrap; gap:9px; }
+.studio-marketplace-stack .row-actions .button { max-width:100%; white-space:normal; }
+.studio-marketplace-stack .marketplace-switch-card { flex-wrap:wrap; align-items:flex-start; border-radius:7px; }
+.studio-marketplace-stack .marketplace-switch-card > div { flex:1 1 170px; min-width:0; }
+.studio-marketplace-stack .flow-points-reward-setting { min-width:0; }
+.studio-marketplace-stack .flow-points-reward-options { grid-template-columns:repeat(2,minmax(0,1fr)); min-width:0; width:100%; }
+.studio-marketplace-stack .flow-points-reward-options .button { min-width:0; white-space:normal; }
+.studio-marketplace-stack .input-field,.studio-marketplace-stack .input-field select { min-width:0; max-width:100%; }
+
+.owner-appointment-inline { min-width:0; border:1px solid #e3cbd0; border-radius:7px; background:#fff9f8; box-shadow:0 15px 35px rgba(65,37,46,.1); overflow:hidden; }
+.owner-appointment-inline-card { min-width:0; }
+.owner-appointment-inline .modal-header { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:19px 20px; background:#34262c; color:#fff; }
+.owner-appointment-inline .modal-header h3 { margin:3px 0 0; color:#fff; font:700 26px/1.1 Georgia,serif; }
+.owner-appointment-inline .modal-header .eyebrow { color:#efb7c1; }
+.owner-appointment-inline .owner-appointment-hide { color:#fff; border-color:#80676f; }
+.owner-appointment-inline .modal-body { padding:20px; gap:18px; background:linear-gradient(160deg,#fff8f7 0%,#f6e6e7 55%,#f5f8f2 100%); }
+.owner-appointment-inline .owner-artist-grid { grid-template-columns:repeat(3,minmax(0,1fr)); gap:9px; }
+.owner-appointment-inline .owner-artist-card { min-height:135px; border-radius:7px; box-shadow:none; padding:12px 8px; background:#fff; }
+.owner-appointment-inline .owner-artist-card.active { background:#8f5263; border-color:#8f5263; box-shadow:0 10px 24px rgba(96,51,65,.2); }
+.owner-appointment-inline .owner-artist-avatar { width:66px; height:66px; border-radius:50%; border:3px solid #fff; box-shadow:0 3px 10px rgba(55,35,44,.15); }
+.owner-appointment-inline .owner-artist-card strong { font-size:14px; }
+.owner-booking-calendar { min-width:0; padding:16px; border:1px solid #ead8dc; border-radius:7px; background:#fbf0f0; }
+.owner-booking-month { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:14px; }
+.owner-booking-month strong { color:#915567; font-size:14px; font-weight:900; text-transform:capitalize; text-align:center; }
+.owner-booking-month button { display:grid; place-items:center; flex:none; width:36px; height:36px; border:1px solid #d4b8c1; border-radius:50%; background:#fff; color:#6c4250; cursor:pointer; }
+.owner-booking-month button:disabled { opacity:.35; cursor:default; }
+.owner-booking-days { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:4px; text-align:center; }
+.owner-booking-days > span { display:grid; place-items:center; height:34px; color:#835d68; font-size:12px; font-weight:900; }
+.owner-booking-days > button { display:grid; place-items:center; width:100%; min-width:0; aspect-ratio:1; min-height:34px; border:1px solid transparent; border-radius:5px; background:#fff; color:#34262c; font-size:14px; font-weight:800; cursor:pointer; }
+.owner-booking-days > button:disabled { background:transparent; color:#bba8ae; cursor:default; }
+.owner-booking-days > button.active { background:#8f5263; color:#fff; }
+.owner-booking-calendar > small { display:block; margin-top:12px; color:#795d67; }
+.owner-booking-service { min-width:0; }
+.owner-booking-service select { width:100%; max-width:100%; min-width:0; }
+.owner-booking-times { display:grid; gap:10px; }
+.owner-booking-times > strong { font-size:15px; }
+.owner-booking-times-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(115px,1fr)); gap:8px; }
+.owner-booking-times-heading { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.owner-booking-times-heading button { display:grid; place-items:center; flex:none; width:34px; min-height:34px; padding:0; }
+.owner-booking-times button { min-height:43px; padding:7px; border:1px solid #d8bac3; border-radius:5px; background:#fff; color:#603747; font-weight:800; cursor:pointer; }
+.owner-booking-times button.active { background:#365d4b; border-color:#365d4b; color:#fff; }
+.owner-booking-times small { color:#795d67; }
+.owner-booking-client { display:grid; gap:13px; padding:16px; border:1px solid #d0dfd6; border-radius:7px; background:#f3faf5; }
+.owner-booking-client > strong { color:#2d5b46; font-size:14px; line-height:1.4; }
+.owner-booking-selection { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; color:#2d5b46; }
+.owner-existing-client { display:grid; gap:8px; padding:12px; border:1px solid #c7d6c8; border-radius:6px; background:#eaf6ec; color:#285440; }
+.owner-existing-client .button { justify-self:start; }
+.owner-booking-client .location-form-grid { min-width:0; }
+.owner-appointment-inline .modal-actions { display:flex; justify-content:flex-end; gap:9px; padding:0 20px 20px; }
+@media(max-width:600px) {
+  .owner-appointment-inline .modal-header { padding:17px 14px; }
+  .owner-appointment-inline .modal-header h3 { font-size:22px; }
+  .owner-appointment-inline .modal-body { padding:14px; }
+  .owner-appointment-inline .owner-artist-grid { grid-template-columns:repeat(3,minmax(0,1fr)); gap:5px; }
+  .owner-appointment-inline .owner-artist-card { min-width:0; padding:10px 4px; }
+  .owner-appointment-inline .owner-artist-card strong { font-size:12px; overflow-wrap:anywhere; }
+  .owner-appointment-inline .owner-artist-card small { font-size:10px; }
+  .owner-appointment-inline .owner-artist-avatar { width:50px; height:50px; }
+  .owner-booking-calendar { padding:11px; }
+  .owner-booking-days > button { font-size:13px; }
+  .studio-marketplace-stack .marketplace-switch-card .button { width:100%; }
+}
+
+.owner-availability-artist-card,
+.owner-appointment-inline .owner-artist-picker,
+.owner-appointment-inline .owner-booking-calendar {
+  border:1px solid #c59c53;
+  border-radius:8px;
+  background-color:#fff9f0;
+  background-image:url('../assets/marketplace-gold-card-bg.jpg');
+  background-position:center;
+  background-repeat:no-repeat;
+  background-size:100% 100%;
+  box-shadow:0 14px 30px rgba(83,54,50,.14),inset 0 0 0 3px rgba(255,255,255,.55);
+}
+.owner-availability-artist-card { padding:18px; }
+.owner-availability-artist-card .owner-availability-artist-row {
+  display:grid;
+  grid-template-columns:auto minmax(0,1fr);
+  gap:8px 14px;
+  align-items:center;
+}
+.owner-availability-artist-card .owner-artist-avatar,
+.owner-appointment-inline .owner-artist-avatar {
+  border:2px solid #b88d46;
+  border-radius:50%;
+  background:#fffaf3;
+  color:#683d48;
+  box-shadow:0 3px 10px rgba(99,65,42,.16);
+}
+.owner-availability-artist-card .owner-artist-avatar { width:62px; height:62px; }
+.owner-availability-artist-card strong,
+.owner-appointment-inline .owner-artist-picker h4 { color:#4a2630; font-family:Georgia,'Times New Roman',serif; }
+.owner-availability-artist-card .studio-review-actions { grid-column:1 / -1; width:100%; }
+.owner-availability-artist-card .studio-review-actions .button:not(:disabled) {
+  border:1px solid #b5864e;
+  background:linear-gradient(145deg,#9d5664,#b7757e);
+  color:#fff;
+  box-shadow:0 4px 0 #70404c,0 9px 16px rgba(103,52,62,.17);
+}
+.owner-appointment-inline .owner-artist-picker { padding:18px; }
+.owner-appointment-inline .owner-artist-card {
+  border:1px solid #caa569;
+  border-radius:7px;
+  background:rgba(255,252,247,.84);
+  box-shadow:0 4px 0 rgba(156,115,64,.38),0 8px 16px rgba(85,55,45,.12);
+}
+.owner-appointment-inline .owner-artist-card.active {
+  border-color:#9f6268;
+  background:linear-gradient(145deg,#9c5965,#ad7078);
+  box-shadow:0 4px 0 #754851,0 9px 18px rgba(92,46,57,.2);
+}
+.owner-appointment-inline .owner-booking-calendar { padding:18px; }
+.owner-appointment-inline .owner-booking-month strong { color:#783e4a; font-family:Georgia,'Times New Roman',serif; font-size:19px; }
+.owner-appointment-inline .owner-booking-days > button:not(:disabled) {
+  border:1px solid #ddc7a6;
+  background:rgba(255,251,245,.88);
+  box-shadow:0 2px 4px rgba(107,75,53,.08);
+}
+.owner-appointment-inline .owner-booking-days > button.active:not(:disabled) { border-color:#a86b74; background:#a86b74; color:#fff; }
+@media(max-width:600px) {
+  .owner-availability-artist-card .owner-artist-avatar { width:54px; height:54px; }
+  .owner-appointment-inline .owner-artist-picker,
+  .owner-appointment-inline .owner-booking-calendar { padding:12px; }
+}
+
+.owner-calendar-overview { display:grid; gap:18px; min-width:0; padding:20px 0; }
+.owner-calendar-heading { display:flex; align-items:end; justify-content:space-between; flex-wrap:wrap; gap:14px; }
+.owner-calendar-heading h3 { margin:4px 0 0; color:#392831; font:700 27px/1.1 Georgia,'Times New Roman',serif; }
+.owner-calendar-heading-actions { display:flex; flex-wrap:wrap; gap:9px; }
+.owner-calendar-overview .artist-calendar-overview { padding:0; }
+.artist-calendar-artist-name { display:block; margin-top:3px; color:#805665; font-size:11px; font-weight:800; }
+@media(max-width:600px) {
+  .owner-calendar-overview { padding:16px 0; }
+  .owner-calendar-heading-actions { width:100%; }
+  .owner-calendar-heading-actions .button { flex:1; }
+}
+.studio-profile-experience { min-width:0; width:100%; }
+.studio-profile-welcome { display:grid; grid-template-columns:minmax(0,1fr) 120px; align-items:center; gap:20px; min-height:195px; padding:27px; border-radius:8px; background:linear-gradient(135deg,#21191c,#633c48); box-shadow:0 22px 44px rgba(61,35,43,.22); color:#fff; }
+.studio-profile-welcome > div:first-child { min-width:0; }
+.studio-profile-welcome span { color:#efb0bd; font-size:11px; font-weight:900; }
+.studio-profile-welcome h1 { margin:8px 0; color:#fff; font-family:Georgia,'Times New Roman',serif; font-size:38px; line-height:1.05; overflow-wrap:anywhere; }
+.studio-profile-welcome p { margin:0; color:#e9d9dd; font-size:14px; line-height:1.45; }
+.studio-profile-welcome-logo { display:grid; place-items:center; width:120px; height:120px; overflow:hidden; border:4px solid #fff; border-radius:50%; background:#f1dadd; color:#633c48; box-shadow:0 14px 30px rgba(0,0,0,.23); font-family:Georgia,'Times New Roman',serif; font-size:31px; font-weight:900; }
+.studio-profile-welcome-logo img { width:100%; height:100%; object-fit:cover; }
+.studio-profile-stack { display:grid; grid-template-columns:minmax(0,1fr); gap:16px; min-width:0; margin-top:18px; }
+.studio-profile-stack > * { min-width:0; }
+.studio-profile-stack > .profile-foundation-card { display:grid; grid-template-columns:minmax(0,1fr); gap:16px; padding:21px; border:1px solid #dfc7cc; border-radius:8px; background:#fffaf8; box-shadow:0 14px 30px rgba(72,43,51,.075); }
+.studio-profile-stack > .profile-foundation-card > div:first-child { padding-bottom:12px; border-bottom:1px solid #eadadd; }
+.studio-profile-stack > .profile-foundation-card h3 { margin:5px 0 0; color:#37272c; font-family:Georgia,'Times New Roman',serif; font-size:25px; line-height:1.1; }
+.studio-profile-stack > .profile-foundation-card .eyebrow { color:#a25b6b; font-size:11px; }
+.studio-profile-stack .input-field { min-width:0; gap:7px; }
+.studio-profile-stack .input-field > span { color:#68424c; font-size:12px; font-weight:900; }
+.studio-profile-stack .input-field input,.studio-profile-stack .input-field select,.studio-profile-stack .input-field textarea { min-width:0; max-width:100%; min-height:49px; border:1px solid #dcc3c9; border-radius:7px; background:#fff; box-shadow:0 7px 17px rgba(78,45,55,.045); }
+.studio-profile-stack .input-field textarea { min-height:95px; }
+.studio-profile-stack .location-form-grid { min-width:0; }
+.studio-profile-identity .owner-studio-social-editor { padding:16px; border:1px solid #e8d3d8; border-radius:7px; background:#f8eaed; }
+.studio-profile-identity .owner-studio-social-editor > strong { color:#56353f; font-family:Georgia,'Times New Roman',serif; font-size:19px; }
+.studio-profile-logo-story { border:0 !important; background:linear-gradient(135deg,#2a2024,#5d3945) !important; color:#fff; box-shadow:0 20px 40px rgba(59,35,42,.2) !important; }
+.studio-profile-logo-story > div:first-child { border-bottom-color:rgba(255,255,255,.15) !important; }
+.studio-profile-logo-story h3 { color:#fff !important; }
+.studio-profile-logo-story > div:first-child small { color:#dfcfd3 !important; }
+.studio-profile-logo-story .eyebrow { color:#efafbc !important; }
+.studio-profile-logo-story .studio-logo-row { padding:17px; border-radius:7px; background:rgba(255,255,255,.08); }
+.studio-profile-logo-story .studio-logo-preview { width:92px; height:92px; border:4px solid #fff; border-radius:50%; box-shadow:0 14px 30px rgba(0,0,0,.2); }
+.studio-profile-logo-story .artist-photo-actions .button { border-color:#ecaab7; background:#ecaab7; color:#2d2024; }
+.studio-profile-logo-story .artist-photo-actions button:not(.button) { color:#f1c3cc; }
+.studio-profile-location-story { border:0 !important; background:#2b2225 !important; color:#fff; box-shadow:0 20px 40px rgba(57,34,41,.2) !important; }
+.studio-profile-location-story > div:first-child { border-bottom-color:rgba(255,255,255,.14) !important; }
+.studio-profile-location-story h3 { color:#fff !important; }
+.studio-profile-location-story .eyebrow,.studio-profile-location-story .input-field > span { color:#efc3cb !important; }
+.studio-profile-location-story .input-field input,.studio-profile-location-story .input-field textarea { border-color:#634752; background:#3a2b30; color:#fff; box-shadow:none; }
+.studio-profile-location-story .location-toggle-row { border-color:#624651; background:#392b30; color:#fff; }
+.studio-profile-location-story .location-helper-text,.studio-profile-location-story small { color:#dac9ce; overflow-wrap:anywhere; }
+.studio-profile-location-story .button { border-color:#e5a8b4; background:#e5a8b4; color:#2c2024; }
+.studio-profile-gallery-story { border:0 !important; background:linear-gradient(145deg,#f4dfe2,#fff9f7 62%) !important; }
+.studio-profile-gallery-story .studio-gallery-item,.studio-profile-gallery-story .studio-gallery-upload { border-radius:7px; }
+.studio-profile-gallery-story .studio-gallery-upload { border:2px dashed #b97887; background:rgba(255,255,255,.72); color:#713f4c; }
+.studio-profile-gallery-story .studio-gallery-counter { border-radius:7px; background:#fff; }
+.studio-profile-stack .studio-profile-save { min-height:55px; border-radius:7px; background:linear-gradient(135deg,#3a292f,#784756); box-shadow:0 15px 30px rgba(76,43,53,.2); font-size:15px; }
+.studio-hours-panel .studio-hours-days { display:grid; grid-template-columns:minmax(0,1fr); gap:14px; }
+.studio-hours-panel .studio-hours-day { min-width:0; padding:18px; border:1px solid #dfc6cc; border-radius:8px; background:#fff; box-shadow:0 12px 28px rgba(72,43,51,.08); }
+.studio-hours-panel .schedule-day-header strong { color:#33252a; font-family:Georgia,'Times New Roman',serif; font-size:24px; }
+.studio-hours-panel .schedule-day-header small { color:#8a6972; font-size:13px; }
+.studio-hours-panel .studio-hours-times { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+.studio-hours-panel .schedule-controls label,.studio-hours-panel .schedule-break-row label { min-width:0; color:#704653; font-size:12px; font-weight:900; }
+.studio-hours-panel input[type='time'] { min-width:0; width:100%; min-height:48px; border:1px solid #dec5ca; border-radius:7px; background:#fffaf9; color:#34272b; font-size:16px; font-weight:800; }
+.studio-hours-panel .schedule-day > .row-actions { display:flex; flex-wrap:wrap; gap:8px; }
+.studio-hours-panel .schedule-day > .row-actions button { display:inline-flex; align-items:center; gap:5px; min-height:42px; padding:0 14px; border:1px solid #d5a9b2; border-radius:7px; background:#f7e5e8; color:#70414d; font-weight:850; }
+.studio-hours-panel .schedule-break-remove { min-width:48px; }
+.studio-hours-break-explainer { display:grid; gap:4px; padding:12px 14px; border-left:4px solid #d58b9b; border-radius:0 6px 6px 0; background:#fbf0f1; }
+.studio-hours-break-explainer strong { color:#54343d; font-family:Georgia,'Times New Roman',serif; font-size:18px; }
+.studio-hours-break-explainer small { color:#755f68; line-height:1.45; }
+.studio-hours-panel .studio-hours-feedback { color:#5e4050; font-weight:800; }
+.studio-hours-panel > .button { min-height:50px; justify-self:start; border-color:#3c2b30; background:#3c2b30; color:#fff; }
+.studio-hours-panel .schedule-break-row { min-width:0; }
+.artist-studio-hours-note { margin-bottom:14px; padding:14px; border:1px solid #d4dfd6; border-radius:7px; background:#f2faf4; color:#335b48; }
+.artist-studio-hours-note p { margin:5px 0 10px; font-size:13px; }
+.artist-studio-hours-note > div { display:flex; flex-wrap:wrap; gap:5px; }
+.artist-studio-hours-note span { padding:5px 8px; border:1px solid #c5d9cc; border-radius:5px; background:#fff; font-size:12px; font-weight:750; }
+@media(max-width:600px) {
+  .studio-profile-welcome { grid-template-columns:minmax(0,1fr) 80px; gap:12px; min-height:155px; padding:21px 16px; }
+  .studio-profile-welcome h1 { font-size:29px; }
+  .studio-profile-welcome-logo { width:80px; height:80px; border-width:3px; font-size:24px; }
+  .studio-profile-stack > .profile-foundation-card { padding:18px 14px; }
+  .studio-profile-stack > .profile-foundation-card h3 { font-size:23px; }
+  .studio-hours-panel .studio-hours-day { padding:15px 13px; }
+  .studio-hours-panel .schedule-break-row { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .studio-hours-panel .schedule-break-remove { grid-column:1 / -1; }
+  .studio-hours-panel > .button { width:100%; }
+}

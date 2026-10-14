@@ -127,13 +127,19 @@ export async function fetchClientAppointments() {
 
 export async function fetchArtistAppointments({ artistId } = {}) {
   const client = requireSupabase()
-  const { data, error } = await client.rpc('studio_flow_get_artist_appointments', {
-    p_artist_id: artistId || null,
-  })
-
+  const [{ data, error }, { data: pendingRows, error: pendingError }] = await Promise.all([
+    client.rpc('studio_flow_get_artist_appointments', { p_artist_id: artistId || null }),
+    artistId
+      ? client.rpc('studio_flow_artist_pending_manual_booking_ids', { p_artist_id: artistId })
+      : Promise.resolve({ data: [], error: null }),
+  ])
   if (error) throw error
-
-  return withAppointmentReporting(mapAppointmentsPayload(data))
+  if (pendingError) throw pendingError
+  const pendingIds = new Set((pendingRows || []).map((row) => row.appointmentId))
+  return withAppointmentReporting(mapAppointmentsPayload(data).map((appointment) => ({
+    ...appointment,
+    pendingClientConfirmation: pendingIds.has(appointment.id),
+  })))
 }
 
 export async function updateClientAppointmentResponse({ appointmentId, action } = {}) {
@@ -219,6 +225,24 @@ export async function redeemClientFlowPoints({ points, artistId = null, studioId
   return data
 }
 
+export async function fetchClientFlowPointDestinations() {
+  const { data, error } = await requireSupabase().rpc('studio_flow_client_flow_point_destinations')
+  if (error) throw error
+  return Array.isArray(data) ? data : []
+}
+
+export async function fetchClientFlowPointRedemptions() {
+  const { data, error } = await requireSupabase().rpc('studio_flow_client_flow_point_redemptions')
+  if (error) throw error
+  return Array.isArray(data) ? data : []
+}
+
+export async function fetchBusinessFlowPointRedemptions(studioId = null) {
+  const { data, error } = await requireSupabase().rpc('studio_flow_business_flow_point_redemptions', { p_studio_id: studioId })
+  if (error) throw error
+  return Array.isArray(data) ? data : []
+}
+
 export async function fetchClientFlowPointsBalance() {
   const client = requireSupabase()
   const { data, error } = await client.rpc('studio_flow_client_get_flow_points_balance')
@@ -276,6 +300,7 @@ export async function createManualArtistAppointment({
   firstName,
   lastName,
   phone,
+  email = '',
   serviceOfferingId,
   date,
   time,
@@ -285,7 +310,7 @@ export async function createManualArtistAppointment({
   const client = requireSupabase()
   const rpcName = clientId
     ? 'studio_flow_artist_create_manual_appointment_for_client'
-    : 'studio_flow_artist_create_manual_appointment'
+    : 'studio_flow_artist_create_manual_appointment_private_email'
   const params = clientId
     ? {
       p_client_id: clientId,
@@ -299,6 +324,7 @@ export async function createManualArtistAppointment({
       p_client_first_name: firstName,
       p_client_last_name: lastName,
       p_client_phone: phone,
+      p_client_email: email || null,
       p_service_offering_id: serviceOfferingId,
       p_date: date,
       p_time: time,
@@ -318,5 +344,5 @@ export async function createManualArtistAppointment({
     throw error
   }
 
-  return normalizeAppointment(data?.appointment)
+  return normalizeAppointment({ ...data?.appointment, pendingClientConfirmation: Boolean(data?.requiresConfirmation) })
 }

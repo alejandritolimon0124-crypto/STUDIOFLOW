@@ -4,9 +4,12 @@ import { paths } from '../routes/paths'
 
 const copyByPath = {
   [paths.client]: ['', ''],
-  [paths.clientAppointments]: ['Mis citas', 'Tus proximas reservas y servicios confirmados.'],
-  [paths.clientSearch]: ['Reserva tu cita', 'Encuentra artistas, servicios y horarios cerca de ti. Actualiza tu ubicacion para encontrar recomendaciones automaticamente.'],
+  [paths.clientAppointments]: ['', ''],
+  [paths.clientSearch]: ['', ''],
   [paths.clientFavorites]: ['Favoritos', 'Tus estudios y artistas guardadas.'],
+  [paths.clientRewards]: ['', ''],
+  [paths.clientFlowPoints]: ['', ''],
+  [paths.clientProfile]: ['', ''],
 }
 
 function ClientLayout() {
@@ -18,11 +21,11 @@ function ClientLayout() {
       <div className="role-layout-shell">
         <Outlet />
         <nav className="role-bottom-nav" aria-label="Navegacion de cliente">
-          <NavLink to="/client">Inicio</NavLink>
-          <NavLink to="/client/search">Buscar</NavLink>
-          <NavLink to="/client/appointments">Citas</NavLink>
-          <NavLink to="/client/favorites">Favoritos</NavLink>
-          <NavLink to="/client/profile">MI PERFIL</NavLink>
+          <NavLink to={paths.client}>Inicio</NavLink>
+          <NavLink to={paths.clientSearch}>Buscar</NavLink>
+          <NavLink to={paths.clientFlowPoints} className="client-fp-nav" aria-label="FlowPoints">✦ <span>FP</span></NavLink>
+          <NavLink to={paths.clientAppointments} className="client-reviews-nav"><span>Citas<br />y reseñas</span></NavLink>
+          <NavLink to={paths.clientFavorites}>Favoritos</NavLink>
         </nav>
       </div>
     </DashboardLayout>

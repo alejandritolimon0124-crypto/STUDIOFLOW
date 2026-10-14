@@ -1,0 +1,28 @@
+.flow-redemptions { margin: 24px 0; padding: 20px; border: 1px solid #d7bcc6; border-radius: 7px; background: #fffaf9; color: #38292f; }
+.flow-redemptions-heading { display: flex; align-items: center; gap: 12px; }
+.flow-redemptions-heading > svg { flex: none; color: #a35d72; }
+.flow-redemptions-heading > div { flex: 1; min-width: 0; }
+.flow-redemptions-heading span { color: #a35d72; font-size: 11px; font-weight: 900; }
+.flow-redemptions-heading h2 { margin: 2px 0 0; font: 700 24px/1.1 Georgia,serif; }
+.flow-redemptions-heading button { display: grid; place-items: center; width: 40px; height: 40px; border: 1px solid #d7bcc6; border-radius: 5px; background: #fff; color: #553a45; }
+.flow-redemptions > p { margin: 15px 0 18px; color: #6d5a62; line-height: 1.5; }
+.flow-redemptions-list article { display: flex; justify-content: space-between; gap: 12px; padding: 12px 0; border-top: 1px solid #e5d3d8; }
+.flow-redemptions-list article > div { display: grid; gap: 3px; min-width: 0; }
+.flow-redemptions-list article > div:last-child { text-align: right; }
+.flow-redemptions-list small { color: #795d67; overflow-wrap: anywhere; }
+.flow-redemptions-summary { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; margin: 18px 0 14px; }
+.flow-redemptions-summary > div { display: grid; gap: 3px; padding: 15px; background: #f5e9ed; border-radius: 6px; }
+.flow-redemptions-summary > div:last-child { background: #fff0d0; }
+.flow-redemptions-summary strong { font: 700 30px/1 Georgia,serif; }
+.flow-redemptions-summary span { font-size: 13px; color: #624c55; }
+.flow-redemptions-toggle { width: 100%; padding: 13px; border: 1px solid #a35d72; border-radius: 5px; background: #fff; color: #704458; font-weight: 800; cursor: pointer; }
+.flow-redemptions-detail { margin-top: 16px; }
+.flow-redemptions-filters { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1.3fr); gap: 10px; margin-bottom: 12px; }
+.flow-redemptions-filters label { display: grid; gap: 5px; font-size: 12px; font-weight: 800; }
+.flow-redemptions-filters select,.flow-redemptions-filters input { width: 100%; min-width: 0; height: 43px; padding: 8px; border: 1px solid #d7bcc6; border-radius: 5px; background: #fff; font-size: 14px; }
+.flow-redemptions-filters form { display: flex; align-items: end; gap: 5px; min-width: 0; }
+.flow-redemptions-filters form label { flex: 1; min-width: 0; }
+.flow-redemptions-filters form button,.flow-redemptions-pages button { display: grid; place-items: center; width: 43px; height: 43px; flex: none; border: 1px solid #d7bcc6; border-radius: 5px; background: #fff; color: #704458; cursor: pointer; }
+.flow-redemptions-pages { display: flex; align-items: center; justify-content: center; gap: 16px; margin-top: 12px; }
+.flow-redemptions-pages span { font-size: 13px; font-weight: 700; }
+@media (max-width: 520px) { .flow-redemptions-filters { grid-template-columns: 1fr; } .flow-redemptions { padding: 16px; } .flow-redemptions-list article { font-size: 13px; } }

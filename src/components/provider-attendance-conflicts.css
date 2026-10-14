@@ -1,0 +1,10 @@
+.provider-conflicts { grid-column: 1 / -1; padding: 17px; border: 2px solid #b73f55; border-radius: 7px; background: #fff2f4; color: #42232e; }
+.provider-conflicts-heading { display: flex; gap: 10px; align-items: flex-start; }
+.provider-conflicts-heading svg { flex: none; color: #b73f55; }
+.provider-conflicts-heading strong { font: 700 23px/1.2 Georgia, serif; }
+.provider-conflicts-heading p { margin: 4px 0 0; }
+.provider-conflicts article { display: grid; gap: 4px; margin-top: 12px; padding: 12px; border-radius: 5px; background: #fff; }
+.provider-conflicts article p { margin: 3px 0; color: #a12940; font-weight: 800; }
+.provider-conflicts article small { color: #70535b; }
+.provider-conflicts button { display: inline-flex; align-items: center; gap: 6px; justify-self: start; min-height: 40px; padding: 8px 12px; border: 0; border-radius: 5px; background: #412934; color: #fff; font: inherit; font-weight: 800; }
+.provider-conflicts a { justify-self: start; color: #733b54; font-weight: 800; }

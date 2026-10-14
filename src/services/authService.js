@@ -1,4 +1,5 @@
 import { requireSupabase, supabase } from '../lib/supabaseClient'
+import { promiseTimeout } from '../utils/promiseTimeout'
 
 function getAuthRedirectUrl(path = '/reset-password') {
   const isLocalDevelopment = ['localhost', '127.0.0.1'].includes(window.location.hostname)
@@ -14,7 +15,10 @@ export function hasSupabaseAuth() {
 export async function getCurrentAuthSession() {
   if (!supabase) return null
 
-  const { data, error } = await supabase.auth.getSession()
+  const { data, error } = await promiseTimeout(
+    supabase.auth.getSession(), 25000,
+    'La conexión está tardando demasiado. Revisa tu internet e intenta de nuevo.',
+  )
 
   if (error) throw error
 
@@ -33,10 +37,10 @@ export function onAuthStateChange(callback) {
 
 export async function signInWithPassword({ email, password }) {
   const client = requireSupabase()
-  const { data, error } = await client.auth.signInWithPassword({
+  const { data, error } = await promiseTimeout(client.auth.signInWithPassword({
     email: String(email || '').trim().toLowerCase(),
     password,
-  })
+  }), 25000, 'La conexión está tardando demasiado. Revisa tu internet e intenta de nuevo.')
 
   if (error) throw error
 
@@ -112,6 +116,22 @@ export async function sendPasswordReset(email) {
   if (error) {
     if (error.status === 429 || error.code === 'over_email_send_rate_limit' || /email rate limit/i.test(error.message || '')) {
       throw new Error('El servicio de correo alcanzo temporalmente su limite de envios. No se envio el enlace. Intenta mas tarde.')
+    }
+    throw error
+  }
+}
+
+export async function resendSignupConfirmation(email) {
+  const client = requireSupabase()
+  const { error } = await client.auth.resend({
+    type: 'signup',
+    email: String(email || '').trim().toLowerCase(),
+    options: { emailRedirectTo: getAuthRedirectUrl('/login') },
+  })
+
+  if (error) {
+    if (error.status === 429 || /rate limit|security purposes|seconds/i.test(error.message || '')) {
+      throw new Error('Espera unos minutos antes de pedir otro enlace de confirmación.')
     }
     throw error
   }

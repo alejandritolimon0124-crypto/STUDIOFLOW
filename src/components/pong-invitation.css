@@ -1,0 +1,30 @@
+.invitation-pong { padding: 26px 0; border-bottom: 1px solid #d6c0c6; }
+.invitation-pong-heading { position: relative; padding-right: 40px; }
+.invitation-pong-heading > span { color: #9b596e; font-size: 12px; font-weight: 900; }
+.invitation-pong-sound { position: absolute; right: 0; top: 0; display: grid; place-items: center; width: 38px; height: 38px; border: 1px solid #b9919b; border-radius: 6px; background: #fff; color: #493038; cursor: pointer; }
+.invitation-pong-heading h2 { margin: 5px 0 8px; font: 700 32px/1.1 Georgia, serif; }
+.invitation-pong-heading p { margin: 0 0 17px; color: #604b52; }
+.invitation-pong-instruction { margin:0 0 18px; padding:17px; border:1px solid #d7a431; border-radius:8px; background:linear-gradient(135deg,#fff0a7,#ffd76d 55%,#fff1ba); color:#563111; box-shadow:0 12px 26px rgba(135,94,18,.16); font-size:15px; font-weight:800; line-height:1.4; }
+.invitation-pong-status { display: flex; justify-content: space-between; align-items: center; margin-bottom: 9px; }
+.invitation-pong-status > span { display: flex; gap: 6px; }
+.invitation-pong-status i { width: 14px; height: 14px; border-radius: 50%; background: #bcaeb2; }
+.invitation-pong-status i.live { background: #e89caf; }
+.invitation-pong-board { position: relative; width: 100%; max-width: 620px; aspect-ratio: 1.8; min-height: 200px; overflow: hidden; background: #251b20; border: 1px solid #795464; border-radius: 7px; touch-action: pan-y; cursor: none; }
+.invitation-pong-board.is-won { min-height: 300px; }
+.invitation-pong-board:focus-visible { outline: 3px solid #d8849c; outline-offset: 2px; }
+.invitation-pong-ceiling { position: absolute; left: 4%; right: 4%; top: 8%; border-top: 2px solid #8f7580; }
+.invitation-pong-ball { position: absolute; width: 19px; height: 19px; border-radius: 50%; background: #f4c7d2; box-shadow: 0 0 18px #f4c7d2; transform: translate(-50%, -50%); }
+.invitation-pong-paddle { position: absolute; width: 24%; height: 12px; bottom: 8%; transform: translateX(-50%); background: #77c8ad; border-radius: 6px; box-shadow: 0 0 14px #77c8ad77; }
+.invitation-pong-overlay { position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; gap: 10px; padding: 18px; text-align: center; color: white; background: #251b20dc; cursor: default; }
+.invitation-pong-overlay strong { font: 700 27px/1.15 Georgia, serif; }
+.invitation-pong-prize { display: grid; justify-items: center; gap: 5px; width: min(100%, 330px); color: #fff; }
+.invitation-pong-prize > svg { color: #f6ce75; }
+.invitation-pong-prize small { color: #f6ce75; font-size: 11px; font-weight: 900; }
+.invitation-pong-prize strong { color: #f6ce75; font-size: clamp(48px,12vw,76px); line-height: 1; }
+.invitation-pong-prize span { font-size: 17px; font-weight: 800; }
+.invitation-pong-prize p { margin: 2px 0 8px; color: #f3dfe5; font-size: 13px; }
+.invitation-pong-overlay button { display: inline-flex; align-items: center; gap: 7px; padding: 10px 18px; border: 0; border-radius: 6px; background: #f4c7d2; color: #2c1d24; font-weight: 900; cursor: pointer; }
+.invitation-pong-controls { display: flex; justify-content: space-between; width: min(100%, 620px); margin-top: 8px; }
+.invitation-pong-controls button { width: 64px; height: 44px; border: 1px solid #b9919b; border-radius: 6px; background: #fff; color: #3a252f; }
+.invitation-pong-controls button:disabled { opacity: .45; }
+.invitation-pong-error { color: #9b3f56; font-weight: 800; }

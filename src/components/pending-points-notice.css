@@ -1,0 +1,5 @@
+.pending-points-notice { display: flex; grid-column: 1 / -1; gap: 14px; align-items: flex-start; padding: 17px; border: 1px solid #d8b1bd; border-radius: 7px; background: #fbecee; color: #35272d; }
+.pending-points-icon { display: grid; flex: 0 0 42px; height: 42px; place-items: center; border-radius: 6px; background: #843f59; color: #fff; }
+.pending-points-notice strong { display: block; font: 700 21px/1.18 Georgia, serif; }
+.pending-points-notice p { margin: 5px 0 0; color: #5f4b53; line-height: 1.4; }
+.pending-points-notice button { margin-top: 11px; padding: 9px 13px; border: 0; border-radius: 5px; background: #37262e; color: #fff; font: inherit; font-weight: 800; cursor: pointer; }

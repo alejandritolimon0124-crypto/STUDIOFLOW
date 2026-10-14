@@ -1,4 +1,5 @@
 import { requireSupabase } from '../lib/supabaseClient'
+import { promiseTimeout } from '../utils/promiseTimeout'
 
 const DEFAULT_CONTEXT = {
   profile: null,
@@ -14,7 +15,10 @@ function unwrapContext(data) {
 
 export async function fetchAuthContext() {
   const client = requireSupabase()
-  const { data, error } = await client.rpc('studio_flow_get_auth_context')
+  const { data, error } = await promiseTimeout(
+    client.rpc('studio_flow_get_auth_context'), 25000,
+    'No pudimos cargar tu perfil a tiempo. Intenta ingresar nuevamente.',
+  )
 
   if (error) throw error
 

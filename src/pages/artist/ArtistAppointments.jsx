@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import Button from '../../components/Button'
 import AppointmentPayment from '../../components/AppointmentPayment'
+import AppointmentDeposit from '../../components/AppointmentDeposit'
 import CompleteAppointmentButton from '../../components/CompleteAppointmentButton'
 import Card from '../../components/Card'
 import Input from '../../components/Input'
@@ -13,7 +14,6 @@ import { useApp } from '../../contexts/appContextCore'
 import { fetchArtistClients } from '../../services/artistClientService'
 import { cancelArtistAppointment, fetchManualArtistAvailability } from '../../services/appointmentService'
 import { getAppointmentStatusTone } from '../../utils/appointmentStatus'
-import useCurrentTime from '../../hooks/useCurrentTime'
 
 function getTodayDateValue() {
   const today = new Date()
@@ -26,6 +26,7 @@ const emptyDraft = {
   firstName: '',
   lastName: '',
   phone: '',
+  email: '',
   serviceOfferingId: '',
   date: getTodayDateValue(),
   time: '',
@@ -38,6 +39,25 @@ function splitClientName(name = '') {
     firstName: firstName || '',
     lastName: lastNameParts.join(' '),
   }
+}
+
+function normalizeSearchText(value = '') {
+  return String(value)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim()
+}
+
+function appointmentSearchText(appointment = {}) {
+  return [
+    appointment.client,
+    appointment.clientName,
+    appointment.clientPhone,
+    appointment.phone,
+    appointment.clientEmail,
+    appointment.email,
+  ].filter(Boolean).map(normalizeSearchText).join(' ')
 }
 
 function getAppointmentContextLabel(appointment = {}) {
@@ -57,7 +77,6 @@ function appointmentMatchesWorkContext(appointment = {}, workContext = {}) {
 }
 
 function ArtistAppointments() {
-  const now = useCurrentTime()
   const location = useLocation()
   const selectedClient = location.state?.selectedClient || null
   const {
@@ -78,7 +97,9 @@ function ArtistAppointments() {
   const [selectedDate, setSelectedDate] = useState(getTodayDateValue)
   const [showForm, setShowForm] = useState(false)
   const [showFilter, setShowFilter] = useState(false)
+  const [calendarScrollRequest, setCalendarScrollRequest] = useState(0)
   const [appointmentClientQuery, setAppointmentClientQuery] = useState('')
+  const [appointmentFilterClientIds, setAppointmentFilterClientIds] = useState([])
   const [availabilitySlots, setAvailabilitySlots] = useState([])
   const [availabilityMeta, setAvailabilityMeta] = useState({ durationMinutes: 0 })
   const [isAvailabilityLoading, setIsAvailabilityLoading] = useState(false)
@@ -164,6 +185,34 @@ function ArtistAppointments() {
     }
   }, [artistWorkContext, clientSearch, draft.phone])
 
+  useEffect(() => {
+    const search = appointmentClientQuery.trim()
+    if (search.length < 2) {
+      return undefined
+    }
+
+    let isActive = true
+    fetchArtistClients({ search, limit: 50, workContext: artistWorkContext })
+      .then((clients) => {
+        if (!isActive) return
+        const clientIds = clients.map((client) => client.id).filter(Boolean)
+        setAppointmentFilterClientIds(clientIds)
+        const matchingAppointment = artistAppointments
+          .filter((appointment) => appointmentMatchesWorkContext(appointment, artistWorkContext))
+          .filter((appointment) => clientIds.includes(appointment.clientId || appointment.client_id))
+          .sort((first, second) => String(second.date || '').localeCompare(String(first.date || '')))[0]
+        if (matchingAppointment?.date) {
+          setSelectedDate(matchingAppointment.date)
+          setCalendarScrollRequest((currentValue) => currentValue + 1)
+        }
+      })
+      .catch(() => {
+        if (isActive) setAppointmentFilterClientIds([])
+      })
+
+    return () => { isActive = false }
+  }, [appointmentClientQuery, artistAppointments, artistWorkContext])
+
   if (!draft.serviceOfferingId && artistServices[0]?.id) {
     setDraft({ ...draft, serviceOfferingId: artistServices[0].id })
   }
@@ -234,35 +283,27 @@ function ArtistAppointments() {
   const contextAppointments = artistAppointments.filter((appointment) => (
     appointmentMatchesWorkContext(appointment, artistWorkContext)
   ))
-  const attendedClientIds = new Set(contextAppointments
-    .filter((appointment) => (
-      appointment.clientId
-      && !['Cancelada', 'No show'].includes(appointment.status)
-      && !['cancelled', 'no_show'].includes(String(appointment.appointmentStatus || '').toLowerCase())
-      && (
-        appointment.status === 'Completada'
-        || String(appointment.appointmentStatus || '').toLowerCase() === 'completed'
-        || (appointment.startsAt && new Date(appointment.startsAt).getTime() < now)
-      )
-    ))
-    .map((appointment) => appointment.clientId))
-  const normalizedAppointmentClientQuery = appointmentClientQuery.trim().toLowerCase()
+  const normalizedAppointmentClientQuery = normalizeSearchText(appointmentClientQuery)
   const appointmentsMatchingClientQuery = normalizedAppointmentClientQuery
     ? contextAppointments.filter((appointment) => {
-      if (appointment.clientId && !attendedClientIds.has(appointment.clientId)) return false
-
-      const searchableText = [
-        appointment.client,
-        appointment.clientName,
-        appointment.clientPhone,
-        appointment.phone,
-        appointment.clientEmail,
-        appointment.email,
-      ].filter(Boolean).join(' ').toLowerCase()
+      const searchableText = appointmentSearchText(appointment)
 
       return searchableText.includes(normalizedAppointmentClientQuery)
+        || appointmentFilterClientIds.includes(appointment.clientId)
     })
     : contextAppointments
+  const updateAppointmentClientQuery = (value) => {
+    setAppointmentClientQuery(value)
+    const normalizedValue = normalizeSearchText(value)
+    if (normalizedValue.length < 2) return
+    const matchingAppointment = contextAppointments
+      .filter((appointment) => appointmentSearchText(appointment).includes(normalizedValue))
+      .sort((first, second) => String(second.date || '').localeCompare(String(first.date || '')))[0]
+    if (matchingAppointment?.date) {
+      setSelectedDate(matchingAppointment.date)
+      setCalendarScrollRequest((currentValue) => currentValue + 1)
+    }
+  }
   const appointmentsForSelectedDate = sortAppointmentsByTimeAscending(
     appointmentsMatchingClientQuery.filter((appointment) => appointment.date === selectedDate),
   )
@@ -299,7 +340,7 @@ function ArtistAppointments() {
   }
 
   const cancelAppointment = async (appointment) => {
-    const sourceLabel = appointment.bookingSource === 'google' ? ' reserva de Google' : ' cita'
+    const sourceLabel = ['google', 'instagram', 'facebook'].includes(appointment.bookingSource) ? ` reserva desde enlace de ${appointment.bookingSource}` : ' cita'
     if (!window.confirm(`Confirma que deseas cancelar esta${sourceLabel}. El horario volvera a quedar disponible si aun cumple las reglas de tu agenda.`)) return
     setCancellingAppointmentId(appointment.id)
     try {
@@ -341,13 +382,17 @@ function ArtistAppointments() {
 
   return (
     <main className="dashboard-grid artist-grid">
-      <Card className="wide-card mobile-screen primary-panel">
-        <PanelHeader title="Citas del dia" eyebrow={selectedDate === getTodayDateValue() ? 'Hoy' : selectedDate} />
-        <div className="row-actions" style={{ justifyContent: 'flex-start', marginBottom: '14px' }}>
+      <Card className="wide-card mobile-screen primary-panel artist-appointments-panel">
+        <div className="artist-appointments-intro">
+          <span>{selectedDate === getTodayDateValue() ? 'HOY' : selectedDate}</span>
+          <h1>Tu agenda toma forma</h1>
+          <p>Cada cita es parte de lo que estás construyendo.</p>
+        </div>
+        <div className="row-actions artist-appointments-primary-actions">
           <Button className="appointment-primary-action" size="sm" onClick={() => setShowForm((currentValue) => !currentValue)}>
             {showForm ? 'Ocultar formulario' : 'Generar cita'}
           </Button>
-          <Button size="sm" variant="ghost" onClick={() => setShowFilter((currentValue) => !currentValue)}>
+          <Button className="artist-filter-action" size="sm" variant="ghost" onClick={() => setShowFilter((currentValue) => !currentValue)}>
             Filtrar
           </Button>
         </div>
@@ -358,18 +403,23 @@ function ArtistAppointments() {
               label="Filtrar por fecha"
               type="date"
               value={selectedDate}
-              onChange={(event) => setSelectedDate(event.target.value)}
+              onChange={(event) => {
+                const nextDate = event.target.value
+                if (!nextDate) return
+                setSelectedDate(nextDate)
+                setCalendarScrollRequest((currentValue) => currentValue + 1)
+              }}
             />
             <Input
               label="Filtrar por nombre o celular"
               placeholder="Nombre o celular de clienta"
               type="search"
               value={appointmentClientQuery}
-              onChange={(event) => setAppointmentClientQuery(event.target.value)}
+              onChange={(event) => updateAppointmentClientQuery(event.target.value)}
             />
             {normalizedAppointmentClientQuery && (
               <small style={{ color: 'var(--muted)', fontWeight: 800 }}>
-                Solo se muestran clientas que ya acudieron al menos una vez en este entorno.
+                La agenda te llevará a la cita más reciente que coincida.
               </small>
             )}
           </div>
@@ -447,6 +497,7 @@ function ArtistAppointments() {
                                 firstName: firstName || '',
                                 lastName,
                                 phone: client.phone || '',
+                                email: client.email || '',
                               }))
                               setSelectedClientRecord(client)
                               setClientSearch(client.name || '')
@@ -487,6 +538,7 @@ function ArtistAppointments() {
                               firstName: '',
                               lastName: '',
                               phone: '',
+                              email: '',
                             }))
                           }}
                         >
@@ -517,6 +569,12 @@ function ArtistAppointments() {
                     onChange={(event) => updateDraft('phone', event.target.value)}
                   />
                   {formErrors.phone && <small style={{ color: 'var(--rose-dark)', fontWeight: 800 }}>{formErrors.phone}</small>}
+                  <Input
+                    label="Correo para enviar los detalles de la cita (opcional)"
+                    type="email"
+                    value={draft.email}
+                    onChange={(event) => updateDraft('email', event.target.value)}
+                  />
                 </>
               )}
 
@@ -613,6 +671,7 @@ function ArtistAppointments() {
           appointments={appointmentsMatchingClientQuery}
           selectedDate={selectedDate}
           onSelectDate={setSelectedDate}
+          scrollToSelectedDateKey={calendarScrollRequest}
           workContext={artistWorkContext}
           onCreateAppointment={(slot) => {
             setSelectedDate(slot.date)
@@ -652,12 +711,15 @@ function ArtistAppointments() {
                 <strong>{appointment.client}</strong>
                 <small>{appointment.service} / {appointment.time}</small>
                 <AppointmentPayment appointment={appointment} />
-                <CompleteAppointmentButton appointment={appointment} />
+                <AppointmentDeposit appointment={appointment} audience="business" onUpdated={loadArtistAppointments} />
+                {!appointment.pendingClientConfirmation && <CompleteAppointmentButton appointment={appointment} />}
               </div>
               <div className="row-actions appointment-result-actions" style={{ justifyContent: 'flex-end', gap: 6 }}>
                 <StatusPill tone="neutral">{getAppointmentContextLabel(appointment)}</StatusPill>
-                {appointment.bookingSource === 'google' && <StatusPill tone="warm">Reserva Google</StatusPill>}
-                <StatusPill tone={getAppointmentStatusTone(appointment)}>{appointment.status}</StatusPill>
+                {['google', 'instagram', 'facebook'].includes(appointment.bookingSource) && <StatusPill tone="warm">Enlace {appointment.bookingSource}</StatusPill>}
+                {appointment.pendingClientConfirmation
+                  ? <StatusPill tone="warm">Esperando confirmación de la clienta</StatusPill>
+                  : <StatusPill tone={getAppointmentStatusTone(appointment)}>{appointment.status}</StatusPill>}
                 {appointment.appointmentStatus === 'scheduled' && (
                   <>
                     <Button size="sm" variant="danger" disabled={cancellingAppointmentId === appointment.id} onClick={() => cancelAppointment(appointment)}>
@@ -693,11 +755,13 @@ function ArtistAppointments() {
                 <strong>{appointment.client}</strong>
                 <small>{appointment.service} / {appointment.time}</small>
                 <AppointmentPayment appointment={appointment} />
-                <CompleteAppointmentButton appointment={appointment} />
+                {!appointment.pendingClientConfirmation && <CompleteAppointmentButton appointment={appointment} />}
               </div>
               <div className="row-actions appointment-result-actions" style={{ justifyContent: 'flex-end', gap: 6 }}>
                 <StatusPill tone="neutral">{getAppointmentContextLabel(appointment)}</StatusPill>
-                <StatusPill tone={getAppointmentStatusTone(appointment)}>{appointment.status}</StatusPill>
+                {appointment.pendingClientConfirmation
+                  ? <StatusPill tone="warm">Esperando confirmación de la clienta</StatusPill>
+                  : <StatusPill tone={getAppointmentStatusTone(appointment)}>{appointment.status}</StatusPill>}
                 {appointment.pointsGranted > 0 && <StatusPill tone="success">+{appointment.pointsGranted} FP otorgados</StatusPill>}
                 {appointment.happyHourApplied && <StatusPill tone="success">Happy Hour</StatusPill>}
                 {appointment.rewardMultiplier > 1 && <StatusPill tone="warm">Puntos dobles</StatusPill>}

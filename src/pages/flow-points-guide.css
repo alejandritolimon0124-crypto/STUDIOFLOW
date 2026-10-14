@@ -1,0 +1,24 @@
+.flow-guide-page { min-height: 100vh; padding: 20px 16px 58px; background: #fcf6f5; color: #30262a; }
+.flow-guide-shell { width: min(100%, 650px); margin: auto; }
+.flow-guide-back { display: inline-flex; align-items: center; gap: 7px; min-height: 40px; color: #774c5c; font-weight: 800; text-decoration: none; }
+.flow-guide-header { padding: 18px 0 20px; }
+.flow-guide-header > span, .flow-guide-example > span { color: #95596e; font-size: 12px; font-weight: 900; }
+.flow-guide-header h1 { margin: 8px 0; font: 700 34px/1.1 Georgia, serif; }
+.flow-guide-header p { margin: 0; color: #675a60; font-size: 18px; line-height: 1.4; }
+.flow-guide-steps { border-top: 1px solid #ddc9ce; }
+.flow-guide-steps article { display: flex; gap: 15px; padding: 17px 0; border-bottom: 1px solid #ddc9ce; }
+.flow-guide-steps .flow-guide-featured-step { margin: 12px 0; padding: 18px; border: 1px solid #c7889e; border-radius: 7px; background: #f6dce5; }
+.flow-guide-featured-step .flow-guide-step-icon { background: #813c58; color: #fff; }
+.flow-guide-step-icon { display: grid; flex: 0 0 46px; height: 46px; place-items: center; border-radius: 6px; background: #f4dde4; color: #8d5065; }
+.flow-guide-steps small { color: #95596e; font-size: 11px; font-weight: 900; }
+.flow-guide-steps h2 { margin: 2px 0 4px; font: 700 23px/1.2 Georgia, serif; }
+.flow-guide-steps p { margin: 0; color: #65585e; line-height: 1.4; }
+.flow-guide-example { margin-top: 22px; padding: 20px; border-radius: 7px; background: #37262e; color: #fff8f7; }
+.flow-guide-example > span { color: #f4ca75; }
+.flow-guide-example h2 { margin: 6px 0 14px; font: 700 26px/1.2 Georgia, serif; }
+.flow-guide-equation { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.flow-guide-equation strong { padding: 8px 10px; border-radius: 5px; background: #f4ca75; color: #30262a; font-size: 16px; }
+.flow-guide-equation b { color: #f4ca75; }
+.flow-guide-example p { margin: 14px 0 0; color: #f3e8ea; line-height: 1.4; }
+.flow-guide-smallprint { margin: 18px 0; color: #675a60; font-size: 14px; line-height: 1.45; }
+.flow-guide-action { display: flex; justify-content: center; align-items: center; min-height: 50px; padding: 12px 20px; border-radius: 6px; background: #f4ca75; color: #2f2528; font-weight: 900; text-decoration: none; }

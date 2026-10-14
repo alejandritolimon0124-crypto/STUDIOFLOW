@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { BellRing, X } from 'lucide-react'
+import { useLocation } from 'react-router-dom'
 import { useApp } from '../contexts/appContextCore'
 import {
   registerCurrentDeviceForPush,
@@ -14,6 +15,7 @@ function roleMessage(role) {
 }
 
 function PushNotificationManager() {
+  const location = useLocation()
   const { session } = useApp()
   const [permission, setPermission] = useState(() => (
     supportsPushNotifications() ? Notification.permission : 'unsupported'
@@ -22,7 +24,7 @@ function PushNotificationManager() {
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
   const profileId = session.profile?.id || session.user?.profileId || session.user?.id || null
-  const eligible = Boolean(profileId && !session.isMockSession && supportsPushNotifications())
+  const eligible = Boolean(profileId && !session.isMockSession && supportsPushNotifications() && !location.pathname.startsWith('/invitacion/'))
 
   const syncGrantedSubscription = useCallback(async () => {
     if (!eligible || Notification.permission !== 'granted') return

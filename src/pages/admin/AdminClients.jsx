@@ -8,6 +8,7 @@ import ArtistClientExport from '../../components/ArtistClientExport'
 import PanelHeader from '../../components/PanelHeader'
 import StatusPill from '../../components/StatusPill'
 import { useApp } from '../../contexts/appContextCore'
+import ProviderAttendanceConflicts from '../../components/ProviderAttendanceConflicts'
 import { paths } from '../../routes/paths'
 import { filterByStudioAccess, ROLES } from '../../modules/permissions/rolePermissions'
 import {
@@ -402,6 +403,7 @@ function AdminClients() {
 
   return (
     <main className="dashboard-grid admin-grid">
+      <ProviderAttendanceConflicts studioId={activeStudioId} enabled={isStudioOwnerContext} />
       {!isStudioOwnerContext && (
         <OwnerStatusMetric
           title="Clientas"

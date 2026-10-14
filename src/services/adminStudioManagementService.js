@@ -67,7 +67,7 @@ export async function fetchOwnerStudios() {
 
   const { data: contactRows, error: contactError } = await client
     .from('studio_profiles')
-    .select('studio_id, whatsapp, instagram, facebook, tiktok')
+    .select('studio_id, whatsapp, instagram, facebook, tiktok, beauty_spaces, has_health_officer, health_officer_name, health_officer_title, health_officer_license')
     .in('studio_id', studioIds)
 
   if (contactError) throw contactError
@@ -77,6 +77,11 @@ export async function fetchOwnerStudios() {
     const contactRow = contactsByStudioId[studio.id] || {}
     return {
       ...studio,
+      beautySpaces: contactRow.beauty_spaces || [],
+      hasHealthOfficer: Boolean(contactRow.has_health_officer),
+      healthOfficerName: contactRow.health_officer_name || '',
+      healthOfficerTitle: contactRow.health_officer_title || '',
+      healthOfficerLicense: contactRow.health_officer_license || '',
       contactLinks: {
         whatsapp: contactRow.whatsapp || '',
         instagram: contactRow.instagram || '',

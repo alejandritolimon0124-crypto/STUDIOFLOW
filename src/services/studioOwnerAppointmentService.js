@@ -108,25 +108,15 @@ function normalizeClient(client = {}) {
   }
 }
 
-export async function searchStudioOwnerClients({ query = '', limit = 5 } = {}) {
-  const client = requireSupabase()
+export async function searchStudioOwnerClients({ studioId, query = '', limit = 5 } = {}) {
+  if (!studioId) return []
   const normalizedQuery = String(query || '').trim()
-  let request = client
-    .from('clients')
-    .select('id, display_name, email, phone, status, created_at')
-    .neq('status', 'archived')
-    .order('created_at', { ascending: false })
-    .limit(limit)
-
-  if (normalizedQuery) {
-    const escapedQuery = normalizedQuery.replaceAll('%', '\\%').replaceAll('_', '\\_')
-    request = request.or(`display_name.ilike.%${escapedQuery}%,email.ilike.%${escapedQuery}%`)
-  }
-
-  const { data, error } = await request
-
+  const { data, error } = await requireSupabase().rpc('studio_flow_owner_search_clients', {
+    p_studio_id: studioId,
+    p_query: normalizedQuery,
+    p_limit: limit,
+  })
   if (error) throw error
-
   return (data || []).map(normalizeClient)
 }
 
@@ -186,6 +176,11 @@ export async function fetchStudioOwnerAppointments({ studioId, membershipIds = [
   if (!studioId && normalizedMembershipIds.length === 0) return []
 
   const client = requireSupabase()
+  const { data: pendingRows, error: pendingError } = studioId
+    ? await client.rpc('studio_flow_owner_pending_manual_bookings', { p_studio_id: studioId })
+    : { data: [], error: null }
+  if (pendingError) throw pendingError
+  const pendingByAppointmentId = new Map((pendingRows || []).map((row) => [row.appointmentId, row]))
   const selectColumns = 'id, client_id, artist_id, studio_id, membership_id, service_offering_id, availability_slot_id, starts_at, ends_at, status, booking_source, cancelled_by_provider, client_confirmed_at, confirmation_requested_at, reschedule_count, client_notes, created_at'
   const appointmentRows = []
 
@@ -264,6 +259,8 @@ export async function fetchStudioOwnerAppointments({ studioId, membershipIds = [
 
     return normalizeAppointment({
       ...appointment,
+      pendingClientConfirmation: pendingByAppointmentId.has(appointment.id),
+      pendingClientConfirmationExpiresAt: pendingByAppointmentId.get(appointment.id)?.expiresAt || null,
       client: appointmentClient?.display_name || 'Clienta',
       clientPhone: appointmentClient?.phone || '',
       clientEmail: appointmentClient?.email || '',
@@ -365,6 +362,28 @@ export async function requestStudioOwnerAppointmentConfirmations({ studioId, dat
   return Number(data?.updatedCount || data?.updated_count || 0)
 }
 
+export async function fetchStudioOwnerBookingCalendar({ studioId, membershipId, month, serviceOfferingId = null, date = null }) {
+  const { data, error } = await requireSupabase().rpc('studio_flow_owner_booking_calendar', {
+    p_studio_id: studioId,
+    p_membership_id: membershipId,
+    p_month: month,
+    p_service_offering_id: serviceOfferingId,
+    p_date: date,
+  })
+  if (error) throw error
+  return { days: data?.days || [], slots: data?.slots || [] }
+}
+
+export async function findStudioOwnerExistingClient({ studioId, phone = '', email = '' }) {
+  const { data, error } = await requireSupabase().rpc('studio_flow_owner_find_existing_client', {
+    p_studio_id: studioId,
+    p_phone: phone || null,
+    p_email: email || null,
+  })
+  if (error) throw error
+  return data?.id ? normalizeClient(data) : null
+}
+
 export async function createStudioOwnerAppointment({
   studioId,
   membershipId,
@@ -377,7 +396,7 @@ export async function createStudioOwnerAppointment({
   notes = '',
 } = {}) {
   const client = requireSupabase()
-  const { data, error } = await client.rpc('studio_flow_owner_create_manual_appointment', {
+  const { data, error } = await client.rpc('studio_flow_owner_book_contact_checked', {
     p_studio_id: studioId,
     p_membership_id: membershipId,
     p_service_offering_id: serviceOfferingId,
@@ -394,5 +413,6 @@ export async function createStudioOwnerAppointment({
   return {
     appointment: normalizeAppointment(data?.appointment),
     client: normalizeClient(data?.client),
+    requiresConfirmation: Boolean(data?.requiresConfirmation),
   }
 }

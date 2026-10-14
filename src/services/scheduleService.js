@@ -96,7 +96,7 @@ function schedulePayloadFromAgendaSettings(agendaSettings = {}) {
       active: Boolean(day.active),
       start: day.start,
       end: day.end,
-      blocks: asArray(day.blocks).map((block) => ({
+      blocks: asArray(day.blocks).filter((block) => block.start || block.end).map((block) => ({
         id: block.id,
         start: block.start,
         end: block.end,
@@ -121,6 +121,13 @@ export async function fetchArtistScheduleSettings(workContext = null) {
 }
 
 export async function saveArtistScheduleSettings(agendaSettings, workContext = null) {
+  const incompleteBreak = asArray(agendaSettings.schedule).find((day) => (
+    day.active && asArray(day.blocks).some((block) => Boolean(block.start) !== Boolean(block.end))
+  ))
+  if (incompleteBreak) {
+    throw new Error(`Revisa ${incompleteBreak.day}: cada descanso necesita hora de inicio y hora de regreso, o ambos campos vacíos.`)
+  }
+
   const client = requireSupabase()
   const { data, error } = await client.rpc('studio_flow_artist_save_context_schedule_settings', {
     p_payload: schedulePayloadFromAgendaSettings(agendaSettings),

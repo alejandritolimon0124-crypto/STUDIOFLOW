@@ -58,6 +58,14 @@ function AdminDashboard() {
         <div className="admin-action-grid">
           <article className="admin-action-card">
             <div>
+              <span className="eyebrow">Piloto de seis meses</span>
+              <h3>¿Quién está creciendo?</h3>
+              <small>Compara primeras citas, retornos e ingresos de cada negocio.</small>
+            </div>
+            <Button size="sm" onClick={() => navigate(paths.adminGrowth)}>Ver crecimiento</Button>
+          </article>
+          <article className="admin-action-card">
+            <div>
               <span className="eyebrow">Estudios y artistas</span>
               <h3>Suspension y reactivacion</h3>
               <small>Busca por nombre, correo o celular y ejecuta acciones directas.</small>

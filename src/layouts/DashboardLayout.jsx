@@ -17,6 +17,28 @@ import {
 } from '../modules/entities/entitySelectors'
 import useCommissionReceiptNotice from '../hooks/useCommissionReceiptNotice'
 import { fetchArtistBranches } from '../services/artistBranchService'
+import { MessageCircle } from 'lucide-react'
+import { sharePreviewUrl } from '../utils/sharePreviewUrl'
+
+const publicShareLinks = {
+  clients: {
+    url: 'https://studioflow.vip/para-clientas',
+    message: 'Hola, quiero invitarte a Studio Flow. Me encantaría que encontraras aquí tu próximo momento para consentirte: descubre artistas y estudios de belleza, explora sus servicios, reserva tu cita y disfruta Flow Points en los negocios participantes. Sería muy bonito contar contigo. ✨',
+  },
+  professionals: {
+    url: 'https://studioflow.vip/profesionales',
+    message: 'Hola, me encantaría invitarte a formar parte de Studio Flow. Sería un honor contar con tu talento dentro de la plataforma y ayudarte a hacer aún más increíble tu espacio de belleza: muestra tu trabajo, organiza tus citas y haz crecer tu negocio. Conoce aquí todo lo que podemos crear juntos. ✨',
+  },
+  home: {
+    url: 'https://studioflow.vip/',
+    message: 'Hola, quiero compartirte Studio Flow. Es un espacio para descubrir talento de belleza, reservar experiencias y hacer que cada visita pueda traer nuevos beneficios con Flow Points. También acompaña a artistas y estudios a mostrar su trabajo y crecer. Me encantaría que lo conocieras. ✨',
+  },
+}
+
+function whatsappShareUrl(key) {
+  const share = publicShareLinks[key]
+  return `https://wa.me/?text=${encodeURIComponent(`${share.message}\n\n${sharePreviewUrl(share.url)}`)}`
+}
 
 function getInitials(value = '') {
   return String(value)
@@ -59,8 +81,12 @@ const roleNavigation = {
     { label: 'Artistas', path: paths.adminArtists },
     { label: 'Estudios', path: paths.adminStudios },
     { label: 'Cobranza', path: paths.adminBilling },
+    { label: 'Crecimiento', path: paths.adminGrowth },
     { label: 'Clientes', path: paths.adminClients },
     { label: 'Sistema', path: paths.adminSystem },
+    { label: 'Compartir con clientas', shareKey: 'clients', detail: 'Invitación lista para WhatsApp' },
+    { label: 'Invitar artistas y estudios', shareKey: 'professionals', detail: 'Invitación lista para WhatsApp' },
+    { label: 'Compartir página de Google', shareKey: 'home', detail: 'Presentación lista para WhatsApp' },
   ],
   artist: [
     { label: 'Inicio', path: paths.artistAgenda },
@@ -68,15 +94,23 @@ const roleNavigation = {
     { label: 'Mis horarios', path: paths.artistSchedule },
     { label: 'Servicios', path: paths.artistServices },
     { label: 'Clientas', path: paths.artistClients },
+    { label: 'Campañas', path: paths.artistCampaigns },
+    { label: 'AURORA', path: paths.artistAurora, aurora: true },
     { label: 'Marketplace', path: paths.artistMarketing },
-    { label: 'Contabilidad', path: paths.artistAccounting },
+    { label: 'Guía FlowPoints', path: paths.flowPointsGuide },
+    { label: 'Tarjeta digital', path: `${paths.artistAccounting}?tarjeta=1`, featured: true },
+    { label: 'Mi negocio', path: paths.artistAccounting },
     { label: 'MI PERFIL', path: paths.artistSettings },
   ],
   client: [
     { label: 'Inicio', path: paths.client },
-    { label: 'Mis citas', path: paths.clientAppointments },
+    { label: 'Citas y reseñas', path: paths.clientAppointments },
     { label: 'Reservar', path: paths.clientExplore },
     { label: 'Favoritos', path: paths.clientFavorites },
+    { label: 'Mis FlowPoints', path: paths.clientFlowPoints },
+    { label: 'Premios y recompensas', path: paths.clientRewards },
+    { label: 'MI PERFIL', path: paths.clientProfile },
+    { label: 'Guía FlowPoints', path: paths.flowPointsGuide },
   ],
 }
 
@@ -84,9 +118,9 @@ const bottomNavigationByRole = {
   client: [
     { label: 'Inicio', path: paths.client },
     { label: 'Reservar', path: paths.clientSearch },
-    { label: 'Mis citas', path: paths.clientAppointments },
+    { label: 'FP', path: paths.clientFlowPoints },
+    { label: 'Citas y reseñas', path: paths.clientAppointments },
     { label: 'Favoritos', path: paths.clientFavorites },
-    { label: 'MI PERFIL', path: paths.clientProfile },
   ],
   artist: [
     { label: 'Inicio', path: paths.artistAgenda },
@@ -100,6 +134,7 @@ const bottomNavigationByRole = {
     { label: 'Artistas', path: paths.adminArtists },
     { label: 'Estudios', path: paths.adminStudios },
     { label: 'Cobranza', path: paths.adminBilling },
+    { label: 'Crecimiento', path: paths.adminGrowth },
     { label: 'Clientes', path: paths.adminClients },
     { label: 'Sistema', path: paths.adminSystem },
   ],
@@ -111,9 +146,12 @@ const studioOwnerNavigation = [
   { label: 'Agenda', path: `${paths.adminStudio}?section=schedule` },
   { label: 'Servicios', path: `${paths.adminStudio}?section=services` },
   { label: 'Marketplace', path: `${paths.adminStudio}?section=marketplace` },
+  { label: 'AURORA', path: paths.studioAurora, aurora: true },
+  { label: 'Guía FlowPoints', path: paths.flowPointsGuide },
+  { label: 'Tarjeta digital', path: `${paths.studioAccounting}?tarjeta=1`, featured: true },
   { label: 'Clientes', path: paths.adminStudioClients },
-  { label: 'Contabilidad', path: paths.studioAccounting },
-  { label: 'Configuracion', path: `${paths.adminStudio}?section=settings` },
+  { label: 'Mi negocio', path: paths.studioAccounting },
+  { label: 'Mi perfil de estudio', path: `${paths.adminStudio}?section=settings` },
 ]
 
 const studioOwnerBottomNavigation = [
@@ -126,6 +164,7 @@ const studioOwnerBottomNavigation = [
 
 function DashboardLayout({ children, role, title, subtitle, showMobileAppbar = true }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const [shareNotice, setShareNotice] = useState('')
   const [pendingStudioWorkspace, setPendingStudioWorkspace] = useState(null)
   const [hasArtistBranches, setHasArtistBranches] = useState(false)
   const navigate = useNavigate()
@@ -235,6 +274,7 @@ function DashboardLayout({ children, role, title, subtitle, showMobileAppbar = t
     if (item.path === paths.adminArtists) return hasPermission(effectiveAdminUser, permissions.STUDIO_ARTISTS)
     if (item.path === paths.adminStudios) return effectiveAdminUser.role === ROLES.PLATFORM_OWNER || hasPermission(effectiveAdminUser, permissions.GOVERNANCE)
     if (item.path === paths.adminBilling) return hasPermission(effectiveAdminUser, permissions.GOVERNANCE) || hasPermission(effectiveAdminUser, permissions.GLOBAL_REVENUE)
+    if (item.path === paths.adminGrowth) return effectiveAdminUser.role === ROLES.PLATFORM_OWNER
     if (item.path === paths.adminClients) return hasPermission(effectiveAdminUser, permissions.GOVERNANCE) || hasPermission(effectiveAdminUser, permissions.CLIENTS)
     if (item.path === paths.adminSystem) return hasPermission(effectiveAdminUser, permissions.GOVERNANCE)
     return true
@@ -261,8 +301,16 @@ function DashboardLayout({ children, role, title, subtitle, showMobileAppbar = t
     : null
   const isArtistMembershipWorkspace = role === 'artist' && (activeArtistWorkspaceType === 'membership' || Boolean(activeArtistMembershipId))
   const artistSettingsPath = `${paths.artistSettings}?context=independent`
-  const canUseArtistItem = (item) => (
-    !(isArtistMembershipWorkspace && item.path === paths.artistMarketing)
+  const canUseArtistItem = (item) => !isArtistMembershipWorkspace || (
+    !item.aurora
+    && ![
+      paths.artistMarketing,
+      paths.artistCampaigns,
+      paths.artistAccounting,
+      paths.artistServices,
+      paths.artistSchedule,
+    ].includes(item.path)
+    && !item.featured
   )
   const resolveArtistNavigationItem = (item) => (
     role === 'artist' && item.path === paths.artistSettings
@@ -509,6 +557,28 @@ function DashboardLayout({ children, role, title, subtitle, showMobileAppbar = t
     setIsMenuOpen(false)
   }
 
+  const handlePublicShare = async (key) => {
+    const share = publicShareLinks[key]
+    const url = sharePreviewUrl(share.url)
+    setShareNotice('Preparando invitación para compartir...')
+
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: 'Studio Flow', text: share.message, url })
+        setShareNotice('Invitación compartida.')
+        setIsMenuOpen(false)
+        return
+      } catch (error) {
+        if (error?.name === 'AbortError') {
+          setShareNotice('')
+          return
+        }
+      }
+    }
+
+    window.location.assign(whatsappShareUrl(key))
+  }
+
   const handleWorkspaceNavigate = (workspace) => {
     if (workspace.contextId) {
       selectArtistWorkContext?.(workspace.contextId)
@@ -575,7 +645,7 @@ function DashboardLayout({ children, role, title, subtitle, showMobileAppbar = t
     const currentLocation = `${currentPath}${location.search || ''}`
     if (item.path.includes('?')) return currentLocation === item.path
     if (role === 'admin') return currentPath === item.path
-    if (item.path === paths.artistAgenda && currentPath === paths.artist) return true
+    if (item.path === paths.artistAgenda || item.path === paths.client) return currentPath === item.path
     return isActivePath(currentPath, item.path)
   }
 
@@ -586,6 +656,7 @@ function DashboardLayout({ children, role, title, subtitle, showMobileAppbar = t
       <aside className={`sidebar ${role === 'artist' ? 'artist-sidebar' : ''}`}>
         <button className="brand-button sidebar-brand drawer-brand-logo" type="button" onClick={() => handleNavigate(drawerHomePath)}>
           <img src={drawerLogo} alt="Studio Flow" />
+          <img className="desktop-brand-logo" src="/studioflow-wordmark-960.png" alt="Studio Flow" />
         </button>
 
         <div className="sidebar-profile">
@@ -604,8 +675,15 @@ function DashboardLayout({ children, role, title, subtitle, showMobileAppbar = t
 
         <nav className="sidebar-nav" aria-label="Navegacion principal">
           {navigation.map((item, index) => (
-            <button
-              className={`${isItemActive(item, index) ? 'active' : ''} ${item.path === paths.artistAccounting && independentArtistReceiptAvailable ? 'receipt-available' : ''}`.trim()}
+            item.aurora ? <button className={`sidebar-aurora-link ${isItemActive(item) ? 'active' : ''}`} type="button" onClick={() => handleNavigate(item.path)} key={item.label} aria-label="AURORA, próximamente">
+              <span aria-hidden="true"></span>
+              <img src="/aurora-logo-a249dcfe.png" alt="" width="720" height="240" />
+            </button> : item.shareKey ? <button className="sidebar-public-link" type="button" key={item.shareKey} onClick={() => handlePublicShare(item.shareKey)}>
+              <span aria-hidden="true"></span>
+              <span className="sidebar-share-copy"><strong>{item.label}</strong><small>{item.detail}</small></span>
+              <MessageCircle size={17} aria-hidden="true" />
+            </button> : <button
+              className={`${isItemActive(item, index) ? 'active' : ''} ${item.featured ? 'featured-invitation' : ''} ${[paths.artistAccounting, paths.studioAccounting].includes(item.path) ? 'business-highlight' : ''} ${item.path === paths.artistAccounting && independentArtistReceiptAvailable ? 'receipt-available' : ''}`.trim()}
               key={`${item.path}-${item.label}`}
               type="button"
               onClick={() => handleNavigate(item.path)}
@@ -615,6 +693,7 @@ function DashboardLayout({ children, role, title, subtitle, showMobileAppbar = t
               {item.path === paths.artistAccounting && independentArtistReceiptAvailable && <small>Recibo de pago disponible</small>}
             </button>
           ))}
+          {shareNotice && <small className="sidebar-share-notice" role="status">{shareNotice}</small>}
           {(role === 'admin' || role === 'client') && (
             <button type="button" onClick={handleLogout}>
               <span aria-hidden="true"></span>
@@ -652,7 +731,7 @@ function DashboardLayout({ children, role, title, subtitle, showMobileAppbar = t
         )}
       </aside>
 
-      <div className="main-shell">
+      <div className={`main-shell${currentPath === paths.artistAppointments ? ' artist-appointments-shell' : ''}`}>
         {showMobileAppbar && (
           <header className="mobile-appbar">
             <button className="menu-button" type="button" aria-label="Abrir menu" onClick={() => setIsMenuOpen(true)}>
@@ -676,6 +755,7 @@ function DashboardLayout({ children, role, title, subtitle, showMobileAppbar = t
           </button>
           <div className="topbar-center">
             <img className="mobile-brand-logo" src={drawerLogo} alt="Studio Flow" />
+            <img className="desktop-brand-logo" src="/studioflow-wordmark-960.png" alt="Studio Flow" />
           </div>
           <button className="avatar mini topbar-profile-avatar" type="button" onClick={() => setIsMenuOpen(true)}>
             {renderAvatarContent()}

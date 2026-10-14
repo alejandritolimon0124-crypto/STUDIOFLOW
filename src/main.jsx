@@ -1,13 +1,16 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './App.jsx'
-import PWAInstallPrompt from './components/PWAInstallPrompt.jsx'
+import AppLaunchSplash from './components/AppLaunchSplash.jsx'
 import PWAUpdatePrompt from './components/PWAUpdatePrompt.jsx'
+import AppErrorBoundary from './components/AppErrorBoundary.jsx'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    <App />
-    <PWAInstallPrompt />
-    <PWAUpdatePrompt />
+    <AppErrorBoundary>
+      <AppLaunchSplash />
+      <App />
+      <PWAUpdatePrompt />
+    </AppErrorBoundary>
   </StrictMode>,
 )

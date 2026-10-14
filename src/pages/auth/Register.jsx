@@ -1,7 +1,6 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import AuthLayout from '../../layouts/AuthLayout'
-import BrandLogo from '../../components/BrandLogo'
 import Button from '../../components/Button'
 import Input from '../../components/Input'
 import { useApp } from '../../contexts/appContextCore'
@@ -9,6 +8,7 @@ import { paths } from '../../routes/paths'
 import { getDefaultStudioStatus, getStudioStatusLabel } from '../../modules/governance/studioGovernance'
 import { getMaxBirthDateForAdult, validateBirthDate } from '../../utils/birthdayValidation'
 import { BEAUTY_SPACES } from '../../services/beautySpaceService'
+import { clearPendingInvitationReturnPath, getInvitationReturnPath, rememberInvitationReturnPath } from '../../utils/invitationReturnPath'
 
 const initialClientForm = {
   displayName: '',
@@ -39,8 +39,10 @@ const initialArtistForm = {
 
 function Register() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const invitationReturn = getInvitationReturnPath(`?${searchParams.toString()}`)
   const { authError, isAuthLoading, registerArtist, registerClient } = useApp()
-  const [accountType, setAccountType] = useState(null)
+  const [accountType, setAccountType] = useState(() => ['artist', 'client'].includes(searchParams.get('tipo')) ? searchParams.get('tipo') : null)
   const [clientForm, setClientForm] = useState(initialClientForm)
   const [artistForm, setArtistForm] = useState(initialArtistForm)
   const [localError, setLocalError] = useState('')
@@ -95,11 +97,13 @@ function Register() {
       const result = await registerClient(clientForm)
 
       if (result.needsEmailConfirmation) {
+        if (invitationReturn) rememberInvitationReturnPath(invitationReturn)
         setConfirmationMessage('Revisa tu correo para confirmar el registro. Si este correo ya tenia una cuenta, inicia sesion o restablece tu contraseña.')
         return
       }
 
-      navigate(paths.client)
+      if (invitationReturn) clearPendingInvitationReturnPath()
+      navigate(invitationReturn || paths.client)
     } catch (error) {
       setLocalError(error.message || 'No se pudo crear la cuenta cliente.')
     }
@@ -141,9 +145,7 @@ function Register() {
   return (
     <AuthLayout>
       <div className="auth-card">
-        <div style={{ display: 'grid', gap: '18px', justifyItems: 'center', textAlign: 'center' }}>
-          <BrandLogo hero />
-        </div>
+        <header className="auth-form-brand"><img src="/studioflow-wordmark-960.png" alt="Studio Flow" /><span>CREA TU LUGAR EN STUDIO FLOW</span><h2>{accountType === 'client' ? 'Tu mundo beauty comienza aquí' : accountType === 'artist' ? 'Haz visible todo tu talento' : '¿Cómo quieres vivir Studio Flow?'}</h2><p>{accountType === 'client' ? 'Descubre, reserva y obtén beneficios.' : accountType === 'artist' ? 'Organiza, conecta y haz crecer tu negocio.' : 'Elige la experiencia que quieres crear.'}</p></header>
 
         {!accountType && (
           <div className="login-actions">
@@ -185,7 +187,7 @@ function Register() {
               <small style={{ color: 'var(--muted)' }}>Prepara tu perfil profesional para agenda, servicios y clientas.</small>
             </button>
 
-            <button className="text-link center-link" type="button" onClick={() => navigate(paths.login)}>
+            <button className="text-link center-link" type="button" onClick={() => navigate(invitationReturn ? `${paths.login}?next=${encodeURIComponent(invitationReturn)}` : paths.login)}>
               Ya tienes cuenta? Inicia sesion
             </button>
           </div>

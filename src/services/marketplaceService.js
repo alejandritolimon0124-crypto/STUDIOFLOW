@@ -1,6 +1,8 @@
 import { requireSupabase } from '../lib/supabaseClient'
 import { normalizeServiceCategory, normalizeServiceName } from './staticCatalogs'
-import { BEAUTY_SPACES, fetchMarketplaceBeautySpaces } from './beautySpaceService'
+import { BEAUTY_SPACES } from './beautySpaceService'
+import { promiseTimeout } from '../utils/promiseTimeout'
+import { fetchPortfolioPages } from './portfolioPageService'
 
 function asArray(value) {
   return Array.isArray(value) ? value : []
@@ -217,23 +219,81 @@ function mapMarketplacePayload(data) {
   return asArray(data?.listings).map(normalizeListing)
 }
 
-export async function fetchMarketplaceListings() {
+const marketplaceCacheKey = 'studio-flow-marketplace-listings-v4'
+const marketplaceCacheLifetimeMs = 5 * 60 * 1000
+let marketplaceCache = null
+let marketplaceRequest = null
+
+export function getCachedMarketplaceListings() {
+  if (marketplaceCache && Date.now() - marketplaceCache.savedAt < marketplaceCacheLifetimeMs) {
+    return marketplaceCache.listings
+  }
+
+  try {
+    const stored = JSON.parse(localStorage.getItem(marketplaceCacheKey) || 'null')
+    if (Array.isArray(stored?.listings) && Date.now() - stored.savedAt < marketplaceCacheLifetimeMs) {
+      marketplaceCache = stored
+      return stored.listings
+    }
+  } catch {
+    // A blocked or full storage area should not prevent a fresh search.
+  }
+
+  return null
+}
+
+export async function fetchMarketplaceListings({ force = false } = {}) {
+  if (!force) {
+    const cached = getCachedMarketplaceListings()
+    if (cached) return cached
+  }
+  if (marketplaceRequest) return marketplaceRequest
+
+  marketplaceRequest = fetchMarketplaceListingsFromServer()
+  try {
+    const listings = await marketplaceRequest
+    marketplaceCache = { savedAt: Date.now(), listings }
+    try {
+      localStorage.setItem(marketplaceCacheKey, JSON.stringify(marketplaceCache))
+    } catch {
+      // In-memory caching still avoids duplicate requests in this session.
+    }
+    return listings
+  } finally {
+    marketplaceRequest = null
+  }
+}
+
+async function fetchMarketplaceListingsFromServer() {
   const client = requireSupabase()
-  const [{ data, error }, beautySpaces] = await Promise.all([
-    client.rpc('studio_flow_marketplace_get_listings'),
-    fetchMarketplaceBeautySpaces().catch(() => []),
+  const [{ data, error }, scheduleSummaries] = await Promise.all([
+    client.rpc('studio_flow_marketplace_get_compact_listings_with_spaces'),
+    promiseTimeout(
+      client.rpc('studio_flow_marketplace_get_schedule_summaries')
+        .then(({ data: scheduleData, error: scheduleError }) => scheduleError ? [] : asArray(scheduleData)),
+      3000,
+    ).catch(() => []),
   ])
 
   if (error) throw error
 
-  const spacesByEntity = new Map(beautySpaces.map((item) => [
-    `${item.entity_type}:${item.entity_id}`,
-    item.beauty_spaces,
+  const schedulesByListing = new Map(scheduleSummaries.map((item) => [
+    item.listingId || item.listing_id,
+    asArray(item.schedule),
   ]))
 
   return mapMarketplacePayload(data).map((listing) => ({
     ...listing,
-    beautySpaces: spacesByEntity.get(`${listing.profileType}:${listing.profileType === 'studio' ? listing.studioId : listing.artistId}`)
-      || [BEAUTY_SPACES.BEAUTY_AND_PERSONAL_CARE],
+    schedule: schedulesByListing.get(listing.listingId) || [],
   }))
+}
+
+export async function fetchMarketplaceListingPortfolio(listingId, { onPage } = {}) {
+  const mapPhotos = (paths) => paths.map(normalizePortfolioImage).filter((image) => image.url)
+  const paths = await fetchPortfolioPages({
+    functionName: 'studio_flow_marketplace_get_listing_portfolio_page',
+    params: { p_listing_id: listingId },
+    onPage: (loadedPaths) => onPage?.(mapPhotos(loadedPaths)),
+  })
+  return mapPhotos(paths)
 }

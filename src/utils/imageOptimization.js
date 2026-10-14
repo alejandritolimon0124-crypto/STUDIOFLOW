@@ -1,4 +1,5 @@
 const DEFAULT_MAX_BYTES = 10 * 1024 * 1024
+const DEFAULT_OUTPUT_BYTES = 180 * 1024
 
 function readAsDataUrl(file) {
   return new Promise((resolve, reject) => {
@@ -28,10 +29,11 @@ function encodeCanvas(canvas, type, quality) {
 }
 
 export async function optimizeImageFile(file, {
-  maxWidth = 1200,
-  maxHeight = 1200,
+  maxWidth = 960,
+  maxHeight = 960,
   quality = 0.78,
   maxBytes = DEFAULT_MAX_BYTES,
+  maxOutputBytes = DEFAULT_OUTPUT_BYTES,
 } = {}) {
   if (!file) throw new Error('Selecciona una fotografia.')
   if (!String(file.type || '').startsWith('image/')) throw new Error('El archivo seleccionado no es una imagen.')
@@ -40,27 +42,33 @@ export async function optimizeImageFile(file, {
   const source = await readAsDataUrl(file)
   const image = await loadImage(source)
   const scale = Math.min(1, maxWidth / image.naturalWidth, maxHeight / image.naturalHeight)
-  const width = Math.max(1, Math.round(image.naturalWidth * scale))
-  const height = Math.max(1, Math.round(image.naturalHeight * scale))
+  let width = Math.max(1, Math.round(image.naturalWidth * scale))
+  let height = Math.max(1, Math.round(image.naturalHeight * scale))
   const canvas = document.createElement('canvas')
   const context = canvas.getContext('2d', { alpha: false })
 
   if (!context) throw new Error('Este dispositivo no pudo optimizar la fotografia.')
 
-  canvas.width = width
-  canvas.height = height
-  context.fillStyle = '#ffffff'
-  context.fillRect(0, 0, width, height)
-  context.imageSmoothingEnabled = true
-  context.imageSmoothingQuality = 'high'
-  context.drawImage(image, 0, 0, width, height)
+  for (let sizeAttempt = 0; sizeAttempt < 6; sizeAttempt += 1) {
+    canvas.width = width
+    canvas.height = height
+    context.fillStyle = '#ffffff'
+    context.fillRect(0, 0, width, height)
+    context.imageSmoothingEnabled = true
+    context.imageSmoothingQuality = 'high'
+    context.drawImage(image, 0, 0, width, height)
 
-  const optimized = encodeCanvas(canvas, 'image/webp', quality)
-    || encodeCanvas(canvas, 'image/jpeg', Math.min(quality, 0.8))
+    for (const currentQuality of [quality, Math.min(quality, 0.68), Math.min(quality, 0.58)]) {
+      const optimized = encodeCanvas(canvas, 'image/webp', currentQuality)
+        || encodeCanvas(canvas, 'image/jpeg', currentQuality)
+      if (!optimized) break
+      const encodedLength = optimized.length - optimized.indexOf(',') - 1
+      if (Math.ceil(encodedLength * 3 / 4) <= maxOutputBytes) return optimized
+    }
 
-  if (!optimized) {
-    throw new Error('Este dispositivo no pudo optimizar la fotografia. Selecciona una imagen JPG o PNG.')
+    width = Math.max(1, Math.round(width * 0.8))
+    height = Math.max(1, Math.round(height * 0.8))
   }
 
-  return optimized
+  throw new Error('No se pudo reducir esta fotografia. Selecciona otra imagen.')
 }

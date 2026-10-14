@@ -55,7 +55,7 @@ import {
 } from '../services/appointmentService'
 import { fetchMarketplaceAvailability } from '../services/availabilityService'
 import { bookMarketplaceAppointment as bookMarketplaceAppointmentRecord } from '../services/bookingService'
-import { fetchMarketplaceListings } from '../services/marketplaceService'
+import { fetchMarketplaceListings, getCachedMarketplaceListings } from '../services/marketplaceService'
 import { saveOwnArtistBeautySpace } from '../services/beautySpaceService'
 import {
   fetchArtistProfile,
@@ -701,6 +701,7 @@ export function AppProvider({ children }) {
   const [artistScheduleStatus, setArtistScheduleStatus] = useState('')
   const [isArtistProfileSaving, setIsArtistProfileSaving] = useState(false)
   const [artistProfileError, setArtistProfileError] = useState('')
+  const [artistProfileLoadedId, setArtistProfileLoadedId] = useState(null)
   const [isAdminArtistsLoading, setIsAdminArtistsLoading] = useState(false)
   const [adminArtistsError, setAdminArtistsError] = useState('')
   const [isAdminDashboardLoading, setIsAdminDashboardLoading] = useState(false)
@@ -713,9 +714,9 @@ export function AppProvider({ children }) {
     clientLoaded: false,
     artistLoaded: false,
   })
-  const [marketplaceState, setMarketplaceState] = useState({
-    listings: [],
-    loaded: false,
+  const [marketplaceState, setMarketplaceState] = useState(() => {
+    const listings = getCachedMarketplaceListings()
+    return { listings: listings || [], loaded: Boolean(listings) }
   })
   const [availabilityState, setAvailabilityState] = useState({
     slots: [],
@@ -855,10 +856,8 @@ export function AppProvider({ children }) {
     setArtistScheduleError('')
     setArtistScheduleStatus('')
     setAgendaSettings(session.isMockSession ? createInitialAgendaSettings() : createEmptyAgendaSettings())
-    setMarketplaceState({
-      listings: [],
-      loaded: false,
-    })
+    const cachedListings = session.role === ROLES.CLIENT ? getCachedMarketplaceListings() : null
+    setMarketplaceState({ listings: cachedListings || [], loaded: Boolean(cachedListings) })
     setMarketplaceError('')
     setAvailabilityState({
       slots: [],
@@ -905,33 +904,25 @@ export function AppProvider({ children }) {
     const authContext = await repairIncompleteAuthContext(authSession, await fetchAuthContext())
     const nextSession = createSessionFromAuthContext(authSession, authContext)
 
-    if (authContext.artist) {
-      const artistProfile = await fetchArtistProfile({ artistId: authContext.artist.id })
-      setArtistState((currentState) => ({
-        ...currentState,
-        profile: mapAuthContextToArtistProfile({
-          ...authContext,
-          artistProfile,
-        }, currentState.profile),
-      }))
-    }
-
-    if (authContext.client) {
-      const mappedClientProfile = mapAuthContextToClientProfile(authContext)
-      const remoteClientProfile = await fetchOwnClientProfile().catch(() => ({}))
-      setClientState((currentState) => ({
-        ...currentState,
-        profile: {
-          ...currentState.profile,
-          ...mappedClientProfile,
-          ...remoteClientProfile,
-        },
-      }))
-    }
-
     localStorage.removeItem(storageKey)
     setSession(nextSession)
     setIsAuthLoading(false)
+
+    if (authContext.client) {
+      const mappedClientProfile = mapAuthContextToClientProfile(authContext)
+      setClientState((currentState) => ({
+        ...currentState,
+        profile: { ...currentState.profile, ...mappedClientProfile },
+      }))
+      fetchOwnClientProfile()
+        .then((remoteClientProfile) => {
+          setClientState((currentState) => ({
+            ...currentState,
+            profile: { ...currentState.profile, ...remoteClientProfile },
+          }))
+        })
+        .catch(() => {})
+    }
 
     return nextSession
   }, [])
@@ -1208,6 +1199,7 @@ export function AppProvider({ children }) {
             setIsAuthLoading(false)
           })
         } else {
+          setSession(initialSession)
           setIsAuthLoading(false)
         }
       })
@@ -1236,6 +1228,49 @@ export function AppProvider({ children }) {
       subscription.unsubscribe()
     }
   }, [hydrateSupabaseSession, session.isMockSession])
+
+  useEffect(() => {
+    const artistId = session.artist?.id
+    if (!artistId || session.isMockSession) return undefined
+
+    let active = true
+    let retryTimer
+
+    const loadProfile = async (attempt = 0) => {
+      try {
+        const artistProfile = await fetchArtistProfile({ artistId, includePortfolio: false })
+        if (!active) return
+        if (!artistProfile) throw new Error('No se encontro el perfil de artista.')
+
+        setArtistState((currentState) => {
+          const mappedProfile = mapAuthContextToArtistProfile({
+            profile: sessionRef.current.profile,
+            artist: sessionRef.current.artist,
+            artistProfile,
+          }, currentState.profile)
+          if (currentState.profile.artistId === artistId && currentState.profile.portfolio?.length) {
+            mappedProfile.portfolio = currentState.profile.portfolio
+          }
+          return { ...currentState, profile: mappedProfile }
+        })
+        setArtistProfileLoadedId(artistId)
+        setArtistProfileError('')
+      } catch {
+        if (!active) return
+        if (attempt < 2) {
+          retryTimer = window.setTimeout(() => loadProfile(attempt + 1), (attempt + 1) * 2000)
+        } else {
+          setArtistProfileError('No se pudo cargar tu perfil. Recarga la pagina para reintentar.')
+        }
+      }
+    }
+
+    loadProfile()
+    return () => {
+      active = false
+      window.clearTimeout(retryTimer)
+    }
+  }, [session.artist?.id, session.isMockSession, session.profile?.id])
 
   useEffect(() => {
     if (!adminStorageKey) return
@@ -1368,14 +1403,14 @@ export function AppProvider({ children }) {
     }
   }, [session.isMockSession, session.role])
 
-  const loadMarketplaceListings = useCallback(async () => {
+  const loadMarketplaceListings = useCallback(async ({ force = false } = {}) => {
     if (session.isMockSession || session.role !== ROLES.CLIENT) return []
 
-    setIsMarketplaceLoading(true)
+    if (!getCachedMarketplaceListings()) setIsMarketplaceLoading(true)
     setMarketplaceError('')
 
     try {
-      const listings = await fetchMarketplaceListings()
+      const listings = await fetchMarketplaceListings({ force })
       setMarketplaceState({
         listings,
         loaded: true,
@@ -1383,10 +1418,7 @@ export function AppProvider({ children }) {
       return listings
     } catch (error) {
       setMarketplaceError(error.message || 'No se pudieron cargar los perfiles publicados.')
-      setMarketplaceState({
-        listings: [],
-        loaded: true,
-      })
+      setMarketplaceState((current) => ({ ...current, loaded: true }))
       return []
     } finally {
       setIsMarketplaceLoading(false)
@@ -1552,7 +1584,9 @@ export function AppProvider({ children }) {
         ],
         artistLoaded: true,
       }))
-      setManualArtistAppointmentStatus('Cita creada correctamente.')
+      setManualArtistAppointmentStatus(appointment.pendingClientConfirmation
+        ? 'Horario apartado. La clienta recibirá un aviso privado para confirmar la cita.'
+        : 'Cita creada correctamente.')
       return appointment
     } catch (error) {
       setManualArtistAppointmentError(error.message || 'No se pudo crear la cita.')
@@ -1732,7 +1766,7 @@ export function AppProvider({ children }) {
     setPreviousClientLoadKey(clientLoadKey)
     const shouldLoad = session.role === ROLES.CLIENT && !session.isMockSession
     setIsClientAppointmentsLoading(shouldLoad)
-    setIsMarketplaceLoading(shouldLoad)
+    setIsMarketplaceLoading(shouldLoad && !getCachedMarketplaceListings())
     setClientAppointmentsError('')
     setMarketplaceError('')
   }
@@ -1754,7 +1788,7 @@ export function AppProvider({ children }) {
       .catch((error) => {
         if (!active) return
         setMarketplaceError(error.message || 'No se pudieron cargar los perfiles publicados.')
-        setMarketplaceState({ listings: [], loaded: true })
+        setMarketplaceState((current) => ({ ...current, loaded: true }))
       })
       .finally(() => { if (active) setIsMarketplaceLoading(false) })
     return () => { active = false }
@@ -1785,27 +1819,29 @@ export function AppProvider({ children }) {
   useEffect(() => {
     if (!supabase || session.isMockSession || session.role !== ROLES.CLIENT) return undefined
     let refreshTimer
-    const refresh = () => {
+    let lastFocusRefresh = Date.now()
+    const refresh = (force = false) => {
       if (document.visibilityState === 'hidden') return
+      if (!force && Date.now() - lastFocusRefresh < 60000) return
+      lastFocusRefresh = Date.now()
       window.clearTimeout(refreshTimer)
       refreshTimer = window.setTimeout(() => {
-        if (document.visibilityState !== 'hidden') loadMarketplaceListings().catch(() => {})
+        if (document.visibilityState !== 'hidden') loadMarketplaceListings({ force }).catch(() => {})
       }, 150)
     }
+    const refreshOnFocus = () => refresh(false)
     const channel = supabase.channel('client-marketplace-visibility')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'marketplace_profiles' }, refresh)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'marketplace_listings' }, refresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'marketplace_profiles' }, () => refresh(true))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'marketplace_listings' }, () => refresh(true))
       .subscribe()
-    const interval = window.setInterval(refresh, 30000)
-    document.addEventListener('visibilitychange', refresh)
-    window.addEventListener('focus', refresh)
-    window.addEventListener('pageshow', refresh)
+    document.addEventListener('visibilitychange', refreshOnFocus)
+    window.addEventListener('focus', refreshOnFocus)
+    window.addEventListener('pageshow', refreshOnFocus)
     return () => {
       window.clearTimeout(refreshTimer)
-      window.clearInterval(interval)
-      document.removeEventListener('visibilitychange', refresh)
-      window.removeEventListener('focus', refresh)
-      window.removeEventListener('pageshow', refresh)
+      document.removeEventListener('visibilitychange', refreshOnFocus)
+      window.removeEventListener('focus', refreshOnFocus)
+      window.removeEventListener('pageshow', refreshOnFocus)
       supabase.removeChannel(channel)
     }
   }, [loadMarketplaceListings, session.isMockSession, session.role])
@@ -2085,9 +2121,7 @@ export function AppProvider({ children }) {
           active: nextActive,
           start: nextActive && day.start === 'Libre' ? '10:00' : day.start,
           end: nextActive && day.end === 'Libre' ? '18:00' : day.end,
-          blocks: nextActive && day.blocks.length === 0
-            ? [{ id: `${day.day}-block-${Date.now()}`, start: '14:00', end: '15:00' }]
-            : day.blocks,
+          blocks: day.blocks,
         }
       }),
     }))
@@ -2953,6 +2987,7 @@ export function AppProvider({ children }) {
       artistScheduleStatus,
       isArtistProfileSaving,
       artistProfileError,
+      artistProfileLoadedId,
       isAdminArtistsLoading,
       adminArtistsError,
       isAdminDashboardLoading,
@@ -3063,6 +3098,7 @@ export function AppProvider({ children }) {
       artistScheduleStatus,
       isArtistProfileSaving,
       artistProfileError,
+      artistProfileLoadedId,
       isAdminArtistsLoading,
       adminArtistsError,
       isAdminDashboardLoading,

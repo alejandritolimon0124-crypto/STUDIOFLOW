@@ -1,11 +1,11 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import Button from '../../components/Button'
 import Card from '../../components/Card'
 import Input from '../../components/Input'
-import PanelHeader from '../../components/PanelHeader'
 import StatusPill from '../../components/StatusPill'
 import StudioBootstrapPanel from '../../components/StudioBootstrapPanel'
+import BusinessPaymentSettings from '../../components/BusinessPaymentSettings'
 import { useApp } from '../../contexts/appContextCore'
 import { paths } from '../../routes/paths'
 import { claimArtistInvitation } from '../../services/profileBootstrapService'
@@ -15,6 +15,7 @@ import { mapAuthContextToArtistProfile } from '../../utils/artistProfileMapper'
 import { getMaxBirthDateForAdult, validateBirthDate } from '../../utils/birthdayValidation'
 import { optimizeImageFile } from '../../utils/imageOptimization'
 import { BEAUTY_SPACES } from '../../services/beautySpaceService'
+import { fetchArtistPortfolio } from '../../services/artistProfileService'
 
 const portfolioLimit = 12
 
@@ -31,6 +32,7 @@ function ArtistProfileSettings() {
   const [searchParams] = useSearchParams()
   const {
     artistProfileError,
+    artistProfileLoadedId,
     artistState,
     artistWorkContext,
     isArtistProfileSaving,
@@ -97,6 +99,10 @@ function ArtistProfileSettings() {
     ...sessionArtistProfile,
     professionalLocation: createArtistLocationSettings(sessionArtistProfile?.professionalLocation),
   })
+  const [portfolioTouched, setPortfolioTouched] = useState(false)
+  const [portfolioLoadState, setPortfolioLoadState] = useState('loading')
+  const profileLoadState = session.isMockSession || (artistProfileBelongsToSession && artistProfileLoadedId === session.artist?.id) ? 'loaded' : 'loading'
+  const [portfolioRetry, setPortfolioRetry] = useState(0)
   const [locationErrors, setLocationErrors] = useState({})
   const [locationDetection, setLocationDetection] = useState({ status: 'idle', message: '' })
   const [isArtistLocationConfirmed, setIsArtistLocationConfirmed] = useState(false)
@@ -126,12 +132,46 @@ function ArtistProfileSettings() {
     activeStudioId, session.artist?.id, session.profile?.id,
     sessionArtistProfile.artistId, sessionArtistProfile.artistProfileId,
     sessionArtistProfile.photoUrl, studioPhotoSignature,
+    sessionArtistProfile.portfolio?.length || 0,
+    sessionArtistProfile.beautySpaces,
+    sessionArtistProfile.healthCompliance,
+    sessionArtistProfile.professionalLocation,
   ])
+  useEffect(() => {
+    if (!session.artist?.id || session.isMockSession || portfolioTouched) return undefined
+
+    let active = true
+    fetchArtistPortfolio({
+      artistId: session.artist.id,
+      onPage: (portfolio) => {
+        if (!active) return
+        setProfileDraft((currentDraft) => currentDraft.artistId === session.artist.id
+          ? { ...currentDraft, portfolio }
+          : currentDraft)
+      },
+    })
+      .then((portfolio) => {
+        if (!active) return
+        setProfileDraft((currentDraft) => currentDraft.artistId === session.artist.id
+          ? { ...currentDraft, portfolio }
+          : currentDraft)
+        setPortfolioLoadState('loaded')
+      })
+      .catch(() => {
+        if (active) setPortfolioLoadState('error')
+      })
+
+    return () => { active = false }
+  }, [session.artist?.id, session.isMockSession, portfolioTouched, portfolioRetry])
   const [previousProfileSourceKey, setPreviousProfileSourceKey] = useState(profileSourceKey)
   if (previousProfileSourceKey !== profileSourceKey) {
     setPreviousProfileSourceKey(profileSourceKey)
+    if (profileDraft.artistId !== sessionArtistProfile.artistId) setPortfolioTouched(false)
     setProfileDraft({
       ...sessionArtistProfile,
+      portfolio: (portfolioTouched || profileDraft.portfolio?.length > 0) && profileDraft.artistId === sessionArtistProfile.artistId
+        ? profileDraft.portfolio
+        : sessionArtistProfile.portfolio,
       professionalLocation: createArtistLocationSettings(sessionArtistProfile?.professionalLocation),
     })
     setLocationErrors({})
@@ -263,6 +303,11 @@ function ArtistProfileSettings() {
   }
 
   const handlePortfolioChange = async (event) => {
+    if (portfolioLoadState !== 'loaded') {
+      setSaveFeedback('Espera a que termine de cargar tu galeria antes de agregar fotos.')
+      event.target.value = ''
+      return
+    }
     const files = Array.from(event.target.files || []).slice(0, portfolioLimit - (profileDraft.portfolio || []).length)
     try {
       const images = await Promise.all(files.map(async (file) => ({
@@ -271,6 +316,7 @@ function ArtistProfileSettings() {
         url: await optimizeImageFile(file),
       })))
       if (images.length) {
+        setPortfolioTouched(true)
         setProfileDraft((currentDraft) => ({
           ...currentDraft,
           portfolio: [...(currentDraft.portfolio || []), ...images].slice(0, portfolioLimit),
@@ -284,6 +330,8 @@ function ArtistProfileSettings() {
   }
 
   const removePortfolioImage = (imageId) => {
+    if (portfolioLoadState !== 'loaded') return
+    setPortfolioTouched(true)
     setProfileDraft((currentDraft) => ({
       ...currentDraft,
       portfolio: (currentDraft.portfolio || []).filter((image) => image.id !== imageId),
@@ -291,7 +339,19 @@ function ArtistProfileSettings() {
   }
 
   const saveProfile = async () => {
+    if (!session.isMockSession && profileLoadState !== 'loaded') {
+      setSaveFeedback('Espera a que se cargue tu perfil antes de guardar los cambios.')
+      return
+    }
     const nextProfile = { ...profileDraft }
+    if (!session.isMockSession && !portfolioTouched && (portfolioLoadState !== 'loaded' || (nextProfile.portfolio || []).length === 0) && session.artist?.id) {
+      try {
+        nextProfile.portfolio = await fetchArtistPortfolio({ artistId: session.artist.id })
+      } catch {
+        setSaveFeedback('No pudimos verificar tus fotos. Intenta guardar de nuevo para proteger tu galeria.')
+        return
+      }
+    }
     const usesAdvancedAesthetics = (profileDraft.beautySpaces || []).includes(BEAUTY_SPACES.SPA_AND_ADVANCED_AESTHETICS)
 
     if ((profileDraft.beautySpaces || []).length === 0) {
@@ -423,17 +483,34 @@ function ArtistProfileSettings() {
     navigate(paths.adminStudio)
   }
 
+  if (profileLoadState !== 'loaded') {
+    return (
+      <main className="dashboard-grid artist-grid profile-foundation-grid artist-profile-experience">
+        <Card className="wide-card mobile-screen primary-panel artist-profile-shell">
+          <div className="profile-foundation-card">
+            <h1>Mi perfil</h1>
+            {artistProfileError ? (
+              <>
+                <p>{artistProfileError}</p>
+                <Button onClick={() => window.location.reload()}>Reintentar</Button>
+              </>
+            ) : <p>Cargando tus datos guardados...</p>}
+          </div>
+        </Card>
+      </main>
+    )
+  }
+
   if (isStudioArtistContext) {
     return (
-      <main className="dashboard-grid artist-grid profile-foundation-grid">
-        <Card className="wide-card mobile-screen primary-panel">
-          <PanelHeader title="MI PERFIL" eyebrow={activeStudioName} />
-          <div className="profile-foundation-stack">
-            <section className="profile-foundation-card">
+      <main className="dashboard-grid artist-grid profile-foundation-grid artist-profile-experience">
+        <Card className="wide-card mobile-screen primary-panel artist-profile-shell">
+          <div className="profile-foundation-stack artist-profile-stack">
+            <section className="profile-foundation-card artist-profile-photo-story">
               <div>
-                <span className="eyebrow">Entorno de estudio</span>
-                <h3>Perfil para {activeStudioName}</h3>
-                <small>Esta informacion se mostrara cuando trabajes dentro del estudio.</small>
+                <span className="eyebrow">Solo en {activeStudioName}</span>
+                <h1>Tu espacio en {activeStudioName}</h1>
+                <p>Esta foto representa tu trabajo en el estudio. No cambia la de tu perfil independiente.</p>
               </div>
               <div className="profile-photo-row">
                 <div className="artist-photo-preview">
@@ -491,8 +568,8 @@ function ArtistProfileSettings() {
                   {artistProfileError || saveFeedback}
                 </StatusPill>
               )}
-              <Button className="full-width" disabled={isArtistProfileSaving} onClick={saveProfile}>
-                {isArtistProfileSaving ? 'Guardando...' : 'Guardar perfil de estudio'}
+              <Button className="full-width" disabled={isArtistProfileSaving || profileLoadState !== 'loaded'} onClick={saveProfile}>
+                {profileLoadState === 'loading' ? 'Cargando perfil...' : isArtistProfileSaving ? 'Guardando...' : 'Guardar perfil de estudio'}
               </Button>
             </section>
           </div>
@@ -502,14 +579,38 @@ function ArtistProfileSettings() {
   }
 
   return (
-    <main className="dashboard-grid artist-grid profile-foundation-grid">
-      <Card className="wide-card mobile-screen primary-panel">
-        <PanelHeader title="Perfil artista" eyebrow="Configuracion" />
-        <div className="profile-foundation-stack">
+    <main className="dashboard-grid artist-grid profile-foundation-grid artist-profile-experience">
+      <Card className="wide-card mobile-screen primary-panel artist-profile-shell">
+        <div className="profile-foundation-stack artist-profile-stack">
+          <section className="profile-foundation-card artist-profile-photo-story">
+            <div>
+              <span className="eyebrow">Perfil independiente</span>
+              <h1>Tu talento, a tu manera</h1>
+              <p>Así te verán las clientas que reserven directamente contigo. Tu foto en el estudio se mantiene aparte.</p>
+            </div>
+            <div className="profile-photo-row">
+              <div className="artist-photo-preview">
+                {profileDraft.photoUrl ? (
+                  <img src={profileDraft.photoUrl} alt={`Foto de ${profileDraft.personalInfo.fullName}`} />
+                ) : (
+                  <span>{(profileDraft.personalInfo.artisticName || profileDraft.personalInfo.fullName || 'SF').slice(0, 2).toUpperCase()}</span>
+                )}
+              </div>
+              <div className="artist-photo-actions">
+                <strong>{profileDraft.photoUrl ? 'Tu imagen, tu sello' : 'Haz que te reconozcan desde el primer vistazo'}</strong>
+                <label className="button button-ghost button-sm" htmlFor="professional-photo-input">
+                  {profileDraft.photoUrl ? 'Renovar mi foto' : 'Elegir mi foto'}
+                </label>
+                <input accept="image/*" className="visually-hidden" id="professional-photo-input" type="file" onChange={handlePhotoChange} />
+                {profileDraft.photoUrl && <button type="button" onClick={() => setProfileDraft({ ...profileDraft, photoUrl: '' })}>Quitar foto</button>}
+              </div>
+            </div>
+          </section>
+
           <section className="profile-foundation-card">
             <div>
-              <span className="eyebrow">Cuenta</span>
-              <h3>Informacion personal</h3>
+              <span className="eyebrow">La persona detrás del talento</span>
+              <h3>Preséntate como quieres ser recordada</h3>
             </div>
             <Input
               label="Nombre artistico o estudio"
@@ -546,9 +647,9 @@ function ArtistProfileSettings() {
 
           <section className="profile-foundation-card">
             <div>
-              <span className="eyebrow">Beauty spaces</span>
-              <h3>Espacios en los que trabajas</h3>
-              <small>Puedes seleccionar uno o ambos. Estética avanzada requiere responsable sanitario.</small>
+              <span className="eyebrow">Tu universo profesional</span>
+              <h3>Elige dónde sucede tu magia</h3>
+              <small>Selecciona uno o ambos espacios para mostrarte ante las clientas correctas.</small>
             </div>
             <div className="beauty-space-options">
               <label className={`beauty-space-choice${(profileDraft.beautySpaces || []).includes(BEAUTY_SPACES.BEAUTY_AND_PERSONAL_CARE) ? ' is-active' : ''}`}>
@@ -571,38 +672,6 @@ function ArtistProfileSettings() {
                 <Input label="Cédula profesional del responsable sanitario" value={profileDraft.healthCompliance?.healthOfficerLicense || ''} onChange={(event) => updateHealthCompliance('healthOfficerLicense', event.target.value)} />
               </div>
             )}
-          </section>
-
-          <section className="profile-foundation-card">
-            <div>
-              <span className="eyebrow">Branding</span>
-              <h3>Foto profesional</h3>
-              <small>Esta misma foto alimenta hero, sidebar, Marketplace y Perfil Publico futuro.</small>
-            </div>
-            <div className="profile-photo-row">
-              <div className="artist-photo-preview">
-                {profileDraft.photoUrl ? (
-                  <img src={profileDraft.photoUrl} alt={`Foto de ${profileDraft.personalInfo.fullName}`} />
-                ) : (
-                  <span>VM</span>
-                )}
-              </div>
-              <div className="artist-photo-actions">
-                <label className="button button-ghost button-sm" htmlFor="professional-photo-input">
-                  {profileDraft.photoUrl ? 'Cambiar foto' : 'Subir foto'}
-                </label>
-                <input
-                  accept="image/*"
-                  className="visually-hidden"
-                  id="professional-photo-input"
-                  type="file"
-                  onChange={handlePhotoChange}
-                />
-                {profileDraft.photoUrl && (
-                  <button type="button" onClick={() => setProfileDraft({ ...profileDraft, photoUrl: '' })}>Eliminar foto</button>
-                )}
-              </div>
-            </div>
           </section>
 
           {currentStudioMemberships.length > 0 && (
@@ -643,8 +712,8 @@ function ArtistProfileSettings() {
 
           <section className="profile-foundation-card">
             <div>
-              <span className="eyebrow">Perfil Publico futuro</span>
-              <h3>Perfil Profesional</h3>
+              <span className="eyebrow">Lo que te hace única</span>
+              <h3>Cuenta por qué elegirte a ti</h3>
             </div>
             <Input
               label="Especialidad principal"
@@ -700,13 +769,13 @@ function ArtistProfileSettings() {
             </div>
           </section>
 
-          <section className="profile-foundation-card">
+          <section className="profile-foundation-card artist-profile-portfolio-story">
             <div className="artist-portfolio-heading">
               <div>
-                <span className="eyebrow">Portafolio</span>
-                <h3>📸 Mi Portafolio</h3>
-                <small>Estas imágenes serán visibles para las clientas en tu perfil público.</small>
-                <small>Comparte trabajos realizados que representen la calidad de tus servicios.</small>
+                <span className="eyebrow">Tu trabajo habla por ti</span>
+                <h3>Crea una galería que enamore</h3>
+                <small>Cada imagen ayuda a una nueva clienta a imaginar su próxima experiencia contigo.</small>
+                <small>Comparte tus mejores resultados y deja que tu estilo sea el protagonista.</small>
               </div>
               <span className="artist-portfolio-counter">{portfolioCount}/{portfolioLimit} fotos</span>
             </div>
@@ -714,14 +783,23 @@ function ArtistProfileSettings() {
               {(profileDraft.portfolio || []).map((image) => (
                 <article className="artist-portfolio-item" key={image.id}>
                   <img src={image.url} alt={image.label || 'Trabajo realizado por la artista'} />
-                  <button type="button" onClick={() => removePortfolioImage(image.id)}>Quitar</button>
+                  <button type="button" disabled={portfolioLoadState !== 'loaded'} onClick={() => removePortfolioImage(image.id)}>Quitar</button>
                 </article>
               ))}
-              <label className={`artist-portfolio-upload${hasPortfolioCapacity ? '' : ' is-disabled'}`} htmlFor={hasPortfolioCapacity ? 'artist-portfolio-input' : undefined}>
-                <span>{hasPortfolioCapacity ? 'Agregar foto' : 'Límite alcanzado'}</span>
+              <label className={`artist-portfolio-upload${hasPortfolioCapacity && portfolioLoadState === 'loaded' ? '' : ' is-disabled'}`} htmlFor={hasPortfolioCapacity && portfolioLoadState === 'loaded' ? 'artist-portfolio-input' : undefined}>
+                <span>{hasPortfolioCapacity ? 'Sumar un trabajo' : 'Galería completa'}</span>
                 <small>{portfolioCount}/{portfolioLimit} fotos</small>
               </label>
             </div>
+            {portfolioLoadState === 'loading' && !session.isMockSession && <small>Cargando tus fotos...</small>}
+            {portfolioLoadState === 'error' && (
+              <button type="button" onClick={() => {
+                setPortfolioLoadState('loading')
+                setPortfolioRetry((value) => value + 1)
+              }}>
+                No se pudieron cargar tus fotos. Reintentar
+              </button>
+            )}
             {!hasPortfolioCapacity && (
               <small className="artist-portfolio-limit-message">
                 Has alcanzado el límite máximo de 12 fotografías.
@@ -730,7 +808,7 @@ function ArtistProfileSettings() {
             <input
               accept="image/*"
               className="visually-hidden"
-              disabled={!hasPortfolioCapacity}
+              disabled={!hasPortfolioCapacity || portfolioLoadState !== 'loaded'}
               id="artist-portfolio-input"
               multiple
               type="file"
@@ -738,10 +816,11 @@ function ArtistProfileSettings() {
             />
           </section>
 
-          <section className="profile-foundation-card">
+          <section className="profile-foundation-card artist-profile-location-story">
             <div>
-              <span className="eyebrow">Ubicacion</span>
-              <h3>Ubicacion Profesional</h3>
+              <span className="eyebrow">Más cerca de tus clientas</span>
+              <h3>Haz que encontrarte sea muy fácil</h3>
+              <small>Tu ubicación conecta a las clientas cercanas con tu agenda y las guía directamente hasta ti.</small>
             </div>
             <div className="location-option-stack">
               <label className="location-toggle-row">
@@ -890,10 +969,12 @@ function ArtistProfileSettings() {
             onOpenOwnerPanel={openOwnerPanel}
           />
 
+          <BusinessPaymentSettings scopeType="artist" scopeId={session.artist?.id} />
+
           <section className="profile-foundation-card">
             <div>
-              <span className="eyebrow">Contacto publico</span>
-              <h3>Contacto y redes</h3>
+              <span className="eyebrow">Tu comunidad sigue creciendo</span>
+              <h3>Mantente cerca de tus clientas</h3>
             </div>
             <div className="location-form-grid">
               <Input
@@ -921,9 +1002,9 @@ function ArtistProfileSettings() {
 
           <section className="profile-foundation-card">
             <div>
-              <span className="eyebrow">Cuenta</span>
-              <h3>Seguridad</h3>
-              <small>Actualizacion local preparada para autenticacion real futura.</small>
+              <span className="eyebrow">Tu espacio es sólo tuyo</span>
+              <h3>Protege todo lo que estás construyendo</h3>
+              <small>Mantén actualizados tus datos de acceso a Studio Flow.</small>
             </div>
             <Input
               label="Correo electronico"
@@ -950,8 +1031,8 @@ function ArtistProfileSettings() {
               {artistProfileError || saveFeedback}
             </StatusPill>
           )}
-          <Button className="full-width" disabled={isArtistProfileSaving} onClick={saveProfile}>
-            {isArtistProfileSaving ? 'Guardando perfil...' : 'Guardar perfil profesional'}
+          <Button className="full-width" disabled={isArtistProfileSaving || profileLoadState !== 'loaded'} onClick={saveProfile}>
+            {profileLoadState === 'loading' ? 'Cargando perfil...' : isArtistProfileSaving ? 'Guardando perfil...' : 'Guardar perfil profesional'}
           </Button>
         </div>
       </Card>

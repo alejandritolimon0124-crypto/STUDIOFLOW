@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { Phone, Share2 } from 'lucide-react'
+import { useLocation, useNavigate } from 'react-router-dom'
+import { CalendarDays, Camera, Clock3, CreditCard, FileText, Heart, ListFilter, MapPin, Phone, Share2, Sparkles, UserRound } from 'lucide-react'
 import facebookIcon from '../../assets/social/facebook.png'
 import instagramIcon from '../../assets/social/instagram.png'
 import tiktokIcon from '../../assets/social/tiktok.png'
@@ -9,14 +9,26 @@ import { hasCurrentAttendanceConfirmation } from '../../utils/appointmentConfirm
 import { historyDateTime, newestAppointmentFirst } from '../../utils/appointmentHistory'
 import Button from '../../components/Button'
 import AppointmentPayment from '../../components/AppointmentPayment'
+import AppointmentDeposit from '../../components/AppointmentDeposit'
+import { depositAmount, fetchDepositPolicy, formatPayment } from '../../services/depositService'
+import '../../styles/appointment-deposits.css'
 import Card from '../../components/Card'
 import Input from '../../components/Input'
 import PanelHeader from '../../components/PanelHeader'
 import { ClientMarketingNotices } from '../../components/MarketingReminders'
+import { MarketplaceVisitReviews, VisitReviewEditor } from '../../components/VisitReviews'
+import { fetchMyVisitReviews } from '../../services/visitReviewService'
+import { fetchMarketplaceListingPortfolio } from '../../services/marketplaceService'
+import ClientManualBookingRequests from '../../components/ClientManualBookingRequests'
 import StatusPill from '../../components/StatusPill'
 import RescheduleAppointmentButton from '../../components/RescheduleAppointmentButton'
 import { useApp } from '../../contexts/appContextCore'
+import useCurrentTime from '../../hooks/useCurrentTime'
+import PendingPointsNotice from '../../components/PendingPointsNotice'
+import ClientAttendancePanel from '../../components/ClientAttendancePanel'
+import { pendingAppointmentPoints } from '../../utils/pendingAppointmentPoints'
 import { paths } from '../../routes/paths'
+import { sharePreviewUrl } from '../../utils/sharePreviewUrl'
 import { getClientById } from '../../utils/clientHelpers'
 import { generateClientAutomations } from '../../modules/automation/smartAutomationEngine'
 import { canUseOperationalFeature } from '../../modules/governance/studioGovernance'
@@ -29,7 +41,7 @@ import { buildGoogleMapsQuery, buildGoogleMapsUrl } from '../../utils/locationHe
 import { getAppointmentStatusTone } from '../../utils/appointmentStatus'
 import { getCurrentBrowserCoordinates } from '../../utils/browserGeolocation'
 import { getMaxBirthDateForAdult, validateBirthDate } from '../../utils/birthdayValidation'
-import { fetchClientFlowPointsBalance } from '../../services/appointmentService'
+import { fetchClientFlowPointsBalance, fetchClientFlowPointDestinations, fetchClientFlowPointRedemptions, redeemClientFlowPoints as redeemClientFlowPointsRecord } from '../../services/appointmentService'
 import { normalizeServiceName, serviceCatalog } from '../../services/staticCatalogs'
 import { optimizeImageFile } from '../../utils/imageOptimization'
 import { pushRegistrationStorageKey } from '../../services/pushNotificationService'
@@ -38,6 +50,7 @@ import { advancedAestheticsCatalog } from '../../services/advancedAestheticsCata
 
 const clientConfirmationNoticeKey = 'studio-flow-client-confirmation-notices'
 const FLOW_POINTS_MINIMUM_REDEMPTION = 1000
+const FLOW_POINTS_REDEMPTION_STEP = 100
 const FLOW_POINTS_PER_MXN = 10
 const FLOW_POINTS_VALIDITY_DAYS = 180
 const flowPointsNumber = new Intl.NumberFormat('es-MX')
@@ -273,6 +286,45 @@ function formatBookingDate(dateValue) {
   }).format(new Date(`${dateValue}T12:00:00Z`))
 }
 
+function formatAppointmentCardDate(dateValue) {
+  if (!dateValue) return 'PRÓXIMA'
+
+  const date = new Date(`${String(dateValue).slice(0, 10)}T12:00:00`)
+  if (Number.isNaN(date.getTime())) return dateValue
+
+  return new Intl.DateTimeFormat('es-MX', {
+    day: '2-digit',
+    month: 'short',
+  }).format(date).replace('.', '').toUpperCase()
+}
+
+function formatAppointmentProvider(appointment = {}) {
+  const artist = String(appointment.artist || '').trim()
+  const place = String(appointment.contextName || appointment.address || '').trim()
+
+  if (!artist) return place || 'Ubicación por confirmar'
+  if (!place || artist.localeCompare(place, 'es', { sensitivity: 'base' }) === 0) return artist
+  return `${artist} / ${place}`
+}
+
+function openClientPaymentCard(appointmentId) {
+  const card = document.getElementById(`client-payment-card-${appointmentId}`)
+  if (!card) return
+  card.open = true
+  card.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  card.querySelector('summary')?.focus({ preventScroll: true })
+}
+
+function openBookingDatePicker(event) {
+  const input = event.currentTarget
+  if (typeof input.showPicker !== 'function') return
+  try {
+    input.showPicker()
+  } catch {
+    input.focus()
+  }
+}
+
 function getAppointmentDateKey(appointmentOrDate) {
   const rawValue = typeof appointmentOrDate === 'object' && appointmentOrDate !== null
     ? appointmentOrDate.date || appointmentOrDate.startsAt || appointmentOrDate.starts_at
@@ -361,6 +413,57 @@ function buildServiceGroupsForArtist(artist = {}) {
   }, {})
 }
 
+function MarketplaceServiceMenu({ artist, onSelect }) {
+  const groups = buildServiceGroupsForArtist(artist)
+  const entries = Object.entries(groups).filter(([, services]) => services.length > 0)
+  const [activeCategory, setActiveCategory] = useState(entries[0]?.[0] || '')
+  const currentCategory = groups[activeCategory] ? activeCategory : entries[0]?.[0] || ''
+  const activeServices = groups[currentCategory] || []
+
+  if (entries.length === 0) return null
+
+  return (
+    <section className="public-profile-section public-service-menu-section">
+      <div className="public-service-menu-heading">
+        <div>
+          <span className="eyebrow">SU EXPERIENCIA, A TU MANERA</span>
+          <h4>Elige lo que te hará sentir increíble</h4>
+          <p>Explora por categoría y reserva con un toque.</p>
+        </div>
+        <strong>{entries.reduce((total, [, services]) => total + services.length, 0)}<small> servicios</small></strong>
+      </div>
+      <div className="public-service-category-tabs" role="tablist" aria-label="Categorías de servicios">
+        {entries.map(([category, services]) => (
+          <button
+            type="button"
+            role="tab"
+            aria-selected={currentCategory === category}
+            className={currentCategory === category ? 'is-active' : ''}
+            key={category}
+            onClick={() => setActiveCategory(category)}
+          >
+            {category}<small>{services.length}</small>
+          </button>
+        ))}
+      </div>
+      <div className="public-service-menu-list" role="tabpanel">
+        <div className="public-service-menu-list-title">
+          <span>{currentCategory}</span>
+          <small>{activeServices.length} opciones</small>
+        </div>
+        {activeServices.map((service, index) => (
+          <button type="button" key={service.id || `${currentCategory}-${service.name}`} onClick={() => onSelect(service)}>
+            <span className="public-service-number">{String(index + 1).padStart(2, '0')}</span>
+            <span className="public-service-name">{service.name}<small>{Number(service.durationMinutes || service.duration_minutes) || 60} min</small></span>
+            <strong>{getServicePriceAmount(service) === null ? 'Consultar' : flowPointsMoney.format(getServicePriceAmount(service))}</strong>
+            <span className="public-service-arrow" aria-hidden="true">›</span>
+          </button>
+        ))}
+      </div>
+    </section>
+  )
+}
+
 function PremiumDropdown({ label, value, options, open, onToggle, onChange, compact = false }) {
   const dropdownRef = useRef(null)
   const safeOptions = options.length > 0
@@ -411,9 +514,13 @@ function PremiumDropdown({ label, value, options, open, onToggle, onChange, comp
           font: 'inherit',
           fontWeight: 800,
           justifyContent: 'space-between',
+          boxSizing: 'border-box',
+          minWidth: 0,
           minHeight: '58px',
           padding: '0 14px',
+          position: 'relative',
           textAlign: 'left',
+          touchAction: 'manipulation',
           transition: 'box-shadow 180ms ease, transform 180ms ease, border-color 180ms ease',
           width: '100%',
         }}
@@ -515,6 +622,7 @@ function PremiumDropdown({ label, value, options, open, onToggle, onChange, comp
                   minHeight: compact ? '50px' : '66px',
                   padding: compact ? '10px 14px' : '14px 16px',
                   textAlign: 'left',
+                  touchAction: 'manipulation',
                   width: '100%',
                 }}
               >
@@ -583,6 +691,7 @@ function getArtistPublicProfile(artistState, artist) {
     biography: profile.professionalProfile?.biography || profile.professionalProfile?.shortBio || artist?.summary || '',
     contactLinks: profile.contactLinks || artist?.contactLinks || {},
     phone: profile.personalInfo?.phone || artist?.phone || artist?.profile?.phone || '',
+    hours: profile.hours || profile.professionalProfile?.hours || artist?.hours || artist?.profile?.hours || '',
     professionalLocation: profile.professionalLocation || artist?.professionalLocation,
     portfolio: Array.isArray(profile.portfolio) ? profile.portfolio : artist?.portfolio || [],
     specialties: profile.professionalProfile?.specialties || artist?.specialties || '',
@@ -607,6 +716,72 @@ function getStudioContactItems(studio = {}) {
     studio.profile?.email && { label: 'Correo', value: studio.profile.email },
     studio.profile?.hours && { label: 'Horarios', value: studio.profile.hours },
   ].filter(Boolean)
+}
+
+function getMarketplaceHoursLabel({ artist = {}, publicArtistProfile = {}, studioProfile = {}, isStudioListing = false } = {}) {
+  const profile = artist.profile || {}
+  const studioHours = studioProfile?.profile?.hours || studioProfile?.hours || ''
+  const artistHours = publicArtistProfile?.hours
+    || profile.hours
+    || profile.businessHours
+    || profile.business_hours
+    || artist.hours
+    || artist.businessHours
+    || artist.business_hours
+    || ''
+  const hours = isStudioListing ? studioHours : artistHours
+
+  if (typeof hours === 'string' && hours.trim()) return hours.trim()
+
+  const schedule = Array.isArray(artist.schedule) && artist.schedule.length > 0
+    ? artist.schedule
+    : Array.isArray(hours)
+    ? hours
+    : Array.isArray(profile.schedule)
+      ? profile.schedule
+      : Array.isArray(artist.schedule)
+        ? artist.schedule
+        : []
+  const activeDays = schedule.filter((day) => day?.active !== false && day?.isActive !== false && day?.is_active !== false)
+
+  if (activeDays.length > 0) {
+    const dayLabels = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
+    const getStart = (day) => day.start || day.startTime || day.start_time
+    const getEnd = (day) => day.end || day.endTime || day.end_time
+    const normalizedDays = activeDays
+      .map((day) => ({
+        weekday: Number.isFinite(Number(day.weekday)) ? Number(day.weekday) : null,
+        name: day.day || day.name || dayLabels[Number(day.weekday)],
+        start: getStart(day),
+        end: getEnd(day),
+      }))
+      .filter((day) => day.name && day.start && day.end)
+      .sort((first, second) => (first.weekday ?? 8) - (second.weekday ?? 8))
+
+    const groups = normalizedDays.reduce((result, day) => {
+      const key = `${day.start}-${day.end}`
+      const existing = result.find((group) => group.key === key)
+      if (existing) existing.days.push(day)
+      else result.push({ key, start: day.start, end: day.end, days: [day] })
+      return result
+    }, [])
+
+    if (groups.length > 0) {
+      return groups.map((group) => {
+        const isConsecutive = group.days.every((day, index) => (
+          index === 0 || day.weekday === group.days[index - 1].weekday + 1
+        ))
+        const firstDay = group.days[0].name
+        const lastDay = group.days[group.days.length - 1].name
+        const daysLabel = group.days.length > 1 && isConsecutive
+          ? `${firstDay}–${lastDay}`
+          : group.days.map((day) => day.name).join(', ')
+        return `${daysLabel} ${group.start}–${group.end}`
+      }).join(' · ')
+    }
+  }
+
+  return 'Horario por confirmar'
 }
 
 function getMarketplaceContactPhone({ artist = {}, publicArtistProfile = {}, studioProfile = {}, isStudioListing = false } = {}) {
@@ -911,8 +1086,39 @@ function MarketplaceContactActions({ contactLinks = {}, phone = '', serviceName 
   )
 }
 
+function MarketplaceGallery({ photos, isStudioListing, status, onRetry }) {
+  if (photos.length === 0 && status !== 'loading' && status !== 'error') return null
+
+  return (
+    <section className="public-profile-section">
+      <h4>{isStudioListing ? 'Galeria del estudio' : 'Trabajos de la artista'}</h4>
+      {photos.length > 0 ? (
+        <div className="public-portfolio-strip">
+          {photos.map((image) => (
+            <img src={image.url} alt={image.label || (isStudioListing ? 'Foto del estudio' : 'Trabajo realizado por la artista')} key={image.id || image.url} />
+          ))}
+        </div>
+      ) : status === 'loading' ? (
+        <p role="status">Cargando fotos...</p>
+      ) : (
+        <button type="button" onClick={onRetry}>No pudimos cargar las fotos. Reintentar</button>
+      )}
+    </section>
+  )
+}
+
 function ClientDashboard({ view = 'inicio' }) {
   const navigate = useNavigate()
+  const location = useLocation()
+  const now = useCurrentTime()
+
+  useEffect(() => {
+    if (view !== 'inicio' || location.hash !== '#mis-flowpoints') return undefined
+    const timer = window.setTimeout(() => {
+      navigate(paths.clientFlowPoints, { replace: true })
+    }, 150)
+    return () => window.clearTimeout(timer)
+  }, [location.hash, navigate, view])
   const {
     adminState,
     agendaSettings,
@@ -939,7 +1145,6 @@ function ClientDashboard({ view = 'inicio' }) {
     bookMarketplaceAppointment,
     getAvailableSlots,
     updateClientAppointmentResponse,
-    redeemClientFlowPoints,
     toggleFavoriteArtist,
     updateClientProfile,
   } = useApp()
@@ -951,12 +1156,19 @@ function ClientDashboard({ view = 'inicio' }) {
   const [beautySpace, setBeautySpace] = useState(BEAUTY_SPACES.BEAUTY_AND_PERSONAL_CARE)
   const [primaryService, setPrimaryService] = useState('Pestañas')
   const [secondaryService, setSecondaryService] = useState(searchServices.Pestañas[0].name)
+  const [serviceFilterMode, setServiceFilterMode] = useState('')
   const [studioQuery, setStudioQuery] = useState('')
   const [selectedArtistProfile, setSelectedArtistProfile] = useState(null)
+  const [portfolioByListing, setPortfolioByListing] = useState({})
+  const [portfolioStatusByListing, setPortfolioStatusByListing] = useState({})
+  const portfolioRequestsRef = useRef(new Set())
   const [selectedArtistPanelMode, setSelectedArtistPanelMode] = useState('')
   const [selectedMarketplaceServiceId, setSelectedMarketplaceServiceId] = useState('')
+  const [selectedMarketplaceServiceExplicit, setSelectedMarketplaceServiceExplicit] = useState(false)
   const [selectedMarketplaceRewardId, setSelectedMarketplaceRewardId] = useState('')
   const [bookingNotice, setBookingNotice] = useState('')
+  const [depositPolicyResult, setDepositPolicyResult] = useState({ serviceId: '', policy: {}, error: '' })
+  const [pendingDepositSlot, setPendingDepositSlot] = useState(null)
   const [openDropdown, setOpenDropdown] = useState(null)
   const [nearbyOnly, setNearbyOnly] = useState(false)
   const [todayOnly, setTodayOnly] = useState(false)
@@ -966,18 +1178,31 @@ function ClientDashboard({ view = 'inicio' }) {
   const [showPastAppointments, setShowPastAppointments] = useState(false)
   const [showAppointmentDateFilter, setShowAppointmentDateFilter] = useState(false)
   const [appointmentHistoryDate, setAppointmentHistoryDate] = useState('')
+  const [appointmentHistoryBusiness, setAppointmentHistoryBusiness] = useState('')
   const [visibleHistoryCount, setVisibleHistoryCount] = useState(5)
+  const [myVisitReviews, setMyVisitReviews] = useState([])
   const [respondingAppointmentId, setRespondingAppointmentId] = useState('')
   const [appointmentResponseNotice, setAppointmentResponseNotice] = useState(null)
   const [shareApplicationNotice, setShareApplicationNotice] = useState('')
   const [clientFlowPoints, setClientFlowPoints] = useState({ monthlyBalance: 0, monthlyEarned: 0, monthlySpent: 0, activeBalance: 0, expiringSoonPoints: 0, nextExpirationAt: null, validityDays: FLOW_POINTS_VALIDITY_DAYS })
   const [redeemDraft, setRedeemDraft] = useState({ points: '', targetId: '', targetQuery: '' })
   const [redeemStatus, setRedeemStatus] = useState('')
+  const [redeemTargets, setRedeemTargets] = useState([])
+  const [redeemTargetsError, setRedeemTargetsError] = useState('')
+  const [recentRedemptions, setRecentRedemptions] = useState([])
+  const [redeemBusy, setRedeemBusy] = useState(false)
+  const redeemInFlightRef = useRef(false)
+  const [confirmRedeem, setConfirmRedeem] = useState(false)
+  const [showRedeemPanel, setShowRedeemPanel] = useState(false)
+  const [redemptionReceipt, setRedemptionReceipt] = useState(null)
   const flowPointsBalance = Number(clientFlowPoints.activeBalance ?? clientFlowPoints.monthlyBalance) || 0
-  const flowPointsMxnValue = flowPointsBalance / FLOW_POINTS_PER_MXN
-  const flowPointsMissing = Math.max(FLOW_POINTS_MINIMUM_REDEMPTION - flowPointsBalance, 0)
-  const flowPointsProgress = Math.min((flowPointsBalance / FLOW_POINTS_MINIMUM_REDEMPTION) * 100, 100)
-  const canStartFlowPointsRedemption = flowPointsBalance >= FLOW_POINTS_MINIMUM_REDEMPTION
+  const redeemableTargets = redeemTargets.filter((target) => target.redeemable !== false)
+  const highestBusinessBalance = Math.max(0, ...redeemableTargets.map((target) => Number(target.availablePoints) || 0))
+  const hasPausedPoints = redeemTargets.some((target) => target.redeemable === false)
+  const flowPointsMissing = Math.max(FLOW_POINTS_MINIMUM_REDEMPTION - highestBusinessBalance, 0)
+  const flowPointsProgress = Math.min((highestBusinessBalance / FLOW_POINTS_MINIMUM_REDEMPTION) * 100, 100)
+  const canStartFlowPointsRedemption = highestBusinessBalance >= FLOW_POINTS_MINIMUM_REDEMPTION
+  const eligibleRedeemTargets = redeemableTargets.filter((target) => Number(target.availablePoints) >= FLOW_POINTS_MINIMUM_REDEMPTION)
   const [locationDetection, setLocationDetection] = useState({ status: 'idle', message: '' })
   const [notificationPermission, setNotificationPermission] = useState(() => (
     canUseBrowserNotifications() ? Notification.permission : 'unsupported'
@@ -987,7 +1212,7 @@ function ClientDashboard({ view = 'inicio' }) {
     const shareData = {
       title: 'Studio Flow',
       text: 'Reserva servicios de belleza, encuentra promociones y acumula FlowPoints en Studio Flow.',
-      url: 'https://studioflow.vip',
+      url: sharePreviewUrl('https://studioflow.vip/para-clientas'),
     }
 
     setShareApplicationNotice('')
@@ -1030,6 +1255,9 @@ function ClientDashboard({ view = 'inicio' }) {
   const beautySpaceCategoryNames = new Set(Object.keys(
     beautySpace === BEAUTY_SPACES.SPA_AND_ADVANCED_AESTHETICS ? advancedAestheticsCatalog : serviceCatalog,
   ))
+  beautySpaceCategoryNames.add(beautySpace === BEAUTY_SPACES.SPA_AND_ADVANCED_AESTHETICS
+    ? 'Personalizar · Spa y estética avanzada'
+    : 'Personalizar · Salón de belleza')
   const beautySpaceArtists = activeArtists
     .filter((artist) => (
       (artist.beautySpaces || [artist.beautySpace || BEAUTY_SPACES.BEAUTY_AND_PERSONAL_CARE]).includes(beautySpace)
@@ -1092,6 +1320,16 @@ function ClientDashboard({ view = 'inicio' }) {
   const effectiveMarketplaceService = selectedMarketplaceService || marketplaceService
   const selectedMarketplaceServiceName = selectedMarketplaceService?.name || effectiveMarketplaceService.name || secondaryService
   const selectedServiceOfferingId = selectedMarketplaceService?.id || effectiveMarketplaceService.id || null
+  const depositPolicyLoading = Boolean(selectedServiceOfferingId && depositPolicyResult.serviceId !== selectedServiceOfferingId)
+  const depositPolicy = depositPolicyLoading ? {} : depositPolicyResult.policy
+  const depositPolicyError = depositPolicyLoading ? '' : depositPolicyResult.error
+  useEffect(() => {
+    if (!selectedServiceOfferingId) return undefined
+    let active = true
+    fetchDepositPolicy(selectedServiceOfferingId).then((policy) => { if (active) setDepositPolicyResult({ serviceId: selectedServiceOfferingId, policy, error: '' }) })
+      .catch((error) => { if (active) setDepositPolicyResult({ serviceId: selectedServiceOfferingId, policy: {}, error: error.message || 'No se pudo consultar el anticipo.' }) })
+    return () => { active = false }
+  }, [selectedServiceOfferingId])
   const selectedArtistServiceGroups = useMemo(
     () => selectedArtistProfile ? buildServiceGroupsForArtist(selectedArtistProfile) : {},
     [selectedArtistProfile],
@@ -1428,13 +1666,18 @@ function ClientDashboard({ view = 'inicio' }) {
 
   const realAppointmentSourceReady = !session.isMockSession && appointmentState.clientLoaded
 
+  useEffect(() => {
+    if (!realAppointmentSourceReady) return undefined
+    let active = true
+    fetchMyVisitReviews().then((reviews) => { if (active) setMyVisitReviews(reviews) }).catch(() => {})
+    return () => { active = false }
+  }, [realAppointmentSourceReady])
+
   // Generar automatizaciones inteligentes
   const clientAutomations = hasRealClientSession ? [] : generateClientAutomations(currentClient, artistServices)
 
   const marketplaceArtists = (() => {
       const directSearchQuery = studioQuery.trim().toLowerCase()
-      const hasActiveRecommendationFilters = nearbyOnly || todayOnly || happyHourOnly || doublePointsOnly
-
       return beautySpaceArtists
         .map((artist) => {
           if (isRealMarketplace) return artist
@@ -1443,7 +1686,7 @@ function ClientDashboard({ view = 'inicio' }) {
         })
         .filter((artist) => {
           if (searchMode === 'Nombre estudio') {
-            if (directSearchQuery.length < 2) return hasActiveRecommendationFilters
+            if (directSearchQuery.length < 2) return true
 
             const artistStudio = getStudioPublicProfile({
               artist,
@@ -1454,9 +1697,9 @@ function ClientDashboard({ view = 'inicio' }) {
             return searchable.includes(directSearchQuery)
           }
 
-          if (hasActiveRecommendationFilters) return true
-
-          return !secondaryService || artist.marketplaceServices.includes(secondaryService)
+          if (serviceFilterMode === 'category') return artist.marketplaceServiceOptions.some((service) => service.category === primaryService)
+          if (serviceFilterMode === 'service') return artist.marketplaceServices.includes(secondaryService)
+          return true
         })
         .filter((artist) => !todayOnly || getTodayAvailabilityCount(artist) > 0)
         .filter((artist) => !happyHourOnly || hasActiveHappyHour(artist))
@@ -1546,7 +1789,13 @@ function ClientDashboard({ view = 'inicio' }) {
         || !isFutureAppointmentDate(appointment)
       ))
       .filter((appointment) => !appointmentHistoryDate || getAppointmentDateKey(appointment) === appointmentHistoryDate)
+      .filter((appointment) => !appointmentHistoryBusiness.trim() || normalizeText([
+        appointment.artist, appointment.studio, appointment.studioName, appointment.contextName,
+      ].filter(Boolean).join(' ')).includes(normalizeText(appointmentHistoryBusiness.trim())))
       .sort(newestAppointmentFirst)
+    : []
+  const appointmentsAwaitingPoints = realAppointmentSourceReady
+    ? pendingAppointmentPoints(realClientAppointments, now)
     : []
   const visibleHistoricalAppointments = historicalAppointments.slice(0, visibleHistoryCount)
   const hasMoreHistoricalAppointments = visibleHistoryCount < historicalAppointments.length
@@ -1566,6 +1815,7 @@ function ClientDashboard({ view = 'inicio' }) {
   )
   const canConfirmAppointment = (appointment = {}) => (
     canRespondToAppointment(appointment)
+    && (!appointment.depositPlan || appointment.depositPlan.depositReceivedAt)
     && !hasCurrentAttendanceConfirmation(appointment)
   )
   const respondToAppointment = async (appointmentId, action) => {
@@ -1616,68 +1866,76 @@ function ClientDashboard({ view = 'inicio' }) {
     return () => window.clearTimeout(noticeTimer)
   }, [appointmentResponseNotice])
 
-  const redeemTargets = useMemo(() => {
-    const targets = new Map()
-    realClientAppointments.forEach((appointment) => {
-      if (appointment.studioId) {
-        targets.set(`studio:${appointment.studioId}`, {
-          id: appointment.studioId,
-          type: 'studio',
-          label: appointment.contextName || appointment.room || 'Estudio',
-        })
-        return
-      }
-
-      if (appointment.artistId) {
-        targets.set(`artist:${appointment.artistId}`, {
-          id: appointment.artistId,
-          type: 'artist',
-          label: appointment.artist || appointment.contextName || 'Artista',
-        })
-      }
-    })
-
-    return [...targets.values()]
-  }, [realClientAppointments])
+  useEffect(() => {
+    if (!hasRealClientSession) return undefined
+    let active = true
+    Promise.all([fetchClientFlowPointDestinations(), fetchClientFlowPointRedemptions()])
+      .then(([destinations, redemptions]) => {
+        if (!active) return
+        setRedeemTargets(destinations)
+        setRecentRedemptions(redemptions)
+        setRedeemTargetsError('')
+      })
+      .catch(() => { if (active) setRedeemTargetsError('No pudimos consultar dónde puedes usar tus puntos. Vuelve a intentarlo.') })
+    return () => { active = false }
+  }, [hasRealClientSession, realClientAppointments])
+  const selectedRedeemTarget = redeemTargets.find((item) => `${item.type}:${item.id}` === redeemDraft.targetId)
+  const selectedRedeemBalance = Number(selectedRedeemTarget?.availablePoints) || 0
+  const pointsToRedeem = Number(redeemDraft.points)
+  const canReviewRedemption = Boolean(selectedRedeemTarget)
+    && selectedRedeemTarget.redeemable !== false
+    && selectedRedeemBalance >= FLOW_POINTS_MINIMUM_REDEMPTION
+    && Number.isInteger(pointsToRedeem)
+    && pointsToRedeem >= FLOW_POINTS_REDEMPTION_STEP
+    && pointsToRedeem % FLOW_POINTS_REDEMPTION_STEP === 0
+    && pointsToRedeem <= selectedRedeemBalance
+    && !redeemBusy
   const redeemTargetMatches = useMemo(() => {
     const query = redeemDraft.targetQuery.trim().toLowerCase()
-    if (query.length < 2) return []
-
     return redeemTargets
-      .filter((target) => target.label.toLowerCase().includes(query))
-      .slice(0, 5)
+      .filter((target) => !query || target.label.toLowerCase().includes(query))
   }, [redeemDraft.targetQuery, redeemTargets])
 
   const redeemFlowPoints = async () => {
-    const target = redeemTargets.find((item) => `${item.type}:${item.id}` === redeemDraft.targetId)
+    if (redeemInFlightRef.current) return
+    const target = selectedRedeemTarget
     const points = Number(redeemDraft.points)
 
-    if (!target || !Number.isFinite(points) || points < FLOW_POINTS_MINIMUM_REDEMPTION) {
-      setRedeemStatus('Los beneficios comienzan a partir de 1,000 Flow Points.')
+    if (!target || target.redeemable === false || Number(target.availablePoints) < FLOW_POINTS_MINIMUM_REDEMPTION) {
+      setRedeemStatus('Elige un negocio activo donde hayas reunido al menos 1,000 FlowPoints.')
+      return
+    }
+    if (!Number.isInteger(points) || points < FLOW_POINTS_REDEMPTION_STEP || points % FLOW_POINTS_REDEMPTION_STEP !== 0) {
+      setRedeemStatus('Elige 100 FP o más, en múltiplos de 100.')
       return
     }
 
-    if (points > flowPointsBalance) {
-      setRedeemStatus('Elige cuantos puntos y donde canjearlos.')
+    if (points > Number(target.availablePoints)) {
+      setRedeemStatus(`Tienes ${flowPointsNumber.format(target.availablePoints)} FP disponibles con ${target.label}.`)
       return
     }
-
-    const payload = await redeemClientFlowPoints({
-      points,
-      artistId: target.type === 'artist' ? target.id : null,
-      studioId: target.type === 'studio' ? target.id : null,
-    })
-
-    if (payload) {
-      const nextBalance = Number(payload.activeBalance || payload.active_balance || payload.monthlyBalance || payload.monthly_balance || 0)
-      setClientFlowPoints((current) => ({
-        ...current,
-        monthlyBalance: nextBalance,
-        activeBalance: nextBalance,
-      }))
+    redeemInFlightRef.current = true
+    setRedeemBusy(true)
+    setRedeemStatus('')
+    try {
+      const payload = await redeemClientFlowPointsRecord({
+        points,
+        artistId: target.type === 'artist' ? target.id : null,
+        studioId: target.type === 'studio' ? target.id : null,
+      })
+      setRedemptionReceipt({ id: payload.redemptionId || payload.redemption_id, points, businessName: target.label })
       setRedeemDraft({ points: '', targetId: '', targetQuery: '' })
-      setRedeemStatus(`Canje realizado: ${flowPointsNumber.format(points)} FP equivalen a ${flowPointsMoney.format(points / FLOW_POINTS_PER_MXN)}.`)
-    }
+      setConfirmRedeem(false)
+      try {
+        const [balance, destinations, redemptions] = await Promise.all([
+          fetchClientFlowPointsBalance(), fetchClientFlowPointDestinations(), fetchClientFlowPointRedemptions(),
+        ])
+        setClientFlowPoints(balance)
+        setRedeemTargets(destinations)
+        setRecentRedemptions(redemptions)
+      } catch { setRedeemStatus('Canje realizado. Actualiza la pantalla para ver tu nuevo saldo.') }
+    } catch (error) { setRedeemStatus(error.message || 'No se pudo completar el canje. Tus puntos no se descontaron.') }
+    finally { redeemInFlightRef.current = false; setRedeemBusy(false) }
   }
   const enableAppointmentNotifications = async () => {
     if (!canUseBrowserNotifications()) return
@@ -1714,9 +1972,17 @@ function ClientDashboard({ view = 'inicio' }) {
     })
   }, [pendingConfirmationAppointments])
 
-  const reserveSlot = async (slot) => {
+  const reserveSlot = async (slot, acceptedDeposit = false) => {
 
     if (!slot.available) return
+    if (depositPolicyLoading || depositPolicyError) {
+      setBookingNotice(depositPolicyError || 'Consultando las condiciones de pago. Inténtalo de nuevo en un momento.')
+      return
+    }
+    if (isRealMarketplace && depositPolicy.enabled && !acceptedDeposit) {
+      setPendingDepositSlot(slot)
+      return
+    }
     setBookingNotice('')
 
     if (isRealMarketplace) {
@@ -1732,7 +1998,7 @@ function ClientDashboard({ view = 'inicio' }) {
         const booking = await bookMarketplaceAppointment({
           availabilitySlotIds,
           serviceOfferingId,
-          flowPointsToUse: Number(selectedMarketplaceRewardId) || 0,
+          flowPointsToUse: flowPointsUseOptions.includes(Number(selectedMarketplaceRewardId)) ? Number(selectedMarketplaceRewardId) : 0,
         })
 
 
@@ -1743,7 +2009,7 @@ function ClientDashboard({ view = 'inicio' }) {
             serviceOfferingId,
             date: bookingDate,
           })
-          setBookingNotice('Reservado con exito. Tu cita ya aparece en Citas.')
+          setBookingNotice(depositPolicy.enabled ? 'Cita solicitada. Abre Citas y reseñas y toca Ver tarjeta de anticipo para consultar los datos de pago. El negocio confirmará al recibirlo.' : 'Reservado con exito. Tu cita ya aparece en Citas.')
           setSelectedArtistPanelMode('')
           setSelectedMarketplaceRewardId('')
         } else {
@@ -1808,14 +2074,17 @@ function ClientDashboard({ view = 'inicio' }) {
       || selectedArtistProfile?.rewards?.[0]?.discountPercent
       || 5,
   )
+  const selectedFlowPointsTarget = redeemTargets.find((target) => target.type === (selectedArtistProfile?.studioId || selectedArtistStudio?.id ? 'studio' : 'artist')
+    && target.id === (selectedArtistProfile?.studioId || selectedArtistStudio?.id || selectedArtistProfile?.artistId || selectedArtistProfile?.id))
+  const selectedFlowPointsBalance = selectedFlowPointsTarget?.redeemable === false ? 0 : Number(selectedFlowPointsTarget?.availablePoints) || 0
   const maxFlowPointsForAppointment = Math.max(0, Math.floor(
-    Math.min(flowPointsBalance, selectedServicePrice * maxFlowPointsDiscountPercentage / 100 * FLOW_POINTS_PER_MXN) / 10,
-  ) * 10)
-  const flowPointsUseOptions = maxFlowPointsForAppointment >= FLOW_POINTS_MINIMUM_REDEMPTION
+    Math.min(selectedFlowPointsBalance, selectedServicePrice * maxFlowPointsDiscountPercentage / 100 * FLOW_POINTS_PER_MXN) / FLOW_POINTS_REDEMPTION_STEP,
+  ) * FLOW_POINTS_REDEMPTION_STEP)
+  const flowPointsUseOptions = selectedFlowPointsBalance >= FLOW_POINTS_MINIMUM_REDEMPTION && maxFlowPointsForAppointment >= FLOW_POINTS_REDEMPTION_STEP
     ? Array.from(
-        { length: Math.floor((maxFlowPointsForAppointment - FLOW_POINTS_MINIMUM_REDEMPTION) / 100) + 1 },
-        (_, index) => FLOW_POINTS_MINIMUM_REDEMPTION + index * 100,
-      ).concat(maxFlowPointsForAppointment % 100 === 0 ? [] : [maxFlowPointsForAppointment])
+        { length: Math.floor(maxFlowPointsForAppointment / FLOW_POINTS_REDEMPTION_STEP) },
+        (_, index) => (index + 1) * FLOW_POINTS_REDEMPTION_STEP,
+      )
     : []
 
   const renderFlowPointsSelector = () => selectedArtistFlowPointsActive && (
@@ -1829,11 +2098,28 @@ function ClientDashboard({ view = 'inicio' }) {
       </select>
       <small>
         {flowPointsUseOptions.length > 0
-          ? `Puedes usar hasta ${flowPointsNumber.format(maxFlowPointsForAppointment)} FP en este servicio. Solo se permite un canje por dia.`
-          : `Necesitas al menos ${flowPointsNumber.format(FLOW_POINTS_MINIMUM_REDEMPTION)} FP y saldo suficiente para este servicio.`}
+          ? `Desde 100 FP. Después del descuento necesitarás volver a 1,000 FP para otro canje. Solo uno por día.`
+          : selectedFlowPointsTarget?.redeemable === false
+            ? 'Los puntos de este estudio están en pausa mientras permanezca suspendido.'
+            : `Necesitas 1,000 FP con este negocio y un servicio que admita al menos 100 FP de descuento.`}
       </small>
     </label>
   )
+
+  const loadMarketplacePortfolio = (listingId) => {
+    if (!listingId || portfolioRequestsRef.current.has(listingId)) return
+    portfolioRequestsRef.current.add(listingId)
+    setPortfolioStatusByListing((current) => ({ ...current, [listingId]: 'loading' }))
+    fetchMarketplaceListingPortfolio(listingId, {
+      onPage: (portfolio) => setPortfolioByListing((current) => ({ ...current, [listingId]: portfolio })),
+    })
+      .then((portfolio) => {
+        setPortfolioByListing((current) => ({ ...current, [listingId]: portfolio }))
+        setPortfolioStatusByListing((current) => ({ ...current, [listingId]: 'loaded' }))
+      })
+      .catch(() => setPortfolioStatusByListing((current) => ({ ...current, [listingId]: 'error' })))
+      .finally(() => portfolioRequestsRef.current.delete(listingId))
+  }
 
   const openArtistProfile = (artist, { mode = 'profile' } = {}) => {
     const nextService = getInitialServiceForArtistProfile(artist)
@@ -1841,15 +2127,20 @@ function ClientDashboard({ view = 'inicio' }) {
     setSelectedArtistProfile(artist)
     setSelectedArtistPanelMode(mode)
     setSelectedMarketplaceServiceId(nextService.id || '')
+    setSelectedMarketplaceServiceExplicit(serviceFilterMode === 'service' && nextService.name === secondaryService)
     setSecondaryService(nextService.name || getNextServiceForArtist(artist))
     setBookingNotice('')
     setOpenDropdown(null)
+    if (mode === 'profile' && isRealMarketplace && artist.listingId && !Object.hasOwn(portfolioByListing, artist.listingId)) {
+      loadMarketplacePortfolio(artist.listingId)
+    }
   }
 
   const closeArtistProfile = () => {
     setSelectedArtistProfile(null)
     setSelectedArtistPanelMode('')
     setSelectedMarketplaceServiceId('')
+    setSelectedMarketplaceServiceExplicit(false)
     setSelectedMarketplaceRewardId('')
     setBookingNotice('')
     setOpenDropdown(null)
@@ -1888,6 +2179,7 @@ function ClientDashboard({ view = 'inicio' }) {
     const nextService = services.find((service) => service.name === nextServiceName)
 
     setSelectedMarketplaceServiceId(nextService?.id || '')
+    setSelectedMarketplaceServiceExplicit(Boolean(nextService))
     setSecondaryService(nextService?.name || nextServiceName)
     setSelectedMarketplaceRewardId('')
   }
@@ -1895,8 +2187,18 @@ function ClientDashboard({ view = 'inicio' }) {
   const changeSelectedArtistPrimaryService = (nextPrimaryService) => {
     const nextService = selectedArtistServiceGroups[nextPrimaryService]?.[0]
     setSelectedMarketplaceServiceId(nextService?.id || '')
+    setSelectedMarketplaceServiceExplicit(false)
     setSecondaryService(nextService?.name || '')
     setSelectedMarketplaceRewardId('')
+    setOpenDropdown(null)
+  }
+
+  const selectServiceFromProfileMenu = (service) => {
+    setSelectedMarketplaceServiceId(service?.id || '')
+    setSelectedMarketplaceServiceExplicit(Boolean(service))
+    setSecondaryService(service?.name || '')
+    setSelectedMarketplaceRewardId('')
+    setSelectedArtistPanelMode('booking')
     setOpenDropdown(null)
   }
 
@@ -1943,7 +2245,7 @@ function ClientDashboard({ view = 'inicio' }) {
         />
         <label className="input-field">
           <span>Fecha</span>
-          <input type="date" min={getTodayDateValue()} value={bookingDate} onChange={(event) => setBookingDate(event.target.value)} />
+          <input className="booking-date-input" type="date" min={getTodayDateValue()} value={bookingDate} onClick={openBookingDatePicker} onChange={(event) => setBookingDate(event.target.value)} />
         </label>
         {renderFlowPointsSelector()}
       </div>
@@ -1996,48 +2298,46 @@ function ClientDashboard({ view = 'inicio' }) {
     </div>
   )
 
-  const renderFavoriteDirectionsPanel = ({ address, location, source, directionsUrl }) => (
-    <div className="public-profile-panel favorite-directions-panel">
-      <section className="public-profile-section">
-        <h4>Direccion</h4>
-        <p>{address || 'Direccion pendiente por confirmar.'}</p>
-        {directionsUrl && (
-          <Button variant="primary" onClick={() => openDirections(location, source)}>
-            Abrir en Maps
-          </Button>
-        )}
-      </section>
-    </div>
-  )
-
   return (
     <main className={`dashboard-grid client-grid view-${view}`}>
         {view === 'inicio' && (
           <>
+            {hasRealClientSession && <ClientManualBookingRequests key={`manual-${currentClient.id}`} />}
             {hasRealClientSession && <ClientMarketingNotices key={currentClient.id} />}
+            <PendingPointsNotice appointments={appointmentsAwaitingPoints} audience="client" onOpen={() => navigate(paths.clientAppointments)} />
             <section className="hero-panel client-hero mobile-screen">
-              <div>
+              <div className="client-home-intro">
                 <div className="client-hero-heading">
                   <div className="client-hero-identity">
                     <span className="client-hero-greeting">Hola</span>
                     <strong className="client-hero-name">{currentClient.name}</strong>
+                    <p className="client-home-message">Tu próximo momento favorito empieza aquí.</p>
                   </div>
-              <div className="client-hero-photo">
-                {currentClient.photoUrl ? (
-                  <img src={currentClient.photoUrl} alt={`Foto de ${currentClient.name}`} />
-                ) : (
-                  <span>Agregar foto</span>
-                )}
-              </div>
+                  <div className="client-hero-photo">
+                    {currentClient.photoUrl ? (
+                      <img src={currentClient.photoUrl} alt={`Foto de ${currentClient.name}`} />
+                    ) : (
+                      <span>Agregar foto</span>
+                    )}
+                  </div>
                 </div>
                 <div className="hero-actions">
-                  <Button onClick={() => navigate(paths.clientExplore)}>Agendar ahora</Button>
+                  <Button onClick={() => navigate(paths.clientExplore)}><CalendarDays size={18} aria-hidden="true" /> Agendar ahora</Button>
                   <Button variant="ghost" onClick={() => navigate(paths.clientAppointments)}>Ver mis citas</Button>
                 </div>
               </div>
               <div className="client-hero-summary-stack">
                 <div className="hero-summary client-hero-summary">
-                  <strong>{upcomingAppointments.length} citas próximas</strong>
+                  <span>{nextAppointment ? 'Tu próxima cita' : 'Tu agenda está libre'}</span>
+                  {nextAppointment ? (
+                    <>
+                      <strong>{nextAppointment.date}</strong>
+                      <small><Clock3 size={14} aria-hidden="true" /> {nextAppointment.time || '--:--'} · {nextAppointment.service || 'Servicio reservado'}</small>
+                    </>
+                  ) : (
+                    <strong>¿Qué se te antoja?</strong>
+                  )}
+                  <b>{upcomingAppointments.length} {upcomingAppointments.length === 1 ? 'cita próxima' : 'citas próximas'}</b>
                 </div>
                 <Button className="full-width client-share-application" onClick={shareApplication}>
                   <Share2 size={19} aria-hidden="true" />
@@ -2051,27 +2351,85 @@ function ClientDashboard({ view = 'inicio' }) {
               </div>
             </section>
 
-            <Card className="mobile-screen flow-points-client-card">
-              <PanelHeader title="Flow Points" eyebrow={`Vigencia ${clientFlowPoints.validityDays || FLOW_POINTS_VALIDITY_DAYS} dias`} />
-              <div className="flow-points-client-balance">
-                <div>
-                  <span>Puntos disponibles</span>
-                  <small>10 FP = $1 MXN</small>
+            <button className="client-fp-home-preview" type="button" onClick={() => navigate(paths.clientFlowPoints)}>
+              <span><Sparkles size={21} aria-hidden="true" /> TUS FLOWPOINTS</span>
+              <strong>{flowPointsNumber.format(flowPointsBalance)} FP</strong>
+              <small>Tu próxima recompensa empieza aquí <span aria-hidden="true">→</span></small>
+            </button>
+          </>
+        )}
+
+        {view === 'fp' && (
+          <>
+            <Card id="mis-flowpoints" className="mobile-screen flow-points-client-card fp-dedicated-card">
+              <header className="fp-dedicated-hero">
+                <span><Sparkles size={17} aria-hidden="true" /> CADA VISITA CUENTA</span>
+                <h1>Tus FlowPoints</h1>
+                <strong>{flowPointsNumber.format(flowPointsBalance)} <small>FP</small></strong>
+                <p>Tu belleza también te recompensa.</p>
+              </header>
+              <section className="flow-points-business-balances" aria-labelledby="flow-points-business-title">
+                <div className="flow-points-business-heading">
+                  <div>
+                    <span>TUS BENEFICIOS</span>
+                    <h3 id="flow-points-business-title">Puntos por negocio</h3>
+                  </div>
+                  <Sparkles size={22} aria-hidden="true" />
                 </div>
-                <div className="flow-points-balance-value">
-                  <strong>{flowPointsNumber.format(flowPointsBalance)} FP</strong>
-                  <small>Equivalen a {flowPointsMoney.format(flowPointsMxnValue)}</small>
-                </div>
-              </div>
-              <div className={`flow-points-threshold ${canStartFlowPointsRedemption ? 'is-ready' : ''}`}>
+                <p>Cada negocio guarda los puntos que ganaste con él.</p>
+                {redeemTargets.length > 4 && <Input
+                  label="Buscar artista o estudio"
+                  placeholder="Escribe el nombre..."
+                  type="search"
+                  value={redeemDraft.targetQuery}
+                  onChange={(event) => { setConfirmRedeem(false); setRedeemDraft((draft) => ({
+                    ...draft,
+                    targetId: '',
+                    targetQuery: event.target.value,
+                  })) }}
+                />}
+                {redeemTargetsError && <small role="alert">{redeemTargetsError}</small>}
+                {!redeemTargetsError && redeemTargets.length === 0 && <small>Aún no tienes puntos por negocio. Se acreditan al completar una cita participante.</small>}
+                {redeemTargets.length > 0 && <div className="flow-points-business-list">
+                  {redeemTargetMatches.map((target) => {
+                    const balance = Number(target.availablePoints) || 0
+                    const selected = redeemDraft.targetId === `${target.type}:${target.id}`
+                    const paused = target.redeemable === false
+                    const ready = !paused && balance >= FLOW_POINTS_MINIMUM_REDEMPTION
+                    return <button
+                      className={`flow-points-business-row${selected ? ' is-selected' : ''}${paused ? ' is-paused' : ''}`}
+                      key={`${target.type}:${target.id}`}
+                      type="button"
+                      disabled={paused}
+                      aria-pressed={selected}
+                      onClick={() => {
+                        setRedeemDraft((draft) => ({
+                          ...draft,
+                          targetId: `${target.type}:${target.id}`,
+                          targetQuery: '',
+                          points: ready && (!draft.points || Number(draft.points) > balance) ? String(FLOW_POINTS_REDEMPTION_STEP) : draft.points,
+                        }))
+                        setRedeemStatus('')
+                        setConfirmRedeem(false)
+                      }}
+                    >
+                      <span className="flow-points-business-icon" aria-hidden="true">✦</span>
+                      <span className="flow-points-business-copy"><strong>{target.label}</strong><small>{target.type === 'studio' ? 'Estudio' : 'Artista'} · {paused ? 'Puntos en pausa · negocio suspendido' : ready ? 'Puedes usar desde 100 FP' : `Faltan ${flowPointsNumber.format(FLOW_POINTS_MINIMUM_REDEMPTION - balance)} FP para volver a canjear`}</small></span>
+                      <span className="flow-points-business-amount"><strong>{flowPointsNumber.format(balance)}</strong><small>FP</small></span>
+                      <span className="flow-points-business-meter" aria-hidden="true"><span style={{ width: `${Math.min(balance / FLOW_POINTS_MINIMUM_REDEMPTION * 100, 100)}%` }} /></span>
+                    </button>
+                  })}
+                  {redeemTargetMatches.length === 0 && <small>No hay negocios con ese nombre.</small>}
+                </div>}
+              </section>
+              <div className={`flow-points-threshold fp-dedicated-progress ${canStartFlowPointsRedemption ? 'is-ready' : ''}`}>
                 <div>
-                  <strong>{canStartFlowPointsRedemption ? 'Ya puedes usar tus beneficios' : `Te faltan ${flowPointsNumber.format(flowPointsMissing)} FP`}</strong>
-                  <small>{canStartFlowPointsRedemption ? 'Elige un artista o estudio donde hayas acumulado estos puntos.' : 'Sigue acumulando puntos para desbloquear tu primer beneficio.'}</small>
+                  <strong>{canStartFlowPointsRedemption ? '¡Ya puedes usar tus puntos!' : hasPausedPoints && highestBusinessBalance === 0 ? 'Tus puntos te esperan' : `A ${flowPointsNumber.format(flowPointsMissing)} FP de volver a canjear`}</strong>
+                  <small>{canStartFlowPointsRedemption ? 'Usa desde 100 FP con un negocio activo. Si bajas de 1,000 FP, vuelve a reunirlos para tu próximo canje.' : hasPausedPoints && highestBusinessBalance === 0 ? 'Los puntos de negocios suspendidos siguen visibles, pero su canje está en pausa.' : 'Reúne 1,000 FP con un mismo negocio para desbloquear otro canje.'}</small>
                 </div>
                 <div className="flow-points-progress" aria-label={`${Math.round(flowPointsProgress)}% del minimo para canjear`}>
                   <span style={{ width: `${flowPointsProgress}%` }} />
                 </div>
-                <small>Los beneficios comienzan a partir de 1,000 FP.</small>
               </div>
               {clientFlowPoints.expiringSoonPoints > 0 && (
                 <div className="points-expiring-warning">
@@ -2079,67 +2437,63 @@ function ClientDashboard({ view = 'inicio' }) {
                   <small>Usalos pronto para aprovechar tus beneficios antes de que venza su vigencia.</small>
                 </div>
               )}
+              <div className="fp-dedicated-links">
+                <Button disabled={!canStartFlowPointsRedemption} onClick={() => {
+                  if (!showRedeemPanel) {
+                    const onlyTarget = eligibleRedeemTargets.length === 1 ? eligibleRedeemTargets[0] : null
+                    setRedeemDraft((draft) => ({
+                      ...draft,
+                      targetId: eligibleRedeemTargets.some((target) => `${target.type}:${target.id}` === draft.targetId)
+                        ? draft.targetId
+                        : onlyTarget ? `${onlyTarget.type}:${onlyTarget.id}` : '',
+                      points: draft.points || String(FLOW_POINTS_REDEMPTION_STEP),
+                    }))
+                    setRedeemStatus('')
+                    setConfirmRedeem(false)
+                  }
+                  setShowRedeemPanel((value) => !value)
+                }}>{showRedeemPanel ? 'Cerrar canje' : 'Usar mis puntos'}</Button>
+                <button type="button" onClick={() => navigate(paths.flowPointsGuide)}>¿Cómo funcionan?</button>
+                <button type="button" onClick={() => navigate(paths.clientRewards)}>Ver mis premios</button>
+              </div>
+              {showRedeemPanel && <section className="fp-dedicated-redemption" aria-label="Canje de artículos">
+              <h2>Canjear en el local</h2>
+              <p>Con 1,000 FP reunidos puedes usar desde 100 FP. El negocio te dirá cuántos aplicar al artículo y cuánto pagar en efectivo.</p>
+              <p className="fp-redemption-selection" role="status">{selectedRedeemTarget
+                ? `${selectedRedeemTarget.label} · ${flowPointsNumber.format(selectedRedeemBalance)} FP disponibles`
+                : 'Toca arriba el negocio donde quieres usar tus puntos.'}</p>
               <div className="location-form-grid">
                 <Input
                   label="Puntos a usar"
-                  disabled={!canStartFlowPointsRedemption}
-                  min={FLOW_POINTS_MINIMUM_REDEMPTION}
-                  max={flowPointsBalance || FLOW_POINTS_MINIMUM_REDEMPTION}
-                  step="10"
+                  disabled={!selectedRedeemTarget || selectedRedeemTarget.redeemable === false || selectedRedeemBalance < FLOW_POINTS_MINIMUM_REDEMPTION}
+                  min={FLOW_POINTS_REDEMPTION_STEP}
+                  max={selectedRedeemTarget?.availablePoints || flowPointsBalance || FLOW_POINTS_MINIMUM_REDEMPTION}
+                  step={FLOW_POINTS_REDEMPTION_STEP}
                   type="number"
                   value={redeemDraft.points}
-                  onChange={(event) => setRedeemDraft((draft) => ({ ...draft, points: event.target.value }))}
-                />
-                <Input
-                  label="Buscar artista o estudio"
-                  placeholder="Escribe el nombre..."
-                  type="search"
-                  value={redeemDraft.targetQuery}
-                  onChange={(event) => setRedeemDraft((draft) => ({
-                    ...draft,
-                    targetId: '',
-                    targetQuery: event.target.value,
-                  }))}
+                  onChange={(event) => { setConfirmRedeem(false); setRedeemStatus(''); setRedeemDraft((draft) => ({ ...draft, points: event.target.value })) }}
                 />
               </div>
-              {redeemDraft.targetId && (
-                <div className="selected-client-result">
-                  <strong>{redeemTargets.find((target) => `${target.type}:${target.id}` === redeemDraft.targetId)?.label}</strong>
-                  <small>Seleccionado para canje</small>
-                </div>
-              )}
-              {!redeemDraft.targetId && redeemTargetMatches.length > 0 && (
-                <div className="compact-list flow-points-target-results">
-                  {redeemTargetMatches.map((target) => (
-                    <button
-                      className="list-row elevated-row"
-                      key={`${target.type}:${target.id}`}
-                      type="button"
-                      onClick={() => setRedeemDraft((draft) => ({
-                        ...draft,
-                        targetId: `${target.type}:${target.id}`,
-                        targetQuery: target.label,
-                      }))}
-                    >
-                      <div>
-                        <strong>{target.label}</strong>
-                        <small>{target.type === 'studio' ? 'Estudio' : 'Artista'}</small>
-                      </div>
-                      <StatusPill tone="success">Elegir</StatusPill>
-                    </button>
-                  ))}
-                </div>
-              )}
+              {selectedRedeemTarget && <small>Puedes usar de 100 a {flowPointsNumber.format(selectedRedeemBalance)} FP, en múltiplos de 100. El próximo canje se habilita al volver a 1,000 FP.</small>}
               <Button
                 className="full-width"
-                  disabled={!canStartFlowPointsRedemption || Number(redeemDraft.points) < FLOW_POINTS_MINIMUM_REDEMPTION || !redeemDraft.targetId}
-                onClick={redeemFlowPoints}
+                disabled={!canReviewRedemption}
+                onClick={() => { setRedeemStatus(''); setConfirmRedeem(true) }}
               >
-                Canjear puntos
+                Revisar canje para artículo
               </Button>
-              {redeemStatus && <small>{redeemStatus}</small>}
+              {confirmRedeem && selectedRedeemTarget && <div className="flow-points-confirm"><strong>Vas a usar {flowPointsNumber.format(Number(redeemDraft.points))} FP con {selectedRedeemTarget.label}</strong><span>Confirma con el negocio que estos son los puntos para el artículo que elegiste y cuánto dinero pagarás allí. Al continuar se descontarán de tu saldo.</span><Button disabled={redeemBusy} onClick={redeemFlowPoints}>{redeemBusy ? 'Canjeando...' : 'Confirmar canje de artículo'}</Button><button type="button" onClick={() => setConfirmRedeem(false)}>Cambiar elección</button></div>}
+              {redeemStatus && <small role="alert">{redeemStatus}</small>}
+              {redemptionReceipt && <div className="flow-points-receipt" role="status"><strong>Canje realizado</strong><span>{flowPointsNumber.format(redemptionReceipt.points)} FP con {redemptionReceipt.businessName}</span><small>Muéstrale este folio al negocio: {redemptionReceipt.id?.slice(0, 8).toUpperCase()}</small></div>}
+              </section>}
+              {recentRedemptions.length > 0 && <details className="flow-points-history"><summary>Mis canjes recientes</summary>{recentRedemptions.slice(0, 3).map((item) => <div key={item.id}><span>{item.businessName} · {flowPointsNumber.format(item.points)} FP</span><small>Folio {item.id.slice(0, 8).toUpperCase()}</small></div>)}</details>}
             </Card>
 
+          </>
+        )}
+
+        {view === 'inicio' && (
+          <>
             {pendingConfirmationCount > 0 && (
               <Card className="mobile-screen primary-panel">
                 <PanelHeader title="Confirma tu asistencia" eyebrow="Aviso de cita" />
@@ -2203,7 +2557,7 @@ function ClientDashboard({ view = 'inicio' }) {
                   </div>
                   <div>
                     <h3>{nextAppointment.service || 'Servicio agendado'}</h3>
-                    <p>{nextAppointment.artist || 'Artista'} / {nextAppointment.contextName || nextAppointment.address || 'Ubicacion por confirmar'}</p>
+                    <p>{formatAppointmentProvider(nextAppointment)}</p>
                     <small className="flow-points-slot-note client-flow-points-highlight">
                       {nextAppointment.pointsGranted > 0
                         ? `${nextAppointment.pointsGranted} Flow Points otorgados`
@@ -2227,7 +2581,7 @@ function ClientDashboard({ view = 'inicio' }) {
                           </Button>
                         )}
                         {!canConfirmAppointment(nextAppointment) && (
-                          <StatusPill tone="success">Cita confirmada</StatusPill>
+                          <StatusPill tone={nextAppointment.depositPlan && !nextAppointment.depositPlan.depositReceivedAt ? 'warm' : 'success'}>{nextAppointment.depositPlan && !nextAppointment.depositPlan.depositReceivedAt ? 'Anticipo pendiente · ver en Citas' : 'Cita confirmada'}</StatusPill>
                         )}
                         <Button
                           size="sm"
@@ -2289,8 +2643,16 @@ function ClientDashboard({ view = 'inicio' }) {
 
         {view === 'citas' && (
           <>
-            <Card className="wide-card mobile-screen primary-panel">
-              <PanelHeader title="Proximas citas" eyebrow="Confirmadas" />
+            <ClientAttendancePanel appointments={realClientAppointments} enabled={hasRealClientSession} />
+            <PendingPointsNotice appointments={appointmentsAwaitingPoints} audience="client" />
+            <Card className="wide-card mobile-screen primary-panel client-appointments-experience">
+              <header className="client-appointments-hero">
+                <div>
+                  <h2>Lo bonito está por venir</h2>
+                  <p>Todo listo para tus próximas experiencias.</p>
+                </div>
+                <CalendarDays aria-hidden="true" size={34} />
+              </header>
               {bookingState.successMessage && (
                 <div className="list-row elevated-row">
                   <div>
@@ -2337,13 +2699,14 @@ function ClientDashboard({ view = 'inicio' }) {
                 {upcomingAppointments.length > 0 ? upcomingAppointments.map((appointment) => (
                   <article className={`client-appointment appointment-status-row appointment-status-${getAppointmentStatusTone(appointment)}`} key={`${appointment.artist}-${appointment.time}-${appointment.date}`}>
                     <div className="date-block">
-                      <strong>{appointment.date}</strong>
+                      <strong>{formatAppointmentCardDate(appointment.date)}</strong>
                       <span>{appointment.time}</span>
                     </div>
                     <div>
                       <h3>{appointment.service}</h3>
                       <AppointmentPayment appointment={appointment} />
-                      <p>{appointment.artist} / {appointment.contextName || appointment.address}</p>
+                      <AppointmentDeposit appointment={appointment} />
+                      <p>{formatAppointmentProvider(appointment)}</p>
                       <small className="flow-points-slot-note">
                         {appointment.pointsGranted > 0
                           ? `${appointment.pointsGranted} Flow Points otorgados`
@@ -2363,9 +2726,9 @@ function ClientDashboard({ view = 'inicio' }) {
                               Confirmar
                             </Button>
                           )}
-                          {!canConfirmAppointment(appointment) && (
-                            <StatusPill tone="success">Cita confirmada</StatusPill>
-                          )}
+                          {!canConfirmAppointment(appointment) && (appointment.depositPlan && !appointment.depositPlan.balanceReceivedAt ? (
+                            <Button size="sm" className="appointment-pay-cta" onClick={() => openClientPaymentCard(appointment.id)}><CreditCard size={18} aria-hidden="true" />{appointment.depositPlan.depositReceivedAt ? 'Pagar saldo' : 'Pagar anticipo'}</Button>
+                          ) : <StatusPill tone="success">Cita confirmada</StatusPill>)}
                           <Button
                             size="sm"
                             variant="danger"
@@ -2396,45 +2759,56 @@ function ClientDashboard({ view = 'inicio' }) {
                 )}
               </div>
             </Card>
-            <Card className="mobile-screen">
+            <Card className="mobile-screen client-history-experience">
               <PanelHeader
-                title="Citas pasadas"
-                eyebrow="Historial"
-                action={(
-                  <Button size="sm" variant="ghost" onClick={() => { setShowPastAppointments((current) => !current); setVisibleHistoryCount(5) }}>
-                    {showPastAppointments ? 'Ocultar' : 'Mostrar mis citas pasadas'}
-                  </Button>
-                )}
+                title="Citas pasadas y reseñas"
+                eyebrow="TUS EXPERIENCIAS"
               />
+              <p className="client-history-invitation">Cada visita tiene una historia. Cuéntanos cómo te fue y comparte lo que hizo especial tu experiencia.</p>
+              <Button className="client-history-open-button" onClick={() => { setShowPastAppointments((current) => !current); setVisibleHistoryCount(5) }}>
+                {showPastAppointments ? 'Ocultar citas y reseñas' : 'Ver mis citas y escribir reseñas'}
+              </Button>
               {showPastAppointments && (
                 <>
-                  <div className="history-actions">
+                  <div className="history-filter-intro">
                     <Button
-                      size="sm"
-                      variant="ghost"
+                      className="history-filter-toggle"
+                      aria-expanded={showAppointmentDateFilter}
                       onClick={() => setShowAppointmentDateFilter((current) => !current)}
                     >
-                      Filtrar
+                      <ListFilter size={19} aria-hidden="true" /> Filtrar
                     </Button>
-                    {appointmentHistoryDate && (
+                    <p>Busca en tu historial de citas por fecha o por negocio.</p>
+                  </div>
+                  {(appointmentHistoryDate || appointmentHistoryBusiness) && <div className="history-actions">
                       <Button
                         size="sm"
                         variant="ghost"
-                        onClick={() => { setAppointmentHistoryDate(''); setVisibleHistoryCount(5) }}
+                        onClick={() => { setAppointmentHistoryDate(''); setAppointmentHistoryBusiness(''); setVisibleHistoryCount(5) }}
                       >
                         Limpiar filtro
                       </Button>
-                    )}
-                  </div>
+                  </div>}
                   {showAppointmentDateFilter && (
-                    <label className="input-field history-date-filter">
-                      <span>Fecha</span>
-                      <input
-                        type="date"
-                        value={appointmentHistoryDate}
-                        onChange={(event) => { setAppointmentHistoryDate(event.target.value); setVisibleHistoryCount(5) }}
-                      />
-                    </label>
+                    <div className="history-filter-fields">
+                      <label className="input-field history-date-filter">
+                        <span>Fecha</span>
+                        <input
+                          type="date"
+                          value={appointmentHistoryDate}
+                          onChange={(event) => { setAppointmentHistoryDate(event.target.value); setVisibleHistoryCount(5) }}
+                        />
+                      </label>
+                      <label className="input-field">
+                        <span>Artista o estudio</span>
+                        <input
+                          type="search"
+                          placeholder="Nombre del negocio"
+                          value={appointmentHistoryBusiness}
+                          onChange={(event) => { setAppointmentHistoryBusiness(event.target.value); setVisibleHistoryCount(5) }}
+                        />
+                      </label>
+                    </div>
                   )}
                   <div className="compact-list">
                     {visibleHistoricalAppointments.length > 0 ? visibleHistoricalAppointments.map((item) => (
@@ -2449,14 +2823,22 @@ function ClientDashboard({ view = 'inicio' }) {
                           {Number(item.rewardMultiplier) > 1 && <small className="flow-points-slot-note">Puntos dobles aplicados</small>}
                         </div>
                         <StatusPill tone={getAppointmentStatusTone(item)}>{item.appointmentStatus === 'completed' ? 'Completada' : item.appointmentStatus === 'cancelled' ? 'Cancelada' : item.status || 'Finalizada'}</StatusPill>
+                        {item.appointmentStatus === 'completed' && <VisitReviewEditor
+                          key={`${item.id}-${myVisitReviews.find((review) => review.appointmentId === item.id)?.rating ?? 'new'}`}
+                          appointment={item}
+                          existing={myVisitReviews.find((review) => review.appointmentId === item.id)}
+                          clientPhoto={currentClient.photoUrl}
+                          clientName={currentClient.name}
+                          onSaved={(review) => { setMyVisitReviews((current) => [review, ...current.filter((entry) => entry.appointmentId !== review.appointmentId)]); window.dispatchEvent(new Event('studio-flow-review-saved')) }}
+                        />}
                       </div>
                     )) : (
                       <div className="list-row elevated-row">
                         <div>
                           <strong>{isClientAppointmentsLoading ? 'Cargando historial...' : 'Sin citas pasadas'}</strong>
                           <small>
-                            {appointmentHistoryDate
-                              ? 'No hay citas registradas en la fecha seleccionada.'
+                            {appointmentHistoryDate || appointmentHistoryBusiness
+                              ? 'No hay citas que coincidan con tu búsqueda.'
                               : 'No hay citas registradas en tu historial.'}
                           </small>
                         </div>
@@ -2480,25 +2862,27 @@ function ClientDashboard({ view = 'inicio' }) {
         )}
 
         {view === 'explorar' && (
-          <Card className="mobile-screen primary-panel">
-            <PanelHeader title="Búsqueda de artistas o estudios" />
+          <Card className="mobile-screen primary-panel client-search-panel">
+            <header className="client-search-hero">
+              <span>ENCUENTRA TU FAVORITO</span>
+              <h2>¿Qué buscas hoy?</h2>
+            </header>
             <section className="beauty-space-selector" aria-label="Selecciona tu beauty space">
-              <span className="eyebrow">Beauty spaces</span>
-              <p>Selecciona el espacio de belleza para comenzar la búsqueda de artistas o estudios y ver únicamente los servicios correspondientes.</p>
+              <span className="eyebrow">ELIGE TU ESPACIO</span>
               <div className="beauty-space-options">
                 <button
                   className={`beauty-space-choice${beautySpace === BEAUTY_SPACES.BEAUTY_AND_PERSONAL_CARE ? ' is-active' : ''}`}
                   type="button"
                   aria-pressed={beautySpace === BEAUTY_SPACES.BEAUTY_AND_PERSONAL_CARE}
-                  onClick={() => { setBeautySpace(BEAUTY_SPACES.BEAUTY_AND_PERSONAL_CARE); resetMarketplaceList() }}
+                  onClick={() => { setBeautySpace(BEAUTY_SPACES.BEAUTY_AND_PERSONAL_CARE); setServiceFilterMode(''); resetMarketplaceList() }}
                 >
-                  Salones de belleza y cuidado personal
+                  Belleza y cuidado personal
                 </button>
                 <button
                   className={`beauty-space-choice${beautySpace === BEAUTY_SPACES.SPA_AND_ADVANCED_AESTHETICS ? ' is-active' : ''}`}
                   type="button"
                   aria-pressed={beautySpace === BEAUTY_SPACES.SPA_AND_ADVANCED_AESTHETICS}
-                  onClick={() => { setBeautySpace(BEAUTY_SPACES.SPA_AND_ADVANCED_AESTHETICS); resetMarketplaceList() }}
+                  onClick={() => { setBeautySpace(BEAUTY_SPACES.SPA_AND_ADVANCED_AESTHETICS); setServiceFilterMode(''); resetMarketplaceList() }}
                 >
                   Spa y estética avanzada
                 </button>
@@ -2506,9 +2890,9 @@ function ClientDashboard({ view = 'inicio' }) {
             </section>
             <section className="client-recommendation-panel" aria-label="Recomendaciones de busqueda">
               <div className="client-recommendation-heading">
-                <span className="eyebrow">Busqueda inteligente</span>
-                <h3>Recomiendame</h3>
-                <small>Elige una prioridad y Studio Flow acomoda los resultados.</small>
+                <span className="eyebrow">PARA TI</span>
+                <h3>Encuentra tu momento</h3>
+                <small>Elige lo que más te importa ahora.</small>
               </div>
               <div className="client-recommendation-actions">
                 <button
@@ -2517,8 +2901,8 @@ function ClientDashboard({ view = 'inicio' }) {
                   aria-pressed={nearbyOnly}
                   onClick={toggleNearbyFilter}
                 >
-                  <strong>Cerca de mi</strong>
-                  {nearbyOnly && <span>Seleccionado</span>}
+                  <strong>Cerca de mí</strong>
+                  {nearbyOnly && <span>Listo</span>}
                 </button>
                 <button
                   className={`recommendation-choice${todayOnly ? ' is-active' : ''}`}
@@ -2526,13 +2910,13 @@ function ClientDashboard({ view = 'inicio' }) {
                   aria-pressed={todayOnly}
                   onClick={toggleTodayFilter}
                 >
-                  <strong>Citas para hoy</strong>
-                  {todayOnly && <span>Seleccionado</span>}
+                  <strong>Disponible hoy</strong>
+                  {todayOnly && <span>Listo</span>}
                 </button>
               </div>
               {(nearbyOnly || todayOnly || happyHourOnly || doublePointsOnly) && (
                 <p className="client-recommendation-status">
-                  Mostrando sugerencias que cumplen con los filtros activos.
+                  Perfecto, ajustamos las opciones para ti.
                 </p>
               )}
               <div className="client-promo-filter-grid">
@@ -2542,9 +2926,9 @@ function ClientDashboard({ view = 'inicio' }) {
                   aria-pressed={happyHourOnly}
                   onClick={toggleHappyHourFilter}
                 >
-                  <span>Happy Hour</span>
-                  <strong>{happyHourOnly ? 'Activo' : 'Filtrar'}</strong>
-                  <small>Descuentos por horario</small>
+                  <span>OPORTUNIDADES</span>
+                  <strong>{happyHourOnly ? 'Elegido' : 'Happy Hour'}</strong>
+                  <small>Horarios con descuento</small>
                 </button>
                 <button
                   className={`client-promo-filter double-points${doublePointsOnly ? ' is-active' : ''}`}
@@ -2552,67 +2936,86 @@ function ClientDashboard({ view = 'inicio' }) {
                   aria-pressed={doublePointsOnly}
                   onClick={toggleDoublePointsFilter}
                 >
-                  <span>Puntos dobles</span>
-                  <strong>{doublePointsOnly ? 'Activo' : 'Filtrar'}</strong>
-                  <small>Más Flow Points por cita</small>
+                  <span>MÁS BENEFICIOS</span>
+                  <strong>{doublePointsOnly ? 'Elegido' : 'Puntos dobles'}</strong>
+                  <small>Gana más en tu visita</small>
                 </button>
               </div>
             </section>
             <div className="form-stack compact-form">
               <PremiumDropdown
-                label="Busca tu artista o el servicio que necesitas"
+                label="¿Cómo quieres buscar?"
                 value={searchMode}
                 open={openDropdown === 'searchMode'}
                 compact
                 onToggle={() => setOpenDropdown(openDropdown === 'searchMode' ? null : 'searchMode')}
                 onChange={(nextMode) => {
                   setSearchMode(nextMode)
+                  setServiceFilterMode('')
                   resetMarketplaceList()
                 }}
                 options={[
-                  { value: 'Servicio', label: 'Servicio', meta: 'Encuentra disponibilidad por tratamiento' },
-                  { value: 'Nombre estudio', label: 'Nombre estudio', meta: 'Busca directo por artista o studio' },
+                  { value: 'Servicio', label: 'Por servicio', meta: 'Explora todo lo que puedes reservar' },
+                  { value: 'Nombre estudio', label: 'Por nombre', meta: 'Ya sé con quién quiero ir' },
                 ]}
               />
               {searchMode === 'Servicio' ? (
                 <>
                   <PremiumDropdown
-                    label="Elige una categoria"
-                    value={primaryService}
+                    label="¿Qué tipo de servicio?"
+                    value={serviceFilterMode ? primaryService : ''}
                     open={openDropdown === 'primaryService'}
                     onToggle={() => setOpenDropdown(openDropdown === 'primaryService' ? null : 'primaryService')}
                     onChange={(nextPrimary) => {
+                      if (!nextPrimary) {
+                        setServiceFilterMode('')
+                        resetMarketplaceList()
+                        return
+                      }
                       setPrimaryService(nextPrimary)
                       setSecondaryService(marketplaceSearchServices[nextPrimary]?.[0]?.name || '')
+                      setServiceFilterMode('category')
                       resetMarketplaceList()
                     }}
-                    options={primaryServiceOptions.map((service) => ({
-                      value: service,
-                      label: service,
-                      meta: `${marketplaceSearchServices[service].length} opciones`,
-                    }))}
+                    options={[
+                      { value: '', label: 'Todas las categorías' },
+                      ...primaryServiceOptions.map((service) => ({
+                        value: service,
+                        label: service,
+                        meta: `${marketplaceSearchServices[service].length} opciones`,
+                      })),
+                    ]}
                   />
                   <PremiumDropdown
-                    label="Elige el servicio que quieres agendar"
-                    value={secondaryService}
+                    label="Elige tu favorito"
+                    value={serviceFilterMode === 'service' ? secondaryService : ''}
                     open={openDropdown === 'secondaryService'}
                     onToggle={() => setOpenDropdown(openDropdown === 'secondaryService' ? null : 'secondaryService')}
                     onChange={(nextService) => {
+                      if (!nextService) {
+                        setServiceFilterMode('category')
+                        resetMarketplaceList()
+                        return
+                      }
                       setSecondaryService(nextService)
+                      setServiceFilterMode('service')
                       resetMarketplaceList()
                     }}
-                    options={currentServiceGroup.map((service) => ({
-                      value: service.name,
-                      label: service.name,
-                      meta: formatServiceOptionMeta(service),
-                    }))}
+                    options={[
+                      { value: '', label: 'Todos los servicios' },
+                      ...currentServiceGroup.map((service) => ({
+                        value: service.name,
+                        label: service.name,
+                        meta: formatServiceOptionMeta(service),
+                      })),
+                    ]}
                   />
                 </>
               ) : (
                 <Input
-                  label="Nombre estudio"
+                  label="¿A quién buscas?"
                   type="search"
-                        placeholder="Nombre de artista o estudio..."
+                        placeholder="Escribe su nombre..."
                   value={studioQuery}
                   onChange={(event) => {
                     setStudioQuery(event.target.value)
@@ -2648,10 +3051,16 @@ function ClientDashboard({ view = 'inicio' }) {
                 const directionsUrl = buildGoogleMapsUrl(effectiveLocation)
                 const professionalAddress = formatProfessionalAddress(effectiveLocation, isStudioListing ? artist.city : '')
                 const profileContactItems = isStudioListing ? getStudioContactItems(studioProfile) : []
-                const profileGallery = publicArtistProfile.portfolio.slice(0, 12)
+                const profileGallery = portfolioByListing[artist.listingId] || publicArtistProfile.portfolio.slice(0, 12)
                 const isSelectedArtist = selectedArtistProfile?.id === artist.id
+                const contactServiceName = isSelectedArtist && selectedMarketplaceServiceExplicit
+                  ? selectedMarketplaceServiceName
+                  : serviceFilterMode === 'service' && artist.marketplaceServices.includes(secondaryService)
+                    ? secondaryService
+                    : ''
                 const isProfileOpen = isSelectedArtist && selectedArtistPanelMode === 'profile'
                 const isBookingOpen = isSelectedArtist && selectedArtistPanelMode === 'booking'
+                const isServicesOpen = isSelectedArtist && selectedArtistPanelMode === 'services'
                 const contactLinks = getMarketplaceContactLinks({
                   artist,
                   publicArtistProfile,
@@ -2672,41 +3081,37 @@ function ClientDashboard({ view = 'inicio' }) {
                 const profileInitials = getArtistInitials(profileDisplayName)
                 const profileBiography = publicArtistProfile.biography?.trim()
                 const hasSocialLinks = contactLinks.whatsapp || contactLinks.instagram || contactLinks.facebook || contactLinks.tiktok
+                const profileHours = getMarketplaceHoursLabel({ artist, publicArtistProfile, studioProfile, isStudioListing })
 
                 return (
                   <article className={`artist-result marketplace-result-card${isSelectedArtist ? ' is-expanded' : ''}`} key={artist.name}>
-                    {profileOffersFlowPoints(artist) && (
-                      <div className="flow-points-profile-distinction">
-                        <span aria-hidden="true">★</span>
-                        <strong>Otorga FlowPoints</strong>
-                      </div>
-                    )}
+                    <div className="marketplace-card-badges">
+                      {artist.activePromotions?.some((promotion) => promotion.type === 'happy_hour' || promotion.promotion_type === 'happy_hour') && <span className="happy-hour-badge"><span className="marketplace-badge-full">Happy Hour activo</span><span className="marketplace-badge-short">Happy Hour</span></span>}
+                      {profileOffersFlowPoints(artist) && <span className="flow-points-profile-distinction"><span aria-hidden="true">★</span><strong>Otorga FlowPoints</strong></span>}
+                      {getActiveDoublePointsMultiplier(artist) > 1 && <span className="double-points-badge"><span className="marketplace-badge-regular">Puntos dobles</span><span className="marketplace-badge-narrow">2× puntos</span></span>}
+                    </div>
                     <div className="marketplace-result-summary">
-                      <div className="marketplace-artist-avatar avatar">
-                        {profilePhotoUrl ? (
-                          <img src={profilePhotoUrl} alt={`Foto de ${profileDisplayName}`} />
-                        ) : (
-                          <span>{profileInitials}</span>
-                        )}
+                      <div className="marketplace-premium-identity">
+                        <div className="marketplace-artist-avatar avatar">
+                          {profilePhotoUrl ? (
+                            <img src={profilePhotoUrl} alt={`Foto de ${profileDisplayName}`} loading="lazy" decoding="async" />
+                          ) : (
+                            <span>{profileInitials}</span>
+                          )}
+                        </div>
+                        <div className="marketplace-result-copy">
+                          <strong>{profileDisplayName}</strong>
+                        </div>
                       </div>
-                      <div className="marketplace-result-copy">
-                        <strong>{profileDisplayName}</strong>
-                        <MarketplaceContactActions
-                          contactLinks={contactLinks}
-                          phone={profilePhone}
-                          serviceName={selectedMarketplaceServiceName}
-                        />
-                        <small>{profileTypeLabel}</small>
-                        <small>{artist.marketplaceServices.slice(0, 3).join(' • ')}</small>
-                        <span className={`marketplace-availability availability-${artist.badge.level}`}>
-                          {artist.badge.label}
-                        </span>
-                        {artist.activePromotions?.some((promotion) => promotion.type === 'happy_hour' || promotion.promotion_type === 'happy_hour') && (
-                          <span className="happy-hour-badge">Happy Hour activo</span>
-                        )}
-                        {getActiveDoublePointsMultiplier(artist) > 1 && (
-                          <span className="double-points-badge">Puntos dobles</span>
-                        )}
+                      <MarketplaceVisitReviews artistId={isStudioListing ? null : artist.artistId || artist.id} studioId={artist.studioId || (isStudioListing ? artist.id : null)} membershipId={isStudioListing ? null : artist.membershipId} />
+                      <div className="marketplace-card-info-row">
+                        <div className="marketplace-card-contact-row">
+                          <MarketplaceContactActions contactLinks={contactLinks} phone={profilePhone} serviceName={contactServiceName} />
+                        </div>
+                        <div className="marketplace-card-hours-panel">
+                          <span>HORARIO DE ATENCIÓN</span>
+                          <small className="marketplace-hours">{profileHours}</small>
+                        </div>
                       </div>
                       <div className="marketplace-result-actions">
                         <button
@@ -2722,10 +3127,18 @@ function ClientDashboard({ view = 'inicio' }) {
                             openArtistProfile(artist, { mode: 'profile' })
                           }}
                         >
-                          {isProfileOpen ? 'Ocultar perfil' : 'Ver perfil'}
+                          <UserRound size={18} aria-hidden="true" /> {isProfileOpen ? 'Ocultar perfil' : 'Ver perfil'}
                         </button>
                         <button
-                          className="marketplace-profile-button"
+                          className="marketplace-profile-button marketplace-services-button"
+                          type="button"
+                          aria-expanded={isServicesOpen}
+                          onClick={() => isServicesOpen ? closeArtistProfile() : openArtistProfile(artist, { mode: 'services' })}
+                        >
+                          <FileText size={18} aria-hidden="true" /> {isServicesOpen ? 'Ocultar servicios' : 'Ver servicios y costos'}
+                        </button>
+                        <button
+                          className="marketplace-profile-button marketplace-booking-button"
                           type="button"
                           onClick={() => {
                             if (isBookingOpen) {
@@ -2736,7 +3149,7 @@ function ClientDashboard({ view = 'inicio' }) {
                             openArtistProfile(artist, { mode: 'booking' })
                           }}
                         >
-                          {isBookingOpen ? 'Ocultar agenda' : 'Agendar ahora'}
+                          <CalendarDays size={18} aria-hidden="true" /> {isBookingOpen ? 'Ocultar agenda' : 'Agendar ahora'}
                         </button>
                         <button
                           className={`marketplace-favorite-button${isFavorite ? ' is-saved' : ''}`}
@@ -2744,12 +3157,18 @@ function ClientDashboard({ view = 'inicio' }) {
                           aria-pressed={isFavorite}
                           onClick={() => toggleFavoriteArtist(artist.id)}
                         >
-                          {isFavorite ? '❤️ Guardado' : '♡ Guardar'}
+                          <Heart size={18} aria-hidden="true" fill={isFavorite ? 'currentColor' : 'none'} /> {isFavorite ? 'Guardado' : 'Guardar'}
                         </button>
                       </div>
                     </div>
 
                     {isBookingOpen && renderMarketplaceBookingPanel(artist, 'searchBooking')}
+
+                    {isServicesOpen && (
+                      <div className="public-profile-panel service-menu-only-panel">
+                        <MarketplaceServiceMenu artist={artist} onSelect={selectServiceFromProfileMenu} />
+                      </div>
+                    )}
 
                     {isProfileOpen && (
                       <div className="public-profile-panel">
@@ -2775,25 +3194,12 @@ function ClientDashboard({ view = 'inicio' }) {
                           <p>{profileBiography || `${isStudioListing ? 'Este estudio' : 'Esta artista'} aun esta completando su perfil profesional.`}</p>
                         </section>
 
-                        {profileGallery.length > 0 && (
-                          <section className="public-profile-section">
-                            <h4>{isStudioListing ? 'Galeria del estudio' : 'Trabajos de la artista'}</h4>
-                            <div className="public-portfolio-strip">
-                              {profileGallery.map((image) => (
-                                <img src={image.url} alt={image.label || (isStudioListing ? 'Foto del estudio' : 'Trabajo realizado por la artista')} key={image.id || image.url} />
-                              ))}
-                            </div>
-                          </section>
-                        )}
-
-                        <section className="public-profile-section">
-                          <h4>Servicios destacados</h4>
-                          <div className="public-service-badges">
-                            {artist.marketplaceServices.slice(0, 5).map((serviceName) => (
-                              <span key={serviceName}>✨ {serviceName}</span>
-                            ))}
-                          </div>
-                        </section>
+                        <MarketplaceGallery
+                          photos={profileGallery}
+                          isStudioListing={isStudioListing}
+                          status={portfolioStatusByListing[artist.listingId]}
+                          onRetry={() => loadMarketplacePortfolio(artist.listingId)}
+                        />
 
                         {profileContactItems.length > 0 && (
                           <section className="public-profile-section">
@@ -2850,7 +3256,7 @@ function ClientDashboard({ view = 'inicio' }) {
                           />
                           <label className="input-field">
                             <span>Fecha</span>
-                            <input type="date" min={getTodayDateValue()} value={bookingDate} onChange={(event) => setBookingDate(event.target.value)} />
+                            <input className="booking-date-input" type="date" min={getTodayDateValue()} value={bookingDate} onClick={openBookingDatePicker} onChange={(event) => setBookingDate(event.target.value)} />
                           </label>
                           {renderFlowPointsSelector()}
                         </div>
@@ -2916,7 +3322,7 @@ function ClientDashboard({ view = 'inicio' }) {
                           <Button
                             variant="ghost"
                             disabled={!contactLinks.whatsapp}
-                            onClick={() => openWhatsAppContact(contactLinks.whatsapp, selectedMarketplaceServiceName)}
+                            onClick={() => openWhatsAppContact(contactLinks.whatsapp, contactServiceName)}
                           >
                             💬 Contactar artista
                           </Button>
@@ -2951,9 +3357,9 @@ function ClientDashboard({ view = 'inicio' }) {
               {marketplaceArtists.length === 0 && (
                 <div className="artist-result">
                   <div>
-                    <strong>{isMarketplaceLoading ? 'Buscando perfiles...' : marketplaceError ? 'No se pudo cargar la busqueda' : 'Sin coincidencias con esta busqueda'}</strong>
+                    <strong>{isMarketplaceLoading ? 'Buscando las mejores opciones para ti...' : marketplaceError ? 'No se pudo cargar la busqueda' : 'Sin coincidencias con esta busqueda'}</strong>
                     <small>
-                      Prueba otro servicio, nombre de estudio o filtro.
+                      {isMarketplaceLoading ? 'Estamos revisando las agendas disponibles.' : 'Prueba otro servicio, nombre de estudio o filtro.'}
                     </small>
                     {isRealMarketplace && marketplaceError && (
                       <small>{marketplaceError}</small>
@@ -2985,11 +3391,16 @@ function ClientDashboard({ view = 'inicio' }) {
                   const directionsUrl = buildGoogleMapsUrl(effectiveLocation)
                   const professionalAddress = formatProfessionalAddress(effectiveLocation, isStudioListing ? artist.city : '')
                   const profileContactItems = isStudioListing ? getStudioContactItems(studioProfile) : []
-                  const profileGallery = publicArtistProfile.portfolio.slice(0, 12)
+                  const profileGallery = portfolioByListing[artist.listingId] || publicArtistProfile.portfolio.slice(0, 12)
                   const isSelectedArtist = selectedArtistProfile?.id === artist.id
+                  const contactServiceName = isSelectedArtist && selectedMarketplaceServiceExplicit
+                    ? selectedMarketplaceServiceName
+                    : serviceFilterMode === 'service' && artist.marketplaceServices.includes(secondaryService)
+                      ? secondaryService
+                      : ''
                   const isProfileOpen = isSelectedArtist && selectedArtistPanelMode === 'profile'
                   const isBookingOpen = isSelectedArtist && selectedArtistPanelMode === 'booking'
-                  const isDirectionsOpen = isSelectedArtist && selectedArtistPanelMode === 'directions'
+                  const isServicesOpen = isSelectedArtist && selectedArtistPanelMode === 'services'
                   const contactLinks = getMarketplaceContactLinks({
                     artist,
                     publicArtistProfile,
@@ -3010,38 +3421,37 @@ function ClientDashboard({ view = 'inicio' }) {
                   const profileInitials = getArtistInitials(profileDisplayName)
                   const profileBiography = publicArtistProfile.biography?.trim()
                   const hasSocialLinks = contactLinks.whatsapp || contactLinks.instagram || contactLinks.facebook || contactLinks.tiktok
+                  const profileHours = getMarketplaceHoursLabel({ artist, publicArtistProfile, studioProfile, isStudioListing })
 
                   return (
                     <article className={`favorite-card marketplace-result-card${isSelectedArtist ? ' is-expanded' : ''}`} key={artist.name}>
-                      {profileOffersFlowPoints(artist) && (
-                        <div className="flow-points-profile-distinction">
-                          <span aria-hidden="true">★</span>
-                          <strong>Otorga FlowPoints</strong>
-                        </div>
-                      )}
+                      <div className="marketplace-card-badges">
+                        {artist.activePromotions?.some((promotion) => promotion.type === 'happy_hour' || promotion.promotion_type === 'happy_hour') && <span className="happy-hour-badge"><span className="marketplace-badge-full">Happy Hour activo</span><span className="marketplace-badge-short">Happy Hour</span></span>}
+                        {profileOffersFlowPoints(artist) && <span className="flow-points-profile-distinction"><span aria-hidden="true">★</span><strong>Otorga FlowPoints</strong></span>}
+                        {getActiveDoublePointsMultiplier(artist) > 1 && <span className="double-points-badge"><span className="marketplace-badge-regular">Puntos dobles</span><span className="marketplace-badge-narrow">2× puntos</span></span>}
+                      </div>
                       <div className="marketplace-result-summary">
-                        <div className="marketplace-artist-avatar avatar">
-                          {profilePhotoUrl ? (
-                            <img src={profilePhotoUrl} alt={`Foto de ${profileDisplayName}`} />
-                          ) : (
-                            <span>{profileInitials}</span>
-                          )}
+                        <div className="marketplace-premium-identity">
+                          <div className="marketplace-artist-avatar avatar">
+                            {profilePhotoUrl ? (
+                              <img src={profilePhotoUrl} alt={`Foto de ${profileDisplayName}`} loading="lazy" decoding="async" />
+                            ) : (
+                              <span>{profileInitials}</span>
+                            )}
+                          </div>
+                          <div className="marketplace-result-copy">
+                            <strong>{profileDisplayName}</strong>
+                          </div>
                         </div>
-                        <div className="marketplace-result-copy">
-                          <strong>{profileDisplayName}</strong>
-                          <MarketplaceContactActions
-                            contactLinks={contactLinks}
-                            phone={profilePhone}
-                            serviceName={selectedMarketplaceServiceName}
-                          />
-                          <small>{profileTypeLabel}</small>
-                          <small>{artist.marketplaceServices.slice(0, 3).join(' • ')}</small>
-                          <span className={`marketplace-availability availability-${artist.badge.level}`}>
-                            {artist.badge.label}
-                          </span>
-                          {getActiveDoublePointsMultiplier(artist) > 1 && (
-                            <span className="double-points-badge">Puntos dobles</span>
-                          )}
+                        <MarketplaceVisitReviews artistId={isStudioListing ? null : artist.artistId || artist.id} studioId={artist.studioId || (isStudioListing ? artist.id : null)} membershipId={isStudioListing ? null : artist.membershipId} />
+                        <div className="marketplace-card-info-row">
+                          <div className="marketplace-card-contact-row">
+                            <MarketplaceContactActions contactLinks={contactLinks} phone={profilePhone} serviceName={contactServiceName} />
+                          </div>
+                          <div className="marketplace-card-hours-panel">
+                            <span>HORARIO DE ATENCIÓN</span>
+                            <small className="marketplace-hours">{profileHours}</small>
+                          </div>
                         </div>
                         <div className="marketplace-result-actions">
                           <button
@@ -3057,10 +3467,18 @@ function ClientDashboard({ view = 'inicio' }) {
                               openArtistProfile(artist, { mode: 'profile' })
                             }}
                           >
-                            👤 {isProfileOpen ? 'Ocultar perfil' : 'Ver perfil'}
+                            <UserRound size={18} aria-hidden="true" /> {isProfileOpen ? 'Ocultar perfil' : 'Ver perfil'}
                           </button>
                           <button
-                            className="marketplace-profile-button"
+                            className="marketplace-profile-button marketplace-services-button"
+                            type="button"
+                            aria-expanded={isServicesOpen}
+                            onClick={() => isServicesOpen ? closeArtistProfile() : openArtistProfile(artist, { mode: 'services' })}
+                          >
+                            <FileText size={18} aria-hidden="true" /> {isServicesOpen ? 'Ocultar servicios' : 'Ver servicios y costos'}
+                          </button>
+                          <button
+                            className="marketplace-profile-button marketplace-booking-button"
                             type="button"
                             onClick={() => {
                               if (isBookingOpen) {
@@ -3071,40 +3489,24 @@ function ClientDashboard({ view = 'inicio' }) {
                               openArtistProfile(artist, { mode: 'booking' })
                             }}
                           >
-                            {isBookingOpen ? 'Ocultar agenda' : 'Reservar cita'}
-                          </button>
-                          <button
-                            className="marketplace-profile-button"
-                            type="button"
-                            onClick={() => {
-                              if (isDirectionsOpen) {
-                                closeArtistProfile()
-                                return
-                              }
-
-                              openArtistProfile(artist, { mode: 'directions' })
-                            }}
-                          >
-                            {isDirectionsOpen ? 'Ocultar direccion' : 'Como llegar'}
+                            <CalendarDays size={18} aria-hidden="true" /> {isBookingOpen ? 'Ocultar agenda' : 'Agendar ahora'}
                           </button>
                           <button
                             className="marketplace-favorite-button is-saved"
                             type="button"
                             onClick={() => toggleFavoriteArtist(artist.id)}
                           >
-                            Eliminar favorito
+                            <Heart size={18} aria-hidden="true" fill="currentColor" /> Guardado
                           </button>
                         </div>
                       </div>
 
                       {isBookingOpen && renderMarketplaceBookingPanel(artist, 'favoriteBooking')}
-                      {isDirectionsOpen && renderFavoriteDirectionsPanel({
-                        address: professionalAddress,
-                        location: effectiveLocation,
-                        source: effectiveLocationResult.source,
-                        directionsUrl,
-                      })}
-
+                      {isServicesOpen && (
+                        <div className="public-profile-panel service-menu-only-panel">
+                          <MarketplaceServiceMenu artist={artist} onSelect={selectServiceFromProfileMenu} />
+                        </div>
+                      )}
                       {isProfileOpen && (
                         <div className="public-profile-panel">
                           <section className="public-profile-hero">
@@ -3129,25 +3531,12 @@ function ClientDashboard({ view = 'inicio' }) {
                             <p>{profileBiography || `${isStudioListing ? 'Este estudio' : 'Esta artista'} aun esta completando su perfil profesional.`}</p>
                           </section>
 
-                          {profileGallery.length > 0 && (
-                            <section className="public-profile-section">
-                              <h4>{isStudioListing ? 'Galeria del estudio' : 'Trabajos de la artista'}</h4>
-                              <div className="public-portfolio-strip">
-                                {profileGallery.map((image) => (
-                                  <img src={image.url} alt={image.label || (isStudioListing ? 'Foto del estudio' : 'Trabajo realizado por la artista')} key={image.id || image.url} />
-                                ))}
-                              </div>
-                            </section>
-                          )}
-
-                          <section className="public-profile-section">
-                            <h4>Servicios destacados</h4>
-                            <div className="public-service-badges">
-                              {artist.marketplaceServices.slice(0, 5).map((serviceName) => (
-                                <span key={serviceName}>✨ {serviceName}</span>
-                              ))}
-                            </div>
-                          </section>
+                          <MarketplaceGallery
+                            photos={profileGallery}
+                            isStudioListing={isStudioListing}
+                            status={portfolioStatusByListing[artist.listingId]}
+                            onRetry={() => loadMarketplacePortfolio(artist.listingId)}
+                          />
 
                           {profileContactItems.length > 0 && (
                             <section className="public-profile-section">
@@ -3204,7 +3593,7 @@ function ClientDashboard({ view = 'inicio' }) {
                             />
                             <label className="input-field">
                               <span>Fecha</span>
-                              <input type="date" min={getTodayDateValue()} value={bookingDate} onChange={(event) => setBookingDate(event.target.value)} />
+                              <input className="booking-date-input" type="date" min={getTodayDateValue()} value={bookingDate} onClick={openBookingDatePicker} onChange={(event) => setBookingDate(event.target.value)} />
                             </label>
                             {renderFlowPointsSelector()}
                           </div>
@@ -3270,7 +3659,7 @@ function ClientDashboard({ view = 'inicio' }) {
                             <Button
                               variant="ghost"
                               disabled={!contactLinks.whatsapp}
-                              onClick={() => openWhatsAppContact(contactLinks.whatsapp, selectedMarketplaceServiceName)}
+                              onClick={() => openWhatsAppContact(contactLinks.whatsapp, contactServiceName)}
                             >
                               💬 Contactar artista
                             </Button>
@@ -3308,8 +3697,13 @@ function ClientDashboard({ view = 'inicio' }) {
 
         {view === 'perfil' && (
           <>
-            <Card className="mobile-screen primary-panel">
-              <PanelHeader title="Perfil" eyebrow="Cliente" />
+            <ClientAttendancePanel appointments={realClientAppointments} enabled={hasRealClientSession} />
+            <Card className="mobile-screen primary-panel client-profile-experience">
+              <header className="client-profile-hero">
+                <span>ESTE ESPACIO ES TUYO</span>
+                <h2>Tu esencia, tus momentos</h2>
+                <p>Mantén tus datos al día y deja que Studio Flow encuentre experiencias pensadas para ti.</p>
+              </header>
               <div className="form-stack compact-form">
                 <div className="client-photo-editor">
                   <div className="client-photo-preview">
@@ -3320,11 +3714,12 @@ function ClientDashboard({ view = 'inicio' }) {
                     )}
                   </div>
                   <div>
-                    <strong>Foto de perfil</strong>
-                    <small>Visible en tu dashboard, navegación y perfil.</small>
+                    <span className="client-photo-kicker"><Sparkles aria-hidden="true" size={14} /> TU IMAGEN EN STUDIO FLOW</span>
+                    <strong>Hazlo más tuyo</strong>
+                    <small>Esta foto te acompaña en tus citas y experiencias.</small>
                     <div className="client-photo-actions">
                       <label className="button button-ghost button-sm" htmlFor="client-photo-input">
-                        {profileDraft.photoUrl ? 'Cambiar foto' : 'Subir foto'}
+                        <Camera aria-hidden="true" size={16} /> {profileDraft.photoUrl ? 'Cambiar foto' : 'Subir foto'}
                       </label>
                       <input
                         accept="image/*"
@@ -3364,8 +3759,9 @@ function ClientDashboard({ view = 'inicio' }) {
                 />
                 <div className="location-foundation-card">
                   <div>
-                    <h3>Ubicacion para recomendaciones</h3>
-                    <small>Permite encontrar artistas y estudios cerca de ti.</small>
+                    <span className="client-location-icon"><MapPin aria-hidden="true" size={18} /></span>
+                    <h3>Tu zona favorita</h3>
+                    <small>Así podemos acercarte artistas y estudios que realmente te convienen.</small>
                   </div>
                   <div className="location-form-grid">
                     <Input
@@ -3425,7 +3821,7 @@ function ClientDashboard({ view = 'inicio' }) {
                 </Button>
               </div>
             </Card>
-            <Card className="mobile-screen">
+            <Card className="mobile-screen client-profile-summary">
               <PanelHeader title="Resumen" eyebrow="Actividad" />
               <div className="compact-list">
                 <div className="list-row elevated-row">
@@ -3457,6 +3853,16 @@ function ClientDashboard({ view = 'inicio' }) {
           </button>
         </div>
       )}
+      {pendingDepositSlot && <div className="deposit-dialog-backdrop" role="presentation" onClick={() => setPendingDepositSlot(null)}><div className="deposit-dialog" role="dialog" aria-modal="true" aria-labelledby="deposit-dialog-title" onClick={(event) => event.stopPropagation()}>
+        <span className="eyebrow">ANTES DE RESERVAR</span>
+        <h2 id="deposit-dialog-title">Tu cita solicita anticipo</h2>
+        <p>{depositPolicy.businessName} recibirá el pago directamente. La cita quedará pendiente hasta que confirme la transferencia.</p>
+        <div className="deposit-dialog-amounts"><span>Servicio</span><strong>{formatPayment(selectedServicePrice)}</strong><span>Anticipo {depositPolicy.kind === 'percent' ? `(${depositPolicy.value}%)` : ''}</span><strong>{formatPayment(depositAmount(selectedServicePrice, depositPolicy))}</strong><span>Saldo restante</span><strong>{formatPayment(Math.max(0, selectedServicePrice - depositAmount(selectedServicePrice, depositPolicy)))}</strong></div>
+        <div className="deposit-dialog-next-step" role="note"><CalendarDays size={25} aria-hidden="true" /><div><strong>Tu tarjeta estará en Citas y reseñas</strong><span>Después de solicitar tu cita, toca <b>Ver tarjeta de anticipo</b> para consultar la CLABE y realizar tu transferencia.</span></div></div>
+        {(Number(selectedMarketplaceRewardId) > 0 || pendingDepositSlot.isHappyHour) && <small>Si aplicas un beneficio, el importe final se actualizará en la tarjeta de pago de tu cita.</small>}
+        {depositPolicy.terms && <small>{depositPolicy.terms}</small>}
+        <div className="deposit-dialog-actions"><button type="button" onClick={() => setPendingDepositSlot(null)}>Volver</button><button type="button" onClick={() => { const slot = pendingDepositSlot; setPendingDepositSlot(null); reserveSlot(slot, true) }}>Entiendo, solicitar cita</button></div>
+      </div></div>}
     </main>
   )
 }

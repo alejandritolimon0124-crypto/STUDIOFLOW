@@ -2,6 +2,7 @@ import { Navigate, NavLink, Outlet, useLocation } from 'react-router-dom'
 import DashboardLayout from './DashboardLayout'
 import { paths } from '../routes/paths'
 import StatusPill from '../components/StatusPill'
+import ProviderAttendanceGate from '../components/ProviderAttendanceGate'
 import { useApp } from '../contexts/appContextCore'
 import { getStudioAccess, getStudioStatusLabel, getStudioStatusTone } from '../modules/governance/studioGovernance'
 import {
@@ -14,17 +15,18 @@ import {
 
 const copyByPath = {
   [paths.artist]: ['', ''],
-  [paths.artistAppointments]: ['Citas', 'Gestiona reservas confirmadas y solicitudes pendientes.'],
-  [paths.artistServices]: ['Servicios', 'Crea, edita, activa o suspende servicios de tu menu.'],
+  [paths.artistAppointments]: ['', ''],
+  [paths.artistServices]: ['', ''],
   [paths.artistSchedule]: ['Horarios', 'Define disponibilidad, descansos, bloqueos y reglas de agenda.'],
   [paths.artistClients]: ['Clientas', 'Seguimiento de clientas recurrentes y valor historico.'],
   [paths.artistMarketing]: ['Modulo Marketplace', 'Configura beneficios Flow Points, puntos dobles y Happy Hour.'],
-  [paths.artistSettings]: ['MI PERFIL', 'Administra la fuente profesional que alimentara tu Perfil Publico.'],
+  [paths.artistSettings]: ['', ''],
   [paths.artistBranches]: ['Sucursales', 'Administra ubicaciones, servicios y horarios independientes.'],
+  [paths.artistCampaigns]: ['Campañas', 'Genera registros por QR, folios y rifas para tus eventos.'],
 }
 
 function ArtistLayout() {
-  const { pathname } = useLocation()
+  const { pathname, search } = useLocation()
   const {
     adminState,
     artistWorkContext,
@@ -71,7 +73,13 @@ function ArtistLayout() {
   const isActiveStudioArtistWorkspace = activeArtistContextType === 'membership'
     || Boolean(artistWorkContext?.membershipId || artistWorkContext?.membership_id || session.activeSessionContext?.membershipId || session.activeSessionContext?.membership_id)
   const artistSettingsPath = `${paths.artistSettings}?context=independent`
-  const shouldBlockArtistMarketplace = pathname === paths.artistMarketing && isActiveStudioArtistWorkspace
+  const shouldBlockArtistMarketplace = isActiveStudioArtistWorkspace && [
+    paths.artistMarketing,
+    paths.artistCampaigns,
+    paths.artistAccounting,
+    paths.artistServices,
+    paths.artistSchedule,
+  ].includes(pathname)
   const isPendingExperience = !isArtistBlocked && hasStudioContext && !studioAccess.publicAgenda
   const artistReviewTitle = isArtistRejected
     ? 'Tu solicitud no fue aprobada.'
@@ -122,7 +130,7 @@ function ArtistLayout() {
             </StatusPill>
           </section>
         )}
-        <Outlet />
+        <ProviderAttendanceGate enabled={!session.isMockSession} forceReview={new URLSearchParams(search).get('pendientes') === '1'}><Outlet /></ProviderAttendanceGate>
           </>
         )}
           </>

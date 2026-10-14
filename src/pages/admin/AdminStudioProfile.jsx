@@ -1,17 +1,28 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import useCurrentTime from '../../hooks/useCurrentTime'
+import usePublicBookingShare from '../../hooks/usePublicBookingShare'
+import { shareBusinessLocation } from '../../utils/shareBusinessLocation'
+import PendingPointsNotice from '../../components/PendingPointsNotice'
+import { pendingAppointmentPoints } from '../../utils/pendingAppointmentPoints'
 import Button from '../../components/Button'
 import AppointmentPayment from '../../components/AppointmentPayment'
+import AppointmentDeposit from '../../components/AppointmentDeposit'
+import BusinessPaymentSettings from '../../components/BusinessPaymentSettings'
 import CompleteAppointmentButton from '../../components/CompleteAppointmentButton'
 import Card from '../../components/Card'
+import { MarketingReminderSettings } from '../../components/MarketingReminders'
+import FlowPointRedemptionHistory from '../../components/FlowPointRedemptionHistory'
+import StudioOperatingHours from '../../components/StudioOperatingHours'
 import Input from '../../components/Input'
 import StatusPill from '../../components/StatusPill'
 import RescheduleAppointmentButton from '../../components/RescheduleAppointmentButton'
+import ArtistAppointmentCalendar from '../../components/ArtistAppointmentCalendar'
 import { supabase } from '../../lib/supabaseClient'
 import { useApp } from '../../contexts/appContextCore'
 import { getCurrentBrowserCoordinates } from '../../utils/browserGeolocation'
-import { buildGoogleMapsUrl, createProfessionalLocation, hasCoordinates, validateProfessionalLocation } from '../../utils/locationHelpers'
+import { buildGoogleMapsUrl, createProfessionalLocation, hasCoordinates } from '../../utils/locationHelpers'
 import { getAppointmentStatusTone } from '../../utils/appointmentStatus'
-import { serviceSlotCoverage } from '../../utils/serviceSlotCoverage'
+import { ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react'
 import { optimizeImageFile } from '../../utils/imageOptimization'
 import { getCurrentProfile, getCurrentStudio } from '../../modules/entities/entitySelectors'
 import { paths } from '../../routes/paths'
@@ -19,6 +30,8 @@ import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { fetchOwnStudios, hideStudioMarketplace, publishStudioMarketplace } from '../../services/studioService'
 import {
   createStudioOwnerAppointment,
+  fetchStudioOwnerBookingCalendar,
+  findStudioOwnerExistingClient,
   fetchStudioOwnerAppointments,
   requestStudioOwnerAppointmentConfirmations,
   searchStudioOwnerClients,
@@ -42,6 +55,7 @@ import {
   setStudioFlowPointsMaxDiscountPercentage,
 } from '../../services/artistMarketingService'
 import { calculateServiceFlowPoints } from '../../utils/flowPoints'
+import '../../styles/studio-owner-booking.css'
 
 const galleryLimit = 5
 const studioSections = ['summary', 'team', 'services', 'schedule', 'marketplace', 'metrics', 'settings']
@@ -52,6 +66,7 @@ const emptyOwnerAppointmentDraft = {
   clientPhone: '',
   clientEmail: '',
   membershipId: '',
+  date: '',
   serviceOfferingId: '',
   availabilitySlotId: '',
   notes: '',
@@ -208,7 +223,7 @@ function OwnerDayStrip({ selectedDate, setSelectedDate, visibleDays }) {
   }, [selectedDate])
 
   return (
-    <div className="day-strip scrollable-day-strip" ref={stripRef}>
+    <div className="day-strip scrollable-day-strip professional-day-strip" ref={stripRef}>
       {visibleDays.map((dateValue) => {
         const date = parseDateValue(dateValue)
         const dayLabel = date.toLocaleDateString('es-MX', { weekday: 'short' }).substring(0, 3)
@@ -246,9 +261,20 @@ function StudioSummarySection({
   const [showCalendarFilter, setShowCalendarFilter] = useState(false)
   const [selectedAgendaDate, setSelectedAgendaDate] = useState(getTodayDateValue)
   const [appointmentClientQuery, setAppointmentClientQuery] = useState('')
-  const [shareFeedback, setShareFeedback] = useState('')
+  const [locationShareFeedback, setLocationShareFeedback] = useState('')
   const [nowTimestamp] = useState(() => Date.now())
   const studioName = profileDraft.commercialName || currentStudio?.profile?.commercialName || currentStudio?.name || 'Estudio'
+  const publicBookingShare = usePublicBookingShare({ studioId: currentStudio?.id, businessName: studioName })
+  const shareLocation = () => {
+    const shared = shareBusinessLocation({
+      businessName: studioName,
+      location: currentStudio?.professionalLocation,
+      fallbackAddress: currentStudio?.profile?.addressLine || currentStudio?.addressLine,
+      studio: true,
+    })
+    if (!shared) setLocationShareFeedback('Agrega la ubicación de tu estudio en Mi perfil de estudio para poder compartirla.')
+    else setLocationShareFeedback('')
+  }
   const studioLogoUrl = profileDraft.logoUrl
     || profileDraft.logoPath
     || currentStudio?.profile?.logoUrl
@@ -299,28 +325,11 @@ function StudioSummarySection({
     appointmentsByArtist[artistName] = (appointmentsByArtist[artistName] || 0) + 1
   })
   const artistRanking = Object.entries(appointmentsByArtist).sort((first, second) => second[1] - first[1])
-  const shareApplication = async () => {
-    const shareData = {
-      title: 'Studio Flow',
-      text: 'Agenda tus servicios de belleza con Studio Flow.',
-      url: 'https://studioflow.vip',
-    }
-    try {
-      if (navigator.share) await navigator.share(shareData)
-      else {
-        await navigator.clipboard.writeText(shareData.url)
-        setShareFeedback('Enlace copiado.')
-      }
-    } catch (error) {
-      if (error?.name !== 'AbortError') setShareFeedback('No se pudo compartir el enlace.')
-    }
-  }
-
   return (
     <>
-      <section className="hero-panel studio-hero artist-profile-hero mobile-screen studio-owner-hero-card">
+      <section className="hero-panel studio-hero artist-profile-hero mobile-screen studio-owner-hero-card professional-home-hero studio-home-hero">
         <div className="artist-hero-copy studio-owner-summary-copy">
-          <span className="eyebrow">{currentStudio?.profile?.addressLine || currentStudio?.addressLine || 'Ubicacion del estudio por confirmar'}</span>
+          <span className="professional-home-kicker">EL PULSO DE TU ESTUDIO</span>
           <h2>{studioName}</h2>
           <div>
             <span className="studio-owner-badge inline">STUDIO OWNER</span>
@@ -333,21 +342,22 @@ function StudioSummarySection({
             <span>{studioName.slice(0, 2)}</span>
           )}
         </div>
+        <div className="studio-owner-hero-details">
+          <p className="professional-home-message">Tu equipo, tus clientas y el crecimiento de tu estudio, reunidos en un solo lugar.</p>
+          <span className="professional-home-location">{currentStudio?.professionalLocation?.address || currentStudio?.profile?.addressLine || currentStudio?.addressLine || 'Ubicación del estudio por confirmar'}</span>
+        </div>
         <div className="hero-actions artist-hero-actions studio-owner-hero-actions">
           <Button onClick={() => navigate(`${paths.adminStudio}?section=schedule`)}>Agregar cita</Button>
-          <Button onClick={shareApplication}>Compartir aplicacion</Button>
-          <Button className="full-width" variant="ghost" onClick={() => setShowMetrics((currentValue) => !currentValue)}>
-            {showMetrics ? 'Ocultar metricas' : 'Mostrar metricas'}
-          </Button>
-          <Button className="full-width" variant="ghost" onClick={() => navigate(`${paths.adminStudio}?section=schedule`)}>
-            Editar horario
-          </Button>
+          <Button disabled={publicBookingShare.loading || !publicBookingShare.available} onClick={publicBookingShare.share}>Compartir enlace para agendar</Button>
+          <Button className="full-width" variant="ghost" onClick={() => navigate(`${paths.studioAccounting}?tarjeta=1`, { state: { returnTo: `${paths.adminStudio}?section=summary` } })}>Volante digital</Button>
+          <Button className="full-width" variant="ghost" onClick={shareLocation}>Compartir ubicación</Button>
         </div>
-        {shareFeedback && <small className="studio-owner-share-feedback">{shareFeedback}</small>}
+        {publicBookingShare.feedback && <small className="studio-owner-share-feedback">{publicBookingShare.feedback}</small>}
+        {locationShareFeedback && <small className="studio-owner-share-feedback">{locationShareFeedback}</small>}
       </section>
 
       {showMetrics && (
-        <section className="profile-foundation-card studio-owner-metrics-panel">
+        <section className="profile-foundation-card studio-owner-metrics-panel professional-metrics-experience">
           <div>
             <span className="eyebrow">Metricas operativas</span>
             <h3>Rendimiento del estudio</h3>
@@ -364,13 +374,16 @@ function StudioSummarySection({
         </section>
       )}
 
-      <section className="profile-foundation-card">
+      <section className="profile-foundation-card professional-agenda-experience">
         <div>
           <span className="eyebrow">Agenda visual</span>
           <h3>{selectedAgendaDate === today ? 'Hoy' : selectedAgendaDate}</h3>
           <small>Desliza lateralmente para revisar dias cercanos.</small>
         </div>
         <div className="studio-review-actions">
+          <Button size="sm" variant="ghost" onClick={() => setShowMetrics((currentValue) => !currentValue)}>
+            {showMetrics ? 'Ocultar métricas' : 'Mostrar métricas'}
+          </Button>
           <Button size="sm" variant="ghost" onClick={() => setShowCalendarFilter((currentValue) => !currentValue)}>
             Filtrar
           </Button>
@@ -399,16 +412,19 @@ function StudioSummarySection({
         />
         <div className="compact-list">
           {selectedDateAppointments.slice(0, 6).map((appointment) => (
-            <div className="list-row elevated-row" key={appointment.id || `${getAppointmentDate(appointment)}-${getAppointmentTime(appointment)}-${appointment.client}`}>
+            <div className="list-row elevated-row professional-day-appointment owner-day-appointment" key={appointment.id || `${getAppointmentDate(appointment)}-${getAppointmentTime(appointment)}-${appointment.client}`}>
               <div>
                 <strong>{getAppointmentTime(appointment)} / {appointment.client || 'Clienta'}</strong>
                 <small>{appointment.service || 'Servicio'} / {appointment.contextName || studioName}</small>
                 <AppointmentPayment appointment={appointment} />
-                <CompleteAppointmentButton appointment={appointment} />
+                <AppointmentDeposit appointment={appointment} audience="business" onUpdated={() => window.dispatchEvent(new Event('studioflow:deposit-updated'))} />
+                {!appointment.pendingClientConfirmation && <CompleteAppointmentButton appointment={appointment} />}
               </div>
               <div className="agenda-card-actions">
-                <StatusPill tone={getAppointmentStatusTone(appointment)}>{appointment.status || 'Confirmada'}</StatusPill>
-                {appointment.bookingSource === 'google' && <StatusPill tone="warm">Reserva Google</StatusPill>}
+                {appointment.pendingClientConfirmation
+                  ? <StatusPill tone="warm">Esperando confirmación de la clienta</StatusPill>
+                  : <StatusPill tone={getAppointmentStatusTone(appointment)}>{appointment.status || 'Confirmada'}</StatusPill>}
+                {['google', 'instagram', 'facebook'].includes(appointment.bookingSource) && <StatusPill tone="warm">Enlace {appointment.bookingSource}</StatusPill>}
                 {appointment.appointmentStatus === 'scheduled' && (
                   <>
                     <Button
@@ -440,7 +456,7 @@ function StudioSummarySection({
         </div>
       </section>
 
-      <section className="profile-foundation-card">
+      <section className="profile-foundation-card professional-summary-experience">
         <div>
           <span className="eyebrow">Resumen operativo</span>
           <h3>Estado del estudio</h3>
@@ -580,29 +596,35 @@ function StudioServicesSection({
 
 function StudioScheduleSection({
   activeMemberships,
-  currentStudio,
   expandedMembershipId,
   membershipOperationsById,
   membershipOperationsLoadingId,
   onOpenAppointmentModal,
-  onCancelAppointment,
   onRequestConfirmations,
   ownerAppointments,
-  profileDraft,
   renderOwnerAppointmentForm,
   toggleMembershipOperations,
-  cancellingAppointmentId,
 }) {
   const [showCalendarFilter, setShowCalendarFilter] = useState(false)
   const [selectedAgendaDate, setSelectedAgendaDate] = useState(getTodayDateValue)
   const [appointmentClientQuery, setAppointmentClientQuery] = useState('')
   const [membershipViewById, setMembershipViewById] = useState({})
-  const visibleDays = useMemo(() => buildVisibleDays(selectedAgendaDate), [selectedAgendaDate])
-  const studioName = profileDraft?.commercialName || currentStudio?.profile?.commercialName || currentStudio?.name || 'Estudio'
   const filteredOwnerAppointments = filterAppointmentsByAttendedClientQuery(ownerAppointments, appointmentClientQuery)
   const selectedDateAppointments = filteredOwnerAppointments
     .filter((appointment) => getAppointmentDate(appointment) === selectedAgendaDate)
     .sort((firstAppointment, secondAppointment) => getAppointmentTimestamp(firstAppointment) - getAppointmentTimestamp(secondAppointment))
+  const artistByMembershipId = new Map(activeMemberships.map((membership) => [getMembershipRecordId(membership), membership]))
+  const artistById = new Map(activeMemberships.map((membership) => [membership.artistId, membership]))
+  const calendarAppointments = filteredOwnerAppointments.map((appointment) => {
+    const artist = artistByMembershipId.get(appointment.membershipId || appointment.membership_id)
+      || artistById.get(appointment.artistId || appointment.artist_id)
+    return {
+      ...appointment,
+      date: getAppointmentDate(appointment),
+      time: getAppointmentTime(appointment),
+      artistName: artist?.name || appointment.artistName || appointment.artist || '',
+    }
+  })
 
   const toggleMembershipView = async (membershipId, view) => {
     const currentView = membershipViewById[membershipId]
@@ -616,19 +638,14 @@ function StudioScheduleSection({
 
   return (
     <>
-      <section className="profile-foundation-card">
-        <div>
-          <span className="eyebrow">Calendario operativo</span>
-          <h3>{selectedAgendaDate === getTodayDateValue() ? 'Hoy' : selectedAgendaDate}</h3>
-          <small>Citas confirmadas del estudio y vista rapida de dias.</small>
-        </div>
-        <div className="studio-review-actions">
-          <Button className="appointment-primary-action" size="sm" onClick={() => onOpenAppointmentModal({})}>
-            Generar cita
-          </Button>
-          <Button size="sm" variant="ghost" onClick={() => setShowCalendarFilter((currentValue) => !currentValue)}>
-            Filtrar
-          </Button>
+      {renderOwnerAppointmentForm?.()}
+      <section className="owner-calendar-overview artist-appointments-experience" aria-label="Agenda del estudio">
+        <div className="owner-calendar-heading">
+          <div><span className="eyebrow">AGENDA DEL ESTUDIO</span><h3>Citas de tu equipo</h3></div>
+          <div className="owner-calendar-heading-actions">
+            <Button className="appointment-primary-action" size="sm" onClick={() => onOpenAppointmentModal({})}>Generar cita</Button>
+            <Button size="sm" variant="ghost" aria-expanded={showCalendarFilter} onClick={() => setShowCalendarFilter((currentValue) => !currentValue)}>Filtrar</Button>
+          </div>
         </div>
         {showCalendarFilter && (
           <div className="form-stack compact-form" style={{ marginBottom: '14px', marginTop: 0 }}>
@@ -647,12 +664,6 @@ function StudioScheduleSection({
             />
           </div>
         )}
-        {renderOwnerAppointmentForm?.()}
-        <OwnerDayStrip
-          selectedDate={selectedAgendaDate}
-          setSelectedDate={setSelectedAgendaDate}
-          visibleDays={visibleDays}
-        />
         {selectedDateAppointments.length > 0 && (
           <div className="studio-review-actions">
             {selectedDateAppointments.some((appointment) => !appointment.confirmationRequestedAt) ? (
@@ -664,47 +675,13 @@ function StudioScheduleSection({
             )}
           </div>
         )}
-        <div className="compact-list">
-          {selectedDateAppointments.map((appointment) => (
-            <div className="list-row elevated-row" key={appointment.id || `${getAppointmentDate(appointment)}-${getAppointmentTime(appointment)}-${appointment.client}`}>
-              <div>
-                <strong>{getAppointmentTime(appointment)} / {appointment.client || 'Clienta'}</strong>
-                <small>{appointment.service || 'Servicio'} / {appointment.contextName || studioName}</small>
-                <AppointmentPayment appointment={appointment} />
-                <CompleteAppointmentButton appointment={appointment} />
-              </div>
-              <div className="agenda-card-actions">
-                <StatusPill tone={getAppointmentStatusTone(appointment)}>{appointment.status || 'Confirmada'}</StatusPill>
-                {appointment.bookingSource === 'google' && <StatusPill tone="warm">Reserva Google</StatusPill>}
-                {appointment.appointmentStatus === 'scheduled' && (
-                  <>
-                    <Button
-                      disabled={cancellingAppointmentId === appointment.id}
-                      size="sm"
-                      variant="danger"
-                      onClick={() => onCancelAppointment(appointment)}
-                    >
-                      {cancellingAppointmentId === appointment.id ? 'Cancelando...' : 'Cancelar cita'}
-                    </Button>
-                    <RescheduleAppointmentButton appointment={appointment} />
-                  </>
-                )}
-                {appointment.pointsGranted > 0 && <StatusPill tone="success">+{appointment.pointsGranted} FP otorgados</StatusPill>}
-                {appointment.happyHourApplied && <StatusPill tone="success">Happy Hour</StatusPill>}
-                {appointment.rewardMultiplier > 1 && <StatusPill tone="warm">Puntos dobles</StatusPill>}
-              </div>
-            </div>
-          ))}
-          {selectedDateAppointments.length === 0 && (
-            <div className="list-row elevated-row">
-              <div>
-                <strong>Sin citas confirmadas</strong>
-                <small>No hay agenda consolidada para este dia.</small>
-              </div>
-              <StatusPill tone="neutral">Libre</StatusPill>
-            </div>
-          )}
-        </div>
+        <ArtistAppointmentCalendar
+          appointments={calendarAppointments}
+          appointmentsOnly
+          selectedDate={selectedAgendaDate}
+          onSelectDate={setSelectedAgendaDate}
+        />
+        {selectedDateAppointments.some((appointment) => appointment.depositPlan || appointment.appointmentStatus === 'scheduled') && <div className="owner-day-deposits"><strong>Cobros de este día</strong>{selectedDateAppointments.filter((appointment) => appointment.depositPlan || appointment.appointmentStatus === 'scheduled').map((appointment) => <div key={appointment.id}><span>{appointment.time} · {appointment.client} · {appointment.service}</span><AppointmentDeposit appointment={appointment} audience="business" onUpdated={() => window.dispatchEvent(new Event('studioflow:deposit-updated'))} /></div>)}</div>}
       </section>
 
       <section className="profile-foundation-card">
@@ -720,14 +697,18 @@ function StudioScheduleSection({
             const isExpanded = expandedMembershipId === membershipRecordId
             const isLoadingOperations = membershipOperationsLoadingId === membershipRecordId
             const selectedView = membershipViewById[membershipRecordId] || 'schedule'
-            const availableSlots = (operations?.upcomingSlots || []).filter((slot) => slot.status === 'available')
 
             return (
-              <div className="elevated-row owner-team-agenda-card" key={membershipRecordId || membership.id}>
-                <div className="list-row" style={{ padding: 0 }}>
+              <div className="elevated-row owner-team-agenda-card owner-availability-artist-card" key={membershipRecordId || membership.id}>
+                <div className="list-row owner-availability-artist-row" style={{ padding: 0 }}>
+                  <span className="owner-artist-avatar">
+                    {membership.studioPhotoUrl || membership.photoUrl
+                      ? <img src={membership.studioPhotoUrl || membership.photoUrl} alt={`Foto de ${membership.name}`} />
+                      : getInitials(membership.name)}
+                  </span>
                   <div>
                     <strong>{membership.name}</strong>
-                    <small>{operations?.schedule ? `${operations.schedule.timezone} / cada ${operations.schedule.intervalMinutes} min` : 'Sin agenda membership cargada.'}</small>
+                    <small>{operations?.schedule ? 'Horarios de trabajo configurados para esta artista' : 'Agenda pendiente de configurar'}</small>
                   </div>
                   <div className="studio-review-actions">
                     <Button
@@ -737,14 +718,6 @@ function StudioScheduleSection({
                       onClick={() => toggleMembershipView(membershipRecordId, 'schedule')}
                     >
                       {isLoadingOperations ? 'Cargando...' : isExpanded && selectedView === 'schedule' ? 'Ocultar' : 'Mis horarios'}
-                    </Button>
-                    <Button
-                      disabled={isLoadingOperations}
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => toggleMembershipView(membershipRecordId, 'available')}
-                    >
-                      {isExpanded && selectedView === 'available' ? 'Ocultar' : 'Horarios disponibles'}
                     </Button>
                   </div>
                 </div>
@@ -775,20 +748,6 @@ function StudioScheduleSection({
                     )}
                   </div>
                 )}
-                {isExpanded && selectedView === 'available' && (
-                  <div className="owner-available-slots-grid">
-                    {availableSlots.map((slot) => (
-                      <div className="owner-available-slot" key={slot.id}>
-                        <div>
-                          <strong>{slot.date || String(slot.startsAt || '').slice(0, 10)}</strong>
-                          <small>{slot.time || String(slot.startsAt || '').slice(11, 16)} a {slot.end || String(slot.endsAt || '').slice(11, 16)}</small>
-                        </div>
-                        <Button size="sm" onClick={() => onOpenAppointmentModal({ membership, slot })}>Agendar</Button>
-                      </div>
-                    ))}
-                    {availableSlots.length === 0 && <small>No hay horarios disponibles proximos para esta artista.</small>}
-                  </div>
-                )}
               </div>
             )
           })}
@@ -808,7 +767,7 @@ function StudioScheduleSection({
 }
 
 function StudioMarketplaceSection({ children }) {
-  return <>{children}</>
+  return <div className="studio-marketplace-stack">{children}</div>
 }
 
 function StudioMetricsSection({ activeMemberships, membershipOperationsById, membershipState }) {
@@ -857,8 +816,14 @@ function StudioMetricsSection({ activeMemberships, membershipOperationsById, mem
   )
 }
 
-function StudioSettingsSection({ children }) {
-  return <>{children}</>
+function StudioSettingsSection({ children, studioName, studioLogo }) {
+  return <div className="studio-profile-experience">
+    <header className="studio-profile-welcome">
+      <div><span>EL CORAZÓN DE TU ESTUDIO</span><h1>{studioName || 'Mi estudio'}</h1><p>Aquí empieza la experiencia que quieres regalarle a cada clienta.</p></div>
+      <div className="studio-profile-welcome-logo">{studioLogo ? <img src={studioLogo} alt={`Logo de ${studioName}`} /> : (studioName || 'SF').slice(0, 2).toUpperCase()}</div>
+    </header>
+    <div className="studio-profile-stack">{children}</div>
+  </div>
 }
 
 function OwnerAppointmentModal({
@@ -876,14 +841,53 @@ function OwnerAppointmentModal({
   onDraftChange,
   onSearchClients,
   onSave,
+  availabilityRefresh,
 }) {
   const selectedMembership = memberships.find((membership) => getMembershipRecordId(membership) === draft.membershipId || membership.id === draft.membershipId)
   const selectedOperationsKey = selectedMembership ? getMembershipRecordId(selectedMembership) : draft.membershipId
   const selectedOperations = selectedOperationsKey ? membershipOperationsById[selectedOperationsKey] : null
   const services = (selectedOperations?.services || []).filter((service) => ['active', 'activo'].includes(String(service.status || '').toLowerCase()))
   const selectedService = services.find((service) => service.id === draft.serviceOfferingId)
-  const slots = serviceSlotCoverage(selectedOperations?.upcomingSlots || [], selectedService?.durationMinutes)
-  const selectedSlot = slots.find((slot) => slot.id === draft.availabilitySlotId)
+  const [month, setMonth] = useState(() => getTodayDateValue().slice(0, 7))
+  const [availabilityRevision, setAvailabilityRevision] = useState(0)
+  const [availability, setAvailability] = useState({ key: '', days: [], slots: [], error: '' })
+  const [existingClientMatch, setExistingClientMatch] = useState(null)
+  const displayMonth = draft.date?.slice(0, 7) || month
+  const availabilityKey = `${currentStudio?.id || ''}|${draft.membershipId}|${displayMonth}|${draft.serviceOfferingId}|${draft.date}|${availabilityRevision}|${availabilityRefresh}`
+  const currentAvailability = availability.key === availabilityKey ? availability : { days: [], slots: [], error: '' }
+  const availabilityLoading = Boolean(draft.membershipId && availability.key !== availabilityKey)
+  const availabilityError = currentAvailability.error
+  const selectedSlot = currentAvailability.slots.find((slot) => slot.id === draft.availabilitySlotId)
+  const monthStart = parseDateValue(`${displayMonth}-01`)
+  const monthOffset = (monthStart.getDay() + 6) % 7
+  const monthLength = new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 0).getDate()
+  const daySet = new Set(currentAvailability.days)
+  const currentMonth = getTodayDateValue().slice(0, 7)
+  const nextMonth = formatDateValue(new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 1)).slice(0, 7)
+  const canGoForward = nextMonth <= formatDateValue(new Date(parseDateValue(`${currentMonth}-01`).getFullYear(), parseDateValue(`${currentMonth}-01`).getMonth() + 12, 1)).slice(0, 7)
+  useEffect(() => {
+    if (!currentStudio?.id || !draft.membershipId) return
+    let active = true
+    fetchStudioOwnerBookingCalendar({
+      studioId: currentStudio.id, membershipId: draft.membershipId, month: `${displayMonth}-01`,
+      serviceOfferingId: draft.serviceOfferingId || null, date: draft.date || null,
+    }).then((result) => { if (active) setAvailability({ ...result, key: availabilityKey, error: '' }) })
+      .catch((error) => { if (active) setAvailability({ key: availabilityKey, days: [], slots: [], error: error.message || 'No se pudo consultar la agenda.' }) })
+    return () => { active = false }
+  }, [currentStudio?.id, draft.membershipId, draft.serviceOfferingId, draft.date, displayMonth, availabilityKey])
+  useEffect(() => {
+    if (!selectedSlot || draft.clientId || !currentStudio?.id) return undefined
+    const phone = draft.clientPhone.replace(/\D/g, '')
+    const email = draft.clientEmail.trim()
+    if (phone.length < 10 && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return undefined
+    let active = true
+    const timeout = window.setTimeout(() => {
+      findStudioOwnerExistingClient({ studioId: currentStudio.id, phone, email })
+        .then((client) => { if (active) setExistingClientMatch(client) })
+        .catch(() => { if (active) setExistingClientMatch(null) })
+    }, 350)
+    return () => { active = false; window.clearTimeout(timeout) }
+  }, [currentStudio?.id, draft.clientId, draft.clientPhone, draft.clientEmail, selectedSlot])
   const search = draft.clientSearch.trim().toLowerCase()
   const matchingClients = search
     ? clients.filter((client) => `${client.name} ${client.email}`.toLowerCase().includes(search)).slice(0, 5)
@@ -896,104 +900,37 @@ function OwnerAppointmentModal({
         <div className="modal-header">
           <div>
             <span className="eyebrow">{currentStudio?.profile?.commercialName || currentStudio?.name || 'Estudio'}</span>
-            <h3>Generar cita</h3>
+            <h3>Elige el momento ideal</h3>
           </div>
-          <button className="modal-close" type="button" aria-label="Cerrar" onClick={onClose}>x</button>
+          <Button className="owner-appointment-hide" variant="ghost" size="sm" onClick={onClose}>
+            {inline ? 'Limpiar' : 'Cerrar'}
+          </Button>
         </div>
         <div className="modal-body form-stack compact-form">
-          <div className="location-form-grid">
-            <Input
-              label="Buscar clienta"
-              placeholder="Nombre o correo electronico"
-              type="search"
-              value={draft.clientSearch}
-              onChange={(event) => onDraftChange({ clientSearch: event.target.value, clientId: '' })}
-            />
-            <div style={{ alignSelf: 'end' }}>
-              <Button disabled={isClientSearchLoading} size="sm" onClick={onSearchClients}>
-                {isClientSearchLoading ? 'Buscando...' : 'Buscar'}
-              </Button>
-            </div>
-          </div>
-          <div className="compact-list">
-            {matchingClients.map((client) => (
-              <div className="list-row elevated-row" key={client.id}>
-                <div>
-                  <strong>{client.name}</strong>
-                  <small>{client.email || client.phone || 'Sin contacto'}</small>
-                </div>
-                <Button
-                  size="sm"
-                  variant={draft.clientId === client.id ? 'primary' : 'ghost'}
-                  onClick={() => onDraftChange({
-                    clientId: client.id,
-                    clientName: client.name,
-                    clientPhone: client.phone || '',
-                    clientEmail: client.email || '',
-                  })}
-                >
-                  Usar
-                </Button>
-              </div>
-            ))}
-            {clientSearchStatus.message && (
-              <div className="list-row elevated-row">
-                <div>
-                  <strong>{clientSearchStatus.message}</strong>
-                  <small>Tambien puedes crear una clienta rapida abajo.</small>
-                </div>
-              </div>
-            )}
-          </div>
-          {selectedClient && (
-            <small style={{ color: 'var(--success)', fontWeight: 800 }}>
-              Clienta existente: {selectedClient.name}
-            </small>
-          )}
-          {!draft.clientId && (
-            <>
-              <Input
-                label="Nombre clienta"
-                value={draft.clientName}
-                onChange={(event) => onDraftChange({ clientName: event.target.value })}
-              />
-              <Input
-                label="Telefono"
-                type="tel"
-                value={draft.clientPhone}
-                onChange={(event) => onDraftChange({ clientPhone: event.target.value })}
-              />
-              <Input
-                label="Correo opcional"
-                type="email"
-                value={draft.clientEmail}
-                onChange={(event) => onDraftChange({ clientEmail: event.target.value })}
-              />
-            </>
-          )}
+          {!selectedSlot && <>
           <section className="owner-artist-picker" aria-label="Seleccion de artista">
             <div>
-              <span className="eyebrow">Artista asignada</span>
-              <h4>Selecciona quien atiende la cita</h4>
+              <span className="eyebrow">TU EQUIPO</span>
+              <h4>¿Con quién será la cita?</h4>
             </div>
             <div className="owner-artist-grid owner-artist-grid-highlight">
               {memberships.length > 0 ? memberships.map((membership) => {
                 const membershipRecordId = getMembershipRecordId(membership)
                 const isSelected = draft.membershipId === membershipRecordId
-                const photoUrl = membership.studioPhotoUrl || ''
+                const photoUrl = membership.studioPhotoUrl || membership.photoUrl || ''
 
                 return (
                   <button
                     className={`owner-artist-card${isSelected ? ' active' : ''}`}
                     key={membershipRecordId || membership.id}
                     type="button"
-                    onClick={() => onDraftChange({ membershipId: membershipRecordId, serviceOfferingId: '', availabilitySlotId: '' })}
+                    onClick={() => onDraftChange({ membershipId: membershipRecordId, date: '', serviceOfferingId: '', availabilitySlotId: '' })}
                   >
                     <span className="owner-artist-avatar">
                       {photoUrl ? <img src={photoUrl} alt={`Foto de ${membership.name}`} /> : getInitials(membership.name)}
                     </span>
                     <strong>{membership.name}</strong>
-                    <small>{membership.email || 'Artista del estudio'}</small>
+                    <small>Artista del estudio</small>
                   </button>
                 )
               }) : (
@@ -1006,63 +943,30 @@ function OwnerAppointmentModal({
               )}
             </div>
           </section>
-          <label className="input-field">
-            <span>Servicio</span>
-            <select
-              value={draft.serviceOfferingId}
-              onChange={(event) => onDraftChange({ serviceOfferingId: event.target.value, availabilitySlotId: '' })}
-            >
-              <option value="">Selecciona servicio</option>
-              {services.map((service) => (
-                <option key={service.id} value={service.id}>
-                  {service.name} / {service.duration || `${service.durationMinutes} min`} / ${Number(service.priceAmount ?? service.price ?? 0).toLocaleString('es-MX')}
-                </option>
-              ))}
-            </select>
-          </label>
-          {selectedService && (
-            <small>Duracion automatica: {selectedService.duration || `${selectedService.durationMinutes} min`}</small>
-          )}
-          <label className="input-field">
-            <span>Horario disponible</span>
-            <select
-              value={draft.availabilitySlotId}
-              onChange={(event) => onDraftChange({ availabilitySlotId: event.target.value })}
-            >
-              <option value="">Selecciona horario</option>
-              {slots.map((slot) => (
-                <option key={slot.id} value={slot.id}>
-                  {slot.date} / {slot.time} - {slot.end}
-                </option>
-              ))}
-            </select>
-          </label>
-          {selectedMembership && selectedSlot && (
-            <small>{selectedMembership.name} / {selectedSlot.date} {selectedSlot.time}</small>
-          )}
-          {selectedService && slots.length === 0 && (
-            <small>No hay horarios con tiempo continuo suficiente para este servicio entre los bloques cargados.</small>
-          )}
-          <label className="input-field">
-            <span>Notas</span>
-            <textarea
-              rows="3"
-              value={draft.notes}
-              onChange={(event) => onDraftChange({ notes: event.target.value })}
-            />
-          </label>
+          {selectedMembership && <section className="owner-booking-calendar" aria-label="Dias disponibles">
+            <div className="owner-booking-month"><button type="button" aria-label="Mes anterior" disabled={displayMonth <= currentMonth} onClick={() => { setMonth(formatDateValue(new Date(monthStart.getFullYear(), monthStart.getMonth() - 1, 1)).slice(0, 7)); onDraftChange({ date: '', serviceOfferingId: '', availabilitySlotId: '' }) }}><ChevronLeft size={20} /></button><strong>{new Intl.DateTimeFormat('es-MX', { month: 'long', year: 'numeric' }).format(monthStart)}</strong><button type="button" aria-label="Mes siguiente" disabled={!canGoForward} onClick={() => { setMonth(nextMonth); onDraftChange({ date: '', serviceOfferingId: '', availabilitySlotId: '' }) }}><ChevronRight size={20} /></button></div>
+            <div className="owner-booking-days">{['L','M','M','J','V','S','D'].map((day, index) => <span key={index}>{day}</span>)}{Array.from({ length: monthOffset }, (_, index) => <span key={`empty-${index}`} />)}{Array.from({ length: monthLength }, (_, index) => { const date = `${displayMonth}-${String(index + 1).padStart(2, '0')}`; return <button key={date} type="button" disabled={!daySet.has(date) || availabilityLoading} className={draft.date === date ? 'active' : ''} onClick={() => onDraftChange({ date, serviceOfferingId: '', availabilitySlotId: '' })}>{index + 1}</button> })}</div>
+            {availabilityLoading && <small>Consultando días disponibles...</small>}
+            {!availabilityLoading && currentAvailability.days.length === 0 && !availabilityError && <small>No hay horarios libres de esta artista en este mes.</small>}
+            {availabilityError && <small role="alert">{availabilityError}</small>}
+          </section>}
+          {draft.date && <label className="input-field owner-booking-service"><span>¿Qué servicio desea?</span><select value={draft.serviceOfferingId} onChange={(event) => onDraftChange({ serviceOfferingId: event.target.value, availabilitySlotId: '' })}><option value="">Selecciona un servicio</option>{services.map((service) => <option key={service.id} value={service.id}>{service.name} · {service.duration || `${service.durationMinutes} min`} · ${Number(service.priceAmount ?? service.price ?? 0).toLocaleString('es-MX')}</option>)}</select></label>}
+          {draft.date && services.length === 0 && <small>{selectedOperations ? 'Esta artista aún no tiene servicios activos en el estudio.' : 'Cargando los servicios de la artista...'}</small>}
+          {selectedService && draft.date && <section className="owner-booking-times"><div className="owner-booking-times-heading"><strong>Horarios para {selectedService.name}</strong><button type="button" onClick={() => { onDraftChange({ availabilitySlotId: '' }); setAvailabilityRevision((value) => value + 1) }} aria-label="Actualizar horarios" title="Actualizar horarios"><RefreshCw size={17} /></button></div>{availabilityLoading ? <small>Comprobando horarios...</small> : currentAvailability.slots.length ? <div className="owner-booking-times-grid">{currentAvailability.slots.map((slot) => <button type="button" key={slot.id} className={draft.availabilitySlotId === slot.id ? 'active' : ''} onClick={() => onDraftChange({ availabilitySlotId: slot.id })}>{slot.time} - {slot.end}</button>)}</div> : <small>Ese servicio no cabe en los espacios libres de este día. Elige otro día o servicio.</small>}</section>}
+          </>}
+          {selectedSlot && <section className="owner-booking-client"><div className="owner-booking-selection"><strong>{selectedMembership.name} · {selectedService.name} · {selectedSlot.date} a las {selectedSlot.time}</strong><Button size="sm" variant="ghost" onClick={() => onDraftChange({ availabilitySlotId: '' })}>Cambiar horario</Button></div><div className="location-form-grid"><Input label="Buscar clienta" placeholder="Nombre o correo electrónico" type="search" value={draft.clientSearch} onChange={(event) => onDraftChange({ clientSearch: event.target.value, clientId: '' })} /><div style={{ alignSelf: 'end' }}><Button disabled={isClientSearchLoading} size="sm" onClick={onSearchClients}>{isClientSearchLoading ? 'Buscando...' : 'Buscar'}</Button></div></div><div className="compact-list">{matchingClients.map((client) => <div className="list-row elevated-row" key={client.id}><div><strong>{client.name}</strong><small>{client.email || client.phone || 'Sin contacto'}</small></div><Button size="sm" variant={draft.clientId === client.id ? 'primary' : 'ghost'} onClick={() => onDraftChange({ clientId: client.id, clientName: client.name, clientPhone: client.phone || '', clientEmail: client.email || '' })}>Usar perfil</Button></div>)}{clientSearchStatus.message && <small>{clientSearchStatus.message}</small>}</div>{selectedClient && <small>Clienta existente: {selectedClient.name}</small>}{!draft.clientId && <><Input label="Nombre de la clienta" value={draft.clientName} onChange={(event) => onDraftChange({ clientName: event.target.value })} /><Input label="Teléfono" type="tel" value={draft.clientPhone} onChange={(event) => onDraftChange({ clientPhone: event.target.value })} /><Input label="Correo opcional" type="email" value={draft.clientEmail} onChange={(event) => onDraftChange({ clientEmail: event.target.value })} />{existingClientMatch && <div className="owner-existing-client" role="status"><strong>Esta clienta ya forma parte de Studio Flow</strong><span>{existingClientMatch.name} · Usa su perfil para agendar y evitar duplicados.</span><Button size="sm" onClick={() => onDraftChange({ clientId: existingClientMatch.id, clientName: existingClientMatch.name, clientPhone: existingClientMatch.phone || '', clientEmail: existingClientMatch.email || '' })}>Usar perfil para agendar</Button></div>}</>}<label className="input-field"><span>Notas</span><textarea rows="3" value={draft.notes} onChange={(event) => onDraftChange({ notes: event.target.value })} /></label></section>}
           {feedback.message && (
             <small style={{ color: feedback.tone === 'success' ? 'var(--success)' : 'var(--rose-dark)', fontWeight: 800 }}>
               {feedback.message}
             </small>
           )}
         </div>
-        <div className="modal-actions">
+        {selectedSlot && <div className="modal-actions">
           <Button variant="ghost" size="sm" onClick={onClose}>Cancelar</Button>
           <Button size="sm" disabled={isSaving || !selectedSlot || !selectedService} onClick={onSave}>
             {isSaving ? 'Guardando...' : 'Guardar cita'}
           </Button>
-        </div>
+        </div>}
       </div>
     </div>
   )
@@ -1146,6 +1050,7 @@ function buildMembershipsFromAdminArtists(artists = [], studioId = '') {
 }
 
 function AdminStudioProfile() {
+  const now = useCurrentTime()
   const navigate = useNavigate()
   const location = useLocation()
   const [searchParams] = useSearchParams()
@@ -1182,6 +1087,7 @@ function AdminStudioProfile() {
   const [isOwnerAppointmentOpen, setIsOwnerAppointmentOpen] = useState(false)
   const [isOwnerAppointmentSaving, setIsOwnerAppointmentSaving] = useState(false)
   const [ownerAppointmentFeedback, setOwnerAppointmentFeedback] = useState({ tone: 'neutral', message: '' })
+  const [ownerAvailabilityRefresh, setOwnerAvailabilityRefresh] = useState(0)
   const [confirmationFeedback, setConfirmationFeedback] = useState({ tone: 'neutral', message: '' })
   const [ownerClientResults, setOwnerClientResults] = useState([])
   const [isOwnerClientSearchLoading, setIsOwnerClientSearchLoading] = useState(false)
@@ -1256,7 +1162,10 @@ function AdminStudioProfile() {
     [adminState.artists, currentStudio?.id],
   )
   const operationalMemberships = useMemo(() => {
-    const merged = activeMemberships.filter((membership) => !unlinkedMembershipIds.includes(getMembershipRecordId(membership)))
+    const merged = activeMemberships.filter((membership) => !unlinkedMembershipIds.includes(getMembershipRecordId(membership))).map((membership) => {
+      const fallback = fallbackMemberships.find((item) => item.artistId && item.artistId === membership.artistId)
+      return { ...membership, photoUrl: membership.photoUrl || fallback?.photoUrl || '', studioPhotoUrl: membership.studioPhotoUrl || fallback?.studioPhotoUrl || '' }
+    })
 
     fallbackMemberships.forEach((fallbackMembership) => {
       if (unlinkedMembershipIds.includes(getMembershipRecordId(fallbackMembership))) return
@@ -1306,6 +1215,9 @@ function AdminStudioProfile() {
   const requestedSectionParam = searchParams.get('section') || 'summary'
   const requestedSection = requestedSectionParam === 'config' ? 'settings' : requestedSectionParam
   const selectedSection = studioSections.includes(requestedSection) ? requestedSection : 'summary'
+  const suggestedStudioDay = searchParams.get('sugerirDia')
+  const suggestedStudioHour = searchParams.get('sugerirHora')
+  useEffect(() => { if (selectedSection === 'marketplace' && suggestedStudioDay !== null && suggestedStudioHour !== null) requestAnimationFrame(() => document.querySelector('.happy-hour-panel')?.scrollIntoView({ block: 'start', behavior: 'smooth' })) }, [selectedSection, suggestedStudioDay, suggestedStudioHour])
   const ownerAppointments = useMemo(() => {
     const activeMembershipIds = new Set(operationalMemberships.map(getMembershipRecordId).filter(Boolean))
     const activeArtistIds = new Set(operationalMemberships.map((membership) => membership.artistId).filter(Boolean))
@@ -1347,6 +1259,11 @@ function AdminStudioProfile() {
     }
   }, [activeMembershipIds, currentStudioId])
 
+  useEffect(() => {
+    window.addEventListener('studioflow:deposit-updated', loadStudioOwnerAppointments)
+    return () => window.removeEventListener('studioflow:deposit-updated', loadStudioOwnerAppointments)
+  }, [loadStudioOwnerAppointments])
+
   const sendStudioConfirmationRequests = useCallback(async (date = null) => {
     if (!currentStudioId) return
 
@@ -1371,7 +1288,7 @@ function AdminStudioProfile() {
 
   const cancelStudioAppointment = useCallback(async (appointment = {}) => {
     if (!appointment.id) return
-    const sourceLabel = appointment.bookingSource === 'google' ? ' reserva de Google' : ' cita'
+    const sourceLabel = ['google', 'instagram', 'facebook'].includes(appointment.bookingSource) ? ` reserva desde enlace de ${appointment.bookingSource}` : ' cita'
     if (!window.confirm(`Confirma que deseas cancelar esta${sourceLabel}. El horario volvera a quedar disponible si aun cumple las reglas de la agenda.`)) return
 
     setCancellingAppointmentId(appointment.id)
@@ -1533,14 +1450,20 @@ function AdminStudioProfile() {
 
   useEffect(() => {
     if (!currentStudio?.id) return undefined
-
-    const intervalId = window.setInterval(() => {
-      if (document.visibilityState && document.visibilityState !== 'visible') return
+    let lastRefresh = Date.now()
+    const refreshMemberships = () => {
+      if (document.visibilityState === 'hidden' || Date.now() - lastRefresh < 60000) return
+      lastRefresh = Date.now()
       loadStudioMemberships({ silent: true })
-    }, 30000)
+    }
+    const intervalId = window.setInterval(() => {
+      refreshMemberships()
+    }, 300000)
+    window.addEventListener('focus', refreshMemberships)
 
     return () => {
       window.clearInterval(intervalId)
+      window.removeEventListener('focus', refreshMemberships)
     }
   }, [currentStudio?.id, loadStudioMemberships])
 
@@ -1669,35 +1592,29 @@ function AdminStudioProfile() {
 
   const saveStudioProfile = async () => {
     if (!currentStudio?.id || isProfileSaving) return
-    const nextErrors = validateProfessionalLocation(locationDraft)
-    const hasLocationErrors = Object.keys(nextErrors).length > 0
-
-    if (hasLocationErrors) {
-      setLocationErrors(nextErrors)
-      return
-    }
-
-    if (locationHasCoordinates && !isStudioLocationConfirmed) {
+    const savedLocation = currentStudio.professionalLocation || {}
+    const coordinatesChanged = ['latitude', 'longitude'].some((field) => (
+      String(locationDraft[field] || '') !== String(savedLocation[field] || '')
+    ))
+    if (locationHasCoordinates && coordinatesChanged && !isStudioLocationConfirmed) {
       setLocationErrors({ latitude: 'Confirma que esta ubicacion corresponde a tu estudio.' })
+      setProfileSaveFeedback({ tone: 'warm', message: 'Confirma la ubicación en el mapa para guardar los cambios.' })
       return
-    } else {
-      setLocationErrors({})
     }
+    setLocationErrors({})
 
     const nextStudioProfile = {
       profile: profileDraft,
-    }
-
-    if (!hasLocationErrors) {
-      nextStudioProfile.professionalLocation = {
+      professionalLocation: {
         ...locationDraft,
         businessName: profileDraft.commercialName,
-      }
+      },
     }
 
     setIsProfileSaving(true)
     setProfileSaveFeedback({ tone: 'neutral', message: '' })
     const savedStudio = await updateManagedStudioProfile(currentStudio.id, nextStudioProfile)
+      .catch(() => null)
     setIsProfileSaving(false)
 
     if (!savedStudio) {
@@ -1705,7 +1622,13 @@ function AdminStudioProfile() {
       return
     }
 
-    setProfileSaveFeedback({ tone: 'success', message: 'Perfil, ubicación y redes sociales del estudio actualizados.' })
+    const hasCompleteLocation = Boolean(String(locationDraft.address || '').trim() && String(locationDraft.city || '').trim())
+    setProfileSaveFeedback({
+      tone: 'success',
+      message: hasCompleteLocation
+        ? 'Perfil y ubicación del estudio actualizados.'
+        : 'Perfil guardado. Agrega dirección y ciudad para completar la ubicación.',
+    })
   }
 
   const hasMarketplaceMinimumData = Boolean(
@@ -2151,7 +2074,8 @@ function AdminStudioProfile() {
       clientPhone: normalizedClient?.phone || '',
       clientEmail: normalizedClient?.email || '',
       membershipId,
-      availabilitySlotId: slot?.id || '',
+      date: slot?.date || '',
+      availabilitySlotId: '',
     })
     setOwnerClientResults(normalizedClient ? [normalizedClient] : [])
     setOwnerClientSearchStatus({ tone: 'neutral', message: '' })
@@ -2190,10 +2114,12 @@ function AdminStudioProfile() {
     setOwnerClientSearchStatus({ tone: 'neutral', message: '' })
 
     try {
-      const clients = await searchStudioOwnerClients({
-        query,
-        limit: 5,
+      const exactMatch = await findStudioOwnerExistingClient({
+        studioId: currentStudio.id,
+        phone: query.replace(/\D/g, '').length >= 10 ? query : '',
+        email: query.includes('@') ? query : '',
       })
+      const clients = exactMatch ? [exactMatch] : await searchStudioOwnerClients({ studioId: currentStudio.id, query, limit: 5 })
       setOwnerClientResults(clients.map(normalizeOwnerClient))
       setOwnerClientSearchStatus(clients.length === 0 ? { tone: 'neutral', message: 'No se encontraron clientas con ese nombre o correo.' } : { tone: 'neutral', message: '' })
     } catch (error) {
@@ -2221,7 +2147,7 @@ function AdminStudioProfile() {
     setOwnerAppointmentFeedback({ tone: 'neutral', message: '' })
 
     try {
-      await createStudioOwnerAppointment({
+      const booking = await createStudioOwnerAppointment({
         studioId: currentStudio.id,
         membershipId: ownerAppointmentDraft.membershipId,
         serviceOfferingId: ownerAppointmentDraft.serviceOfferingId,
@@ -2235,11 +2161,20 @@ function AdminStudioProfile() {
       await loadMembershipOperations(ownerAppointmentDraft.membershipId)
       await loadStudioOwnerAppointments()
       await loadAdminClients?.().catch(() => null)
-      setOwnerAppointmentFeedback({ tone: 'success', message: 'Cita creada y slots bloqueados.' })
+      setOwnerAppointmentFeedback({ tone: 'success', message: booking.requiresConfirmation
+        ? 'Horario apartado. La clienta recibirá un aviso privado para confirmar la cita desde Studio Flow.'
+        : 'Cita creada y horario reservado.' })
       setIsOwnerAppointmentOpen(false)
       setOwnerAppointmentDraft(emptyOwnerAppointmentDraft)
     } catch (error) {
-      setOwnerAppointmentFeedback({ tone: 'warm', message: error.message || 'No se pudo crear la cita.' })
+      const message = error.message || 'No se pudo crear la cita.'
+      if (/horario|slot|agenda|time is not available|available slot/i.test(message)) {
+        setOwnerAppointmentDraft((draft) => ({ ...draft, availabilitySlotId: '' }))
+        setOwnerAvailabilityRefresh((revision) => revision + 1)
+        setOwnerAppointmentFeedback({ tone: 'warm', message: 'Ese horario acaba de dejar de estar disponible. Elige uno de los horarios actualizados.' })
+      } else {
+        setOwnerAppointmentFeedback({ tone: 'warm', message })
+      }
     } finally {
       setIsOwnerAppointmentSaving(false)
     }
@@ -2327,12 +2262,14 @@ function AdminStudioProfile() {
         onDraftChange={updateOwnerAppointmentDraft}
         onSearchClients={searchOwnerClients}
         onSave={saveOwnerAppointment}
+        availabilityRefresh={ownerAvailabilityRefresh}
       />
     </div>
   )
 
   return (
     <main className="dashboard-grid admin-grid profile-foundation-grid">
+      <PendingPointsNotice appointments={pendingAppointmentPoints(studioOwnerAppointments, now)} audience="business" onOpen={() => navigate(`${paths.adminStudio}?section=schedule&pendientes=1`)} />
       <Card className="wide-card mobile-screen primary-panel studio-owner-screen-card">
         <div className="profile-foundation-stack">
           {confirmationFeedback.message && (
@@ -2362,22 +2299,26 @@ function AdminStudioProfile() {
           )}
 
           {selectedSection === 'settings' && (
-            <StudioSettingsSection>
-          <section className="profile-foundation-card">
+            <StudioSettingsSection studioName={profileDraft.commercialName || currentStudio?.name} studioLogo={profileDraft.logoUrl}>
+          <BusinessPaymentSettings scopeType="studio" scopeId={currentStudioId} />
+          <StudioOperatingHours studioId={currentStudio?.id} />
+          <section className="profile-foundation-card studio-profile-identity">
             <div>
-              <span className="eyebrow">Configuracion</span>
-              <h3>Perfil del estudio</h3>
+              <span className="eyebrow">TU ESPACIO</span>
+              <h3>Lo que hace especial a tu estudio</h3>
+              <small>Cuéntales a tus clientas qué van a sentir al entrar y por qué les encantará volver.</small>
             </div>
             <Input
-              label="Nombre comercial del estudio"
+              label="Nombre de tu estudio"
               value={profileDraft.commercialName}
               onChange={(event) => updateProfileField('commercialName', event.target.value)}
             />
             <label className="input-field">
-              <span>Descripcion</span>
+              <span>Tu historia y tu esencia</span>
               <textarea
                 value={profileDraft.description}
                 onChange={(event) => updateProfileField('description', event.target.value)}
+                placeholder="Háblales de tu espacio, de tu equipo y de cómo cuidan cada visita."
                 rows="4"
               />
             </label>
@@ -2395,16 +2336,18 @@ function AdminStudioProfile() {
               />
             </div>
             <label className="input-field">
-              <span>Horarios</span>
+              <span>Cómo presentar tus horarios</span>
               <textarea
                 value={profileDraft.hours}
                 onChange={(event) => updateProfileField('hours', event.target.value)}
+                placeholder="Por ejemplo: un momento para ti, de lunes a sábado."
                 rows="3"
               />
+              <small>Este texto se muestra en tu perfil; las reservas respetan el horario que configuraste arriba.</small>
             </label>
             <div className="owner-studio-social-editor">
-              <strong>Redes sociales publicas</strong>
-              <small>Se mostraran mediante iconos en las cards visibles para clientas.</small>
+              <strong>Conecta también fuera del estudio</strong>
+              <small>Agrega tus redes para que puedan descubrir tu trabajo con un toque.</small>
               <div className="location-form-grid">
                 {[
                   ['whatsapp', 'WhatsApp'],
@@ -2423,11 +2366,11 @@ function AdminStudioProfile() {
             </div>
           </section>
 
-          <section className="profile-foundation-card">
+          <section className="profile-foundation-card studio-profile-logo-story">
             <div>
-              <span className="eyebrow">Branding</span>
-              <h3>Logo del estudio</h3>
-              <small>Imagen principal del estudio.</small>
+              <span className="eyebrow">TU SELLO</span>
+              <h3>La imagen que recordarán</h3>
+              <small>Tu logo acompaña la primera impresión de tu estudio.</small>
             </div>
             <div className="studio-logo-row">
               <div className="studio-logo-preview">
@@ -2455,10 +2398,11 @@ function AdminStudioProfile() {
             </div>
           </section>
 
-          <section className="profile-foundation-card">
+          <section className="profile-foundation-card studio-profile-location-story">
             <div>
-              <span className="eyebrow">Ubicacion</span>
-              <h3>Ubicacion del Estudio</h3>
+              <span className="eyebrow">ENCUÉNTRAME</span>
+              <h3>Haz fácil llegar a ti</h3>
+              <small>Una dirección clara ayuda a que cada clienta llegue tranquila a su cita.</small>
             </div>
             <Input
               label="Nombre comercial"
@@ -2552,13 +2496,13 @@ function AdminStudioProfile() {
             </small>
           </section>
 
-          <section className="profile-foundation-card">
+          <section className="profile-foundation-card studio-profile-gallery-story">
             <div className="studio-gallery-heading">
               <div>
-                <span className="eyebrow">Fotos del Estudio</span>
-                <h3>📸 Fotos del Estudio</h3>
-                <small>Estas imágenes serán visibles para las clientas en tu perfil público.</small>
-                <small>Comparte únicamente fotografías de tus instalaciones, recepción y áreas de atención.</small>
+                <span className="eyebrow">UN VISTAZO A TU ESPACIO</span>
+                <h3>Invítalas a conocerte</h3>
+                <small>Muestra la bienvenida, los espacios y los detalles que hacen especial cada visita.</small>
+                <small>Incluye solo fotos de tus instalaciones y áreas de atención.</small>
               </div>
               <span className="studio-gallery-counter">{galleryCount}/{galleryLimit} fotos</span>
             </div>
@@ -2593,12 +2537,12 @@ function AdminStudioProfile() {
 
           <section className="profile-foundation-card">
             <div>
-              <span className="eyebrow">Marketplace</span>
-              <h3>{isStudioMarketplacePublished ? 'Estudio visible en busqueda' : 'Activar visibilidad del estudio'}</h3>
+              <span className="eyebrow">QUE TE ENCUENTREN</span>
+              <h3>{isStudioMarketplacePublished ? 'Tu estudio ya está a la vista' : 'Abre la puerta a nuevas clientas'}</h3>
               <small>
                 {isStudioMarketplacePublished
-                  ? 'El estudio ya puede aparecer para clientas. Usa este boton solo si cambiaste perfil, ubicacion o servicios.'
-                  : 'Activalo cuando el estudio este aprobado y tenga nombre comercial, ciudad y ubicacion.'}
+                  ? 'Tus clientas pueden descubrirte en Studio Flow. Actualiza la publicación cuando cambies tus fotos, ubicación o servicios.'
+                  : 'Cuando tu estudio esté aprobado y completes su nombre y ubicación, podrás mostrarlo a nuevas clientas.'}
               </small>
             </div>
             {isStudioMarketplacePublished && <StatusPill tone="success">Publicado</StatusPill>}
@@ -2621,7 +2565,7 @@ function AdminStudioProfile() {
             </div>
             {!hasMarketplaceMinimumData && (
               <small style={{ color: 'var(--muted)', fontWeight: 800 }}>
-                Requiere estudio aprobado, nombre comercial, ciudad y direccion o coordenadas.
+                Para publicarlo faltan la aprobación del estudio o los datos de nombre y ubicación.
               </small>
             )}
             {marketplaceFeedback.message && (
@@ -2633,9 +2577,9 @@ function AdminStudioProfile() {
 
           <section className="profile-foundation-card">
             <div>
-              <span className="eyebrow">Servicios del estudio</span>
-              <h3>Servicios activos</h3>
-              <small>Lectura consolidada de servicios activos publicados por artistas vinculadas.</small>
+              <span className="eyebrow">LO QUE HACE TU EQUIPO</span>
+              <h3>Lo que pueden reservar contigo</h3>
+              <small>Aquí verás los servicios que tu equipo ofrece dentro de este estudio.</small>
             </div>
             <div className="compact-list">
               {operationalMemberships.flatMap((membership) => (
@@ -2658,14 +2602,18 @@ function AdminStudioProfile() {
               )).length === 0 && (
                 <div className="list-row elevated-row">
                   <div>
-                    <strong>Sin servicios activos cargados</strong>
-                    <small>Los servicios apareceran cuando las artistas configuren servicios en contexto de estudio.</small>
+                    <strong>Tu equipo aún no ha publicado servicios aquí</strong>
+                    <small>Cuando una artista agregue sus servicios para este estudio, aparecerán aquí para que las clientas puedan elegirlos.</small>
                   </div>
-                  <StatusPill tone="neutral">Vacio</StatusPill>
+                  <StatusPill tone="neutral">Pendiente</StatusPill>
                 </div>
               )}
             </div>
           </section>
+          {profileSaveFeedback.message && <StatusPill tone={profileSaveFeedback.tone}>{profileSaveFeedback.message}</StatusPill>}
+          <Button className="full-width studio-profile-save" disabled={isProfileSaving} onClick={saveStudioProfile}>
+            {isProfileSaving ? 'Guardando...' : 'Guardar perfil del estudio'}
+          </Button>
             </StudioSettingsSection>
           )}
 
@@ -2933,7 +2881,7 @@ function AdminStudioProfile() {
               onRequestConfirmations={sendStudioConfirmationRequests}
               ownerAppointments={ownerAppointments}
               profileDraft={profileDraft}
-              renderOwnerAppointmentForm={isOwnerAppointmentOpen ? renderOwnerAppointmentForm : null}
+              renderOwnerAppointmentForm={renderOwnerAppointmentForm}
               toggleMembershipOperations={toggleMembershipOperations}
               cancellingAppointmentId={cancellingAppointmentId}
             />
@@ -3032,8 +2980,10 @@ function AdminStudioProfile() {
                     </select>
                   </label>
                 </div>
-                <small className="flow-points-minimum-note">El canje comienza en 1,000 FP. Happy Hour no admite descuentos adicionales con FlowPoints.</small>
+                <small className="flow-points-minimum-note">Al reunir 1,000 FP con el estudio, la clienta puede usar desde 100 FP por canje. Para volver a canjear deberá recuperar los 1,000 FP. Happy Hour no admite descuentos adicionales con FlowPoints.</small>
               </section>
+
+              {currentStudioId && <FlowPointRedemptionHistory studioId={currentStudioId} />}
 
               <section className="profile-foundation-card double-points-panel">
                 <div>
@@ -3052,6 +3002,7 @@ function AdminStudioProfile() {
                   <h3>{studioHappyHourActive ? 'Happy Hour activo' : 'Happy Hour pausado'}</h3>
                   <small>Define dias, horario y descuento para reservas del estudio.</small>
                 </div>
+                {searchParams.has('sugerirDia') && searchParams.has('sugerirHora') && Number(searchParams.get('sugerirDia')) >= 1 && Number(searchParams.get('sugerirDia')) <= 7 && Number(searchParams.get('sugerirHora')) >= 0 && Number(searchParams.get('sugerirHora')) <= 22 && <div className="marketing-suggestion"><strong>Hay espacios el {weekdayOptions.find((day) => day.value === (Number(searchParams.get('sugerirDia')) === 7 ? 0 : Number(searchParams.get('sugerirDia'))))?.label} a las {String(searchParams.get('sugerirHora')).padStart(2, '0')}:00.</strong><button type="button" onClick={() => { const day = Number(searchParams.get('sugerirDia')); const hour = Number(searchParams.get('sugerirHora')); setStudioHappyHourDraft((draft) => ({ ...draft, weekdays: [day === 7 ? 0 : day], startTime: `${String(hour).padStart(2, '0')}:00`, endTime: `${String(hour + 1).padStart(2, '0')}:00` })) }}>Usar este horario</button><small>Revisa el descuento antes de guardar.</small></div>}
                 <div className="location-form-grid">
                   <label className="input-field">
                     <span>Descuento</span>
@@ -3089,6 +3040,8 @@ function AdminStudioProfile() {
                 </div>
               </section>
 
+              {currentStudioId && <MarketingReminderSettings key={currentStudioId} studioId={currentStudioId} />}
+
               {studioMarketingFeedback.message && (
                 <small style={{ color: studioMarketingFeedback.tone === 'success' ? 'var(--success)' : 'var(--rose-dark)', fontWeight: 800 }}>
                   {studioMarketingFeedback.message}
@@ -3097,16 +3050,6 @@ function AdminStudioProfile() {
             </StudioMarketplaceSection>
           )}
 
-          {selectedSection === 'settings' && (
-            <>
-              {profileSaveFeedback.message && (
-                <StatusPill tone={profileSaveFeedback.tone}>{profileSaveFeedback.message}</StatusPill>
-              )}
-              <Button className="full-width" disabled={isProfileSaving} onClick={saveStudioProfile}>
-                {isProfileSaving ? 'Guardando...' : 'Guardar estudio'}
-              </Button>
-            </>
-          )}
         </div>
       </Card>
       {isOwnerAppointmentOpen && selectedSection !== 'schedule' && renderOwnerAppointmentForm(false)}

@@ -1,2 +1,8 @@
 [functions.send-push-notification]
 verify_jwt = false
+
+[functions.send-campaign-confirmation]
+verify_jwt = false
+
+[functions.send-guest-booking-email]
+verify_jwt = false

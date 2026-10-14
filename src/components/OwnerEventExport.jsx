@@ -3,6 +3,8 @@ import { Download } from 'lucide-react'
 import Button from './Button'
 import { requireSupabase } from '../lib/supabaseClient'
 import { buildEventWorkbook } from '../services/eventWorkbook'
+import { fetchInvitationExportDetails } from '../services/invitationExportService'
+import { fetchMonthlyFlowPointRedemptions } from '../services/flowPointRedemptionReport'
 
 export default function OwnerEventExport({ entityType, entityId }) {
   const [open,setOpen] = useState(false)
@@ -17,8 +19,12 @@ export default function OwnerEventExport({ entityType, entityId }) {
     try {
       const { data,error: failure } = await requireSupabase().rpc('studio_flow_owner_export_events',{ p_type: entityType,p_id: entityId,p_year: Number(year),p_month: Number(month) })
       if(failure) throw failure
+      const [invitations, redemptions] = await Promise.all([
+        fetchInvitationExportDetails(data.events),
+        fetchMonthlyFlowPointRedemptions(entityType, entityId, year, month),
+      ])
       stage = 'excel'
-      const buffer = await buildEventWorkbook(data,year,month)
+      const buffer = await buildEventWorkbook({ ...data, invitations, redemptions },year,month)
       stage = 'download'
       const url = URL.createObjectURL(new Blob([buffer],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}))
       const link = document.createElement('a')

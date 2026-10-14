@@ -7,6 +7,7 @@ import OwnerStatusMetric from '../../components/OwnerStatusMetric'
 import PanelHeader from '../../components/PanelHeader'
 import StatusPill from '../../components/StatusPill'
 import { useApp } from '../../contexts/appContextCore'
+import { isCommissionWaived } from '../../utils/commissionWaiver.js'
 import {
   fetchAdminBillingHistory,
   fetchAdminBillingSummary,
@@ -57,7 +58,10 @@ function buildFallbackBilling(adminState, query = '') {
   const studios = adminState.studios.length ? adminState.studios : dashboard.studios || []
   const artists = adminState.artists.length ? adminState.artists : dashboard.artists || []
   const appointments = (dashboard.appointments || []).filter((appointment) => isInCurrentMonth(appointment.date || appointment.startsAt, bounds))
-  const commissionFor = (items) => items.reduce((total, appointment) => total + (Number(appointment.platformFee) || Math.round((Number(appointment.grossAmount) || 0) * 0.10)), 0)
+  const commissionFor = (items) => items.reduce((total, appointment) => {
+    if (isCommissionWaived(appointment.date || appointment.startsAt)) return total
+    return total + Number(appointment.platformFee ?? Math.round((Number(appointment.grossAmount) || 0) * 0.10))
+  }, 0)
   const grossFor = (items) => items.reduce((total, appointment) => total + (Number(appointment.grossAmount) || 0), 0)
 
   const studioEntities = studios.map((studio) => {
@@ -231,7 +235,7 @@ function AdminBilling() {
       <MetricCard
         label="Comision este mes"
         value={formatCurrency(billing.currentMonthCommission)}
-        trend="10% sobre servicios completados"
+        trend={isCommissionWaived(new Date()) ? 'Sin comisiones hasta el 31 de diciembre de 2026' : '10% sobre servicios completados'}
         tone="sage"
       />
       <OwnerStatusMetric

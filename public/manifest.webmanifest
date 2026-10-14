@@ -3,11 +3,11 @@
   "short_name": "Studio Flow",
   "id": "/",
   "display": "standalone",
-  "theme_color": "#F5E6E0",
-  "background_color": "#F5E6E0",
+  "theme_color": "#F4E3DB",
+  "background_color": "#F4E3DB",
   "icons": [
-    { "src": "/pwa-192.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "/pwa-512.png", "sizes": "512x512", "type": "image/png" }
+    { "src": "/studioflow-launch-brand-v5-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/studioflow-launch-brand-v5-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
   ],
   "start_url": "/login",
   "scope": "/"

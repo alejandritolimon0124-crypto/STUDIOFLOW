@@ -9,6 +9,7 @@ const copyByPath = {
   [paths.adminArtists]: ['Artistas', 'Gestiona artistas, estados y perfiles dentro de Studio Flow.'],
   [paths.adminStudios]: ['Estudios', 'Revision, aprobacion y control operativo de estudios.'],
   [paths.adminBilling]: ['Cobranza', 'Comisiones Studio Flow por estudios y artistas.'],
+  [paths.adminGrowth]: ['Crecimiento', 'Resultados de cada artista y estudio.'],
   [paths.adminClients]: ['Clientes', 'Activacion, suspension y busqueda de clientas.'],
   [paths.adminSystem]: ['Sistema', 'Estado operativo y modulos listos para conectar.'],
 }
@@ -59,6 +60,7 @@ function AdminLayout() {
           {canSeeArtists && <NavLink to="/admin/artists">Artistas</NavLink>}
           {canSeeSystem && <NavLink to="/admin/studios">Estudios</NavLink>}
           {canSeeSystem && <NavLink to="/admin/billing">Cobranza</NavLink>}
+          {canSeeSystem && <NavLink to="/admin/growth">Crecimiento</NavLink>}
           {canSeeSystem && <NavLink to="/admin/clients">Clientes</NavLink>}
           {canSeeSystem && <NavLink to="/admin/system">Sistema</NavLink>}
         </nav>

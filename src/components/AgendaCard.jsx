@@ -3,13 +3,13 @@ import AppointmentPayment from './AppointmentPayment'
 import CompleteAppointmentButton from './CompleteAppointmentButton'
 import { getAppointmentStatusTone } from '../utils/appointmentStatus'
 
-function AgendaCard({ time, title, subtitle, status, accent = 'rose', type = 'appointment', showEconomy = false, economyData = null, action = null, appointment = null }) {
+function AgendaCard({ time, title, subtitle, status, accent = 'rose', type = 'appointment', showEconomy = false, economyData = null, action = null, appointment = null, className = '' }) {
   const tone = type === 'break' || status === 'Por llegar' || status === 'Anticipo'
     ? 'warm'
     : getAppointmentStatusTone(status)
 
   return (
-    <article className={`agenda-card agenda-${accent} agenda-${type}`}>
+    <article className={`agenda-card agenda-${accent} agenda-${type} ${className}`.trim()}>
       <div className="agenda-time">
         <span>{time}</span>
       </div>
@@ -35,8 +35,8 @@ function AgendaCard({ time, title, subtitle, status, accent = 'rose', type = 'ap
         )}
       </div>
       <div className="agenda-card-actions">
-        {appointment && (appointment.bookingSource || appointment.booking_source) === 'google' && (
-          <StatusPill tone="warm">Reserva Google</StatusPill>
+        {appointment && ['google', 'instagram', 'facebook'].includes(appointment.bookingSource || appointment.booking_source) && (
+          <StatusPill tone="warm">Enlace {appointment.bookingSource || appointment.booking_source}</StatusPill>
         )}
         <StatusPill tone={tone}>{status}</StatusPill>
         {action}

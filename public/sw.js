@@ -29,8 +29,8 @@ self.addEventListener('push', (event) => {
   const title = payload.title || 'Studio Flow'
   const options = {
     body: payload.body || 'Tienes un nuevo aviso.',
-    icon: payload.icon || '/pwa-192.png',
-    badge: payload.badge || '/pwa-192.png',
+    icon: payload.icon || '/studioflow-launch-brand-v5-192.png',
+    badge: payload.badge || '/studioflow-launch-brand-v5-192.png',
     tag: payload.tag || 'studio-flow-notification',
     renotify: Boolean(payload.renotify),
     data: {

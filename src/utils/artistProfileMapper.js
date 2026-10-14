@@ -30,6 +30,8 @@ export function mapAuthContextToArtistProfile(authContext = {}, fallbackProfile 
   const profile = authContext.profile || {}
   const artist = authContext.artist || {}
   const artistProfile = getArtistProfileSource(authContext)
+  const hasRemoteArtistProfile = Object.keys(artistProfile).length > 0
+  const matchingFallback = artist.id && fallbackProfile.artistId === artist.id ? fallbackProfile : {}
   const fallbackProfessionalProfile = fallbackProfile.professionalProfile || {}
   const fallbackPersonalInfo = fallbackProfile.personalInfo || {}
   const specialties = formatSpecialties(artistProfile.specialties || fallbackProfessionalProfile.specialties)
@@ -73,12 +75,14 @@ export function mapAuthContextToArtistProfile(authContext = {}, fallbackProfile 
     },
     beautySpaces: Array.isArray(artistProfile.beauty_spaces)
       ? artistProfile.beauty_spaces
-      : [artistProfile.beauty_space || 'beauty_and_personal_care'],
+      : artistProfile.beauty_space
+        ? [artistProfile.beauty_space]
+        : matchingFallback.beautySpaces || ['beauty_and_personal_care'],
     healthCompliance: {
-      hasHealthOfficer: Boolean(artistProfile.has_health_officer),
-      healthOfficerName: firstText(artistProfile.health_officer_name),
-      healthOfficerTitle: firstText(artistProfile.health_officer_title),
-      healthOfficerLicense: firstText(artistProfile.health_officer_license),
+      hasHealthOfficer: Boolean(firstDefined(artistProfile.has_health_officer, hasRemoteArtistProfile ? false : matchingFallback.healthCompliance?.hasHealthOfficer)),
+      healthOfficerName: firstText(artistProfile.health_officer_name, hasRemoteArtistProfile ? '' : matchingFallback.healthCompliance?.healthOfficerName),
+      healthOfficerTitle: firstText(artistProfile.health_officer_title, hasRemoteArtistProfile ? '' : matchingFallback.healthCompliance?.healthOfficerTitle),
+      healthOfficerLicense: firstText(artistProfile.health_officer_license, hasRemoteArtistProfile ? '' : matchingFallback.healthCompliance?.healthOfficerLicense),
     },
     personalInfo: {
       artisticName,
@@ -128,7 +132,9 @@ export function mapAuthContextToArtistProfile(authContext = {}, fallbackProfile 
     security: {
       email,
     },
-    professionalLocation: createArtistLocationSettings({
+    professionalLocation: !hasRemoteArtistProfile && matchingFallback.professionalLocation
+      ? createArtistLocationSettings(matchingFallback.professionalLocation)
+      : createArtistLocationSettings({
       useStudioLocation,
       customLocation: {
         address: firstText(
@@ -152,6 +158,6 @@ export function mapAuthContextToArtistProfile(authContext = {}, fallbackProfile 
           artistProfile.googleMapsUrl,
         ),
       },
-    }),
+      }),
   }
 }

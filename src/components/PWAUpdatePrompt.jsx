@@ -39,8 +39,8 @@ export default function PWAUpdatePrompt() {
     }
   }, [])
   if (!available) return null
-  return <aside className="pwa-install-card pwa-update-card" aria-label="Nueva version disponible" role="status">
+  return <section className="pwa-install-card pwa-update-card" aria-label="Nueva version disponible" role="status" data-nosnippet>
     <div><span>Hay una nueva version disponible</span><p>Guarda tus cambios antes de actualizar Studio Flow.</p></div>
     <Button size="sm" onClick={() => window.location.reload()}>Actualizar ahora</Button>
-  </aside>
+  </section>
 }

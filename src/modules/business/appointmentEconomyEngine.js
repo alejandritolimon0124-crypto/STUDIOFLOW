@@ -1,6 +1,8 @@
 // Business Control Layer - Appointment Economy Engine
 // Foundation for financial and operational ecosystem
 
+import { isCommissionWaived } from '../../utils/commissionWaiver.js'
+
 // Platform fee configuration
 export const PLATFORM_FEE_RATE = 0.10 // 10% commission
 
@@ -21,14 +23,15 @@ export const APPOINTMENT_STATUS = {
 }
 
 // Calculate platform fee for an appointment
-export function calculatePlatformFee(grossAmount) {
+export function calculatePlatformFee(grossAmount, appointmentDate) {
   if (!grossAmount || grossAmount <= 0) return 0
+  if (isCommissionWaived(appointmentDate)) return 0
   return Math.round(grossAmount * PLATFORM_FEE_RATE)
 }
 
 // Calculate artist revenue after platform fee
-export function calculateArtistRevenue(grossAmount) {
-  const fee = calculatePlatformFee(grossAmount)
+export function calculateArtistRevenue(grossAmount, appointmentDate) {
+  const fee = calculatePlatformFee(grossAmount, appointmentDate)
   return grossAmount - fee
 }
 
@@ -94,8 +97,9 @@ export function calculateAppointmentEconomy(appointment, serviceData) {
   }
 
   const grossAmount = appointment.grossAmount || serviceData?.price || 0
-  const platformFee = calculatePlatformFee(grossAmount)
-  const artistRevenue = calculateArtistRevenue(grossAmount)
+  const appointmentDate = appointment.startsAt || appointment.date || appointment.scheduledAt
+  const platformFee = calculatePlatformFee(grossAmount, appointmentDate)
+  const artistRevenue = calculateArtistRevenue(grossAmount, appointmentDate)
   const riskScore = calculateRiskScore(appointment, serviceData)
 
   return {

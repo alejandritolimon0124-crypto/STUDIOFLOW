@@ -1,0 +1,87 @@
+.business-payment-settings { display: grid; gap: 16px; }
+.deposit-section-heading { display: flex; align-items: flex-start; gap: 14px; }
+.deposit-section-heading > svg { flex: none; color: #a77835; margin-top: 5px; }
+.deposit-section-heading h3 { margin: 2px 0 4px; }
+.deposit-toggle { display: flex; gap: 12px; align-items: center; padding: 14px 16px; border: 1px solid #dfcda9; background: #fff9ed; border-radius: 8px; font-weight: 700; }
+.deposit-toggle input { width: 20px; height: 20px; accent-color: #814a58; }
+.deposit-settings-note { color:#755d61; line-height:1.4; }
+.deposit-field-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.deposit-save-button, .appointment-deposit-actions button, .payment-card-copy { display: inline-flex; align-items: center; justify-content: center; gap: 9px; border: 1px solid #9e6770; background: linear-gradient(135deg, #894c5c, #563840); color: white; border-radius: 7px; padding: 12px 18px; font: inherit; font-weight: 750; cursor: pointer; }
+.deposit-save-button:disabled, .appointment-deposit-actions button:disabled { opacity: .6; cursor: wait; }
+.deposit-feedback { display: block; color: #6e3a4c; font-weight: 700; }
+.appointment-deposit { display: grid; gap: 9px; width: 100%; min-width: 0; margin-top: 10px; padding: 12px 14px; border: 1px solid #e0c99e; border-left: 3px solid #bd9451; background: linear-gradient(120deg, #fff9ef, #fff8f7); border-radius: 7px; color: #4b3038; }
+.appointment-deposit-summary { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 6px 12px; font-size: 14px; font-weight: 700; }
+.appointment-deposit-summary strong { font-size: 17px; }
+.appointment-deposit-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.appointment-deposit-actions button { padding: 8px 11px; font-size: 13px; }
+.appointment-deposit-actions button + button { background: white; color: #653f4c; border-color: #d1b7bc; }
+.appointment-deposit small { line-height: 1.4; color: #6e5a5b; }
+.appointment-deposit-disclosure { display: block; padding: 0; overflow: hidden; border: 1px solid #bf9758; background: #fffaf3; box-shadow: 0 8px 20px #87534a30; scroll-margin-block: 100px; }
+.appointment-deposit-disclosure summary { display: flex; align-items: center; justify-content: space-between; gap: 8px 12px; min-height: 64px; padding: 12px; background: linear-gradient(120deg, #754354, #a65b6a); color: #fff; cursor: pointer; list-style: none; font-size: 14px; font-weight: 850; touch-action: manipulation; }
+.appointment-deposit-disclosure summary::-webkit-details-marker { display: none; }
+.appointment-deposit-disclosure summary span { display: inline-flex; align-items: center; gap: 8px; min-width: 0; color: #fff; line-height: 1.2; }
+.appointment-deposit-disclosure summary svg { flex: none; color: #ffdc98; }
+.appointment-deposit-disclosure summary strong { flex: none; color: #fff4ce; white-space: nowrap; }
+.appointment-deposit-disclosure summary:focus-visible { outline: 3px solid #d7af5f; outline-offset: -3px; }
+.appointment-deposit-disclosure[open] { display: grid; }
+.appointment-deposit-disclosure[open] summary { border-bottom: 1px solid #d3ad6f; }
+.appointment-deposit-disclosure > :not(summary) { margin: 9px 13px; }
+.appointment-deposit-disclosure > .appointment-deposit-bank { margin-top: 12px; }
+.client-appointments-experience .appointment-result-actions .appointment-pay-cta.button { display: inline-flex; align-items: center; gap: 7px; padding-inline: 8px; border: 1px solid #a97736; background: linear-gradient(135deg, #eac77c, #d7a65b); color: #422b2f; box-shadow: 0 7px 14px #7d55452b; font-size: 13px; font-weight: 900; line-height: 1.1; }
+.client-appointments-experience .appointment-result-actions .appointment-pay-cta.button svg { flex: none; }
+.appointment-payment-unavailable { display: block; margin-top: 9px; color: #765f65; font-size: 12px; }
+.appointment-deposit-bank { display: grid; gap: 0; padding-top: 3px; border-top: 1px solid #e7d8c4; }
+.appointment-deposit-bank > div { display: flex; align-items: baseline; justify-content: space-between; gap: 8px 16px; padding: 6px 0; font-size: 13px; }
+.appointment-deposit-bank span { color: #755d61; }
+.appointment-deposit-bank strong { text-align: right; overflow-wrap: anywhere; }
+.appointment-deposit-clabe { font-variant-numeric: tabular-nums; user-select: text; }
+.appointment-deposit-bank button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; justify-self: start; margin-top: 6px; padding: 7px 11px; border: 1px solid #bd9e6a; border-radius: 6px; background: #fffdfa; color: #553d43; font: inherit; font-size: 13px; font-weight: 750; cursor: pointer; }
+.appointment-deposit-prepare { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; background: #fffaf4; }
+.appointment-deposit-prepare button { border: 0; background: transparent; color: #754450; padding: 0; font: inherit; font-size: 13px; font-weight: 750; text-decoration: underline; cursor: pointer; }
+.appointment-deposit-prepare button:disabled { opacity: .6; cursor: wait; }
+.booking-deposit-notice { border: 1px solid #e6d2aa; border-radius: 8px; padding: 12px 14px; background: linear-gradient(120deg, #fff8e9, #fff5f6); display: grid; gap: 5px; color: #543b42; }
+.booking-deposit-notice strong { color: #6e3d4f; }
+.booking-deposit-notice small { line-height: 1.4; }
+.booking-deposit-consent { display: flex; align-items: flex-start; gap: 9px; font-weight: 650; }
+.booking-deposit-consent input { margin-top: 4px; accent-color: #82495b; }
+.payment-card-page { min-height: 100vh; background: #faf4f3; color: #412d34; padding-bottom: 36px; }
+.payment-card-header { background: white; padding: 15px 20px; border-bottom: 1px solid #eadfdd; text-align: center; }
+.payment-card-header img { width: min(250px, 75vw); max-height: 65px; object-fit: contain; }
+.payment-card-shell { width: min(520px, calc(100% - 32px)); margin: 24px auto; padding: clamp(22px, 5vw, 40px); border: 1px solid #d9bc84; border-radius: 8px; background: linear-gradient(150deg, #fffdfa, #fff5ee 72%, #f9e7e7); box-shadow: 0 18px 45px #4d303322; }
+.payment-card-eyebrow { display: flex; gap: 7px; align-items: center; color: #a27333; font-size: 12px; font-weight: 800; letter-spacing: 1px; }
+.payment-card-shell h1 { font-family: Georgia, serif; font-size: clamp(34px, 7vw, 50px); line-height: 1.05; margin: 20px 0 8px; }
+.payment-card-shell p { line-height: 1.5; }
+.payment-card-amount { margin: 24px 0; padding: 20px; background: #5b3944; color: #fff9ee; border-radius: 7px; font: 700 clamp(36px, 8vw, 55px) Georgia, serif; }
+.payment-card-amount small { display: block; font: 700 13px system-ui, sans-serif; margin-top: 3px; }
+.payment-card-bank { margin: 0; }
+.payment-card-bank div { display: flex; justify-content: space-between; gap: 14px; padding: 11px 0; border-bottom: 1px solid #e7d9ce; flex-wrap: wrap; }
+.payment-card-bank dt { color: #786268; }
+.payment-card-bank dd { margin: 0; font-weight: 800; overflow-wrap: anywhere; }
+.payment-card-clabe { font-variant-numeric: tabular-nums; letter-spacing: 1px; }
+.payment-card-copy { width: 100%; margin-top: 18px; min-height: 48px; }
+.payment-card-total { display: flex; gap: 8px; align-items: center; margin-top: 22px; }
+.payment-card-remaining { font-weight: 700; }
+.payment-card-disclaimer, .payment-card-terms { font-size: 14px; color: #6c5b5d; }
+.payment-card-terms { border-top: 1px solid #e7d9ce; padding-top: 14px; }
+.payment-card-state { display: flex; align-items: center; gap: 8px; margin: 22px 0; padding: 14px; border-radius: 7px; background: #f0e4d8; font-weight: 700; }
+.payment-card-page footer { text-align: center; color: #756367; font-size: 13px; padding: 0 16px; }
+@media (max-width: 560px) { .deposit-field-grid { grid-template-columns: 1fr; } }
+.deposit-dialog-backdrop { position: fixed; inset: 0; z-index: 1100; display: grid; place-items: center; padding: 16px; background: #27171bbb; }
+.deposit-dialog { width: min(450px, 100%); max-height: min(90vh, 750px); overflow: auto; border: 1px solid #d8b77d; border-radius: 8px; padding: 24px; background: linear-gradient(145deg, #fffefa, #fff4ed); box-shadow: 0 22px 60px #1e111866; color: #432f35; }
+.deposit-dialog h2 { font: 700 30px/1.1 Georgia, serif; margin: 8px 0; }
+.deposit-dialog p { line-height: 1.45; }
+.deposit-dialog > small { display: block; color: #6d5a5f; line-height: 1.45; margin-top: 10px; }
+.deposit-dialog-amounts { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; padding: 16px 0; border-top: 1px solid #e5d6ca; border-bottom: 1px solid #e5d6ca; }
+.deposit-dialog-amounts strong { text-align: right; }
+.deposit-dialog-next-step { display: grid; grid-template-columns: 42px minmax(0, 1fr); align-items: center; gap: 12px; margin-top: 15px; padding: 13px; border: 1px solid #d4ac5d; border-radius: 7px; background: linear-gradient(120deg, #fff4cb, #ffe9c8); box-shadow: 0 6px 16px #a9783f24; }
+.deposit-dialog-next-step > svg { width: 42px; height: 42px; padding: 9px; border-radius: 7px; background: #6a4050; color: #ffe2a0; }
+.deposit-dialog-next-step div { display: grid; gap: 3px; }
+.deposit-dialog-next-step strong { color: #593441; font-size: 15px; line-height: 1.2; }
+.deposit-dialog-next-step span { color: #594c44; font-size: 13px; line-height: 1.35; }
+.deposit-dialog-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-top: 20px; }
+.deposit-dialog-actions button { min-height: 46px; border-radius: 7px; border: 1px solid #c7aeb3; background: white; color: #5c3944; font: inherit; font-weight: 750; cursor: pointer; }
+.deposit-dialog-actions button:last-child { background: #603d49; color: white; }
+.owner-day-deposits { display: grid; gap: 10px; padding-top: 18px; }
+.owner-day-deposits > strong { font: 700 23px Georgia, serif; }
+.owner-day-deposits > div { border-top: 1px solid #eadfda; padding-top: 10px; }
+.owner-day-deposits > div > span { font-weight: 700; font-size: 14px; }

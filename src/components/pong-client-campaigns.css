@@ -1,0 +1,25 @@
+.pong-client-campaigns { display: grid; gap: 16px; margin: 22px 0; padding: 19px; border: 1px solid #bb9aa4; border-radius: 7px; background: #34252c; color: #fff6f3; }
+.pong-campaign-intro { display: flex; gap: 14px; align-items: flex-start; }
+.pong-campaign-intro > svg { flex: none; color: #eecb80; }
+.pong-campaign-intro span { color: #f1c7cf; font-size: 11px; font-weight: 900; }
+.pong-campaign-intro h3 { margin: 4px 0 6px; color: #fff; font: 700 25px/1.1 Georgia,serif; }
+.pong-campaign-intro p { margin: 0; color: #ebdadd; font-size: 14px; }
+.pong-client-campaigns form { display: grid; gap: 13px; }
+.pong-client-campaigns form > label,.pong-campaign-dates label { display: grid; gap: 6px; font-size: 14px; font-weight: 800; }
+.pong-client-campaigns select,.pong-client-campaigns input[type='datetime-local'] { width: 100%; min-width: 0; min-height: 43px; padding: 8px 10px; border: 1px solid #bca0a9; border-radius: 5px; background: #fff; color: #35262c; font: inherit; }
+.pong-client-campaigns fieldset { display: flex; flex-wrap: wrap; gap: 10px; margin: 0; padding: 0; border: 0; }
+.pong-client-campaigns legend { margin-bottom: 8px; font-size: 14px; font-weight: 800; }
+.pong-client-campaigns fieldset label { display: flex; align-items: center; gap: 6px; padding: 7px 10px; border: 1px solid #bca0a9; border-radius: 5px; background: #fff8f6; color: #35262c; font-weight: 800; }
+.pong-campaign-dates { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; }
+.pong-client-campaigns form > p { display: flex; align-items: center; gap: 8px; margin: 0; color: #f3dfe2; font-size: 13px; }
+.pong-client-campaigns form > button { min-height: 48px; border: 1px solid #dfb761; border-radius: 5px; background: #f1cb7b; color: #36242c; font-size: 15px; font-weight: 900; }
+.pong-campaign-message { margin: 0; color: #f8e6c2; }
+.pong-campaign-history { display: grid; gap: 8px; border-top: 1px solid #72545f; padding-top: 14px; }
+.pong-campaign-history article { display: flex; justify-content: space-between; gap: 12px; padding: 9px 0; border-bottom: 1px solid #73555d; }
+.pong-campaign-history article div { display: grid; gap: 3px; }
+.pong-campaign-history small { color: #e4cad1; }
+.pong-campaign-history article > span { color: #f5d590; font-size: 13px; font-weight: 800; text-align: right; }
+.pong-campaign-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 7px; }
+.pong-campaign-actions span { color: #f5d590; font-size: 13px; font-weight: 800; }
+.pong-campaign-actions button { padding: 6px 9px; border: 1px solid #b5909e; border-radius: 4px; background: transparent; color: #fff4f2; font-size: 12px; font-weight: 800; }
+@media(max-width:520px) { .pong-campaign-dates { grid-template-columns: 1fr; } .pong-campaign-history article { flex-direction: column; } }

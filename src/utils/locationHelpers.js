@@ -40,7 +40,7 @@ export function validateProfessionalLocation(location = {}) {
     errors.city = 'Agrega la ciudad.'
   }
 
-  if (!String(location.state || '').trim()) {
+  if (!String(location.state || '').trim() || /^selecciona una opci[oó]n$/i.test(String(location.state).trim())) {
     errors.state = 'Agrega el estado.'
   }
 

@@ -1,0 +1,16 @@
+.client-attendance-panel { grid-column: 1 / -1; padding: 18px; border: 1px solid #d9b7c2; border-radius: 7px; background: #fff7f7; color: #35272d; }
+.client-attendance-heading { display: flex; gap: 12px; }
+.client-attendance-heading > svg { flex: none; color: #a24e68; }
+.client-attendance-heading span { font-size: 11px; color: #99516b; font-weight: 900; }
+.client-attendance-heading h2 { margin: 3px 0 6px; font: 700 25px/1.16 Georgia, serif; }
+.client-attendance-heading p { margin: 0; color: #69545c; line-height: 1.4; }
+.client-attendance-list { display: grid; gap: 10px; margin-top: 14px; }
+.client-attendance-list article { display: grid; gap: 5px; padding: 13px; border-radius: 6px; background: #f7e9ed; }
+.client-attendance-list small { color: #66535a; }
+.client-attendance-list p { margin: 5px 0; line-height: 1.4; }
+.client-attendance-list .client-attendance-conflict { color: #aa263f; font-weight: 800; }
+.client-attendance-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.client-attendance-actions button { min-height: 40px; padding: 8px 12px; border: 0; border-radius: 5px; background: #37262e; color: #fff; font: inherit; font-weight: 800; }
+.client-attendance-actions button + button { background: #dccbd0; color: #35272d; }
+.client-attendance-actions button:disabled { opacity: .48; }
+.client-attendance-error { color: #a9213d; }

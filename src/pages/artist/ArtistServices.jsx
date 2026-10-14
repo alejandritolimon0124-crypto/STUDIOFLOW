@@ -14,8 +14,10 @@ import { BEAUTY_SPACES } from '../../services/beautySpaceService'
 import { calculateServiceFlowPoints } from '../../utils/flowPoints'
 import { formatCurrency } from '../../utils/formatters'
 
-const durations = ['30 min', '45 min', '60 min', '75 min', '90 min', '120 min']
+const durationMinutes = (value) => Number.parseInt(String(value || ''), 10)
 const customServiceOption = 'Personalizado'
+const customBeautyPrimary = 'Personalizar · Salón de belleza'
+const customAdvancedPrimary = 'Personalizar · Spa y estética avanzada'
 const standardVariantOption = 'Servicio estándar'
 
 const normalizeComparableName = (value = '') => String(value)
@@ -44,7 +46,10 @@ function ArtistServices() {
   const availableCatalog = {
     ...(canUseBeautyCare ? serviceCatalog : {}),
     ...(canUseAdvancedAesthetics ? advancedAestheticsCatalog : {}),
+    ...(canUseBeautyCare ? { [customBeautyPrimary]: [] } : {}),
+    ...(canUseAdvancedAesthetics ? { [customAdvancedPrimary]: [] } : {}),
   }
+  const isCustomPrimary = (category) => category === customBeautyPrimary || category === customAdvancedPrimary
   const primaryServices = Object.keys(availableCatalog)
   const [primary, setPrimary] = useState(primaryServices[0])
   const initialPrimaryValue = availableCatalog[primaryServices[0]]
@@ -53,7 +58,7 @@ function ArtistServices() {
   const [variant, setVariant] = useState(Array.isArray(initialPrimaryValue) ? standardVariantOption : initialPrimaryValue?.[initialSecondary]?.[0] || '')
   const [customServiceName, setCustomServiceName] = useState('')
   const [customVariantName, setCustomVariantName] = useState('')
-  const [duration, setDuration] = useState('60 min')
+  const [duration, setDuration] = useState('60')
   const [price, setPrice] = useState('')
   const [editingId, setEditingId] = useState(null)
   const [editingDraft, setEditingDraft] = useState(null)
@@ -61,6 +66,12 @@ function ArtistServices() {
   const [isSaving, setIsSaving] = useState(false)
   const [flowPointsSettings, setFlowPointsSettings] = useState({ enabled: false, percentage: 5, multiplier: 1 })
   const visibleArtistServices = filterServicesForWorkContext(artistServices, artistWorkContext)
+  const activeServices = [...visibleArtistServices]
+    .filter((service) => service.status === 'Activo')
+    .sort((first, second) => Number(first.price || 0) - Number(second.price || 0))
+  const suspendedServices = [...visibleArtistServices]
+    .filter((service) => service.status === 'Suspendido')
+    .sort((first, second) => Number(first.price || 0) - Number(second.price || 0))
 
   useEffect(() => {
     let active = true
@@ -92,6 +103,13 @@ function ArtistServices() {
 
   const handlePrimary = (service) => {
     setPrimary(service)
+    if (isCustomPrimary(service)) {
+      setSecondary(customServiceOption)
+      setVariant('')
+      setCustomServiceName('')
+      setCustomVariantName('')
+      return
+    }
     const primaryValue = availableCatalog[service]
     const nextSecondary = Array.isArray(primaryValue) ? primaryValue[0] : Object.keys(primaryValue || {})[0]
     setSecondary(nextSecondary)
@@ -108,7 +126,7 @@ function ArtistServices() {
     setVariant(Array.isArray(firstPrimaryValue) ? standardVariantOption : firstPrimaryValue?.[firstSecondary]?.[0] || '')
     setCustomServiceName('')
     setCustomVariantName('')
-    setDuration('60 min')
+    setDuration('60')
     setPrice('')
     setEditingId(null)
     setEditingDraft(null)
@@ -129,6 +147,7 @@ function ArtistServices() {
   }
 
   const secondaryOptions = (category, currentValue = '') => {
+    if (isCustomPrimary(category)) return [customServiceOption]
     const categoryValue = availableCatalog[category]
     const catalogOptions = Array.isArray(categoryValue) ? categoryValue : Object.keys(categoryValue || {})
     const options = [...catalogOptions, customServiceOption]
@@ -158,7 +177,7 @@ function ArtistServices() {
       customName: isCatalogService ? '' : service.name,
       variant: isCatalogService ? standardVariantOption : '',
       customVariantName: '',
-      duration: service.duration,
+      duration: String(durationMinutes(service.duration)),
       price: String(service.price),
       bookings: service.bookings || 0,
       demand: service.demand || 'Nueva',
@@ -186,6 +205,11 @@ function ArtistServices() {
       return
     }
 
+    if (!Number.isSafeInteger(Number(duration)) || Number(duration) <= 0) {
+      showFeedback('La duración debe ser un número entero de minutos mayor a cero')
+      return
+    }
+
     if (hasActiveDuplicate(serviceName)) {
       showFeedback('Ya existe un servicio activo con ese nombre')
       return
@@ -196,7 +220,7 @@ function ArtistServices() {
       name: serviceName,
       category: primary,
       price: Number(price),
-      duration,
+      duration: `${duration} min`,
       bookings: 0,
       demand: 'Nueva',
       status: 'Activo',
@@ -219,6 +243,7 @@ function ArtistServices() {
   const updateEditingDraft = (field, value) => {
     setEditingDraft((draft) => {
       if (field === 'primary') {
+        if (isCustomPrimary(value)) return { ...draft, primary: value, secondary: customServiceOption, customName: '', variant: '', customVariantName: '' }
         const primaryValue = availableCatalog[value]
         const nextSecondary = Array.isArray(primaryValue) ? primaryValue[0] : Object.keys(primaryValue || {})[0]
         return { ...draft, primary: value, secondary: nextSecondary || '', customName: '', variant: Array.isArray(primaryValue) ? standardVariantOption : primaryValue?.[nextSecondary]?.[0] || '', customVariantName: '' }
@@ -253,6 +278,11 @@ function ArtistServices() {
       return
     }
 
+    if (!Number.isSafeInteger(Number(editingDraft.duration)) || Number(editingDraft.duration) <= 0) {
+      showFeedback('La duración debe ser un número entero de minutos mayor a cero')
+      return
+    }
+
     if (editingDraft.status === 'Activo' && hasActiveDuplicate(serviceName, editingDraft.id)) {
       showFeedback('Ya existe otro servicio activo con ese nombre')
       return
@@ -266,7 +296,7 @@ function ArtistServices() {
         name: serviceName,
         category: editingDraft.primary,
         price: Number(editingDraft.price),
-        duration: editingDraft.duration,
+        duration: `${editingDraft.duration} min`,
         bookings: editingDraft.bookings,
         demand: editingDraft.demand,
         status: editingDraft.status,
@@ -304,8 +334,12 @@ function ArtistServices() {
 
   return (
     <main className="dashboard-grid artist-grid services-master">
-        <Card className="wide-card mobile-screen primary-panel">
-          <PanelHeader title="Agregar servicio" eyebrow="Formulario" />
+        <Card className="wide-card mobile-screen primary-panel artist-services-builder-card">
+          <div className="artist-services-intro">
+            <span>TU TALENTO, TU MENÚ</span>
+            <h1>Crea experiencias que quieran reservar</h1>
+            <p>Define cada servicio con el tiempo y valor que merece tu trabajo.</p>
+          </div>
 
           <div className="list-row elevated-row" style={{ marginBottom: '14px' }}>
             <div>
@@ -322,7 +356,7 @@ function ArtistServices() {
             </StatusPill>
           </div>
 
-          <form className="service-builder" onSubmit={saveService}>
+          <form className="service-builder artist-service-builder" onSubmit={saveService}>
             <label className="input-field">
               <span>Servicio primario</span>
               <select value={primary} onChange={(event) => handlePrimary(event.target.value)}>
@@ -332,7 +366,7 @@ function ArtistServices() {
               </select>
             </label>
 
-            <label className="input-field">
+            {!isCustomPrimary(primary) && <label className="input-field">
               <span>Servicio secundario</span>
               <select value={secondary} onChange={(event) => {
                 const nextSecondary = event.target.value
@@ -345,7 +379,7 @@ function ArtistServices() {
                   <option key={service} value={service}>{service}</option>
                 ))}
               </select>
-            </label>
+            </label>}
 
             {secondary === customServiceOption && (
               <Input
@@ -356,7 +390,7 @@ function ArtistServices() {
               />
             )}
 
-            {secondary !== customServiceOption && variantOptions(primary, secondary).length > 0 && (
+            {!isCustomPrimary(primary) && secondary !== customServiceOption && variantOptions(primary, secondary).length > 0 && (
               <label className="input-field">
                 <span>Zona o variante</span>
                 <select value={variant} onChange={(event) => { setVariant(event.target.value); setCustomVariantName('') }}>
@@ -365,18 +399,11 @@ function ArtistServices() {
               </label>
             )}
 
-            {variant === customVariantOption && secondary !== customServiceOption && (
+            {variant === customVariantOption && !isCustomPrimary(primary) && secondary !== customServiceOption && (
               <Input label="Nombre de la zona o variante personalizada" placeholder="Ej. Frente + entrecejo" value={customVariantName} onChange={(event) => setCustomVariantName(event.target.value)} />
             )}
 
-            <label className="input-field">
-              <span>Duracion</span>
-              <select value={duration} onChange={(event) => setDuration(event.target.value)}>
-                {durations.map((duration) => (
-                  <option key={duration}>{duration}</option>
-                ))}
-              </select>
-            </label>
+            <Input label="Duración (minutos)" type="number" min="1" step="1" inputMode="numeric" value={duration} onChange={(event) => setDuration(event.target.value)} />
 
             <Input label="Precio en pesos" type="number" placeholder="850" value={price} onChange={(event) => setPrice(event.target.value)} />
 
@@ -389,12 +416,12 @@ function ArtistServices() {
           </form>
         </Card>
 
-        <Card className="mobile-screen">
-          <PanelHeader title="Servicios activos" eyebrow="Disponibles" />
-          <div className="service-list">
-            {visibleArtistServices.filter((service) => service.status === 'Activo').map((service) => (
+        <Card className="mobile-screen artist-service-collection active-services-collection">
+          <PanelHeader title="Tu menú disponible" eyebrow={`${activeServices.length} servicios activos · menor a mayor precio`} />
+          <div className="service-list artist-service-list">
+            {activeServices.map((service) => (
               <Fragment key={service.id}>
-                <div className={`service-row management-row${editingId === service.id ? ' is-editing' : ''}`}>
+                <div className={`service-row management-row artist-service-card${editingId === service.id ? ' is-editing' : ''}`}>
                   <div>
                     <strong>{service.name}</strong>
                     <small>{service.category} / {service.duration} / {service.bookings} reservas</small>
@@ -423,14 +450,14 @@ function ArtistServices() {
                           ))}
                         </select>
                       </label>
-                      <label className="input-field">
+                      {!isCustomPrimary(editingDraft?.primary) && <label className="input-field">
                         <span>Servicio secundario</span>
                         <select value={editingDraft?.secondary || ''} onChange={(event) => updateEditingDraft('secondary', event.target.value)}>
                           {secondaryOptions(editingDraft?.primary, editingDraft?.secondary).map((serviceName) => (
                             <option key={serviceName} value={serviceName}>{serviceName}</option>
                           ))}
                         </select>
-                      </label>
+                      </label>}
                       {editingDraft?.secondary === customServiceOption && (
                         <Input
                           label="Nombre de tu servicio personalizado"
@@ -439,7 +466,7 @@ function ArtistServices() {
                           onChange={(event) => updateEditingDraft('customName', event.target.value)}
                         />
                       )}
-                      {editingDraft?.secondary !== customServiceOption && variantOptions(editingDraft?.primary, editingDraft?.secondary).length > 0 && (
+                      {!isCustomPrimary(editingDraft?.primary) && editingDraft?.secondary !== customServiceOption && variantOptions(editingDraft?.primary, editingDraft?.secondary).length > 0 && (
                         <label className="input-field">
                           <span>Zona o variante</span>
                           <select value={editingDraft?.variant || ''} onChange={(event) => updateEditingDraft('variant', event.target.value)}>
@@ -447,17 +474,10 @@ function ArtistServices() {
                           </select>
                         </label>
                       )}
-                      {editingDraft?.variant === customVariantOption && (
+                      {editingDraft?.variant === customVariantOption && !isCustomPrimary(editingDraft?.primary) && (
                         <Input label="Nombre de la zona o variante personalizada" value={editingDraft?.customVariantName || ''} onChange={(event) => updateEditingDraft('customVariantName', event.target.value)} />
                       )}
-                      <label className="input-field">
-                        <span>Duracion</span>
-                        <select value={editingDraft?.duration || '60 min'} onChange={(event) => updateEditingDraft('duration', event.target.value)}>
-                          {durations.map((durationValue) => (
-                            <option key={durationValue}>{durationValue}</option>
-                          ))}
-                        </select>
-                      </label>
+                      <Input label="Duración (minutos)" type="number" min="1" step="1" inputMode="numeric" value={editingDraft?.duration ?? ''} onChange={(event) => updateEditingDraft('duration', event.target.value)} />
                       <Input label="Precio en pesos" type="number" value={editingDraft?.price || ''} onChange={(event) => updateEditingDraft('price', event.target.value)} />
                       <div className="row-actions">
                         <Button size="sm" type="submit" disabled={isSaving || isArtistServicesLoading}>
@@ -470,15 +490,18 @@ function ArtistServices() {
                 )}
               </Fragment>
             ))}
+            {activeServices.length === 0 && (
+              <p className="artist-service-empty">Tu próximo servicio aparecerá aquí cuando lo guardes.</p>
+            )}
           </div>
         </Card>
 
-        <Card className="mobile-screen">
-          <PanelHeader title="Servicios suspendidos" eyebrow="Pausados" />
-          <div className="service-list">
-            {visibleArtistServices.filter((service) => service.status === 'Suspendido').map((service) => (
+        <Card className="mobile-screen artist-service-collection suspended-services-collection">
+          <PanelHeader title="Servicios en pausa" eyebrow="Puedes reactivarlos cuando quieras" />
+          <div className="service-list artist-service-list">
+            {suspendedServices.map((service) => (
               <Fragment key={service.id}>
-                <div className={`service-row management-row${editingId === service.id ? ' is-editing' : ''}`}>
+                <div className={`service-row management-row artist-service-card${editingId === service.id ? ' is-editing' : ''}`}>
                   <div>
                     <strong>{service.name}</strong>
                     <small>{service.category} / {service.duration}</small>
@@ -503,14 +526,14 @@ function ArtistServices() {
                           ))}
                         </select>
                       </label>
-                      <label className="input-field">
+                      {!isCustomPrimary(editingDraft?.primary) && <label className="input-field">
                         <span>Servicio secundario</span>
                         <select value={editingDraft?.secondary || ''} onChange={(event) => updateEditingDraft('secondary', event.target.value)}>
                           {secondaryOptions(editingDraft?.primary, editingDraft?.secondary).map((serviceName) => (
                             <option key={serviceName} value={serviceName}>{serviceName}</option>
                           ))}
                         </select>
-                      </label>
+                      </label>}
                       {editingDraft?.secondary === customServiceOption && (
                         <Input
                           label="Nombre de tu servicio personalizado"
@@ -519,7 +542,7 @@ function ArtistServices() {
                           onChange={(event) => updateEditingDraft('customName', event.target.value)}
                         />
                       )}
-                      {editingDraft?.secondary !== customServiceOption && variantOptions(editingDraft?.primary, editingDraft?.secondary).length > 0 && (
+                      {!isCustomPrimary(editingDraft?.primary) && editingDraft?.secondary !== customServiceOption && variantOptions(editingDraft?.primary, editingDraft?.secondary).length > 0 && (
                         <label className="input-field">
                           <span>Zona o variante</span>
                           <select value={editingDraft?.variant || ''} onChange={(event) => updateEditingDraft('variant', event.target.value)}>
@@ -527,17 +550,10 @@ function ArtistServices() {
                           </select>
                         </label>
                       )}
-                      {editingDraft?.variant === customVariantOption && (
+                      {editingDraft?.variant === customVariantOption && !isCustomPrimary(editingDraft?.primary) && (
                         <Input label="Nombre de la zona o variante personalizada" value={editingDraft?.customVariantName || ''} onChange={(event) => updateEditingDraft('customVariantName', event.target.value)} />
                       )}
-                      <label className="input-field">
-                        <span>Duracion</span>
-                        <select value={editingDraft?.duration || '60 min'} onChange={(event) => updateEditingDraft('duration', event.target.value)}>
-                          {durations.map((durationValue) => (
-                            <option key={durationValue}>{durationValue}</option>
-                          ))}
-                        </select>
-                      </label>
+                      <Input label="Duración (minutos)" type="number" min="1" step="1" inputMode="numeric" value={editingDraft?.duration ?? ''} onChange={(event) => updateEditingDraft('duration', event.target.value)} />
                       <Input label="Precio en pesos" type="number" value={editingDraft?.price || ''} onChange={(event) => updateEditingDraft('price', event.target.value)} />
                       <div className="row-actions">
                         <Button size="sm" type="submit" disabled={isSaving || isArtistServicesLoading}>
@@ -550,6 +566,9 @@ function ArtistServices() {
                 )}
               </Fragment>
             ))}
+            {suspendedServices.length === 0 && (
+              <p className="artist-service-empty">No tienes servicios en pausa.</p>
+            )}
           </div>
         </Card>
     </main>

@@ -1,0 +1,9 @@
+.client-manual-requests { display:grid; gap:14px; border:1px solid #e7c9ce; background:#fff8f7; }
+.client-manual-requests-title { display:flex; align-items:center; gap:12px; color:#8e5264; }
+.client-manual-requests-title span { font-size:11px; font-weight:800; }
+.client-manual-requests-title h3 { margin:2px 0 0; color:#34262c; font:700 23px/1.15 Georgia,serif; }
+.client-manual-request { display:grid; gap:7px; padding:14px; border:1px solid #e7c9ce; border-radius:7px; background:white; }
+.client-manual-request > strong { color:#34262c; }
+.client-manual-request > span { color:#674e57; }
+.client-manual-request-actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:5px; }
+.client-manual-request-actions .button { display:inline-flex; align-items:center; gap:6px; }

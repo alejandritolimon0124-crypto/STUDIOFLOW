@@ -4,6 +4,7 @@ export function getAppointmentStatusTone(appointmentOrStatus = '') {
     && appointmentOrStatus
     && String(appointmentOrStatus.appointmentStatus || appointmentOrStatus.appointment_status || '').toLowerCase() === 'scheduled'
   ) {
+    if (appointmentOrStatus.depositPlan && !appointmentOrStatus.depositPlan.depositReceivedAt) return 'warm'
     if (appointmentOrStatus.clientConfirmedAt || appointmentOrStatus.client_confirmed_at) return 'success'
     if (appointmentOrStatus.confirmationRequestedAt || appointmentOrStatus.confirmation_requested_at) return 'warm'
     return 'neutral'

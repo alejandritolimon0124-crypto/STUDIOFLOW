@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useLocation } from 'react-router-dom'
 import Button from './Button'
 
 function isAppInstalled() {
@@ -9,6 +10,7 @@ function isAppInstalled() {
 }
 
 function PWAInstallPrompt() {
+  const { pathname } = useLocation()
   const [deferredPrompt, setDeferredPrompt] = useState(() => isAppInstalled() ? null : window.studioFlowInstallPrompt || null)
   const [isVisible, setIsVisible] = useState(() => !isAppInstalled() && Boolean(
     window.studioFlowInstallPrompt
@@ -69,10 +71,10 @@ function PWAInstallPrompt() {
     setIsVisible(false)
   }
 
-  if (!isVisible) return null
+  if (!isVisible || /^\/reservar(?:\/|$)/.test(pathname)) return null
 
   return (
-    <aside className="pwa-install-card" aria-label="Instalar Studio Flow">
+    <section className="pwa-install-card" aria-label="Instalar Studio Flow" data-nosnippet>
       <button className="pwa-install-close" type="button" aria-label="Cerrar instalación" onClick={handleDismiss}>
         ×
       </button>
@@ -87,7 +89,7 @@ function PWAInstallPrompt() {
         )}
       </div>
       <Button size="sm" onClick={handleInstall}>{deferredPrompt ? 'Instalar aplicación' : isIOS ? 'Cómo instalar en iPhone' : 'Cómo instalar'}</Button>
-    </aside>
+    </section>
   )
 }
 

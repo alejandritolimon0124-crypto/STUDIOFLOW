@@ -1,5 +1,6 @@
 import { requireSupabase } from '../lib/supabaseClient'
 import { buildGoogleMapsUrl } from '../utils/locationHelpers'
+import { fetchPortfolioPages } from './portfolioPageService'
 
 function splitSpecialties(value) {
   if (Array.isArray(value)) return value.map((item) => String(item || '').trim()).filter(Boolean)
@@ -121,16 +122,34 @@ function profileToPayload(profile = {}, artistId) {
   }
 }
 
-export async function fetchArtistProfile({ artistId }) {
+export async function fetchArtistProfile({ artistId, includePortfolio = true }) {
   if (!artistId) return null
 
   const client = requireSupabase()
-  const { data, error } = await client.rpc('studio_flow_artist_get_own_profile', {
+  const { data, error } = await client.rpc(includePortfolio
+    ? 'studio_flow_artist_get_own_profile'
+    : 'studio_flow_artist_get_own_profile_core', {
     p_artist_id: artistId,
   })
 
   if (error) throw error
   return data?.artist_profile ? mapArtistProfileRow(data.artist_profile) : null
+}
+
+export async function fetchArtistPortfolio({ artistId, onPage }) {
+  if (!artistId) return []
+
+  const mapPhotos = (paths) => paths.map((url, index) => ({
+    id: `artist-profile-portfolio-${index + 1}`,
+    label: `Portfolio ${index + 1}`,
+    url,
+  }))
+  const paths = await fetchPortfolioPages({
+    functionName: 'studio_flow_artist_get_own_portfolio_page',
+    params: { p_artist_id: artistId },
+    onPage: (loadedPaths) => onPage?.(mapPhotos(loadedPaths)),
+  })
+  return mapPhotos(paths)
 }
 
 export async function saveArtistProfile({ artistId, profileId, profile }) {

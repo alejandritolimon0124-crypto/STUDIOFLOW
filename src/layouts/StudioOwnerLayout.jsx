@@ -5,6 +5,7 @@ import { paths } from '../routes/paths'
 import { ROLES } from '../modules/permissions/rolePermissions'
 import drawerLogo from '../assets/studioflowlogo2.png'
 import useCommissionReceiptNotice from '../hooks/useCommissionReceiptNotice'
+import ProviderAttendanceGate from '../components/ProviderAttendanceGate'
 
 const studioOwnerNavItems = [
   ['Inicio', `${paths.adminStudio}?section=summary`],
@@ -13,8 +14,11 @@ const studioOwnerNavItems = [
   ['Servicios', `${paths.adminStudio}?section=services`],
   ['Marketplace', `${paths.adminStudio}?section=marketplace`],
   ['Clientes', paths.adminStudioClients],
-  ['Contabilidad', paths.studioAccounting],
-  ['Config', `${paths.adminStudio}?section=config`],
+  ['Campañas', paths.studioCampaigns],
+  ['AURORA', paths.studioAurora],
+  ['Tarjeta digital', `${paths.studioAccounting}?tarjeta=1`],
+  ['Mi negocio', paths.studioAccounting],
+  ['Mi perfil de estudio', `${paths.adminStudio}?section=settings`],
 ]
 
 const studioOwnerBottomItems = [
@@ -103,7 +107,7 @@ function StudioOwnerLayout() {
     return normalizedSection === 'config' ? 'settings' : normalizedSection
   }
   const normalizeStudioPath = (path) => {
-    if (!path.includes('?')) return path
+    if (!path.startsWith(`${paths.adminStudio}?`)) return path
 
     const [pathname, queryString] = path.split('?')
     const params = new URLSearchParams(queryString)
@@ -113,6 +117,9 @@ function StudioOwnerLayout() {
   }
   const isActiveItem = (path) => {
     if (path === paths.adminStudioClients) return location.pathname === paths.adminStudioClients
+    if (path === paths.studioCampaigns) return location.pathname === paths.studioCampaigns
+    if (path.startsWith(`${paths.studioAccounting}?`)) return location.pathname === paths.studioAccounting && location.search.includes('tarjeta=1')
+    if (path === paths.studioAccounting) return location.pathname === paths.studioAccounting && !location.search.includes('tarjeta=1')
     if (!path.includes('?')) return location.pathname === path
     if (location.pathname !== paths.adminStudio) return false
 
@@ -205,6 +212,7 @@ function StudioOwnerLayout() {
       <aside className="sidebar studio-owner-sidebar">
         <button className="brand-button sidebar-brand drawer-brand-logo" type="button" onClick={() => goTo(`${paths.adminStudio}?section=summary`)}>
           <img src={drawerLogo} alt="Studio Flow" />
+          <img className="desktop-brand-logo" src="/studioflow-wordmark-960.png" alt="Studio Flow" />
         </button>
 
         <div className="sidebar-profile">
@@ -227,13 +235,13 @@ function StudioOwnerLayout() {
         <nav className="sidebar-nav" aria-label="Navegacion del estudio">
           {studioOwnerNavItems.map(([label, path]) => (
             <button
-              className={`${isActiveItem(path) ? 'active' : ''} ${path === paths.studioAccounting && commissionReceiptAvailable ? 'receipt-available' : ''}`.trim()}
+              className={`${isActiveItem(path) ? 'active' : ''} ${label === 'AURORA' ? 'sidebar-aurora-link' : ''} ${label === 'Tarjeta digital' ? 'featured-invitation' : ''} ${label === 'Mi negocio' ? 'business-highlight' : ''} ${path === paths.studioAccounting && commissionReceiptAvailable ? 'receipt-available' : ''}`.trim()}
               key={path}
               type="button"
               onClick={() => goTo(path)}
+              aria-label={label === 'AURORA' ? 'AURORA, próximamente' : undefined}
             >
-              <span aria-hidden="true"></span>
-              <span className="sidebar-nav-label">{label}</span>
+              {label === 'AURORA' ? <><span aria-hidden="true"></span><img src="/aurora-logo-a249dcfe.png" alt="" width="720" height="240" /></> : <><span aria-hidden="true"></span><span className="sidebar-nav-label">{label}</span></>}
               {path === paths.studioAccounting && commissionReceiptAvailable && <small>Recibo de pago disponible</small>}
             </button>
           ))}
@@ -268,6 +276,7 @@ function StudioOwnerLayout() {
           </button>
           <div className="topbar-center">
             <img className="mobile-brand-logo" src={drawerLogo} alt="Studio Flow" />
+            <img className="desktop-brand-logo" src="/studioflow-wordmark-960.png" alt="Studio Flow" />
           </div>
           <button className="avatar mini topbar-profile-avatar" type="button" onClick={() => goTo(`${paths.adminStudio}?section=settings`)}>
             {studioLogoUrl ? <img src={studioLogoUrl} alt={`Foto de perfil de ${studioName}`} /> : avatar}
@@ -275,7 +284,7 @@ function StudioOwnerLayout() {
         </header>
 
         <div className="role-layout-shell">
-          <Outlet />
+          <ProviderAttendanceGate studioId={activeStudioId} enabled={Boolean(activeStudioId) && !session.isMockSession} forceReview={new URLSearchParams(location.search).get('pendientes') === '1'}><Outlet /></ProviderAttendanceGate>
           <nav className="role-bottom-nav studio-owner-role-nav" aria-label="Navegacion del estudio">
             {studioOwnerBottomItems.map(([label, path]) => (
               <button className={isActiveItem(path) ? 'active' : ''} key={path} type="button" onClick={() => goTo(path)}>

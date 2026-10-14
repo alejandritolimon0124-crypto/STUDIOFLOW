@@ -1,6 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import useCurrentTime from '../../hooks/useCurrentTime'
+import usePublicBookingShare from '../../hooks/usePublicBookingShare'
+import { shareBusinessLocation } from '../../utils/shareBusinessLocation'
+import PendingPointsNotice from '../../components/PendingPointsNotice'
+import { pendingAppointmentPoints } from '../../utils/pendingAppointmentPoints'
 import AgendaCard from '../../components/AgendaCard'
 import Button from '../../components/Button'
 import Card from '../../components/Card'
@@ -172,9 +176,9 @@ function ArtistDashboard({ view = 'agenda' }) {
   const [isAvailabilityLoading, setIsAvailabilityLoading] = useState(false)
   const [availabilityError, setAvailabilityError] = useState('')
   const [isCreatingNewClient, setIsCreatingNewClient] = useState(false)
-  const [newClient, setNewClient] = useState({ name: '', phone: '', notes: '' })
+  const [newClient, setNewClient] = useState({ name: '', phone: '', email: '', notes: '' })
   const [hideMetrics, setHideMetrics] = useState(getStoredMetricsPrivacy)
-  const [shareFeedback, setShareFeedback] = useState('')
+  const [locationShareFeedback, setLocationShareFeedback] = useState('')
   const safeSelectedDate = getSafeDateValue(selectedDate)
   const [previousSelectedDate, setPreviousSelectedDate] = useState(safeSelectedDate)
 
@@ -342,6 +346,11 @@ function ArtistDashboard({ view = 'agenda' }) {
   const artistDisplayName = activeContextIsMembership
     ? artistWorkContext?.studioName || studioProfile.commercialName || currentStudio?.name || 'Estudio'
     : profileName || 'Artista profesional'
+  const publicBookingShare = usePublicBookingShare({
+    artistId: activeContextIsMembership ? null : primaryArtist?.id,
+    studioId: activeContextIsMembership ? activeWorkContextStudioId : null,
+    businessName: artistDisplayName,
+  })
   const heroPhotoLabel = activeContextIsMembership
     ? profileName || authenticatedArtistName || artistDisplayName
     : artistDisplayName
@@ -355,6 +364,19 @@ function ArtistDashboard({ view = 'agenda' }) {
   const heroLocation = hasProfessionalLocationContent(customProfileLocation)
     ? formatProfessionalLocation(customProfileLocation)
     : ''
+  const shareLocation = () => {
+    const location = activeContextIsMembership
+      ? currentStudio?.professionalLocation || currentStudio?.profile?.professionalLocation
+      : customProfileLocation
+    const shared = shareBusinessLocation({
+      businessName: artistDisplayName,
+      location,
+      fallbackAddress: activeContextIsMembership ? currentStudio?.profile?.addressLine || currentStudio?.addressLine : '',
+      studio: activeContextIsMembership,
+    })
+    if (!shared) setLocationShareFeedback('Agrega la ubicación de tu negocio en tu perfil para poder compartirla.')
+    else setLocationShareFeedback('')
+  }
   const studioNameLabel = ''
   const canUseEconomy = canUseOperationalFeature(currentStudio, 'economy')
   const artistOperationalStatus = String(session.artist?.status || primaryArtist?.status || 'Activo').toLowerCase()
@@ -377,6 +399,9 @@ function ArtistDashboard({ view = 'agenda' }) {
   const activeContextAppointments = artistAppointmentSource.filter((appointment) => (
     appointmentMatchesWorkContext(appointment, artistWorkContext)
   ))
+  const appointmentsAwaitingPoints = realArtistAppointmentSourceReady
+    ? pendingAppointmentPoints(activeContextAppointments, now)
+    : []
   const attendedClientIds = new Set(activeContextAppointments
     .filter((appointment) => (
       appointment.clientId
@@ -479,6 +504,7 @@ function ArtistDashboard({ view = 'agenda' }) {
       firstName: firstName || 'Clienta',
       lastName: lastNameParts.join(' ') || 'Studio Flow',
       phone: isCreatingNewClient ? newClient.phone : appointmentDraft.phone,
+      email: isCreatingNewClient ? newClient.email : '',
       serviceOfferingId: selectedService.id,
       date: appointmentDraft.date,
       time: appointmentDraft.time,
@@ -507,7 +533,7 @@ function ArtistDashboard({ view = 'agenda' }) {
     setShowAppointmentForm(false)
     setClientSearch('')
     setIsCreatingNewClient(false)
-    setNewClient({ name: '', phone: '', notes: '' })
+    setNewClient({ name: '', phone: '', email: '', notes: '' })
     await loadArtistAppointments()
   }
 
@@ -525,33 +551,21 @@ function ArtistDashboard({ view = 'agenda' }) {
     })
   }
 
-  const shareApplication = async () => {
-    const shareData = {
-      title: 'Studio Flow',
-      text: 'Agenda tus servicios de belleza con Studio Flow.',
-      url: 'https://studioflow.vip',
-    }
-
-    try {
-      if (navigator.share) await navigator.share(shareData)
-      else {
-        await navigator.clipboard.writeText(shareData.url)
-        setShareFeedback('Enlace copiado.')
-      }
-    } catch (error) {
-      if (error?.name !== 'AbortError') setShareFeedback('No se pudo compartir el enlace.')
-    }
-  }
-
   return (
     <main className={`dashboard-grid artist-grid view-${view}`}>
         {view === 'agenda' && (
           <>
-            <section className="hero-panel studio-hero artist-profile-hero mobile-screen">
+            <PendingPointsNotice appointments={appointmentsAwaitingPoints} audience="business" onOpen={() => {
+              if (appointmentsAwaitingPoints[0]?.date) setSelectedDate(appointmentsAwaitingPoints[0].date)
+              navigate(`${paths.artistAppointments}?pendientes=1`)
+            }} />
+            <section className="hero-panel studio-hero artist-profile-hero mobile-screen professional-home-hero artist-home-hero">
               <div className="artist-hero-copy">
-                <span className="eyebrow">{heroLocation || 'Ubicacion profesional por confirmar'}</span>
+                <span className="professional-home-kicker">TU ESPACIO PROFESIONAL</span>
                 <h2>{artistDisplayName}</h2>
                 {studioNameLabel && <small>{studioNameLabel}</small>}
+                <p className="professional-home-message">Tu talento ya está en movimiento. Hoy es otro día para crear experiencias que tus clientas quieran repetir.</p>
+                <span className="professional-home-location">{heroLocation || 'Ubicación profesional por confirmar'}</span>
               </div>
               <div className="artist-hero-photo">
                 {profilePhoto ? (
@@ -570,13 +584,12 @@ function ArtistDashboard({ view = 'agenda' }) {
                 >
                   Agregar cita
                 </Button>
-                <Button onClick={shareApplication}>Compartir aplicacion</Button>
-                <Button className="full-width" variant="ghost" onClick={toggleMetricsPrivacy}>
-                  {hideMetrics ? 'Mostrar métricas' : 'Ocultar métricas'}
-                </Button>
-                <Button className="full-width" variant="ghost" onClick={() => navigate(paths.artistSchedule)}>Editar horario</Button>
+                <Button disabled={publicBookingShare.loading || !publicBookingShare.available} onClick={publicBookingShare.share}>Compartir enlace para agendar</Button>
+                <Button className="full-width" variant="ghost" onClick={() => navigate(`${paths.artistAccounting}?tarjeta=1`, { state: { returnTo: paths.artistAgenda } })}>Volante digital</Button>
+                <Button className="full-width" variant="ghost" onClick={shareLocation}>Compartir ubicación</Button>
               </div>
-              {shareFeedback && <small className="studio-owner-share-feedback">{shareFeedback}</small>}
+              {publicBookingShare.feedback && <small className="studio-owner-share-feedback">{publicBookingShare.feedback}</small>}
+              {locationShareFeedback && <small className="studio-owner-share-feedback">{locationShareFeedback}</small>}
               {!hideMetrics && (
                 <div className="hero-summary">
                   <span>{primaryArtist?.plan || 'Perfil profesional'}</span>
@@ -593,18 +606,28 @@ function ArtistDashboard({ view = 'agenda' }) {
               </div>
             )}
 
+            <div className="professional-metrics-toggle">
+              <Button variant="ghost" size="sm" onClick={toggleMetricsPrivacy}>
+                {hideMetrics ? 'Mostrar métricas' : 'Ocultar métricas'}
+              </Button>
+            </div>
+
             {!hideMetrics && (
               <>
-                <MetricCard label="Citas pendientes" value={summary.pending} trend={`${summary.completed} completadas · ${summary.cancelled} canceladas`} className="mobile-compact" />
-                <MetricCard label="Ocupación" value={occupancyLabel} trend={safeSelectedDate} tone={occupancy > 80 ? 'sage' : 'rose'} className="mobile-compact" />
-                <MetricCard label="Ingresos completados" value={summary.income == null ? 'Por confirmar' : formatCurrency(summary.income)} trend={safeSelectedDate} tone="nude" className="mobile-compact" />
+                <MetricCard label="Citas pendientes" value={summary.pending} trend={`${summary.completed} completadas · ${summary.cancelled} canceladas`} className="mobile-compact professional-home-metric" />
+                <MetricCard label="Ocupación" value={occupancyLabel} trend={safeSelectedDate} tone={occupancy > 80 ? 'sage' : 'rose'} className="mobile-compact professional-home-metric" />
+                <MetricCard label="Ingresos completados" value={summary.income == null ? 'Por confirmar' : formatCurrency(summary.income)} trend={safeSelectedDate} tone="nude" className="mobile-compact professional-home-metric" />
               </>
             )}
 
             {showAppointmentForm && (
               <div ref={appointmentFormRef}>
-                <Card className="mobile-screen primary-panel">
-                <PanelHeader title="Nueva cita" eyebrow="Agenda" />
+                <Card className="mobile-screen primary-panel professional-appointment-form">
+                <PanelHeader
+                  title="Nueva cita"
+                  eyebrow="Agenda"
+                  action={<Button variant="ghost" size="sm" onClick={() => setShowAppointmentForm(false)}>Ocultar</Button>}
+                />
                 <div className="form-stack compact-form">
                   <label className="input-field">
                     <span>Cliente</span>
@@ -657,7 +680,7 @@ function ArtistDashboard({ view = 'agenda' }) {
                                     client: clientSearch,
                                     phone: '',
                                   }))
-                                  setNewClient({ name: clientSearch, phone: '', notes: '' })
+                                  setNewClient({ name: clientSearch, phone: '', email: '', notes: '' })
                                 }}
                               >
                                 + Crear nueva clienta
@@ -688,6 +711,12 @@ function ArtistDashboard({ view = 'agenda' }) {
                           placeholder="Número celular"
                           value={newClient.phone}
                           onChange={(e) => setNewClient({ ...newClient, phone: e.target.value })}
+                        />
+                        <input
+                          type="email"
+                          placeholder="Correo para enviar la cita (opcional)"
+                          value={newClient.email}
+                          onChange={(e) => setNewClient({ ...newClient, email: e.target.value })}
                         />
                         <textarea
                           placeholder="Notas (opcional)"
@@ -816,7 +845,7 @@ function ArtistDashboard({ view = 'agenda' }) {
               </div>
             )}
 
-            <Card className="calendar-card mobile-screen primary-panel">
+            <Card className="calendar-card mobile-screen primary-panel professional-day-agenda">
               <PanelHeader 
                 title="Agenda visual" 
                 eyebrow={dayOfWeek.charAt(0).toUpperCase() + dayOfWeek.slice(1)} 
@@ -882,7 +911,7 @@ function ArtistDashboard({ view = 'agenda' }) {
                 <span>Anticipacion minima 2 h</span>
                 <span>Descanso 14:00 - 15:00</span>
               </div>
-              <div className="day-strip scrollable-day-strip" ref={dayStripRef}>
+              <div className="day-strip scrollable-day-strip professional-day-strip" ref={dayStripRef}>
                 {visibleDays.map((dateValue) => {
                   const d = parseDateValue(dateValue)
                   const dayLabel = d.toLocaleDateString('es-MX', { weekday: 'short' }).substring(0, 3)
@@ -921,6 +950,7 @@ function ArtistDashboard({ view = 'agenda' }) {
                       <AgendaCard
                         appointment={item}
                         accent={index % 2 === 0 ? 'rose' : 'nude'}
+                        className="professional-day-appointment"
                         key={`${item.id}-${item.time}`}
                         time={`${item.time} - ${item.end}`}
                         title={client?.name || item.client}

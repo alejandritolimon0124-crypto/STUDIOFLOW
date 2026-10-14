@@ -113,6 +113,7 @@ function AdminArtists() {
 
   const openArtistProfile = (artist) => {
     setEditingArtist(artist)
+    requestAnimationFrame(() => document.getElementById('owner-artist-profile-review')?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
     const artistStudio = getStudioForArtist({
       artistId: artist.id,
       studios: adminState.studios,
@@ -256,11 +257,13 @@ function AdminArtists() {
     if (requiresHealthOfficer && (!compliance.hasHealthOfficer || !compliance.healthOfficerName
       || !compliance.healthOfficerTitle || !compliance.healthOfficerLicense)) {
       setProfileSaveFeedback({ tone: 'warm', message: 'No se puede aprobar: faltan datos obligatorios del responsable sanitario.' })
-      setEditingArtist(artist)
+      openArtistProfile(artist)
       return
     }
     const result = await reviewManagedArtist(artistId, 'approve')
     if (result) {
+      setEditingArtist((current) => current?.id === artistId ? { ...current, status: result.status } : current)
+      setProfileSaveFeedback({ tone: 'success', message: 'Aprobación guardada. El perfil permanece activo mientras no cambien los datos sanitarios.' })
       loadAdminArtists?.().catch(() => null)
     }
   }
@@ -397,7 +400,7 @@ function AdminArtists() {
                         {isActive ? 'Suspender' : 'Reactivar'}
                       </button>
                     )}
-                    <button type="button" onClick={() => openArtistProfile(artist)}>Editar perfil</button>
+                    <button type="button" onClick={() => openArtistProfile(artist)}>Ver perfil</button>
                   </div>
                   {isPlatformOwner && <OwnerAgenda entityType="artist" entityId={artist.id} />}
                 </article>
@@ -407,8 +410,8 @@ function AdminArtists() {
         </Card>
 
         {editingArtist && (
-          <Card className="mobile-screen">
-            <PanelHeader title="Editar perfil" eyebrow="Artista" />
+          <Card className="mobile-screen" id="owner-artist-profile-review" style={{ scrollMarginTop: 24 }}>
+            <PanelHeader title="Perfil de artista" eyebrow="Revisión" />
             <div className="form-stack compact-form">
               <Input
                 label="Nombre"
@@ -455,6 +458,11 @@ function AdminArtists() {
                   </div>
                 )}
               </section>
+              {['Pendiente', 'Rechazado'].includes(editingArtist.status) && (
+                <div className="row-actions">
+                  <button type="button" onClick={() => approveArtist(editingArtist.id)}>Aprobar artista</button>
+                </div>
+              )}
               {editingStudio && <div className="location-foundation-card linked-studio-location-card">
                 <div>
                   <span className="eyebrow">Vinculacion a estudio</span>

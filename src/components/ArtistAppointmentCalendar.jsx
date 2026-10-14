@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import Button from './Button'
 import { fetchArtistWeekSlots, setArtistSlotBlocked } from '../services/scheduleService'
 
@@ -95,12 +95,13 @@ function getDayTimeline(slots, appointments) {
   return [...appointmentEntries, ...slotEntries].sort((first, second) => first.start - second.start)
 }
 
-export default function ArtistAppointmentCalendar({ appointments = [], selectedDate, onSelectDate, workContext, onCreateAppointment }) {
+export default function ArtistAppointmentCalendar({ appointments = [], selectedDate, onSelectDate, workContext, onCreateAppointment, scrollToSelectedDateKey = 0, appointmentsOnly = false }) {
   const [view, setView] = useState('day')
   const [weekSlots, setWeekSlots] = useState([])
   const [slotsLoading, setSlotsLoading] = useState(true)
   const [slotsError, setSlotsError] = useState('')
   const [updatingSlotId, setUpdatingSlotId] = useState('')
+  const daySectionRefs = useRef(new Map())
   const weekDays = useMemo(() => getWeekDays(selectedDate), [selectedDate])
   const weekStart = weekDays[0].value
   const weekEnd = weekDays[6].value
@@ -123,6 +124,7 @@ export default function ArtistAppointmentCalendar({ appointments = [], selectedD
   const timeLabels = Array.from({ length: Math.ceil((gridEnd - gridStart) / 60) + 1 }, (_, index) => gridStart + (index * 60))
 
   useEffect(() => {
+    if (appointmentsOnly) return undefined
     let active = true
     Promise.resolve()
       .then(() => {
@@ -143,7 +145,18 @@ export default function ArtistAppointmentCalendar({ appointments = [], selectedD
         if (active) setSlotsLoading(false)
       })
     return () => { active = false }
-  }, [weekStart, workContext])
+  }, [appointmentsOnly, weekStart, workContext])
+
+  useEffect(() => {
+    if (!scrollToSelectedDateKey || view !== 'day') return
+    const scrollTimer = window.setTimeout(() => {
+      const selectedDay = daySectionRefs.current.get(selectedDate)
+      if (!selectedDay) return
+      const targetTop = selectedDay.getBoundingClientRect().top + window.scrollY - 12
+      window.scrollTo({ top: targetTop, behavior: 'smooth' })
+    }, 180)
+    return () => window.clearTimeout(scrollTimer)
+  }, [scrollToSelectedDateKey, selectedDate, view])
 
   const toggleSlotBlock = async (slot) => {
     setUpdatingSlotId(slot.id)
@@ -168,11 +181,11 @@ export default function ArtistAppointmentCalendar({ appointments = [], selectedD
   }
 
   return (
-    <section className="artist-calendar-overview" aria-label="Vista de agenda">
+    <section className="artist-calendar-overview artist-appointments-experience" aria-label="Vista de agenda">
       <div className="artist-calendar-toolbar">
         <div className="artist-calendar-view-toggle" aria-label="Cambiar vista de agenda">
-          <Button size="sm" variant={view === 'day' ? 'primary' : 'ghost'} onClick={() => setView('day')}>Ver por día</Button>
-          <Button size="sm" variant={view === 'week' ? 'primary' : 'ghost'} onClick={() => setView('week')}>Ver semana</Button>
+          <Button className={view === 'day' ? 'is-active' : ''} aria-pressed={view === 'day'} size="sm" variant={view === 'day' ? 'primary' : 'ghost'} onClick={() => setView('day')}>Ver por día</Button>
+          <Button className={view === 'week' ? 'is-active' : ''} aria-pressed={view === 'week'} size="sm" variant={view === 'week' ? 'primary' : 'ghost'} onClick={() => setView('week')}>Ver semana</Button>
         </div>
         <div className="artist-calendar-navigation">
           <button type="button" aria-label="Semana anterior" onClick={() => moveWeek(-1)}>‹</button>
@@ -188,7 +201,14 @@ export default function ArtistAppointmentCalendar({ appointments = [], selectedD
             const daySlots = slotsByDate[day.value] || []
             const timeline = getDayTimeline(daySlots, dayAppointments)
             return (
-              <article className={`artist-day-section${selectedDate === day.value ? ' is-selected' : ''}`} key={day.value}>
+              <article
+                className={`artist-day-section${selectedDate === day.value ? ' is-selected' : ''}`}
+                key={day.value}
+                ref={(node) => {
+                  if (node) daySectionRefs.current.set(day.value, node)
+                  else daySectionRefs.current.delete(day.value)
+                }}
+              >
                 <button type="button" className="artist-day-heading" onClick={() => onSelectDate?.(day.value)}>
                   <span>{day.date.getDate()}</span>
                   <strong>{day.label}</strong>
@@ -198,7 +218,7 @@ export default function ArtistAppointmentCalendar({ appointments = [], selectedD
                   {timeline.map((entry) => entry.type === 'appointment' ? (
                     <div className={`artist-calendar-event is-${getAppointmentTone(entry.appointment)}`} key={`appointment-${entry.appointment.id}`}>
                       <time>{formatTime(entry.start)}<small>{formatTime(entry.end)}</small></time>
-                      <div><strong>{entry.appointment.client || 'Clienta'}</strong><span>{entry.appointment.service || 'Servicio'}</span></div>
+                      <div><strong>{entry.appointment.client || 'Clienta'}</strong><span>{entry.appointment.service || 'Servicio'}</span>{entry.appointment.artistName && <small className="artist-calendar-artist-name">{entry.appointment.artistName}</small>}</div>
                     </div>
                   ) : entry.slot.blocked ? (
                     <div className="artist-calendar-slot is-blocked" key={entry.slot.id}>
@@ -215,8 +235,8 @@ export default function ArtistAppointmentCalendar({ appointments = [], selectedD
                   ) : (
                     <div className="artist-calendar-slot is-occupied" key={entry.slot.id}><time>{entry.slot.time}</time><strong>Horario ocupado</strong></div>
                   ))}
-                  {!slotsLoading && timeline.length === 0 && <p>Día no disponible.</p>}
-                  {slotsLoading && <p>Cargando horarios...</p>}
+                  {(appointmentsOnly || !slotsLoading) && timeline.length === 0 && <p>{appointmentsOnly ? 'Sin citas confirmadas.' : 'Día no disponible.'}</p>}
+                  {!appointmentsOnly && slotsLoading && <p>Cargando horarios...</p>}
                 </div>
               </article>
             )
@@ -259,6 +279,7 @@ export default function ArtistAppointmentCalendar({ appointments = [], selectedD
                     >
                       <strong>{appointment.client || 'Clienta'}</strong>
                       <span>{appointment.service || 'Servicio'}</span>
+                      {appointment.artistName && <small className="artist-calendar-artist-name">{appointment.artistName}</small>}
                       <small>{formatTime(start)} - {formatTime(end)}</small>
                     </button>
                   )

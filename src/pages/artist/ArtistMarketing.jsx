@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import Button from '../../components/Button'
 import { useRef } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import Card from '../../components/Card'
 import Input from '../../components/Input'
 import PanelHeader from '../../components/PanelHeader'
 import { MarketingReminderSettings } from '../../components/MarketingReminders'
+import FlowPointRedemptionHistory from '../../components/FlowPointRedemptionHistory'
 import StatusPill from '../../components/StatusPill'
 import { useApp } from '../../contexts/appContextCore'
 import { calculateWeeklyOccupancy } from '../../modules/marketing/occupancyEngine'
@@ -30,6 +32,11 @@ import {
 const LOW_OCCUPANCY_VISIBLE = false
 
 function ArtistMarketing() {
+  const [searchParams] = useSearchParams()
+  const suggestedDay = Number(searchParams.get('sugerirDia'))
+  const suggestedHour = Number(searchParams.get('sugerirHora'))
+  const hasSuggestion = Number.isInteger(suggestedDay) && suggestedDay >= 1 && suggestedDay <= 7 && Number.isInteger(suggestedHour) && suggestedHour >= 0 && suggestedHour <= 22 && searchParams.has('sugerirDia') && searchParams.has('sugerirHora')
+  useEffect(() => { if (hasSuggestion) requestAnimationFrame(() => document.querySelector('.happy-hour-panel')?.scrollIntoView({ block: 'start', behavior: 'smooth' })) }, [hasSuggestion])
   const { adminState, artistState, session } = useApp()
   const [toasts, setToasts] = useState([])
   const [marketingSettings, setMarketingSettings] = useState({ rewards: [], doublePoints: { status: 'paused', rules: {} }, happyHour: { status: 'paused', rules: {} } })
@@ -363,8 +370,10 @@ function ArtistMarketing() {
             </select>
           </label>
         </div>
-        <small className="flow-points-minimum-note">El canje comienza en 1,000 FP. Happy Hour no admite descuentos adicionales con FlowPoints.</small>
+        <small className="flow-points-minimum-note">Al reunir 1,000 FP contigo, la clienta puede usar desde 100 FP por canje. Para volver a canjear deberá recuperar los 1,000 FP. Happy Hour no admite descuentos adicionales con FlowPoints.</small>
       </Card>
+
+      <FlowPointRedemptionHistory />
 
       <Card className="mobile-screen primary-panel double-points-panel">
         <PanelHeader title="PUNTOS DOBLES!" eyebrow="Promocion inmediata" />
@@ -381,6 +390,7 @@ function ArtistMarketing() {
 
       <Card className="wide-card mobile-screen primary-panel happy-hour-panel">
         <PanelHeader title="Happy Hour" eyebrow="Horarios con descuento" />
+        {hasSuggestion && <div className="marketing-suggestion"><strong>Hay espacio el {weekdayOptions.find((day) => day.value === (suggestedDay === 7 ? 0 : suggestedDay))?.label} a las {String(suggestedHour).padStart(2, '0')}:00.</strong><button type="button" onClick={() => setHappyHourDraft((draft) => ({ ...draft, weekdays: [suggestedDay === 7 ? 0 : suggestedDay], startTime: `${String(suggestedHour).padStart(2, '0')}:00`, endTime: `${String(suggestedHour + 1).padStart(2, '0')}:00` }))}>Usar este horario</button><small>Revisa el descuento y guarda los cambios para activarlo.</small></div>}
         <div className="location-form-grid">
           <label className="input-field">
             <span>Descuento</span>

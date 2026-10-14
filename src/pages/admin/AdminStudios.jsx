@@ -31,6 +31,7 @@ function AdminStudios() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [editingStudio, setEditingStudio] = useState(null)
+  const [viewingStudioId, setViewingStudioId] = useState('')
   const [saving, setSaving] = useState(false)
 
   const updateStudioContactLink = (field, value) => {
@@ -176,8 +177,27 @@ function AdminStudios() {
               </StatusPill>
               <div className="row-actions">
                 {renderActions(studio)}
+                <Button size="sm" variant="ghost" onClick={() => setViewingStudioId((current) => current === studio.id ? '' : studio.id)}>Ver perfil</Button>
                 <Button size="sm" variant="ghost" disabled={saving} onClick={() => setEditingStudio({ ...studio })}>Editar perfil</Button>
               </div>
+              {viewingStudioId === studio.id && <section className="owner-studio-editor">
+                <PanelHeader title={studio.commercialName} eyebrow="Perfil del estudio" />
+                <div className="compact-list">
+                  {[
+                    ['Responsable', studio.ownerName],
+                    ['Correo', studio.email || studio.ownerEmail],
+                    ['Teléfono', studio.phone || studio.ownerPhone],
+                    ['Ubicación', [studio.addressLine, studio.city].filter(Boolean).join(', ')],
+                    ['Descripción', studio.description],
+                    ['Espacio', studio.beautySpaces?.map((space) => space === 'spa_and_advanced_aesthetics' ? 'Spa y estética avanzada' : 'Belleza y cuidado personal').join(', ')],
+                    ...(studio.beautySpaces?.includes('spa_and_advanced_aesthetics') ? [
+                      ['Responsable sanitario', studio.healthOfficerName],
+                      ['Título profesional', studio.healthOfficerTitle],
+                      ['Cédula profesional', studio.healthOfficerLicense],
+                    ] : []),
+                  ].map(([label, value]) => <div className="list-row elevated-row" key={label}><div><small>{label}</small><strong>{value || 'Sin capturar'}</strong></div></div>)}
+                </div>
+              </section>}
               {editingStudio?.id === studio.id && <form className="owner-studio-editor" onSubmit={saveProfile}>
                 <PanelHeader title="Editar perfil" eyebrow="Estudio" />
                 <div className="location-form-grid">
