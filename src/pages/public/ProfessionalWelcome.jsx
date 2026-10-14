@@ -53,6 +53,6 @@ export default function ProfessionalWelcome() {
       <div><span>STUDIO FLOW ESTÁ DE TU LADO</span><h2>Primero crece. Después invierte.</h2><p>Para artistas y estudios de belleza y estética avanzada: sin cuota de suscripción ni comisiones hasta el 31 de diciembre de 2026. Los cobros comenzarán en 2027. Escanea el código o crea tu cuenta ahora.</p><Link to="/register?tipo=artist">Comenzar ahora</Link></div>
       <figure><img src="/studioflow-profesionales-qr.png" alt="Código QR para unirse a Studio Flow" /><figcaption>Escanea para obtener el beneficio</figcaption></figure>
     </section>
-    <footer className="pro-invite-footer"><img src="/studioflow-wordmark-960.png" alt="Studio Flow" /><p>Tu talento merece una plataforma que también trabaje para ti.</p><strong>Powered by AXM Tech</strong></footer>
+    <footer className="pro-invite-footer"><img src="/studioflow-wordmark-960.png" alt="Studio Flow" /><p>Tu talento merece una plataforma que también trabaje para ti.</p><p className="public-invite-help">¡No te preocupes! Te ayudamos a configurar tu perfil de manera personalizada. <a href="https://wa.me/528441892008" target="_blank" rel="noopener noreferrer">844 189 2008</a></p><strong>Powered by AXM Tech</strong></footer>
   </main>
 }

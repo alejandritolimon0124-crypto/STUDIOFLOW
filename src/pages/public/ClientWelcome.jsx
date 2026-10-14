@@ -77,6 +77,7 @@ export default function ClientWelcome() {
       <h2>Encuentra. Reserva. Disfruta. Comparte.</h2>
       <Link to="/register?tipo=client">Crear mi cuenta gratis</Link>
       <button type="button" onClick={() => handleShare('client')}>Compartir con mis amigas</button>
+      <p className="public-invite-help">¡No te preocupes! Te ayudamos a configurar tu perfil de manera personalizada. <a href="https://wa.me/528441892008" target="_blank" rel="noopener noreferrer">844 189 2008</a></p>
       <small>Powered by AXM Tech</small>
     </section>
   </main>
