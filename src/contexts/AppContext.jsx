@@ -40,6 +40,7 @@ import {
 } from '../services/artistWorkContextService'
 import {
   blockArtistScheduleDate,
+  blockArtistScheduleDateRange,
   fetchArtistScheduleSettings,
   unblockArtistScheduleDate,
   saveArtistScheduleSettings as saveArtistScheduleSettingsRecord,
@@ -373,6 +374,7 @@ function createInitialAgendaSettings() {
     blockedDates: [],
     intervalMinutes: 15,
     minAdvanceHours: 2,
+    clientChangeNoticeHours: 2,
     bookedSlots: [],
   }
 }
@@ -409,6 +411,7 @@ function createEmptyAgendaSettings() {
     blockedDates: [],
     intervalMinutes: 15,
     minAdvanceHours: 2,
+    clientChangeNoticeHours: 2,
     bookedSlots: [],
   }
 }
@@ -2226,6 +2229,42 @@ export function AppProvider({ children }) {
     }
   }, [activeArtistWorkContext, loadArtistScheduleSettings, session.isMockSession, session.role])
 
+  const addBlockedDateRange = useCallback(async (startDate, endDate) => {
+    const start = Date.parse(`${startDate}T00:00:00Z`)
+    const end = Date.parse(`${endDate}T00:00:00Z`)
+    if (!Number.isFinite(start) || !Number.isFinite(end) || end < start || end - start > 89 * 86_400_000) {
+      setArtistScheduleError('Selecciona un rango válido de hasta 90 días.')
+      return null
+    }
+
+    if (session.isMockSession || session.role !== ROLES.ARTIST) {
+      setAgendaSettings((current) => {
+        const dates = new Map(current.blockedDates.map((date) => [date.id, date]))
+        for (let day = start; day <= end; day += 86_400_000) {
+          const id = new Date(day).toISOString().slice(0, 10)
+          dates.set(id, { id, label: formatBlockedDate(id) })
+        }
+        return { ...current, blockedDates: [...dates.values()] }
+      })
+      return true
+    }
+
+    setIsArtistScheduleLoading(true)
+    setArtistScheduleError('')
+    setArtistScheduleStatus('')
+    try {
+      const saved = await blockArtistScheduleDateRange(startDate, endDate, activeArtistWorkContext)
+      setAgendaSettings((current) => ({ ...current, ...saved, bookedSlots: current.bookedSlots }))
+      setArtistScheduleStatus('Rango de fechas bloqueado.')
+      return saved
+    } catch (error) {
+      setArtistScheduleError(error.message || 'No se pudo bloquear el rango de fechas.')
+      return null
+    } finally {
+      setIsArtistScheduleLoading(false)
+    }
+  }, [activeArtistWorkContext, session.isMockSession, session.role])
+
   const removeBlockedDate = useCallback(async (dateId) => {
     let nextSettings = null
 
@@ -3000,6 +3039,7 @@ export function AppProvider({ children }) {
       addScheduleBlock,
       updateScheduleBlock,
       addBlockedDate,
+      addBlockedDateRange,
       removeBlockedDate,
       updateAgendaRule,
       toggleManagedArtistStatus,
@@ -3111,6 +3151,7 @@ export function AppProvider({ children }) {
       addScheduleBlock,
       updateScheduleBlock,
       addBlockedDate,
+      addBlockedDateRange,
       removeBlockedDate,
       updateAgendaRule,
       toggleManagedArtistStatus,

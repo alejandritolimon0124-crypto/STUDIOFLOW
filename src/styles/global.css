@@ -8217,6 +8217,9 @@ select:focus,
 .client-appointments-experience .flow-points-slot-note { display: block; margin-top: 9px; color: #986171; font-size: 11px; font-weight: 800; }
 .client-appointments-experience .appointment-result-actions { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 8px !important; padding: 12px 14px 14px; border-top: 1px solid #eadbde; background: #fff9f8; }
 .client-appointments-experience .appointment-result-actions > * { width: 100%; min-height: 42px; justify-content: center; border-radius: 6px; }
+.appointment-arrival-time { display: block; margin-top: 5px; color: #267260; font-weight: 800; }
+.appointment-check-in-error { margin: 0; padding: 10px 12px; border: 1px solid #c7818a; border-radius: 6px; color: #8b3444; }
+.appointment-change-deadline { display: block; margin-top: 6px; color: #8b5360; font-weight: 700; }
 .client-history-experience { overflow: hidden; border-color: #ddc2c8; background: linear-gradient(145deg,#fff,#f9eeee); }
 .client-history-experience .panel-header { padding-bottom: 13px; border-bottom: 1px solid #e3ccd1; }
 .client-history-experience .panel-header h2 { font-family: Georgia,'Times New Roman',serif; font-size: 27px; }

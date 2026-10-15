@@ -7,6 +7,7 @@ import StatusPill from '../../components/StatusPill'
 import WorkspaceCardSelector from '../../components/WorkspaceCardSelector'
 import { useApp } from '../../contexts/appContextCore'
 import { fetchStudioHours } from '../../services/studioHoursService'
+import { CHANGE_NOTICE_OPTIONS } from '../../utils/appointmentChangeNotice'
 import '../../styles/studio-owner-booking.css'
 
 function ArtistScheduleSettings() {
@@ -17,7 +18,7 @@ function ArtistScheduleSettings() {
     updateScheduleDayTime,
     addScheduleBlock,
     updateScheduleBlock,
-    addBlockedDate,
+    addBlockedDateRange,
     artistWorkContext,
     artistWorkContexts,
     removeBlockedDate,
@@ -29,8 +30,11 @@ function ArtistScheduleSettings() {
     artistScheduleStatus,
   } = useApp()
   const [showDatePicker, setShowDatePicker] = useState(false)
-  const [selectedDate, setSelectedDate] = useState('')
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
   const [studioHours, setStudioHours] = useState([])
+  const validBlockedDateRange = Boolean(startDate && endDate && endDate >= startDate
+    && Date.parse(`${endDate}T00:00:00Z`) - Date.parse(`${startDate}T00:00:00Z`) <= 89 * 86_400_000)
 
   useEffect(() => {
     if (artistWorkContext?.contextType !== 'membership' || !artistWorkContext.studioId) return undefined
@@ -42,10 +46,11 @@ function ArtistScheduleSettings() {
   }, [artistWorkContext?.contextType, artistWorkContext?.studioId])
 
   const saveBlockedDate = async () => {
-    if (!selectedDate) return
-
-    await addBlockedDate(selectedDate)
-    setSelectedDate('')
+    if (!validBlockedDateRange) return
+    const saved = await addBlockedDateRange(startDate, endDate)
+    if (!saved) return
+    setStartDate('')
+    setEndDate('')
     setShowDatePicker(false)
   }
 
@@ -201,6 +206,13 @@ function ArtistScheduleSettings() {
               helper="Horas antes de permitir agenda."
               onChange={(event) => updateAgendaRule('minAdvanceHours', event.target.value)}
             />
+            <label className="input-field">
+              <span>Anticipación para cancelar o reagendar</span>
+              <select value={agendaSettings.clientChangeNoticeHours || 2} onChange={(event) => updateAgendaRule('clientChangeNoticeHours', event.target.value)}>
+                {CHANGE_NOTICE_OPTIONS.map((hours) => <option key={hours} value={hours}>{hours} horas</option>)}
+              </select>
+              <small>Plazo mínimo para cambios solicitados por la clienta. Guarda los horarios para aplicarlo.</small>
+            </label>
           </div>
         </Card>
 
@@ -241,16 +253,21 @@ function ArtistScheduleSettings() {
           {showDatePicker && (
             <div className="form-stack compact-form" style={{ marginBottom: '14px' }}>
               <label className="input-field">
-                <span>Seleccionar fecha</span>
-                <input type="date" value={selectedDate} onChange={(event) => setSelectedDate(event.target.value)} />
+                <span>Desde</span>
+                <input type="date" value={startDate} onChange={(event) => { setStartDate(event.target.value); if (!endDate || endDate < event.target.value) setEndDate(event.target.value) }} />
               </label>
-                <Button variant="ghost" className="full-width" disabled={isArtistScheduleLoading} onClick={saveBlockedDate}>
-                  {isArtistScheduleLoading ? 'Guardando...' : 'Agregar fecha'}
+              <label className="input-field">
+                <span>Hasta</span>
+                <input type="date" min={startDate || undefined} value={endDate} onChange={(event) => setEndDate(event.target.value)} />
+                <small>Incluye ambas fechas. Máximo 90 días.</small>
+              </label>
+                <Button variant="ghost" className="full-width" disabled={isArtistScheduleLoading || !validBlockedDateRange} onClick={saveBlockedDate}>
+                  {isArtistScheduleLoading ? 'Guardando...' : 'Bloquear rango'}
                 </Button>
             </div>
           )}
           <Button variant="ghost" className="full-width" disabled={isArtistScheduleLoading} onClick={() => setShowDatePicker((current) => !current)}>
-            Bloquear fecha
+            Bloquear fechas
           </Button>
         </Card>
     </main>

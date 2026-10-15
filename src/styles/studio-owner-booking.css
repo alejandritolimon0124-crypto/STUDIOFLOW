@@ -158,6 +158,8 @@
 .studio-profile-stack .input-field { min-width:0; gap:7px; }
 .studio-profile-stack .input-field > span { color:#68424c; font-size:12px; font-weight:900; }
 .studio-profile-stack .input-field input,.studio-profile-stack .input-field select,.studio-profile-stack .input-field textarea { min-width:0; max-width:100%; min-height:49px; border:1px solid #dcc3c9; border-radius:7px; background:#fff; box-shadow:0 7px 17px rgba(78,45,55,.045); }
+.studio-change-notice { display:grid; gap:12px; padding-top:18px; border-top:1px solid #eadadd; }
+.studio-change-notice .button { justify-self:start; }
 .studio-profile-stack .input-field textarea { min-height:95px; }
 .studio-profile-stack .location-form-grid { min-width:0; }
 .studio-profile-identity .owner-studio-social-editor { padding:16px; border:1px solid #e8d3d8; border-radius:7px; background:#f8eaed; }

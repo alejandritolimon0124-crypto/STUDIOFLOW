@@ -40,8 +40,10 @@ import {
 import { buildGoogleMapsQuery, buildGoogleMapsUrl } from '../../utils/locationHelpers'
 import { getAppointmentStatusTone } from '../../utils/appointmentStatus'
 import { getCurrentBrowserCoordinates } from '../../utils/browserGeolocation'
+import { canCheckInAppointment, formatAppointmentArrival } from '../../utils/appointmentArrival'
+import { canClientChangeAppointment } from '../../utils/appointmentChangeNotice'
 import { getMaxBirthDateForAdult, validateBirthDate } from '../../utils/birthdayValidation'
-import { fetchClientFlowPointsBalance, fetchClientFlowPointDestinations, fetchClientFlowPointRedemptions, redeemClientFlowPoints as redeemClientFlowPointsRecord } from '../../services/appointmentService'
+import { checkInClientAppointment, fetchClientFlowPointsBalance, fetchClientFlowPointDestinations, fetchClientFlowPointRedemptions, redeemClientFlowPoints as redeemClientFlowPointsRecord } from '../../services/appointmentService'
 import { normalizeServiceName, serviceCatalog } from '../../services/staticCatalogs'
 import { optimizeImageFile } from '../../utils/imageOptimization'
 import { pushRegistrationStorageKey } from '../../services/pushNotificationService'
@@ -369,6 +371,13 @@ function isFutureAppointmentDate(dateValue) {
   const appointmentDate = getAppointmentStartDateTime(dateValue)
 
   return Boolean(appointmentDate && appointmentDate > new Date())
+}
+
+function isUpcomingClientAppointment(appointment) {
+  if (isFutureAppointmentDate(appointment)) return true
+  if (appointment.appointmentStatus !== 'scheduled') return false
+  const endsAt = new Date(appointment.endsAt)
+  return !Number.isNaN(endsAt.getTime()) && Date.now() <= endsAt.getTime() + 30 * 60_000
 }
 
 function buildServiceGroupsFromListings(listings = []) {
@@ -1182,6 +1191,8 @@ function ClientDashboard({ view = 'inicio' }) {
   const [visibleHistoryCount, setVisibleHistoryCount] = useState(5)
   const [myVisitReviews, setMyVisitReviews] = useState([])
   const [respondingAppointmentId, setRespondingAppointmentId] = useState('')
+  const [checkingInAppointmentId, setCheckingInAppointmentId] = useState('')
+  const [checkInError, setCheckInError] = useState('')
   const [appointmentResponseNotice, setAppointmentResponseNotice] = useState(null)
   const [shareApplicationNotice, setShareApplicationNotice] = useState('')
   const [clientFlowPoints, setClientFlowPoints] = useState({ monthlyBalance: 0, monthlyEarned: 0, monthlySpent: 0, activeBalance: 0, expiringSoonPoints: 0, nextExpirationAt: null, validityDays: FLOW_POINTS_VALIDITY_DAYS })
@@ -1774,7 +1785,7 @@ function ClientDashboard({ view = 'inicio' }) {
     ? realClientAppointments
       .filter((appointment) => (
         !['Completada', 'Cancelada'].includes(appointment.status)
-        && isFutureAppointmentDate(appointment)
+        && isUpcomingClientAppointment(appointment)
       ))
       .sort((firstAppointment, secondAppointment) => (
         String(firstAppointment.date || '').localeCompare(String(secondAppointment.date || ''))
@@ -1786,7 +1797,7 @@ function ClientDashboard({ view = 'inicio' }) {
       .filter((appointment) => (
         ['Completada', 'Cancelada', 'No show'].includes(appointment.status)
         || ['completed', 'cancelled', 'no_show'].includes(appointment.appointmentStatus)
-        || !isFutureAppointmentDate(appointment)
+        || !isUpcomingClientAppointment(appointment)
       ))
       .filter((appointment) => !appointmentHistoryDate || getAppointmentDateKey(appointment) === appointmentHistoryDate)
       .filter((appointment) => !appointmentHistoryBusiness.trim() || normalizeText([
@@ -1836,6 +1847,20 @@ function ClientDashboard({ view = 'inicio' }) {
         })
     } finally {
       setRespondingAppointmentId('')
+    }
+  }
+
+  const checkInAppointment = async (appointmentId) => {
+    setCheckingInAppointmentId(appointmentId)
+    setCheckInError('')
+    try {
+      const coordinates = await getCurrentBrowserCoordinates()
+      await checkInClientAppointment({ appointmentId, ...coordinates })
+      await loadClientAppointments()
+    } catch (error) {
+      setCheckInError(error?.message || 'No se pudo registrar tu llegada. Intenta de nuevo.')
+    } finally {
+      setCheckingInAppointmentId('')
     }
   }
 
@@ -2558,6 +2583,7 @@ function ClientDashboard({ view = 'inicio' }) {
                   <div>
                     <h3>{nextAppointment.service || 'Servicio agendado'}</h3>
                     <p>{formatAppointmentProvider(nextAppointment)}</p>
+                      {nextAppointment.appointmentStatus === 'scheduled' && !canClientChangeAppointment(nextAppointment, now) && <small className="appointment-change-deadline">El plazo para cancelar o reagendar terminó. Contacta al negocio.</small>}
                     <small className="flow-points-slot-note client-flow-points-highlight">
                       {nextAppointment.pointsGranted > 0
                         ? `${nextAppointment.pointsGranted} Flow Points otorgados`
@@ -2586,14 +2612,14 @@ function ClientDashboard({ view = 'inicio' }) {
                         <Button
                           size="sm"
                           variant="danger"
-                          disabled={respondingAppointmentId === nextAppointment.id}
+                          disabled={respondingAppointmentId === nextAppointment.id || !canClientChangeAppointment(nextAppointment, now)}
                           onClick={() => respondToAppointment(nextAppointment.id, 'cancel')}
                         >
                           Cancelar
                         </Button>
                       </>
                     )}
-                    {nextAppointment.appointmentStatus === 'scheduled' && (
+                    {canClientChangeAppointment(nextAppointment, now) && (
                       <RescheduleAppointmentButton appointment={nextAppointment} onRescheduled={loadClientAppointments} />
                     )}
                   </div>
@@ -2696,6 +2722,7 @@ function ClientDashboard({ view = 'inicio' }) {
                 </div>
               )}
               <div className="appointment-stack">
+                {checkInError && <p className="appointment-check-in-error" role="alert">{checkInError}</p>}
                 {upcomingAppointments.length > 0 ? upcomingAppointments.map((appointment) => (
                   <article className={`client-appointment appointment-status-row appointment-status-${getAppointmentStatusTone(appointment)}`} key={`${appointment.artist}-${appointment.time}-${appointment.date}`}>
                     <div className="date-block">
@@ -2707,6 +2734,8 @@ function ClientDashboard({ view = 'inicio' }) {
                       <AppointmentPayment appointment={appointment} />
                       <AppointmentDeposit appointment={appointment} />
                       <p>{formatAppointmentProvider(appointment)}</p>
+                      {appointment.appointmentStatus === 'scheduled' && !canClientChangeAppointment(appointment, now) && <small className="appointment-change-deadline">El plazo para cancelar o reagendar terminó. Contacta al negocio.</small>}
+                      {appointment.arrivedAt && <small className="appointment-arrival-time">Llegaste a las {formatAppointmentArrival(appointment.arrivedAt)}</small>}
                       <small className="flow-points-slot-note">
                         {appointment.pointsGranted > 0
                           ? `${appointment.pointsGranted} Flow Points otorgados`
@@ -2714,6 +2743,11 @@ function ClientDashboard({ view = 'inicio' }) {
                       </small>
                     </div>
                     <div className="row-actions appointment-result-actions" style={{ justifyContent: 'flex-end', gap: 6 }}>
+                      {canCheckInAppointment(appointment, now) && (
+                        <Button size="sm" variant="success" disabled={checkingInAppointmentId === appointment.id} onClick={() => checkInAppointment(appointment.id)}>
+                          <MapPin size={17} aria-hidden="true" /> {checkingInAppointmentId === appointment.id ? 'Verificando ubicación...' : 'Ya llegué'}
+                        </Button>
+                      )}
                       {canRespondToAppointment(appointment) && (
                         <>
                           {canConfirmAppointment(appointment) && (
@@ -2732,14 +2766,14 @@ function ClientDashboard({ view = 'inicio' }) {
                           <Button
                             size="sm"
                             variant="danger"
-                            disabled={respondingAppointmentId === appointment.id}
+                            disabled={respondingAppointmentId === appointment.id || !canClientChangeAppointment(appointment, now)}
                             onClick={() => respondToAppointment(appointment.id, 'cancel')}
                           >
                             Cancelar
                           </Button>
                         </>
                       )}
-                      {appointment.appointmentStatus === 'scheduled' && (
+                      {canClientChangeAppointment(appointment, now) && (
                         <RescheduleAppointmentButton appointment={appointment} onRescheduled={loadClientAppointments} />
                       )}
                     </div>

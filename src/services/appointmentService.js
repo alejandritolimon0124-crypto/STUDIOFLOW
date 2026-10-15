@@ -60,6 +60,8 @@ function normalizeAppointment(appointment = {}) {
     appointmentStatus,
     clientConfirmedAt,
     confirmationRequestedAt,
+    arrivedAt: appointment.arrivedAt || appointment.arrived_at || null,
+    clientChangeNoticeHours: normalizeNumber(appointment.clientChangeNoticeHours ?? appointment.client_change_notice_hours, 2),
     rescheduleCount: normalizeNumber(appointment.rescheduleCount ?? appointment.reschedule_count),
     contextName,
     bookingSource: appointment.bookingSource || appointment.booking_source || null,
@@ -155,6 +157,18 @@ export async function updateClientAppointmentResponse({ appointmentId, action } 
   if (error) throw error
 
   return normalizeAppointment(data?.appointment)
+}
+
+export async function checkInClientAppointment({ appointmentId, latitude, longitude, accuracy } = {}) {
+  if (!appointmentId) throw new Error('Cita requerida.')
+  const { data, error } = await requireSupabase().rpc('studio_flow_client_check_in', {
+    p_appointment_id: appointmentId,
+    p_latitude: latitude,
+    p_longitude: longitude,
+    p_accuracy_m: accuracy,
+  })
+  if (error) throw error
+  return data
 }
 
 export async function cancelArtistAppointment({ appointmentId } = {}) {

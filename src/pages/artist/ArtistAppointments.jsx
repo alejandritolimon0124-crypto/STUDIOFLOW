@@ -14,6 +14,7 @@ import { useApp } from '../../contexts/appContextCore'
 import { fetchArtistClients } from '../../services/artistClientService'
 import { cancelArtistAppointment, fetchManualArtistAvailability } from '../../services/appointmentService'
 import { getAppointmentStatusTone } from '../../utils/appointmentStatus'
+import { formatAppointmentArrival } from '../../utils/appointmentArrival'
 
 function getTodayDateValue() {
   const today = new Date()
@@ -710,6 +711,7 @@ function ArtistAppointments() {
               <div>
                 <strong>{appointment.client}</strong>
                 <small>{appointment.service} / {appointment.time}</small>
+                {appointment.arrivedAt && <small className="appointment-arrival-time">Llegó a las {formatAppointmentArrival(appointment.arrivedAt)}</small>}
                 <AppointmentPayment appointment={appointment} />
                 <AppointmentDeposit appointment={appointment} audience="business" onUpdated={loadArtistAppointments} />
                 {!appointment.pendingClientConfirmation && <CompleteAppointmentButton appointment={appointment} />}
@@ -754,6 +756,7 @@ function ArtistAppointments() {
               <div>
                 <strong>{appointment.client}</strong>
                 <small>{appointment.service} / {appointment.time}</small>
+                {appointment.arrivedAt && <small className="appointment-arrival-time">Llegó a las {formatAppointmentArrival(appointment.arrivedAt)}</small>}
                 <AppointmentPayment appointment={appointment} />
                 {!appointment.pendingClientConfirmation && <CompleteAppointmentButton appointment={appointment} />}
               </div>

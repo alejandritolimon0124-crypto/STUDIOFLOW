@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 import { Plus, Trash2 } from 'lucide-react'
 import Button from './Button'
 import StatusPill from './StatusPill'
-import { fetchStudioHours, saveStudioHours } from '../services/studioHoursService'
+import { fetchStudioChangeNotice, fetchStudioHours, saveStudioChangeNotice, saveStudioHours } from '../services/studioHoursService'
+import { CHANGE_NOTICE_OPTIONS } from '../utils/appointmentChangeNotice'
 
 const weekdays = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
 const defaultDays = weekdays.map((_, weekday) => ({ weekday, open: weekday !== 0, start: '10:00', end: '18:00', breaks: [] }))
@@ -11,6 +12,9 @@ function StudioOperatingHours({ studioId }) {
   const [days, setDays] = useState(defaultDays)
   const [busy, setBusy] = useState(false)
   const [feedback, setFeedback] = useState('')
+  const [changeNoticeHours, setChangeNoticeHours] = useState(2)
+  const [noticeBusy, setNoticeBusy] = useState(false)
+  const [noticeFeedback, setNoticeFeedback] = useState('')
 
   useEffect(() => {
     if (!studioId) return undefined
@@ -18,6 +22,9 @@ function StudioOperatingHours({ studioId }) {
     fetchStudioHours(studioId).then((stored) => {
       if (active && stored.length) setDays(stored)
     }).catch((error) => { if (active) setFeedback(error.message || 'No se pudo cargar el horario.') })
+    fetchStudioChangeNotice(studioId).then((hours) => {
+      if (active) setChangeNoticeHours(hours)
+    }).catch((error) => { if (active) setNoticeFeedback(error.message || 'No se pudo cargar la regla.') })
     return () => { active = false }
   }, [studioId])
 
@@ -45,6 +52,20 @@ function StudioOperatingHours({ studioId }) {
     }
   }
 
+  const saveNotice = async () => {
+    setNoticeBusy(true)
+    setNoticeFeedback('')
+    try {
+      const saved = await saveStudioChangeNotice(studioId, changeNoticeHours)
+      setChangeNoticeHours(saved)
+      setNoticeFeedback('Anticipación guardada para las citas del estudio.')
+    } catch (error) {
+      setNoticeFeedback(error.message || 'No se pudo guardar la anticipación.')
+    } finally {
+      setNoticeBusy(false)
+    }
+  }
+
   return <section className="profile-foundation-card studio-hours-panel">
     <div className="studio-hours-heading"><span className="eyebrow">EL RITMO DE TU ESPACIO</span><h3>Tu estudio, a tu ritmo</h3><small>Elige cuándo abres y guarda el horario para aplicarlo a las reservas. Cada artista podrá acomodar sus citas dentro de estas horas.</small></div>
     <div className="schedule-list studio-hours-days">
@@ -65,6 +86,17 @@ function StudioOperatingHours({ studioId }) {
     </div>
     {feedback && <small role="status" className="studio-hours-feedback">{feedback}</small>}
     <Button disabled={!studioId || busy} onClick={save}>{busy ? 'Guardando...' : 'Guardar horario del estudio'}</Button>
+    <div className="studio-change-notice">
+      <label className="input-field">
+        <span>Anticipación para cancelar o reagendar</span>
+        <select value={changeNoticeHours} onChange={(event) => { setChangeNoticeHours(Number(event.target.value)); setNoticeFeedback('') }}>
+          {CHANGE_NOTICE_OPTIONS.map((hours) => <option key={hours} value={hours}>{hours} horas</option>)}
+        </select>
+        <small>Plazo mínimo para cambios solicitados por la clienta.</small>
+      </label>
+      {noticeFeedback && <small role="status" className="studio-hours-feedback">{noticeFeedback}</small>}
+      <Button disabled={!studioId || noticeBusy} onClick={saveNotice}>{noticeBusy ? 'Guardando...' : 'Guardar anticipación'}</Button>
+    </div>
   </section>
 }
 

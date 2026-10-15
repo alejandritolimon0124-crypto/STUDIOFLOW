@@ -67,6 +67,7 @@ function normalizeSchedulePayload(data = {}) {
     timezone: data.timezone || 'America/Mexico_City',
     intervalMinutes: Number(data.intervalMinutes ?? data.interval_minutes ?? 15),
     minAdvanceHours: Number(data.minAdvanceHours ?? data.min_advance_hours ?? 2),
+    clientChangeNoticeHours: Number(data.clientChangeNoticeHours ?? data.client_change_notice_hours ?? 2),
     schedule: WEEKDAYS.map((day) => rulesByWeekday[day.weekday] || {
       ...day,
       active: false,
@@ -90,6 +91,7 @@ function schedulePayloadFromAgendaSettings(agendaSettings = {}) {
     minAdvanceHours: agendaSettings.minAdvanceHours === '' || agendaSettings.minAdvanceHours == null
       ? 2
       : Number(agendaSettings.minAdvanceHours),
+    clientChangeNoticeHours: Number(agendaSettings.clientChangeNoticeHours) || 2,
     schedule: asArray(agendaSettings.schedule).map((day) => ({
       day: day.day,
       weekday: day.weekday,
@@ -148,6 +150,16 @@ export async function blockArtistScheduleDate(dateValue, workContext = null) {
 
   if (error) throw error
 
+  return normalizeSchedulePayload(data)
+}
+
+export async function blockArtistScheduleDateRange(startDate, endDate, workContext = null) {
+  const { data, error } = await requireSupabase().rpc('studio_flow_artist_block_context_date_range', {
+    p_start_date: startDate,
+    p_end_date: endDate,
+    ...getContextRpcParams(workContext),
+  })
+  if (error) throw error
   return normalizeSchedulePayload(data)
 }
 

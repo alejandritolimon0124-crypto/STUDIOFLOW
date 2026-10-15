@@ -77,6 +77,7 @@ function normalizeAppointment(appointment = {}) {
     appointmentStatus,
     clientConfirmedAt,
     confirmationRequestedAt,
+    arrivedAt: appointment.arrivedAt || appointment.arrived_at || null,
     rescheduleCount: normalizeNumber(appointment.rescheduleCount ?? appointment.reschedule_count),
     bookingSource: appointment.bookingSource || appointment.booking_source || null,
     pointsGranted: normalizeNumber(appointment.pointsGranted || appointment.points_granted),
@@ -181,7 +182,7 @@ export async function fetchStudioOwnerAppointments({ studioId, membershipIds = [
     : { data: [], error: null }
   if (pendingError) throw pendingError
   const pendingByAppointmentId = new Map((pendingRows || []).map((row) => [row.appointmentId, row]))
-  const selectColumns = 'id, client_id, artist_id, studio_id, membership_id, service_offering_id, availability_slot_id, starts_at, ends_at, status, booking_source, cancelled_by_provider, client_confirmed_at, confirmation_requested_at, reschedule_count, client_notes, created_at'
+  const selectColumns = 'id, client_id, artist_id, studio_id, membership_id, service_offering_id, availability_slot_id, starts_at, ends_at, status, booking_source, cancelled_by_provider, client_confirmed_at, confirmation_requested_at, reschedule_count, arrived_at, client_notes, created_at'
   const appointmentRows = []
 
   if (studioId) {

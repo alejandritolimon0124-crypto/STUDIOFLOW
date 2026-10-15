@@ -22,6 +22,7 @@ import { useApp } from '../../contexts/appContextCore'
 import { getCurrentBrowserCoordinates } from '../../utils/browserGeolocation'
 import { buildGoogleMapsUrl, createProfessionalLocation, hasCoordinates } from '../../utils/locationHelpers'
 import { getAppointmentStatusTone } from '../../utils/appointmentStatus'
+import { formatAppointmentArrival } from '../../utils/appointmentArrival'
 import { ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react'
 import { optimizeImageFile } from '../../utils/imageOptimization'
 import { getCurrentProfile, getCurrentStudio } from '../../modules/entities/entitySelectors'
@@ -416,6 +417,7 @@ function StudioSummarySection({
               <div>
                 <strong>{getAppointmentTime(appointment)} / {appointment.client || 'Clienta'}</strong>
                 <small>{appointment.service || 'Servicio'} / {appointment.contextName || studioName}</small>
+                {appointment.arrivedAt && <small className="appointment-arrival-time">Llegó a las {formatAppointmentArrival(appointment.arrivedAt)}</small>}
                 <AppointmentPayment appointment={appointment} />
                 <AppointmentDeposit appointment={appointment} audience="business" onUpdated={() => window.dispatchEvent(new Event('studioflow:deposit-updated'))} />
                 {!appointment.pendingClientConfirmation && <CompleteAppointmentButton appointment={appointment} />}
