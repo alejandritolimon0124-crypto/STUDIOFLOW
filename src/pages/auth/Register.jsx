@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { MailCheck } from 'lucide-react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import AuthLayout from '../../layouts/AuthLayout'
 import Button from '../../components/Button'
@@ -98,7 +99,7 @@ function Register() {
 
       if (result.needsEmailConfirmation) {
         if (invitationReturn) rememberInvitationReturnPath(invitationReturn)
-        setConfirmationMessage('Revisa tu correo para confirmar el registro. Si este correo ya tenia una cuenta, inicia sesion o restablece tu contraseña.')
+        setConfirmationMessage('Confirma tu correo para activar tu cuenta.')
         return
       }
 
@@ -193,7 +194,15 @@ function Register() {
           </div>
         )}
 
-        {accountType === 'client' && (
+        {accountType === 'client' && (confirmationMessage ? (
+          <section className="client-registration-confirmation" role="status" aria-live="polite">
+            <MailCheck size={36} aria-hidden="true" />
+            <h3>Confirma tu correo para activar tu cuenta</h3>
+            <p>Te enviamos un mensaje a <strong>{clientForm.email.trim()}</strong>. Abre ese correo y presiona el botón de confirmación. <strong>Este paso es indispensable</strong> para entrar a Studio Flow y empezar a disfrutar tus beneficios.</p>
+            <p className="client-registration-confirmation-hint">¿No lo encuentras? Revisa spam o correo no deseado. También puedes solicitar otro enlace desde la pantalla de inicio de sesión.</p>
+            <Button className="full-width" onClick={() => navigate(paths.login)}>Ir a iniciar sesión</Button>
+          </section>
+        ) : (
           <form className="form-stack" onSubmit={handleClientSubmit}>
             <Input
               label="Nombre completo"
@@ -258,7 +267,7 @@ function Register() {
               Ya tienes cuenta? Inicia sesion
             </button>
           </form>
-        )}
+        ))}
 
         {accountType === 'artist' && (
           <form className="form-stack" onSubmit={handleArtistSubmit}>

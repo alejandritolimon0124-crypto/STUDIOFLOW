@@ -6,6 +6,7 @@ import instagramIcon from '../../assets/social/instagram.png'
 import tiktokIcon from '../../assets/social/tiktok.png'
 import whatsappIcon from '../../assets/social/whatsapp.png'
 import { hasCurrentAttendanceConfirmation } from '../../utils/appointmentConfirmation'
+import { findMaintenanceListing } from '../../utils/maintenanceBooking'
 import { getHappyHourMinutes } from '../../utils/happyHourDuration'
 import { historyDateTime, newestAppointmentFirst } from '../../utils/appointmentHistory'
 import Button from '../../components/Button'
@@ -2177,6 +2178,31 @@ function ClientDashboard({ view = 'inicio' }) {
       loadMarketplacePortfolio(artist.listingId)
     }
   }
+
+  useEffect(() => {
+    if (view !== 'explorar' || !location.search) return
+    const params = new URLSearchParams(location.search)
+    const serviceId = params.get('service')
+    const artistId = params.get('artist')
+    const studioId = params.get('studio')
+    const listing = findMaintenanceListing(marketplaceListings, { serviceId, artistId, studioId })
+    if (!listing) return
+
+    const service = listing.marketplaceServiceOptions.find((item) => item.id === serviceId)
+    const frame = window.requestAnimationFrame(() => {
+      setBeautySpace(listing.beautySpaces?.[0] || listing.beautySpace || BEAUTY_SPACES.BEAUTY_AND_PERSONAL_CARE)
+      setSearchMode('Nombre estudio')
+      setStudioQuery(listing.name)
+      setSelectedArtistProfile(listing)
+      setSelectedArtistPanelMode('booking')
+      setSelectedMarketplaceServiceId(serviceId)
+      setSelectedMarketplaceServiceExplicit(true)
+      setSecondaryService(service.name)
+      setBookingNotice('')
+      navigate(paths.clientExplore, { replace: true })
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [location.search, marketplaceListings, navigate, view])
 
   const closeArtistProfile = () => {
     setSelectedArtistProfile(null)

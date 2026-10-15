@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { requireSupabase } from '../lib/supabaseClient'
+import { maintenanceBookingUrl } from '../utils/maintenanceBooking'
 import Button from './Button'
 import Card from './Card'
 import PanelHeader from './PanelHeader'
@@ -109,6 +111,7 @@ export function MarketingReminderSettings({ artistId, studioId }) {
 }
 
 export function ClientMarketingNotices() {
+  const navigate = useNavigate()
   const [notices, setNotices] = useState([])
   const [error, setError] = useState('')
   useEffect(() => {
@@ -150,7 +153,12 @@ export function ClientMarketingNotices() {
     <div className="compact-list">
       {unread.map(n => <article className="list-row" key={n.id}>
         <div><strong>{n.title}</strong><p>{n.body}</p></div>
-        {n.target_url ? <Button variant="ghost" size="sm" onClick={() => openNotice(n)}>{n.target_url.startsWith('/felicitacion/') ? 'Ver mi felicitación' : n.target_url.startsWith('/invitacion/') ? 'Abrir tarjeta' : 'Ver campaña'}</Button> : <Button variant="ghost" size="sm" onClick={() => markRead(n.id)}>Marcar leído</Button>}
+        {n.target_url ? <Button variant="ghost" size="sm" onClick={() => openNotice(n)}>{n.target_url.startsWith('/felicitacion/') ? 'Ver mi felicitación' : n.target_url.startsWith('/invitacion/') ? 'Abrir tarjeta' : 'Ver campaña'}</Button> : String(n.title || '').toLowerCase().startsWith('tu proximo mantenimiento:') ? (
+          <div className="maintenance-notice-actions">
+            <Button size="sm" onClick={() => navigate(maintenanceBookingUrl(n))}>Agendar ahora</Button>
+            <Button variant="ghost" size="sm" onClick={() => markRead(n.id)}>Marcar leído</Button>
+          </div>
+        ) : <Button variant="ghost" size="sm" onClick={() => markRead(n.id)}>Marcar leído</Button>}
       </article>)}
     </div>
   </Card>
