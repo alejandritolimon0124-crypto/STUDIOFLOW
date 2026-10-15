@@ -6,6 +6,7 @@ import instagramIcon from '../../assets/social/instagram.png'
 import tiktokIcon from '../../assets/social/tiktok.png'
 import whatsappIcon from '../../assets/social/whatsapp.png'
 import { hasCurrentAttendanceConfirmation } from '../../utils/appointmentConfirmation'
+import { getHappyHourMinutes } from '../../utils/happyHourDuration'
 import { historyDateTime, newestAppointmentFirst } from '../../utils/appointmentHistory'
 import Button from '../../components/Button'
 import AppointmentPayment from '../../components/AppointmentPayment'
@@ -1500,8 +1501,24 @@ function ClientDashboard({ view = 'inicio' }) {
       selectedArtistStudio?.id,
     ],
   )
-  const noAvailabilityMessage = happyHourOnly
-    ? `No hay espacio suficiente dentro de Happy Hour para ${selectedMarketplaceServiceName || 'este servicio'} en esta fecha. Prueba otro dia marcado o un servicio de menor duracion.`
+  const matchingHappyHourWindows = (selectedArtistProfile?.activePromotions || []).filter((promotion) => {
+    if ((promotion.type || promotion.promotion_type) !== 'happy_hour' || promotion.status === 'paused') return false
+    const rules = promotion.rules || {}
+    const weekdays = rules.weekdays || rules.weekDays || rules.week_days
+    const weekday = new Date(`${bookingDate}T00:00:00`).getDay()
+    return !Array.isArray(weekdays) || weekdays.length === 0 || weekdays.map(Number).includes(weekday)
+  })
+  const serviceExceedsHappyHour = happyHourOnly && matchingHappyHourWindows.length > 0
+    && matchingHappyHourWindows.every((promotion) => {
+      const rules = promotion.rules || {}
+      const minutes = getHappyHourMinutes(rules.startTime || rules.start_time, rules.endTime || rules.end_time)
+      return minutes > 0 && Number(effectiveMarketplaceService.durationMinutes) > minutes
+    })
+  const noAvailabilityTitle = serviceExceedsHappyHour ? 'Este servicio dura más que Happy Hour' : happyHourOnly ? 'No quedan horarios de Happy Hour en esta fecha' : 'Sin horarios disponibles'
+  const noAvailabilityMessage = serviceExceedsHappyHour
+    ? 'Selecciona un servicio más corto para aprovechar Happy Hour o consulta los horarios regulares sin el filtro.'
+    : happyHourOnly
+      ? 'Prueba otra fecha de Happy Hour o consulta los horarios regulares sin el filtro.'
     : `No encontramos un horario continuo para ${selectedMarketplaceServiceName || 'este servicio'} el ${formatBookingDate(bookingDate)}. Prueba otra fecha; la búsqueda considera la duración, los descansos, las citas ocupadas y la anticipación mínima.`
   const getVisibleSlotCountForArtist = (artist) => {
     if (isRealMarketplace) return artist?.availability?.availableCount || 0
@@ -2294,7 +2311,7 @@ function ClientDashboard({ view = 'inicio' }) {
         ) : (
           <div className="list-row elevated-row availability-empty-row">
             <div className="availability-empty-copy">
-              <strong>{isAvailabilityLoading ? 'Cargando horarios...' : happyHourOnly ? 'Sin horarios disponibles para Happy Hour' : 'Sin horarios disponibles'}</strong>
+              <strong>{isAvailabilityLoading ? 'Cargando horarios...' : noAvailabilityTitle}</strong>
               <small>{availabilityError || noAvailabilityMessage}</small>
             </div>
           </div>
@@ -3319,7 +3336,7 @@ function ClientDashboard({ view = 'inicio' }) {
                           ) : (
                             <div className="list-row elevated-row availability-empty-row">
                               <div className="availability-empty-copy">
-                                <strong>{isAvailabilityLoading ? 'Cargando horarios...' : happyHourOnly ? 'Sin horarios disponibles para Happy Hour' : 'Sin horarios disponibles'}</strong>
+                                <strong>{isAvailabilityLoading ? 'Cargando horarios...' : noAvailabilityTitle}</strong>
                                 <small>{availabilityError || noAvailabilityMessage}</small>
                               </div>
                             </div>
@@ -3656,7 +3673,7 @@ function ClientDashboard({ view = 'inicio' }) {
                             ) : (
                               <div className="list-row elevated-row availability-empty-row">
                                 <div className="availability-empty-copy">
-                                  <strong>{isAvailabilityLoading ? 'Cargando horarios...' : happyHourOnly ? 'Sin horarios disponibles para Happy Hour' : 'Sin horarios disponibles'}</strong>
+                                  <strong>{isAvailabilityLoading ? 'Cargando horarios...' : noAvailabilityTitle}</strong>
                                   <small>{availabilityError || noAvailabilityMessage}</small>
                                 </div>
                               </div>

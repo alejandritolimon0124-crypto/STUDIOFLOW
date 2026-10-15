@@ -10,6 +10,7 @@ import FlowPointRedemptionHistory from '../../components/FlowPointRedemptionHist
 import StatusPill from '../../components/StatusPill'
 import { useApp } from '../../contexts/appContextCore'
 import { calculateWeeklyOccupancy } from '../../modules/marketing/occupancyEngine'
+import { getServicesLongerThanHappyHour } from '../../utils/happyHourDuration'
 import { canUseOperationalFeature, getStudioStatusLabel, getStudioStatusTone } from '../../modules/governance/studioGovernance'
 import {
   deriveMembershipsFromLegacyData,
@@ -86,6 +87,7 @@ function ArtistMarketing() {
   const lowOccupancyRate = lowOccupancyDraft.period === 'month' ? monthlyOccupancy : weeklyOccupancy
   const doublePointsActive = marketingSettings.doublePoints?.status === 'active'
   const happyHourActive = marketingSettings.happyHour?.status === 'active'
+  const servicesOutsideHappyHour = getServicesLongerThanHappyHour(artistState.services || [], happyHourDraft.startTime, happyHourDraft.endTime)
   const flowPointsEnabled = Boolean(marketingSettings.flowPointsEnabled)
   const weekdayOptions = [
     { value: 1, label: 'Lun' },
@@ -418,6 +420,9 @@ function ArtistMarketing() {
             </button>
           ))}
         </div>
+        {servicesOutsideHappyHour.length > 0 && (
+          <p role="status">{servicesOutsideHappyHour.length === 1 ? `El servicio ${servicesOutsideHappyHour[0].name} dura más que este horario` : `${servicesOutsideHappyHour.length} servicios duran más que este horario`}. Puedes guardar Happy Hour; esos servicios no tendrán descuento en esta franja.</p>
+        )}
         <div className="row-actions">
           <Button disabled={isMarketingSaving} size="sm" variant={happyHourActive ? 'danger' : 'success'} onClick={() => saveHappyHour(!happyHourActive)}>
             {happyHourActive ? 'Desactivar Happy Hour' : 'Activar Happy Hour'}

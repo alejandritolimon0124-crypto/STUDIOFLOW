@@ -23,6 +23,7 @@ import { getCurrentBrowserCoordinates } from '../../utils/browserGeolocation'
 import { buildGoogleMapsUrl, createProfessionalLocation, hasCoordinates } from '../../utils/locationHelpers'
 import { getAppointmentStatusTone } from '../../utils/appointmentStatus'
 import { formatAppointmentArrival } from '../../utils/appointmentArrival'
+import { getServicesLongerThanHappyHour } from '../../utils/happyHourDuration'
 import { ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react'
 import { optimizeImageFile } from '../../utils/imageOptimization'
 import { getCurrentProfile, getCurrentStudio } from '../../modules/entities/entitySelectors'
@@ -3032,6 +3033,11 @@ function AdminStudioProfile() {
                     </button>
                   ))}
                 </div>
+                {(() => {
+                  const services = Object.values(membershipOperationsById).flatMap((operations) => operations?.services || [])
+                  const excluded = getServicesLongerThanHappyHour(services, studioHappyHourDraft.startTime, studioHappyHourDraft.endTime)
+                  return excluded.length > 0 && <p role="status">{excluded.length === 1 ? `El servicio ${excluded[0].name} dura más que este horario` : `${excluded.length} servicios duran más que este horario`}. Puedes guardar Happy Hour; esos servicios no tendrán descuento en esta franja.</p>
+                })()}
                 <div className="row-actions">
                   <Button disabled={isStudioMarketingSaving || isStudioMarketingLoading} size="sm" variant={studioHappyHourActive ? 'danger' : 'success'} onClick={() => saveStudioHappyHour(!studioHappyHourActive)}>
                     {studioHappyHourActive ? 'Desactivar Happy Hour' : 'Activar Happy Hour'}
