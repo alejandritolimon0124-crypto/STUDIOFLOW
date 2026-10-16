@@ -8,6 +8,9 @@ import ArtistClientExport from '../../components/ArtistClientExport'
 import StatusPill from '../../components/StatusPill'
 import { useApp } from '../../contexts/appContextCore'
 import ProviderAttendanceConflicts from '../../components/ProviderAttendanceConflicts'
+import ArchiveContactDialog from '../../components/ArchiveContactDialog'
+import ArchivedContactsPanel from '../../components/ArchivedContactsPanel'
+import { Archive } from 'lucide-react'
 import { archiveManualClientContact, fetchArtistClients } from '../../services/artistClientService'
 import { fetchManualArtistAvailability } from '../../services/appointmentService'
 
@@ -75,6 +78,8 @@ function ArtistClients() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
   const [archivingClientId, setArchivingClientId] = useState('')
+  const [archiveTarget, setArchiveTarget] = useState(null)
+  const [archiveError, setArchiveError] = useState('')
   const activeArtistServices = artistServices.filter((service) => ['activo', 'active'].includes(String(service.status || '').toLowerCase()))
   const searchKey = JSON.stringify([artistWorkContext, search.trim()])
   const [previousSearchKey, setPreviousSearchKey] = useState(searchKey)
@@ -137,18 +142,28 @@ function ArtistClients() {
 
   const closePanel = () => setSelectedPanel({ client: null, mode: '' })
 
-  const archiveContact = async (client) => {
-    if (!window.confirm(`Archivar contacto manual de ${client.name}? Ya no aparecera al buscar clientas o al agendar. Sus citas anteriores no se borraran.`)) return
+  const archiveContact = async () => {
+    if (!archiveTarget) return
+    const client = archiveTarget
     setArchivingClientId(client.id)
+    setArchiveError('')
     try {
       await archiveManualClientContact({ clientId: client.id })
       setClients((current) => current.filter((item) => item.id !== client.id))
       if (selectedPanel.client?.id === client.id) closePanel()
+      setArchiveTarget(null)
     } catch (archiveError) {
-      window.alert(archiveError.message || 'No se pudo archivar el contacto.')
+      setArchiveError(archiveError.message || 'No se pudo archivar el contacto.')
     } finally {
       setArchivingClientId('')
     }
+  }
+
+  const refreshClientSearch = () => {
+    if (search.trim().length < 2) return
+    fetchArtistClients({ search: search.trim(), limit: 5, workContext: artistWorkContext })
+      .then(setClients)
+      .catch((requestError) => setError(requestError.message || 'No se pudo actualizar la búsqueda.'))
   }
 
   if (!appointmentDraft.serviceOfferingId && activeArtistServices[0]?.id) {
@@ -268,6 +283,9 @@ function ArtistClients() {
             onChange={(event) => setSearch(event.target.value)}
           />
         </div>
+        {(artistWorkContext?.contextType || artistWorkContext?.type) === 'artist' && (
+          <ArchivedContactsPanel onRestored={refreshClientSearch} />
+        )}
         <div className="compact-list">
           {error && (
             <div className="list-row elevated-row">
@@ -294,8 +312,8 @@ function ArtistClients() {
                   <button type="button" onClick={() => openPanel(client, 'history')}>Ver historial</button>
                   <button type="button" onClick={() => openPanel(client, 'profile')}>Ver perfil</button>
                   {!client.profileId && !client.profile_id && (artistWorkContext?.contextType || artistWorkContext?.type) === 'artist' && (
-                    <button type="button" disabled={archivingClientId === client.id} title="Quita este contacto manual de las busquedas sin borrar sus citas anteriores" onClick={() => archiveContact(client)}>
-                      {archivingClientId === client.id ? 'Archivando...' : 'Archivar contacto'}
+                    <button className="archive-contact-trigger" type="button" disabled={Boolean(archivingClientId)} title="Dejar de mostrar este contacto al buscar clientas" onClick={() => { setArchiveError(''); setArchiveTarget(client) }}>
+                      <Archive size={16} aria-hidden="true" /> Archivar contacto
                     </button>
                   )}
                   {client.totalVisits > 0 && (artistWorkContext?.contextType || artistWorkContext?.type) === 'artist' && <button type="button" onClick={() => navigate(`/artist/accounting?tarjeta=1&clientId=${encodeURIComponent(client.id)}&clientName=${encodeURIComponent(client.name)}`)}>Crear tarjeta digital especial</button>}
@@ -433,6 +451,7 @@ function ArtistClients() {
           )}
         </div>
       </Card>
+      <ArchiveContactDialog contact={archiveTarget} busy={Boolean(archivingClientId)} error={archiveError} onCancel={() => setArchiveTarget(null)} onConfirm={archiveContact} />
     </main>
   )
 }

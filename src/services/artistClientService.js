@@ -43,3 +43,21 @@ export async function archiveManualClientContact({ clientId, studioId = null } =
   })
   if (error) throw error
 }
+
+export async function fetchArchivedManualContacts({ studioId = null, query = '' } = {}) {
+  const { data, error } = await requireSupabase().rpc('studio_flow_list_archived_manual_contacts', {
+    p_studio_id: studioId,
+    p_query: query.trim() || null,
+  })
+  if (error) throw error
+  return asArray(data)
+}
+
+export async function restoreManualClientContact({ clientId, studioId = null } = {}) {
+  if (!clientId) throw new Error('Selecciona un contacto.')
+  const { error } = await requireSupabase().rpc('studio_flow_restore_manual_client_contact', {
+    p_client_id: clientId,
+    p_studio_id: studioId,
+  })
+  if (error) throw error
+}

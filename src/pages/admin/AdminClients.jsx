@@ -9,6 +9,9 @@ import PanelHeader from '../../components/PanelHeader'
 import StatusPill from '../../components/StatusPill'
 import { useApp } from '../../contexts/appContextCore'
 import ProviderAttendanceConflicts from '../../components/ProviderAttendanceConflicts'
+import ArchiveContactDialog from '../../components/ArchiveContactDialog'
+import ArchivedContactsPanel from '../../components/ArchivedContactsPanel'
+import { Archive } from 'lucide-react'
 import { archiveManualClientContact } from '../../services/artistClientService'
 import { paths } from '../../routes/paths'
 import { filterByStudioAccess, ROLES } from '../../modules/permissions/rolePermissions'
@@ -45,6 +48,8 @@ function AdminClients() {
   const [isSearchingClients, setIsSearchingClients] = useState(false)
   const [clientSearchStatus, setClientSearchStatus] = useState('')
   const [archivingClientId, setArchivingClientId] = useState('')
+  const [archiveTarget, setArchiveTarget] = useState(null)
+  const [archiveError, setArchiveError] = useState('')
   const [profileClient, setProfileClient] = useState(null)
   const [appointmentPanel, setAppointmentPanel] = useState({
     client: null,
@@ -173,15 +178,18 @@ function AdminClients() {
     }
   }
 
-  const archiveOwnerContact = async (client) => {
-    if (!window.confirm(`Archivar contacto manual de ${client.name}? Ya no aparecera al buscar clientas o al agendar. Sus citas anteriores no se borraran.`)) return
+  const archiveOwnerContact = async () => {
+    if (!archiveTarget) return
+    const client = archiveTarget
     setArchivingClientId(client.id)
+    setArchiveError('')
     try {
       await archiveManualClientContact({ clientId: client.id, studioId: activeStudioId })
       setRealClientResults((current) => current.filter((item) => item.id !== client.id))
       closeInlinePanel()
+      setArchiveTarget(null)
     } catch (archiveError) {
-      window.alert(archiveError.message || 'No se pudo archivar el contacto.')
+      setArchiveError(archiveError.message || 'No se pudo archivar el contacto.')
     } finally {
       setArchivingClientId('')
     }
@@ -459,6 +467,9 @@ function AdminClients() {
               </div>
             </div>
           </div>
+          {isStudioOwnerContext && activeStudioId && (
+            <ArchivedContactsPanel studioId={activeStudioId} onRestored={() => searchClients()} />
+          )}
           {adminClientsError && <small className="form-error">{adminClientsError}</small>}
           <div className="master-list">
             {filteredClients.length === 0 ? (
@@ -488,8 +499,8 @@ function AdminClients() {
                       <button type="button" onClick={() => openInlineAppointmentInfo(client)}>Generar cita</button>
                     )}
                     {isStudioOwnerContext && !client.profile_id && !client.profileId && (
-                      <button type="button" disabled={archivingClientId === client.id} title="Quita este contacto manual de las busquedas sin borrar sus citas anteriores" onClick={() => archiveOwnerContact(client)}>
-                        {archivingClientId === client.id ? 'Archivando...' : 'Archivar contacto'}
+                      <button className="archive-contact-trigger" type="button" disabled={Boolean(archivingClientId)} title="Dejar de mostrar este contacto al buscar clientas" onClick={() => { setArchiveError(''); setArchiveTarget(client) }}>
+                        <Archive size={16} aria-hidden="true" /> Archivar contacto
                       </button>
                     )}
                     <button type="button" onClick={() => openClientAppointments(client, 'upcoming')}>Proximas citas</button>
@@ -694,6 +705,7 @@ function AdminClients() {
           </Card>
         )}
 
+      <ArchiveContactDialog contact={archiveTarget} busy={Boolean(archivingClientId)} error={archiveError} onCancel={() => setArchiveTarget(null)} onConfirm={archiveOwnerContact} />
     </main>
   )
 }
