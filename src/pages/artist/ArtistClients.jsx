@@ -8,7 +8,7 @@ import ArtistClientExport from '../../components/ArtistClientExport'
 import StatusPill from '../../components/StatusPill'
 import { useApp } from '../../contexts/appContextCore'
 import ProviderAttendanceConflicts from '../../components/ProviderAttendanceConflicts'
-import { fetchArtistClients } from '../../services/artistClientService'
+import { archiveManualClientContact, fetchArtistClients } from '../../services/artistClientService'
 import { fetchManualArtistAvailability } from '../../services/appointmentService'
 
 function getAppointmentTimestamp(appointment = {}) {
@@ -74,6 +74,7 @@ function ArtistClients() {
   const [appointmentFeedback, setAppointmentFeedback] = useState({ tone: 'neutral', message: '' })
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
+  const [archivingClientId, setArchivingClientId] = useState('')
   const activeArtistServices = artistServices.filter((service) => ['activo', 'active'].includes(String(service.status || '').toLowerCase()))
   const searchKey = JSON.stringify([artistWorkContext, search.trim()])
   const [previousSearchKey, setPreviousSearchKey] = useState(searchKey)
@@ -135,6 +136,20 @@ function ArtistClients() {
   }
 
   const closePanel = () => setSelectedPanel({ client: null, mode: '' })
+
+  const archiveContact = async (client) => {
+    if (!window.confirm(`Archivar contacto manual de ${client.name}? Ya no aparecera al buscar clientas o al agendar. Sus citas anteriores no se borraran.`)) return
+    setArchivingClientId(client.id)
+    try {
+      await archiveManualClientContact({ clientId: client.id })
+      setClients((current) => current.filter((item) => item.id !== client.id))
+      if (selectedPanel.client?.id === client.id) closePanel()
+    } catch (archiveError) {
+      window.alert(archiveError.message || 'No se pudo archivar el contacto.')
+    } finally {
+      setArchivingClientId('')
+    }
+  }
 
   if (!appointmentDraft.serviceOfferingId && activeArtistServices[0]?.id) {
     setAppointmentDraft({ ...appointmentDraft, serviceOfferingId: activeArtistServices[0].id })
@@ -278,6 +293,11 @@ function ArtistClients() {
                   <button type="button" onClick={() => openPanel(client, 'upcoming')}>Proxima cita</button>
                   <button type="button" onClick={() => openPanel(client, 'history')}>Ver historial</button>
                   <button type="button" onClick={() => openPanel(client, 'profile')}>Ver perfil</button>
+                  {!client.profileId && !client.profile_id && (artistWorkContext?.contextType || artistWorkContext?.type) === 'artist' && (
+                    <button type="button" disabled={archivingClientId === client.id} title="Quita este contacto manual de las busquedas sin borrar sus citas anteriores" onClick={() => archiveContact(client)}>
+                      {archivingClientId === client.id ? 'Archivando...' : 'Archivar contacto'}
+                    </button>
+                  )}
                   {client.totalVisits > 0 && (artistWorkContext?.contextType || artistWorkContext?.type) === 'artist' && <button type="button" onClick={() => navigate(`/artist/accounting?tarjeta=1&clientId=${encodeURIComponent(client.id)}&clientName=${encodeURIComponent(client.name)}`)}>Crear tarjeta digital especial</button>}
                 </div>
               </div>

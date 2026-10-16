@@ -34,3 +34,12 @@ export async function fetchArtistClients({ search = '', limit = 5, workContext =
 
   return asArray(data?.clients).map(normalizeArtistClient)
 }
+
+export async function archiveManualClientContact({ clientId, studioId = null } = {}) {
+  if (!clientId) throw new Error('Selecciona un contacto.')
+  const { error } = await requireSupabase().rpc('studio_flow_archive_manual_client_contact', {
+    p_client_id: clientId,
+    p_studio_id: studioId,
+  })
+  if (error) throw error
+}

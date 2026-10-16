@@ -9,6 +9,7 @@ import PanelHeader from '../../components/PanelHeader'
 import StatusPill from '../../components/StatusPill'
 import { useApp } from '../../contexts/appContextCore'
 import ProviderAttendanceConflicts from '../../components/ProviderAttendanceConflicts'
+import { archiveManualClientContact } from '../../services/artistClientService'
 import { paths } from '../../routes/paths'
 import { filterByStudioAccess, ROLES } from '../../modules/permissions/rolePermissions'
 import {
@@ -43,6 +44,7 @@ function AdminClients() {
   const [realClientResults, setRealClientResults] = useState([])
   const [isSearchingClients, setIsSearchingClients] = useState(false)
   const [clientSearchStatus, setClientSearchStatus] = useState('')
+  const [archivingClientId, setArchivingClientId] = useState('')
   const [profileClient, setProfileClient] = useState(null)
   const [appointmentPanel, setAppointmentPanel] = useState({
     client: null,
@@ -168,6 +170,20 @@ function AdminClients() {
       setClientSearchStatus(error.message || 'No se pudo buscar clientas.')
     } finally {
       setIsSearchingClients(false)
+    }
+  }
+
+  const archiveOwnerContact = async (client) => {
+    if (!window.confirm(`Archivar contacto manual de ${client.name}? Ya no aparecera al buscar clientas o al agendar. Sus citas anteriores no se borraran.`)) return
+    setArchivingClientId(client.id)
+    try {
+      await archiveManualClientContact({ clientId: client.id, studioId: activeStudioId })
+      setRealClientResults((current) => current.filter((item) => item.id !== client.id))
+      closeInlinePanel()
+    } catch (archiveError) {
+      window.alert(archiveError.message || 'No se pudo archivar el contacto.')
+    } finally {
+      setArchivingClientId('')
     }
   }
 
@@ -470,6 +486,11 @@ function AdminClients() {
                     )}
                     {isStudioOwnerContext && (
                       <button type="button" onClick={() => openInlineAppointmentInfo(client)}>Generar cita</button>
+                    )}
+                    {isStudioOwnerContext && !client.profile_id && !client.profileId && (
+                      <button type="button" disabled={archivingClientId === client.id} title="Quita este contacto manual de las busquedas sin borrar sus citas anteriores" onClick={() => archiveOwnerContact(client)}>
+                        {archivingClientId === client.id ? 'Archivando...' : 'Archivar contacto'}
+                      </button>
                     )}
                     <button type="button" onClick={() => openClientAppointments(client, 'upcoming')}>Proximas citas</button>
                     <button type="button" onClick={() => openClientAppointments(client, 'history')}>Ver historial</button>

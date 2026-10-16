@@ -131,7 +131,7 @@ export async function fetchStudioOwnerAppointmentClients({ studioId, query = '',
   for (let offset = 0; ; offset += pageSize) {
     const { data: page, error } = await client
       .from('appointments')
-      .select('id, client_id, starts_at, status, client:clients(id, display_name, email, phone, status, created_at)')
+      .select('id, client_id, starts_at, status, client:clients(id, display_name, email, phone, profile_id, status, archived_at, created_at)')
       .eq('studio_id', studioId)
       .order('starts_at', { ascending: false })
       .order('id', { ascending: false })
@@ -148,6 +148,7 @@ export async function fetchStudioOwnerAppointmentClients({ studioId, query = '',
   const clientsById = new Map()
 
   ;(data || []).forEach((appointment) => {
+    if (!appointment.client || appointment.client.status === 'archived' || appointment.client.archived_at) return
     const appointmentClient = normalizeClient({
       ...(appointment.client || {}),
       ...profilesById.get(appointment.client?.id),
