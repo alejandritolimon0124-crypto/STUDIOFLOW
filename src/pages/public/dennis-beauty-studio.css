@@ -87,3 +87,11 @@
 @keyframes dennisOverlayIn{from{opacity:0}to{opacity:1}}
 @keyframes dennisDialogIn{from{opacity:0;transform:translateY(18px) scale(.97)}to{opacity:1;transform:none}}
 @media(max-width:600px){.dennis-service-dialog{grid-template-columns:1fr}.dennis-service-dialog>img{height:220px;min-height:0}.dennis-service-dialog>div{padding:25px 22px}.dennis-service-dialog h2{font-size:30px}.dennis-service-dialog strong{font-size:31px}}
+.dennis-pro-invite{display:flex;align-items:center;justify-content:space-between;gap:30px;padding:48px max(5vw,22px);background:#e8d2ca;color:#392731}
+.dennis-pro-invite .dennis-eyebrow{color:#86505f}
+.dennis-pro-invite h2{max-width:760px;margin-top:10px;font-size:clamp(28px,3vw,44px);line-height:1.15}
+.dennis-pro-invite a{display:inline-flex;align-items:center;justify-content:center;gap:10px;flex:none;min-height:56px;padding:15px 22px;background:#392731;color:white;font-size:15px;font-weight:800;text-align:center;box-shadow:0 5px 0 #9d6771;transition:transform .2s,box-shadow .2s}
+.dennis-pro-invite a:hover{transform:translateY(-2px);box-shadow:0 7px 0 #9d6771;color:white}
+.dennis-pro-invite a:active{transform:translateY(4px);box-shadow:0 1px 0 #9d6771}
+.dennis-powered{padding:14px 22px;background:#21171e;color:#d7bfaa;text-align:center;font-size:12px;font-weight:700;letter-spacing:1.5px}
+@media(max-width:700px){.dennis-pro-invite{display:block;padding:42px 22px}.dennis-pro-invite a{width:100%;margin-top:25px}}
