@@ -71,3 +71,19 @@
 .dennis-jump a:active{transform:translateY(3px);box-shadow:0 2px 5px #48303922}
 .dennis-hero p.dennis-hero-address{text-shadow:0 0 3px #fff,0 0 9px #fff,0 0 20px #fff,0 1px 1px #fff}
 @media(max-width:700px){.dennis-hero-side{left:0;right:0;bottom:0;font-size:14px;min-height:48px;color:#2c2028}.dennis-hero-content{padding-bottom:78px}.dennis-jump{gap:9px;padding:12px 14px}.dennis-jump a,.dennis-jump a:first-child{min-height:58px;font-size:13px;border-bottom-width:4px}}
+.dennis-service-row{width:100%;border:0;border-bottom:1px solid #eee5e4;background:transparent;text-align:left;color:var(--ink);font-family:inherit;cursor:pointer;transition:background .2s,transform .2s,box-shadow .2s}
+.dennis-service-row:hover,.dennis-service-row:focus-visible{position:relative;z-index:1;background:#fff7f4;transform:scale(1.015);box-shadow:0 8px 22px #653a4c1c}
+.dennis-service-info,.dennis-service-title{display:block}
+.dennis-service-title{display:flex}
+.dennis-service-overlay{position:fixed;inset:0;z-index:1000;display:grid;place-items:center;padding:20px;background:#21141dcc;backdrop-filter:blur(10px);animation:dennisOverlayIn .25s ease-out}
+.dennis-service-dialog{position:relative;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);width:min(760px,100%);max-height:calc(100vh - 40px);overflow:auto;background:#fffaf7;box-shadow:0 26px 90px #160e16aa;animation:dennisDialogIn .3s ease-out}
+.dennis-service-dialog>img{width:100%;height:100%;min-height:320px;object-fit:cover}
+.dennis-service-dialog>div{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:17px;padding:45px 34px}
+.dennis-service-dialog .dennis-eyebrow{color:#a77473}
+.dennis-service-dialog h2{font-size:clamp(30px,3vw,43px);line-height:1.1}
+.dennis-service-dialog strong{font:700 35px Georgia,serif;color:#82445a}
+.dennis-service-dialog p{font-size:15px;line-height:1.5;color:#705d62}
+.dennis-service-close{position:absolute;right:12px;top:12px;z-index:1;display:grid;place-items:center;width:38px;height:38px;border:0;background:#fffaf7;color:#392731;cursor:pointer}
+@keyframes dennisOverlayIn{from{opacity:0}to{opacity:1}}
+@keyframes dennisDialogIn{from{opacity:0;transform:translateY(18px) scale(.97)}to{opacity:1;transform:none}}
+@media(max-width:600px){.dennis-service-dialog{grid-template-columns:1fr}.dennis-service-dialog>img{height:220px;min-height:0}.dennis-service-dialog>div{padding:25px 22px}.dennis-service-dialog h2{font-size:30px}.dennis-service-dialog strong{font-size:31px}}
