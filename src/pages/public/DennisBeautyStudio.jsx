@@ -128,10 +128,10 @@ export default function DennisBeautyStudio() {
         <p className="dennis-hero-address"><MapPin size={19} aria-hidden="true" /> Cañada 448, Col. Virreyes Fovissste<br />Saltillo, Coahuila</p>
         <a className="dennis-button dennis-button--directions" href={MAPS_URL} target="_blank" rel="noreferrer">Cómo llegar <ArrowUpRight size={18} /></a>
       </div>
-      <span className="dennis-hero-side">NAILS · LASHES · MAKE UP</span>
+      <div className="dennis-hero-side"><div className="dennis-hero-ticker"><span>UÑAS · PESTAÑAS · MAQUILLAJE · PEINADOS · PAQUETES PARA NOVIA · QUINCEAÑOS ·&nbsp;</span><span aria-hidden="true">UÑAS · PESTAÑAS · MAQUILLAJE · PEINADOS · PAQUETES PARA NOVIA · QUINCEAÑOS ·&nbsp;</span></div></div>
     </section>
 
-    <nav className="dennis-jump" aria-label="Explora el catálogo"><a href="#novias">Bodas <span>↗</span></a><a href="#xv">XV años <span>↗</span></a><a href="#servicios">Servicios <span>↗</span></a><a href="#flowpoints">FlowPoints <span>↗</span></a></nav>
+    <nav className="dennis-jump" aria-label="Explora el catálogo"><a href="#novias">Bodas</a><a href="#xv">XV años</a><a href="#servicios">Servicios</a><a href="#flowpoints">FlowPoints</a></nav>
 
     <section className="dennis-rewards" id="flowpoints">
       <div className="dennis-rewards-art" aria-hidden="true"><Sparkles size={30} /><span>FlowPoints</span><Sparkles size={22} /></div>

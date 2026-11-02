@@ -61,3 +61,13 @@
 @media(max-width:360px){.dennis-package-grid{grid-template-columns:1fr}.dennis-package-includes{font-size:15px}}
 .dennis-rewards-art span{font-size:clamp(34px,4vw,56px);white-space:nowrap}
 @media(max-width:700px){.dennis-rewards-art{max-width:none;justify-content:start}.dennis-rewards-art span{font-size:clamp(32px,9vw,50px)}}
+.dennis-hero-side{left:0;right:0;bottom:0;overflow:hidden;min-height:52px;display:flex;align-items:center;background:#bd914d;color:#2c2028;font-size:16px;letter-spacing:1.5px;font-weight:900;box-shadow:0 -4px 20px #2c202837}
+.dennis-hero-ticker{display:flex;width:max-content;white-space:nowrap;animation:dennisTicker 28s linear infinite}
+.dennis-hero-ticker span{flex:none;padding-right:1.5rem}
+@keyframes dennisTicker{to{transform:translateX(-50%)}}
+.dennis-jump{gap:12px;padding:16px max(5vw,22px);background:#e9d8d5}
+.dennis-jump a,.dennis-jump a:first-child{display:flex;align-items:center;justify-content:center;min-height:66px;padding:12px 16px;border:1px solid #c8a7a4;border-bottom:5px solid #9e7475;border-radius:5px;background:linear-gradient(#fffaf7,#f0e1de);color:#3a2730;font:800 16px Arial,Helvetica,sans-serif;text-align:center;text-transform:uppercase;box-shadow:0 6px 12px #48303923;transition:transform .2s,box-shadow .2s,background .2s}
+.dennis-jump a:hover{transform:translateY(-2px);background:#fff8f5;box-shadow:0 9px 16px #4830392b}
+.dennis-jump a:active{transform:translateY(3px);box-shadow:0 2px 5px #48303922}
+.dennis-hero p.dennis-hero-address{text-shadow:0 0 3px #fff,0 0 9px #fff,0 0 20px #fff,0 1px 1px #fff}
+@media(max-width:700px){.dennis-hero-side{left:0;right:0;bottom:0;font-size:14px;min-height:48px;color:#2c2028}.dennis-hero-content{padding-bottom:78px}.dennis-jump{gap:9px;padding:12px 14px}.dennis-jump a,.dennis-jump a:first-child{min-height:58px;font-size:13px;border-bottom-width:4px}}
