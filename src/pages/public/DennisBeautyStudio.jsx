@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ArrowRight, ArrowUpRight, CalendarDays, Gift, MapPin, Sparkles } from 'lucide-react'
+import { ArrowUpRight, CalendarDays, Gift, MapPin, Sparkles } from 'lucide-react'
 import { requireSupabase } from '../../lib/supabaseClient'
 import { bookingSlug } from '../../utils/publicBookingLinks'
 import './dennis-beauty-studio.css'
 
 const LISTING_ID = '6c5b751e-700c-4bcd-a12e-f6876792f43e'
+const MAPS_URL = 'https://maps.google.com/?q=25.46116%2C-100.986983'
 const BOOKING_BASE = `/reservar/dennis-ch-vez-beauty-studio`
 const money = (amount) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(amount)
 const bookLink = (service) => `${BOOKING_BASE}${service ? `/${bookingSlug(service.name)}` : ''}?perfil=${LISTING_ID}`
@@ -97,10 +98,9 @@ export default function DennisBeautyStudio() {
       <img className="dennis-hero-image" src="/service-makeup.jpg" alt="Artista maquillando a una clienta" fetchPriority="high" />
       <div className="dennis-hero-shade" />
       <div className="dennis-hero-content" data-reveal>
-        <span className="dennis-eyebrow">DENNIS CHÁVEZ BEAUTY STUDIO · SALTILLO</span>
-        <h1>Tu belleza, <em>tu momento.</em></h1>
-        <p>Encuentra tu servicio, conoce el precio y reserva cuando estés lista.</p>
-        <div className="dennis-hero-actions"><a className="dennis-button dennis-button--light" href="#precios">Explorar precios <ArrowRight size={18} /></a><a className="dennis-text-link" href={bookLink()}>Ver agenda <ArrowUpRight size={18} /></a></div>
+        <h1 className="dennis-hero-brand"><img src="/dennis/dennis-logo.jpg" alt="Dennis Chávez Beauty Studio" fetchPriority="high" /></h1>
+        <p className="dennis-hero-address"><MapPin size={19} aria-hidden="true" /> Cañada 448, Col. Virreyes Fovissste<br />Saltillo, Coahuila</p>
+        <a className="dennis-button dennis-button--directions" href={MAPS_URL} target="_blank" rel="noreferrer">Cómo llegar <ArrowUpRight size={18} /></a>
       </div>
       <span className="dennis-hero-side">NAILS · LASHES · MAKE UP</span>
     </section>
@@ -124,6 +124,6 @@ export default function DennisBeautyStudio() {
 
     <section className="dennis-catalog" id="precios"><div className="dennis-catalog-heading" data-reveal><span className="dennis-eyebrow">ELIGE TU EXPERIENCIA</span><h2>Servicios & precios</h2><p>Precios del perfil de Dennis, actualizados en Studio Flow.</p></div><div id="servicios" className="dennis-catalog-groups">{catalogState === 'loading' && <p className="dennis-catalog-status" role="status">Cargando precios del estudio...</p>}{catalogState === 'error' && <p className="dennis-catalog-status" role="alert">No pudimos consultar los precios ahora. <a href={bookLink()}>Verlos en la agenda</a>.</p>}{catalogState === 'ready' && catalogGroups.map((group) => { const groupServices = services.filter((service) => group.match.test(service.category || '')); if (!groupServices.length) return null; return <section className={`dennis-service-group dennis-service-group--${group.key}`} key={group.key}><div className="dennis-service-photo"><img src={group.image} alt={`Servicio de ${group.title.toLowerCase()}`} loading="lazy" /></div><div className="dennis-service-content"><div className="dennis-service-heading" data-reveal><span>{group.title.toUpperCase()}</span><h3>{group.line}</h3></div><div className="dennis-service-list">{groupServices.map((service, index) => { const price = Number(service.priceAmount ?? service.price_amount); const points = Math.round(price * rewardPercent / 10); return <div className="dennis-service-row" key={service.id}><img className="dennis-service-thumb" src={group.image} alt="" loading="lazy" style={{ objectPosition: `${30 + (index % 3) * 25}% center` }} /><div><strong>{service.name}</strong>{rewardsEnabled && <small><Sparkles size={14} /> {points} FP estimados al completar</small>}</div><b>{money(price)}</b></div> })}</div><a className="dennis-service-book" href={bookLink()}>Agendar {group.title.toLowerCase()} <ArrowUpRight size={17} /></a></div></section> })}</div><p className="dennis-catalog-footnote">Los FlowPoints se calculan sobre el importe final pagado de una cita completada en Studio Flow. Promociones y descuentos pueden cambiar la cantidad.</p></section>
 
-    <footer className="dennis-footer"><div><span>DC</span><strong>Dennis Chávez Beauty Studio</strong><small>Saltillo, Coahuila</small></div><div className="dennis-footer-links"><a href={bookLink()}><CalendarDays size={16} /> Reservar sin cuenta</a><a href="https://www.instagram.com/dennisbeautystudio/" target="_blank" rel="noreferrer">Instagram</a><a href="https://maps.google.com/?q=25.46116%2C-100.986983" target="_blank" rel="noreferrer"><MapPin size={16} /> Cómo llegar</a></div><p>Una experiencia en <a href="/">Studio Flow</a></p></footer>
+    <footer className="dennis-footer"><div><span>DC</span><strong>Dennis Chávez Beauty Studio</strong><small>Saltillo, Coahuila</small></div><div className="dennis-footer-links"><a href={bookLink()}><CalendarDays size={16} /> Reservar sin cuenta</a><a href="https://www.instagram.com/dennisbeautystudio/" target="_blank" rel="noreferrer">Instagram</a><a href={MAPS_URL} target="_blank" rel="noreferrer"><MapPin size={16} /> Cómo llegar</a></div><p>Una experiencia en <a href="/">Studio Flow</a></p></footer>
   </main>
 }
