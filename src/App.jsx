@@ -26,6 +26,7 @@ import Register from './pages/auth/Register'
 import ForgotPassword from './pages/auth/ForgotPassword'
 import ResetPassword from './pages/auth/ResetPassword'
 import PublicBooking from './pages/public/PublicBooking'
+import DennisBeautyStudio from './pages/public/DennisBeautyStudio'
 import PaymentCard from './pages/public/PaymentCard'
 import InvitationCard from './pages/public/InvitationCard'
 import PublicCampaign from './pages/public/PublicCampaign'
@@ -58,6 +59,7 @@ function App() {
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/reservar/:slug?/:serviceSlug?" element={<PublicBooking />} />
+          <Route path="/dennis-beauty-studio" element={<DennisBeautyStudio />} />
           <Route path="/pago/:token" element={<PaymentCard />} />
           <Route path="/invitacion/:code" element={<InvitationCard />} />
           <Route path="/felicitacion/:id" element={<ProtectedRoute allowedRole="client"><BirthdayCard /></ProtectedRoute>} />

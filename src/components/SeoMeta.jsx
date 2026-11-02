@@ -17,6 +17,11 @@ const pages = {
     description: 'Organiza citas y servicios de uñas, maquillaje, spa y estética en Studio Flow. Muestra tu trabajo, recibe reservas y crea beneficios para tus clientas.',
     canonical: 'https://studioflow.vip/profesionales',
   },
+  '/dennis-beauty-studio': {
+    title: 'Dennis Chávez Beauty Studio | Servicios, precios y citas en Saltillo',
+    description: 'Consulta precios de uñas, pestañas, maquillaje, paquetes de novia y XV años en Dennis Chávez Beauty Studio. Descubre FlowPoints y reserva en Studio Flow.',
+    canonical: 'https://studioflow.vip/dennis-beauty-studio',
+  },
 }
 
 function setMeta(selector, attribute, value) {
