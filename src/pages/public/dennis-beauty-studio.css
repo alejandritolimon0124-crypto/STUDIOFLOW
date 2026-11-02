@@ -23,3 +23,24 @@
 .dennis-button--directions{background:#392731;color:white}
 .dennis-button--directions:hover{background:#684451;color:white}
 @media(max-width:700px){.dennis-hero{min-height:625px}.dennis-hero-shade{background:linear-gradient(0deg,#e5ceb8 0%,#e5ceb8f0 33%,#e5ceb8a8 61%,#35232b00 100%)}.dennis-hero-content{padding:22px 22px 55px}.dennis-hero-brand img{width:215px}.dennis-hero p.dennis-hero-address{font-size:14px;margin:0 0 14px}.dennis-hero-side{color:#5a3b45}}
+.dennis-hero-brand img{mix-blend-mode:normal;mask-image:none}
+.dennis-package-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+.dennis-package{min-height:0;padding:26px 30px}
+.dennis-package h3{min-height:0;margin:12px 0 8px}
+.dennis-package-includes{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px 18px;margin:18px 0 0;padding:17px 0 0;border-top:1px solid #bfa9a8;list-style:none;color:#59484e;font-size:15px;line-height:1.4}
+.dennis-package-includes li{position:relative;padding-left:15px}
+.dennis-package-includes li::before{content:'•';position:absolute;left:0;color:#a67981}
+.dennis-package-grid--xv .dennis-package-includes{border-color:#bbafc2}
+.dennis-service-list{grid-template-columns:1fr;gap:0}
+.dennis-service-row{display:grid;grid-template-columns:110px minmax(0,1fr);align-items:center;gap:20px;padding:16px 0}
+.dennis-service-row .dennis-service-thumb{width:110px;height:90px;border-radius:3px;filter:none}
+.dennis-service-row .dennis-service-info{min-width:0}
+.dennis-service-title{display:flex;align-items:baseline;flex-wrap:wrap;gap:3px 14px}
+.dennis-service-row strong{font-size:18px;line-height:1.3}
+.dennis-service-row b{font-size:24px}
+.dennis-service-row small{font-size:13px;margin-top:7px}
+@media(max-width:900px){.dennis-package-grid{grid-template-columns:1fr}}
+@media(max-width:600px){.dennis-package{padding:23px 21px}.dennis-package-includes{grid-template-columns:1fr;font-size:15px}.dennis-service-row{grid-template-columns:88px minmax(0,1fr);gap:14px}.dennis-service-row .dennis-service-thumb{width:88px;height:82px}.dennis-service-row strong{font-size:16px}.dennis-service-row b{font-size:22px}}
+.dennis-hero p.dennis-hero-address{margin-top:12px}
+@media(max-width:600px){.dennis-service-row{grid-template-columns:112px minmax(0,1fr)}.dennis-service-row .dennis-service-thumb{width:112px;height:96px}}
+@media(max-width:390px){.dennis-service-row{grid-template-columns:92px minmax(0,1fr)}.dennis-service-row .dennis-service-thumb{width:92px;height:88px}}

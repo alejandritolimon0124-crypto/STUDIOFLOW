@@ -13,9 +13,9 @@ const whatsappLink = (message) => `https://wa.me/528443934366?text=${encodeURICo
 
 const bridalPackages = [
   { name: 'Bride Essential', price: 9450, details: 'Pruebas de maquillaje y peinado · Maquillaje HD · Peinado · Pestañas de seda · Gelish con diseño · Kit de retoque' },
-  { name: 'Bride Glam', price: 11950, details: 'Pruebas · Maquillaje HD · Body Glow · Peinado · Pestañas clásicas o híbridas · Uñas con tip · Kit de retoque' },
-  { name: 'Bride Signature', price: 9000, details: 'Pruebas · Preparación de piel · Maquillaje HD · Pestañas de seda · Peinado · Body Glow · Kit de retoque' },
-  { name: 'Bride Complement', price: 9880, details: 'Experiencia Signature con maquillaje para mamá de la novia' },
+  { name: 'Bride Glam', price: 11950, details: 'Pruebas de maquillaje y peinado · Maquillaje HD · Body Glow · Peinado · Pestañas clásicas o híbridas · Uñas con tip · Kit de retoque' },
+  { name: 'Bride Signature', price: 9000, details: 'Pruebas de maquillaje y peinado · Preparación de piel · Maquillaje HD · Pestañas de seda · Peinado · Body Glow · Kit de retoque' },
+  { name: 'Bride Complement', price: 9880, details: 'Experiencia Bride Signature · Maquillaje para mamá de la novia' },
 ]
 
 const bridalExtras = [
@@ -28,7 +28,7 @@ const quincePackages = [
   { name: 'XV Essential', price: 5350, details: 'Preparación de piel · Maquillaje HD · Pestañas tipo mink · Peinado · Gelish con diseño' },
   { name: 'XV Glam', price: 7200, details: 'Preparación de piel · Maquillaje HD · Peinado · Uñas con tip y diseño · Pestañas clásicas' },
   { name: 'XV Signature', price: 8480, details: 'Facial preevento · Maquillaje Ultra Glow · Body Glow · Peinado · Acrílico con diseño · Pestañas híbridas · Kit de retoque' },
-  { name: 'XV Perfect Match', price: 9100, details: 'Pruebas · Maquillaje HD Ultra Glow · Peinado · Kit de retoque · Maquillaje para mamá' },
+  { name: 'XV Perfect Match', price: 9100, details: 'Pruebas de maquillaje y peinado · Maquillaje HD Ultra Glow · Peinado · Kit de retoque · Maquillaje para mamá' },
 ]
 
 const catalogGroups = [
@@ -38,13 +38,32 @@ const catalogGroups = [
   { key: 'peinado', title: 'Peinado', line: 'El toque final de tu look.', image: '/service-hair.jpg', match: /peinado/i },
 ]
 
+const serviceImages = {
+  '8f4006f4-c8bb-4a92-a258-9474ddd4cd69': 'russian-volume-lashes',
+  '7a554da3-f67c-43fb-a68a-8b543ab3f71b': 'sculpted-nails',
+  '8594e127-4b41-47d4-904a-7de6f59a79cd': 'nail-art',
+  '07a61b15-639b-4708-af4b-ab59966dc588': 'social-makeup',
+  '6a9defa6-bcc8-4c51-ab94-4446b15f2835': 'glam-makeup',
+  'b126afe3-31b4-4a76-a411-7a8a7a2ec8e0': 'makeup-trial',
+  '1c0a718a-c5ac-45a7-b932-378f9f4e818b': 'waves-hair',
+  '9c82fd4e-b90c-465f-b95b-3a2b25bb5b4f': 'classic-lashes',
+  '45930d57-7482-4e03-8043-37e4a366822a': 'hybrid-lashes',
+  '820560ec-46e3-4c6e-87d5-fc89c422ef4e': 'russian-rubber',
+  'f6462b61-eeb6-49a3-8127-eeef1484f0a3': 'russian-design',
+  'e5a23903-7c60-44e1-9279-dc064cc536e1': 'pedicure',
+  '48e6f177-04de-47e1-989b-d8dd7be02af2': 'removal',
+  '0ae1f132-be54-4f7f-8839-eb13f7da84f4': 'softgel-premium',
+  'b7108e4b-91bc-48a5-9a11-8f753cb20994': 'softgel-two-tone',
+  '1a63b85f-62d0-4435-849e-a677c88e7ac9': 'gel-nails',
+}
+
 function PackageList({ items, tone }) {
   return <div className={`dennis-package-grid dennis-package-grid--${tone}`}>
     {items.map((item, index) => <article className="dennis-package" key={item.name} data-reveal style={{ '--reveal-delay': `${index * 70}ms` }}>
       <span className="dennis-package-index">{String(index + 1).padStart(2, '0')}</span>
       <h3>{item.name}</h3>
       <strong className="dennis-package-price">{money(item.price)}</strong>
-      <p>{item.details}</p>
+      <ul className="dennis-package-includes">{item.details.split(' · ').map((detail) => <li key={detail}>{detail}</li>)}</ul>
     </article>)}
   </div>
 }
@@ -98,7 +117,7 @@ export default function DennisBeautyStudio() {
       <img className="dennis-hero-image" src="/service-makeup.jpg" alt="Artista maquillando a una clienta" fetchPriority="high" />
       <div className="dennis-hero-shade" />
       <div className="dennis-hero-content" data-reveal>
-        <h1 className="dennis-hero-brand"><img src="/dennis/dennis-logo.jpg" alt="Dennis Chávez Beauty Studio" fetchPriority="high" /></h1>
+        <h1 className="dennis-hero-brand"><img src="/dennis/dennis-logo-transparent.png" alt="Dennis Chávez Beauty Studio" fetchPriority="high" /></h1>
         <p className="dennis-hero-address"><MapPin size={19} aria-hidden="true" /> Cañada 448, Col. Virreyes Fovissste<br />Saltillo, Coahuila</p>
         <a className="dennis-button dennis-button--directions" href={MAPS_URL} target="_blank" rel="noreferrer">Cómo llegar <ArrowUpRight size={18} /></a>
       </div>
@@ -122,7 +141,7 @@ export default function DennisBeautyStudio() {
     <section className="dennis-editorial dennis-editorial--xv" id="xv"><div className="dennis-editorial-intro" data-reveal><span className="dennis-eyebrow">UNA NOCHE DE CUENTO</span><h2>Quince años de magia. <em>Un momento tuyo.</em></h2><p>Tu look soñado comienza aquí.</p></div><div className="dennis-editorial-photo"><img src="/dennis/xv-essential.png" alt="Inspiración de maquillaje y peinado para XV años" loading="lazy" /></div></section>
     <section className="dennis-section dennis-section--xv"><div className="dennis-section-heading" data-reveal><span>02 / XV AÑOS</span><h2>Paquetes para brillar</h2><p>Todos incluyen una foto de estudio.</p></div><PackageList items={quincePackages} tone="xv" /><p className="dennis-section-note">Precios en estudio. Servicio a domicilio: cargo adicional de $2,500, sujeto a disponibilidad.</p><div className="dennis-section-actions"><a className="dennis-button dennis-button--dark" href={bookLink()}>Ver agenda <CalendarDays size={17} /></a><a className="dennis-inline-link" href={whatsappLink('Hola, vi los paquetes de XV años de Dennis Beauty Studio. Quisiera consultar disponibilidad y detalles.')} target="_blank" rel="noreferrer">Consultar un paquete por WhatsApp <ArrowUpRight size={17} /></a></div></section>
 
-    <section className="dennis-catalog" id="precios"><div className="dennis-catalog-heading" data-reveal><span className="dennis-eyebrow">ELIGE TU EXPERIENCIA</span><h2>Servicios & precios</h2><p>Precios del perfil de Dennis, actualizados en Studio Flow.</p></div><div id="servicios" className="dennis-catalog-groups">{catalogState === 'loading' && <p className="dennis-catalog-status" role="status">Cargando precios del estudio...</p>}{catalogState === 'error' && <p className="dennis-catalog-status" role="alert">No pudimos consultar los precios ahora. <a href={bookLink()}>Verlos en la agenda</a>.</p>}{catalogState === 'ready' && catalogGroups.map((group) => { const groupServices = services.filter((service) => group.match.test(service.category || '')); if (!groupServices.length) return null; return <section className={`dennis-service-group dennis-service-group--${group.key}`} key={group.key}><div className="dennis-service-photo"><img src={group.image} alt={`Servicio de ${group.title.toLowerCase()}`} loading="lazy" /></div><div className="dennis-service-content"><div className="dennis-service-heading" data-reveal><span>{group.title.toUpperCase()}</span><h3>{group.line}</h3></div><div className="dennis-service-list">{groupServices.map((service, index) => { const price = Number(service.priceAmount ?? service.price_amount); const points = Math.round(price * rewardPercent / 10); return <div className="dennis-service-row" key={service.id}><img className="dennis-service-thumb" src={group.image} alt="" loading="lazy" style={{ objectPosition: `${30 + (index % 3) * 25}% center` }} /><div><strong>{service.name}</strong>{rewardsEnabled && <small><Sparkles size={14} /> {points} FP estimados al completar</small>}</div><b>{money(price)}</b></div> })}</div><a className="dennis-service-book" href={bookLink()}>Agendar {group.title.toLowerCase()} <ArrowUpRight size={17} /></a></div></section> })}</div><p className="dennis-catalog-footnote">Los FlowPoints se calculan sobre el importe final pagado de una cita completada en Studio Flow. Promociones y descuentos pueden cambiar la cantidad.</p></section>
+    <section className="dennis-catalog" id="precios"><div className="dennis-catalog-heading" data-reveal><span className="dennis-eyebrow">ELIGE TU EXPERIENCIA</span><h2>Servicios & precios</h2><p>Precios del perfil de Dennis, actualizados en Studio Flow.</p></div><div id="servicios" className="dennis-catalog-groups">{catalogState === 'loading' && <p className="dennis-catalog-status" role="status">Cargando precios del estudio...</p>}{catalogState === 'error' && <p className="dennis-catalog-status" role="alert">No pudimos consultar los precios ahora. <a href={bookLink()}>Verlos en la agenda</a>.</p>}{catalogState === 'ready' && catalogGroups.map((group) => { const groupServices = services.filter((service) => group.match.test(service.category || '')); if (!groupServices.length) return null; return <section className={`dennis-service-group dennis-service-group--${group.key}`} key={group.key}><div className="dennis-service-photo"><img src={group.image} alt={`Servicio de ${group.title.toLowerCase()}`} loading="lazy" /></div><div className="dennis-service-content"><div className="dennis-service-heading" data-reveal><span>{group.title.toUpperCase()}</span><h3>{group.line}</h3></div><div className="dennis-service-list">{groupServices.map((service) => { const price = Number(service.priceAmount ?? service.price_amount); const points = Math.round(price * rewardPercent / 10); const image = serviceImages[service.id]; return <div className="dennis-service-row" key={service.id}><img className="dennis-service-thumb" src={image ? `/dennis/services/${image}.jpg` : group.image} alt={service.name} loading="lazy" /><div className="dennis-service-info"><div className="dennis-service-title"><strong>{service.name}</strong><b>{money(price)}</b></div>{rewardsEnabled && <small><Sparkles size={14} /> {points} FP estimados al completar</small>}</div></div> })}</div><a className="dennis-service-book" href={bookLink()}>Agendar {group.title.toLowerCase()} <ArrowUpRight size={17} /></a></div></section> })}</div><p className="dennis-catalog-footnote">Los FlowPoints se calculan sobre el importe final pagado de una cita completada en Studio Flow. Promociones y descuentos pueden cambiar la cantidad.</p></section>
 
     <footer className="dennis-footer"><div><span>DC</span><strong>Dennis Chávez Beauty Studio</strong><small>Saltillo, Coahuila</small></div><div className="dennis-footer-links"><a href={bookLink()}><CalendarDays size={16} /> Reservar sin cuenta</a><a href="https://www.instagram.com/dennisbeautystudio/" target="_blank" rel="noreferrer">Instagram</a><a href={MAPS_URL} target="_blank" rel="noreferrer"><MapPin size={16} /> Cómo llegar</a></div><p>Una experiencia en <a href="/">Studio Flow</a></p></footer>
   </main>
