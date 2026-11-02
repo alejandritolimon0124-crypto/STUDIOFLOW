@@ -71,7 +71,7 @@ function PWAInstallPrompt() {
     setIsVisible(false)
   }
 
-  if (!isVisible || /^\/reservar(?:\/|$)/.test(pathname)) return null
+  if (!isVisible || /^\/reservar(?:\/|$)/.test(pathname) || pathname === '/dennis-beauty-studio') return null
 
   return (
     <section className="pwa-install-card" aria-label="Instalar Studio Flow" data-nosnippet>
