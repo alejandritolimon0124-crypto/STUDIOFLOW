@@ -21,6 +21,7 @@ const pages = {
     title: 'Dennis Chávez Beauty Studio | Servicios, precios y citas en Saltillo',
     description: 'Consulta precios de uñas, pestañas, maquillaje, paquetes de novia y XV años en Dennis Chávez Beauty Studio. Descubre FlowPoints y reserva en Studio Flow.',
     canonical: 'https://studioflow.vip/dennis-beauty-studio',
+    image: 'https://studioflow.vip/service-makeup.jpg',
   },
 }
 
@@ -46,6 +47,8 @@ export default function SeoMeta() {
     setMeta('meta[property="og:title"]', 'content', page?.title || 'Studio Flow')
     setMeta('meta[property="og:description"]', 'content', page?.description || 'Studio Flow: belleza, citas y beneficios en un solo lugar.')
     setMeta('meta[property="og:url"]', 'content', page?.canonical || `https://studioflow.vip${pathname}`)
+    setMeta('meta[property="og:image"]', 'content', page?.image || 'https://studioflow.vip/studioflow-launch-brand-v5-512.png')
+    setMeta('meta[name="twitter:image"]', 'content', page?.image || 'https://studioflow.vip/studioflow-launch-brand-v5-512.png')
 
     let canonical = document.head.querySelector('link[rel="canonical"]')
     if (page) {

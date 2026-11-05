@@ -46,6 +46,10 @@
   ],
   "rewrites": [
     {
+      "source": "/dennis-beauty-studio",
+      "destination": "/dennis-beauty-studio/index.html"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }

@@ -2,6 +2,7 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
+import { resolve } from 'node:path'
 
 const require = createRequire(import.meta.url)
 const excelPath = require.resolve('exceljs/dist/exceljs.min.js')
@@ -26,6 +27,10 @@ export default defineConfig({
   build: {
     sourcemap: false,
     rolldownOptions: {
+      input: {
+        main: resolve(import.meta.dirname, 'index.html'),
+        dennis: resolve(import.meta.dirname, 'dennis-beauty-studio/index.html'),
+      },
       output: {
         codeSplitting: {
           groups: [
