@@ -21,7 +21,7 @@ const pages = {
     title: 'Dennis Chávez Beauty Studio | Servicios, precios y citas en Saltillo',
     description: 'Consulta precios de uñas, pestañas, maquillaje, paquetes de novia y XV años en Dennis Chávez Beauty Studio. Descubre FlowPoints y reserva en Studio Flow.',
     canonical: 'https://studioflow.vip/dennis-beauty-studio',
-    image: 'https://studioflow.vip/service-makeup.jpg',
+    image: 'https://studioflow.vip/dennis/dennis-share-v2.jpg',
   },
 }
 
