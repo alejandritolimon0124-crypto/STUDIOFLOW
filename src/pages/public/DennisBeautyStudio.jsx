@@ -19,7 +19,7 @@ const bridalPackages = [
 ]
 
 const bridalExtras = [
-  { name: 'Civil / despedida', price: 2500, detail: 'Maquillaje y peinado de novia' },
+  { name: 'Civil / despedida', price: 3000, detail: 'Maquillaje y peinado de novia' },
   { name: 'Familia & friends', price: 1350, detail: 'Maquillaje y peinado' },
   { name: 'Maquillaje social adicional', price: 880, detail: 'Amiga, familiar o dama' },
 ]
